@@ -1,0 +1,139 @@
+# ---=== IMPORT
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot.Globals import Globals
+from Awubot.MoveManager import MoveManager
+from Awubot.Util import Util
+from Generated.bbot.Attacker import Attacker
+from Generated.bbot.Builder import Builder
+from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
+from Generated.bbot.HealExecutor import HealExecutor
+from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
+from Generated.bbot.States import StateBuildHarvester, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
+from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
+from Generated.build.BuildManager import BuildManager
+from Generated.build.OreExecutive import OreExecutive
+from Generated.build.OrePositionPicker import OrePositionPicker
+from Generated.build.RouteToCore import RouteToCore
+from Generated.build.SuicideExecutor import SuicideExecutor
+from Generated.comms.Comms import Comms
+from Generated.comms.Marker import Marker
+from Generated.comms.MarkerPositionPicker import MarkerPositionPicker
+from Generated.Constants import Constants
+from Generated.core.Core import Core
+from Generated.core.CoreHistory import CoreHistory
+from Generated.core.SpawnManager import SpawnManager
+from Generated.debug.Debug import Color, Debug
+from Generated.debug.Profiler import Profiler
+from Generated.explore.Explore import Explore
+from Generated.map.DarkForest import TreeNode, DarkForest
+from Generated.map.Map import TileInfo, Map
+from Generated.map.Symmetry import Sym, Symmetry
+from Generated.MarketMaker import MarketMaker
+from Generated.nav.BfsBureau import BfsBureau
+from Generated.nav.Pathfinder import Pathfinder
+from Generated.RobotPlayer import Entrypoint, Player
+from Generated.sentinel.Sentinel import Sentinel
+from Generated.sentinel.SentinelSupervisor import SentinelTargetInfo, SentinelSupervisor
+from Generated.units.Unit import Unit
+# ===--- IMPORT
+
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+
+
+class HealTargetInfo:
+    position: Position
+    building_heal: int
+    building_hp: int
+    bot_heal: int
+    bot_hp: int
+
+    @staticmethod
+    def is_better_than(a: HealTargetInfo, b: HealTargetInfo) -> bool:
+        if a.building_heal != b.building_heal:
+            return a.building_heal > b.building_heal
+
+        if a.building_hp != b.building_hp:
+            return a.building_hp < b.building_hp
+
+        if a.bot_heal != b.bot_heal:
+            return a.bot_heal > b.bot_heal
+
+        if a.bot_hp != b.bot_hp:
+            return a.bot_hp < b.bot_hp
+
+        return False
+
+
+class HealTargeter:
+    targets: list[HealTargetInfo] = []
+
+
+    @classmethod
+    def get_best_target(cls) -> Position | None:
+        targets = cls.targets
+        if not targets:
+            return None
+
+        best = targets[0]
+        for cand in targets[1:]:
+            if HealTargetInfo.is_better_than(cand, best):
+                best = cand
+
+        if best.building_heal + best.bot_heal < {{ GameConstants.HEAL_AMOUNT }}:
+            return None
+
+        {% if LOCAL %}
+        print(f'HealTargeter {best.position=} {best.building_heal=} {best.building_hp=}')
+        {% endif %}
+
+        return best.position
+
+
+    @classmethod
+    def fill(cls):
+        cls.targets = []
+        targets = cls.targets
+
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            ti: TileInfo
+
+            info = HealTargetInfo()
+            info.position = pos
+            info.building_heal = 0
+            info.bot_heal = 0
+            info.building_hp = {{ INF }}
+            info.bot_hp = {{ INF }}
+
+            if ti.has_building and ti.is_building_ally:
+                info.building_heal = min(
+                    {{ GameConstants.HEAL_AMOUNT }},
+                    Constants.MAX_HP_MAP[ti.entity_type] - ti.building_hp
+                )
+                info.building_hp = ti.building_hp
+
+            if ti.has_bot and ti.is_bot_ally:
+                info.bot_heal = min(
+                    {{ GameConstants.HEAL_AMOUNT }},
+                    {{ GameConstants.BUILDER_BOT_MAX_HP }} - ti.bot_hp
+                )
+                info.bot_hp = ti.bot_hp
+
+            {# /* if info.building_heal == info.bot_heal == 0: */ #}
+                {# /* continue  # prune */ #}
+
+            targets.append(info)
+
+

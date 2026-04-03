@@ -1,0 +1,524 @@
+# ---=== IMPORT
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot.Globals import Globals
+from Awubot.MoveManager import MoveManager
+from Awubot.Util import Util
+from Generated.bbot.Attacker import Attacker
+from Generated.bbot.Builder import Builder
+from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
+from Generated.bbot.HealExecutor import HealExecutor
+from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
+from Generated.bbot.States import StateBuildHarvester, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
+from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
+from Generated.build.BuildManager import BuildManager
+from Generated.build.OreExecutive import OreExecutive
+from Generated.build.OrePositionPicker import OrePositionPicker
+from Generated.build.RouteToCore import RouteToCore
+from Generated.build.SuicideExecutor import SuicideExecutor
+from Generated.comms.Comms import Comms
+from Generated.comms.Marker import Marker
+from Generated.comms.MarkerPositionPicker import MarkerPositionPicker
+from Generated.Constants import Constants
+from Generated.core.Core import Core
+from Generated.core.CoreHistory import CoreHistory
+from Generated.core.SpawnManager import SpawnManager
+from Generated.debug.Debug import Color, Debug
+from Generated.debug.Profiler import Profiler
+from Generated.explore.Explore import Explore
+from Generated.map.DarkForest import TreeNode, DarkForest
+from Generated.map.Map import TileInfo, Map
+from Generated.map.Symmetry import Sym, Symmetry
+from Generated.MarketMaker import MarketMaker
+from Generated.nav.BfsBureau import BfsBureau
+from Generated.nav.Pathfinder import Pathfinder
+from Generated.RobotPlayer import Entrypoint, Player
+from Generated.sentinel.Sentinel import Sentinel
+from Generated.sentinel.SentinelSupervisor import SentinelTargetInfo, SentinelSupervisor
+from Generated.units.Unit import Unit
+# ===--- IMPORT
+
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+
+
+{% set _dlut = [7, 6, 5, 0, -1, 4, 1, 2, 3] %}
+
+class BfsBureau:
+    weight: list[int]
+    dist_bridge: list[int]
+    passable_int: int
+    STRIDE: int
+
+    @classmethod
+    def init(cls):
+        W, H = Map.W, Map.H
+
+        dist = [{{ INF1 }}] * {{ PADDED_GRID_SIZE }}
+        weight = [{{ INF }}] * {{ PADDED_GRID_SIZE }}
+
+        row_inf = [{{ INF }}] * H
+        row_1 = [{{ 1 }}] * H
+        for x in range(W):
+            base = (x + {{ PAD }}) * {{ PH }} + {{ PAD }}
+            dist[base:base + H] = row_inf
+            weight[base:base + H] = row_1
+
+        cls.dist_bridge = dist
+        cls.weight = weight
+
+        S = H + 1
+        cls.STRIDE = S
+        col_mask = (1 << H) - 1
+        p = 0
+        for x in range(W):
+            p |= col_mask << (x * S)
+        cls.passable_int = p
+
+
+# ---===
+    @classmethod
+    def update(cls):
+        tile_info = Map.tile_info
+        weight = cls.weight
+        stride = cls.STRIDE
+
+        for pos in chain(Map.nearby_tiles, Map.new_syms):
+            x, y = pos.x, pos.y
+            ti = tile_info[x][y]
+
+            {% set idx -%}
+                ((pos.x + {{ PAD }}) * {{ PH }} + (pos.y + {{ PAD }}))
+            {%- endset %}
+            idx = {{ idx }}
+            _bit_mask = 1 << (x * stride + y)
+
+            if ti.env != Environment.WALL:
+                if ti.easily_passable:
+                    weight[idx] = 1
+                    cls.passable_int |= _bit_mask
+                elif ti.has_building:
+                    weight[idx] = {{ INF }}
+                    cls.passable_int &= ~_bit_mask
+                else:
+                    weight[idx] = 2
+                    cls.passable_int |= _bit_mask
+            else:
+                weight[idx] = {{ INF }}
+                cls.passable_int &= ~_bit_mask
+
+            if (
+                ti.env == Environment.EMPTY and
+                (
+                    (not ti.has_building) or
+                    ((etype := ti.entity_type) == EntityType.MARKER) or
+                    (ti.is_building_ally and (
+                        etype == EntityType.ROAD or etype == EntityType.CORE))
+                )
+            ):
+                cls.dist_bridge[idx] = {{ INF }}
+            else:
+                cls.dist_bridge[idx] = {{ INF1 }}
+# ===---
+
+    # works. but slow
+# ---===
+    @classmethod
+    def find_bridge_route(cls, start: Position, sink_set: set[int], max_iter: int = 1000):
+        {% set main_bridge_offsets = [
+            (3,0),(-3,0),(0,3),(0,-3),
+            (2,2),(2,-2),(-2,-2),(-2,2),
+        ] %}
+
+        {% set seed_bridge_offsets = [
+            (3,0),(-3,0),(0,3),(0,-3),
+            (2,2),(2,-2),(-2,-2),(-2,2),
+            (1,2),(2,1),(2,-1),(1,-2),
+            (-1,-2),(-2,-1),(-2,1),(-1,2),
+        ] %}
+
+        dist = cls.dist_bridge[:]
+        first_hop = [None] * {{ PADDED_GRID_SIZE }}
+
+        sx, sy = start.x, start.y
+        si = {{ encode_pos('sx', 'sy') }}
+        dist[si] = 0
+
+        # sink nodes are destinations, not transit — make them visible to BFS
+        # we return immediately on first hit, so they're never traversed through
+        for s in sink_set:
+            if dist[s] == {{ INF1 }}:  # redundant check?
+                dist[s] = {{ INF }}
+
+        q = deque()
+        _qa = q.append
+
+        {% set CONVEYOR_DEPTH = 4 %}
+
+        # ── Phase 1: conveyor mini-BFS (≤4 cardinal steps from start) ──
+        conv_reached = []
+        _cra = conv_reached.append
+
+        # First cardinal step: first_hop = that adjacent tile
+        conv_front = []
+        _cfa = conv_front.append
+        {% for dx, dy in [(1,0),(-1,0),(0,1),(0,-1)] %}
+        ni = si + {{ dx * PH + dy }}
+        if dist[ni] == {{ INF }}:
+            dist[ni] = -1
+            first_hop[ni] = (sx {{ sign0(dx) }}, sy {{ sign0(dy) }})
+            _cfa(ni)
+            _cra(ni)
+        {% endfor %}
+
+        # Steps 2–4: propagate first_hop from parent
+        {% for _ in range(CONVEYOR_DEPTH - 1) %}
+        conv_next = []
+        _cna = conv_next.append
+        for cidx in conv_front:
+            _fh = first_hop[cidx]
+            {% for dx, dy in [(1,0),(-1,0),(0,1),(0,-1)] %}
+            ni = cidx + {{ dx * PH + dy }}
+            if dist[ni] == {{ INF }}:
+                dist[ni] = -1
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+            {% endfor %}
+        conv_front = conv_next
+        {% endfor %}
+
+        # ── Phase 2: seed conveyors first (priority over bridges) ──
+
+        for cidx in conv_reached:
+            if dist[cidx] == -1:
+                dist[cidx] = 1
+                if cidx in sink_set:
+                    return 1, first_hop[cidx]
+                _qa(cidx)
+
+        # ── Phase 3: bridge seeds for tiles conveyors couldn't reach ──
+        {% for dx, dy in seed_bridge_offsets %}
+        ni = si + {{ dx * PH + dy }}
+        if dist[ni] == {{ INF }}:
+            dist[ni] = 1
+            first_hop[ni] = (sx {{ sign0(dx) }}, sy {{ sign0(dy) }})
+            if ni in sink_set:
+                return 1, first_hop[ni]
+            _qa(ni)
+        {% endfor %}
+
+        # ── Phase 4: main bridge BFS ──
+
+        it = 0
+        while q and (it := it + 1) <= max_iter:
+            idx = q.popleft()
+            d = dist[idx] + 1
+            fh = first_hop[idx]
+
+            {% for dx, dy in main_bridge_offsets %}
+            ni = idx + {{ dx * PH + dy }}
+            if dist[ni] == {{ INF }}:
+                dist[ni] = d
+                first_hop[ni] = fh
+                if ni in sink_set:
+                    return d, fh
+                _qa(ni)
+            {% endfor %}
+
+        return {{ INF }}, None
+# ===---
+
+    # outward depth-limited dijkstra + bitmask bfs
+    # ---===
+    @classmethod
+    def find_route(cls, start: Position, target: Position,
+                   ban_target: bool = False,
+                   center_weight: int = 1) -> tuple[int, Direction | None]:
+        {% set WEIGHTED_DEPTH = 8 %}
+
+        sx, sy = start.x, start.y
+        _tx, _ty = target.x, target.y
+
+        weight = cls.weight.copy()
+        stride = cls.STRIDE
+
+        si = {{ encode_pos('sx', 'sy') }}
+        ti = {{ encode_pos('_tx', '_ty') }}
+
+        _D = ({% for d in range(8) %}{{ directions[d] }}{% if not loop.last %}, {% endif %}{% endfor %})
+
+        # ── Same-tile: CENTRE competes with neighbors ──
+        if si == ti:
+            if ban_target:
+                _best_c = {{ INF }}
+                _best_d = None
+            else:
+                _best_c = center_weight
+                _best_d = Direction.CENTRE if center_weight < {{ INF }} else None
+            {% for dir in range(8) %}
+            ni = si + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
+            w = weight[ni]
+            if w < _best_c and MoveManager.can_fill_move({{ directions[dir] }}):
+                _best_c = w
+                _best_d = {{ directions[dir] }}
+            {% endfor %}
+            if _best_d is not None:
+                return _best_c, _best_d
+            return {{ INF }}, None
+
+        # ── Adjacent to banned target: CENTRE competes, but ti is excluded ──
+        if ban_target:
+            _d = si - ti
+            _ad = _d if _d >= 0 else -_d
+            if _ad == 1 or _ad == {{ PH - 1 }} or _ad == {{ PH }} or _ad == {{ PH + 1 }}:
+                _best_c = center_weight
+                _best_d = Direction.CENTRE if center_weight < {{ INF }} else None
+                {% for dir in range(8) %}
+                ni = si + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
+                if ni != ti:
+                    w = weight[ni]
+                    if w < _best_c and MoveManager.can_fill_move({{ directions[dir] }}):
+                        _best_c = w
+                        _best_d = {{ directions[dir] }}
+                {% endfor %}
+                if _best_d is not None:
+                    return _best_c, _best_d
+                return {{ INF }}, None
+
+        weight[ti] = 1  # allow target
+
+        # we do this because try...finally is banned by engine
+        {% set before_ret -%}
+        # don't need to save anymore!
+        {%- endset %}
+
+        # ── Phase 1: weighted Dijkstra up to {{ WEIGHTED_DEPTH }} ──
+        dist = [{{ INF }}] * {{ PADDED_GRID_SIZE }}
+        fhd  = [0]       * {{ PADDED_GRID_SIZE }}
+        dist[si] = 0
+
+        heap  = []
+        _hp   = heapq.heappush
+        _hpop = heapq.heappop
+
+        _settled = [si]
+        _sa = _settled.append
+
+        {% for dir in range(8) %}
+        ni = si + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
+        if weight[ni] < {{ INF }} and MoveManager.can_fill_move({{ directions[dir] }}):
+            w = weight[ni]
+            dist[ni] = w
+            fhd[ni]  = {{ dir }}
+            if ni == ti:
+                {{ before_ret }}
+                return w, {{ directions[dir] }}
+            _hp(heap, (w, ni))
+        {% endfor %}
+
+        phase2_seeds = []
+        _p2a = phase2_seeds.append
+
+        while heap:
+            d, idx = _hpop(heap)
+            if d > dist[idx]:
+                continue
+
+            _sa(idx)
+
+            if d >= {{ WEIGHTED_DEPTH }}:
+                _p2a(idx)
+                while heap:
+                    _dd, _idx = _hpop(heap)
+                    if _dd == dist[_idx]:
+                        _sa(_idx)
+                        _p2a(_idx)
+                break
+
+            _fh = fhd[idx]
+            {% for dir in range(8) %}
+            ni = idx + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
+            w  = weight[ni]
+            if w < {{ INF }}:
+                nd = d + w
+                if nd < dist[ni]:
+                    dist[ni] = nd
+                    fhd[ni]  = _fh
+                    if ni == ti:
+                        {{ before_ret }}
+                        return nd, _D[_fh]
+                    _hp(heap, (nd, ni))
+            {% endfor %}
+
+        if not phase2_seeds:
+            {{ before_ret }}
+            return {{ INF }}, None
+
+        # ── Phase 2: bitmask BFS from Dijkstra frontier ──
+        {{ P.start() }}
+        _tb = _tx * stride + _ty
+        _tm = 1 << _tb
+        _uc = cls.passable_int | _tm
+
+        _settled_bits = 0
+        for _ci in _settled:
+            _cx = _ci // {{ PH }} - {{ PAD }}
+            _cy = _ci % {{ PH }} - {{ PAD }}
+            _settled_bits |= 1 << (_cx * stride + _cy)
+        _uc &= ~_settled_bits
+
+        {% for dir in range(8) %}
+        _fh{{ dir }} = 0
+        _md{{ dir }} = {{ INF }}
+        {% endfor %}
+
+        for _ci in phase2_seeds:
+            _cx = _ci // {{ PH }} - {{ PAD }}
+            _cy = _ci % {{ PH }} - {{ PAD }}
+            _di = fhd[_ci]
+            _bit = 1 << (_cx * stride + _cy)
+            {% for dir in range(8) %}
+            {{ 'if' if loop.first else 'elif' }} _di == {{ dir }}:
+                _fh{{ dir }} |= _bit
+                if dist[_ci] < _md{{ dir }}:
+                    _md{{ dir }} = dist[_ci]
+            {% endfor %}
+
+        _bfs_d = 0
+        while True:
+            _any = False
+
+            {% for dir in range(8) %}
+            _f = _fh{{ dir }}
+            if _f:
+                _v = _f | (_f << 1) | (_f >> 1)
+                _e = (_v | (_v << stride) | (_v >> stride)) & _uc
+                if _e:
+                    _fh{{ dir }} = _e
+                    _uc ^= _e
+                    _any = True
+                    if _e & _tm:
+                        {{ before_ret }}
+                        return _md{{ dir }} + _bfs_d + 1, _D[{{ dir }}]
+                else:
+                    _fh{{ dir }} = 0
+            {% endfor %}
+
+            if not _any:
+                break
+            _bfs_d += 1
+
+        {{ before_ret }}
+        return {{ INF }}, None
+    # ===---
+
+    # bfs20
+# ---===
+    bfs20_dist: list[int] = [{{ INF }}] * {{ PADDED_GRID_SIZE }}
+    _bfs20_touched_indices: list[int] = []
+    _BFS20_VALID_OFFSETS = frozenset({
+        {% for dx in range(-4, 5) %}
+        {% for dy in range(-4, 5) %}
+        {% if dx*dx + dy*dy <= 20 %}
+        {{ dx * PH + dy }},
+        {% endif %}
+        {% endfor %}
+        {% endfor %}
+    })
+# ===---
+# ---===
+    @classmethod
+    def bfs20(cls):
+        """Weighted Dijkstra from pos, limited to tiles within vision r²≤20."""
+        weight = cls.weight
+        distances = cls.bfs20_dist
+        IMPASSABLE = {{ INF }}
+
+        # Reset tiles touched by the previous call
+        for touched_index in cls._bfs20_touched_indices:
+            distances[touched_index] = IMPASSABLE
+
+        pos = Globals.my_pos
+        start_x, start_y = pos.x, pos.y
+        start_index = {{ encode_pos('start_x', 'start_y') }}
+
+        distances[start_index] = 0
+        touched_indices = [start_index]
+        valid_offsets = cls._BFS20_VALID_OFFSETS
+
+        priority_queue = []
+        push_to_queue = heapq.heappush
+        pop_from_queue = heapq.heappop
+
+        # Seed immediate neighbours (all within r²≤2, no bounds check needed)
+        {% for dir in range(8) %}
+        neighbor_index = start_index + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
+        tile_weight = weight[neighbor_index]
+        if tile_weight < IMPASSABLE:
+            distances[neighbor_index] = tile_weight
+            touched_indices.append(neighbor_index)
+            push_to_queue(priority_queue, (tile_weight, neighbor_index))
+        {% endfor %}
+
+        # Main Dijkstra loop
+        while priority_queue:
+            current_dist, current_index = pop_from_queue(priority_queue)
+            if current_dist > distances[current_index]:
+                continue
+            {% for dir in range(8) %}
+            neighbor_index = current_index + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
+            if (neighbor_index - start_index) in valid_offsets:
+                tile_weight = weight[neighbor_index]
+                if tile_weight < IMPASSABLE:
+                    new_dist = current_dist + tile_weight
+                    if new_dist < distances[neighbor_index]:
+                        distances[neighbor_index] = new_dist
+                        touched_indices.append(neighbor_index)
+                        push_to_queue(priority_queue, (new_dist, neighbor_index))
+            {% endfor %}
+
+        cls._bfs20_touched_indices = touched_indices
+# ===---
+# ---===
+    @classmethod
+    def debug_bfs20(cls):
+        """Draw indicator dots for all tiles within r²≤20 of pos.
+        WHITE = reachable (finite distance), BLACK = impassable/unreachable."""
+        distances = cls.bfs20_dist
+        IMPASSABLE = {{ INF }}
+
+        pos = Globals.my_pos
+        start_x, start_y = pos.x, pos.y
+        start_index = {{ encode_pos('start_x', 'start_y') }}
+
+        {% for dx in range(-4, 5) %}
+        {% for dy in range(-4, 5) %}
+        {% if dx*dx + dy*dy <= 20 %}
+        tile_x = start_x + {{ dx }}
+        tile_y = start_y + {{ dy }}
+        if 0 <= tile_x < Map.W and 0 <= tile_y < Map.H:
+            tile_index = start_index + {{ dx * PH + dy }}
+            if distances[tile_index] < IMPASSABLE:
+                Debug.dot(Position(tile_x, tile_y), Color.WHITE)
+            else:
+                Debug.dot(Position(tile_x, tile_y), Color.BLACK)
+        {% endif %}
+        {% endfor %}
+        {% endfor %}
+# ===---
+
+    @classmethod
+    def get_bfs20_dist(cls, pos: Position):
+        return cls.bfs20_dist[{{ encode_pos('pos.x', 'pos.y') }}]
