@@ -19,7 +19,7 @@ from Generated.bbot.Builder import Builder
 from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
-from Generated.bbot.States import StateBuildHarvester, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
+from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
 from Generated.build.OreExecutive import OreExecutive
@@ -792,7 +792,7 @@ class BfsBureau:
             return 1000000, None
 
         # ── Phase 2: bitmask BFS from Dijkstra frontier ──
-        
+        Profiler.start()
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = cls.passable_int | _tm
