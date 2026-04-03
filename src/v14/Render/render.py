@@ -1,4 +1,5 @@
 import polyfill
+import polyfill_controller
 import comms
 import utils
 import constants
@@ -35,7 +36,8 @@ env.globals.update({
 utils.register(env)
 constants.register(env)
 comms.register(env)
-polyfill.register(env)
+# polyfill.register(env)  don't use
+polyfill_controller.register(env)  # type: ignore
 
 
 def render(template_dir=Path("..") / "Awubot"):

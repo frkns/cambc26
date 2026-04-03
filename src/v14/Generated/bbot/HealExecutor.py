@@ -346,12 +346,11 @@ class HealExecutor:
                 )
                 cand.building_hp = ti.building_hp
 
-            if ti.has_bot and ti.is_bot_ally:
-                cand.bot_heal = min(
-                    4,
-                    30 - ti.bot_hp
-                )
-                cand.bot_hp = ti.bot_hp
+            cand.bot_heal = min(
+                4,
+                30 - Globals.ct.get_hp()
+            )
+            cand.bot_hp = Globals.ct.get_hp() 
         else:
             cand.is_accessible = False
 
