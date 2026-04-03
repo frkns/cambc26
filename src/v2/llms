@@ -1,0 +1,388 @@
+# Cambridge Battlecode
+
+## Docs
+
+- [Game Constants](https://docs.battlecode.cam/api/constants.md): All numeric constants available via GameConstants.
+- [Controller](https://docs.battlecode.cam/api/controller.md): Complete reference for all Controller methods available to your bot.
+- [Types & Enums](https://docs.battlecode.cam/api/types.md): All game types available from `from cambc import *`.
+- [CLI reference](https://docs.battlecode.cam/getting-started/cli.md): Every command available in the cambc CLI.
+- [Your First Bot](https://docs.battlecode.cam/getting-started/first-bot.md): Write a basic bot that spawns builder bots and starts harvesting resources.
+- [Installation](https://docs.battlecode.cam/getting-started/installation.md): Install the Cambridge Battlecode CLI and run your first local match.
+- [How Matches Work](https://docs.battlecode.cam/getting-started/matches.md): How ladder matches, ratings, and the best-of-5 format work.
+- [Running Matches](https://docs.battlecode.cam/getting-started/running-matches.md): Run local matches with the CLI and view replays in the visualiser.
+- [Submitting](https://docs.battlecode.cam/getting-started/submitting.md): Upload your bot to the platform to compete on the ladder.
+- [Cambridge Battlecode](https://docs.battlecode.cam/index.md): Documentation for the Cambridge Battlecode programming competition.
+- [Builder Bot](https://docs.battlecode.cam/spec/builder-bot.md): The only mobile unit — responsible for constructing all buildings.
+- [Conveyors](https://docs.battlecode.cam/spec/conveyors.md): Transport resources across the map — conveyors, splitters, bridges, and armoured conveyors.
+- [Core](https://docs.battlecode.cam/spec/core.md): Your central building — if it's destroyed, you lose.
+- [Harvester & Foundry](https://docs.battlecode.cam/spec/harvester-and-foundry.md): Resource production — mining ore and refining axionite.
+- [Road, Barrier & Marker](https://docs.battlecode.cam/spec/other-buildings.md): Utility buildings — walkable paths, defensive walls, and inter-unit communication.
+- [Game Overview](https://docs.battlecode.cam/spec/overview.md): Objective, map, units, buildings, and win conditions for Cambridge Battlecode.
+- [Reference Tables](https://docs.battlecode.cam/spec/reference.md): Quick-reference stat tables for all entities.
+- [Resources](https://docs.battlecode.cam/spec/resources.md): Titanium, axionite, and the cost scaling formula.
+- [Turrets](https://docs.battlecode.cam/spec/turrets.md): Defensive and offensive combat units — gunner, sentinel, breach, and launcher.
+
+## Optional
+
+- [Platform](https://game.battlecode.cam)
+- [Discord](https://discord.gg/xHCygPeAq8)
+
+
+
+> ## Documentation Index
+> Fetch the complete documentation index at: https://docs.battlecode.cam/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# Conveyors
+
+> Transport resources across the map — conveyors, splitters, bridges, and armoured conveyors.
+
+All conveyors can hold **one stack** of any resource, and both accept input and produce output. Basic conveyors, splitters, and armoured conveyors point in one of the **cardinal directions**.
+
+## Conveyor
+
+<img src="https://mintcdn.com/cambridgebattlecode/W9OYBDP1YcA3tc0W/images/entities/conveyor.png?fit=max&auto=format&n=W9OYBDP1YcA3tc0W&q=85&s=487e50d068b9c397ad4c16a993f6a257" alt="Conveyor" style={{ width: 64, float: "right", marginLeft: 16 }} width="512" height="512" data-path="images/entities/conveyor.png" />
+
+Accepts resources from any of its three non-output directions. Sends its contents in the direction it is pointing if that tile can accept a resource.
+
+| Property  | Value |
+| --------- | ----- |
+| HP        | 20    |
+| Base cost | 3 Ti  |
+| Scaling   | 1%    |
+
+```python  theme={"dark"}
+# Build a conveyor pointing south
+c.build_conveyor(pos, Direction.SOUTH)
+```
+
+## Splitter
+
+<img src="https://mintcdn.com/cambridgebattlecode/W9OYBDP1YcA3tc0W/images/entities/splitter.png?fit=max&auto=format&n=W9OYBDP1YcA3tc0W&q=85&s=4e711af42fbce57a77c38341f7f2da39" alt="Splitter" style={{ width: 64, float: "right", marginLeft: 16 }} width="512" height="512" data-path="images/entities/splitter.png" />
+
+Alternates between outputting in three directions: the primary output and the two adjacent directions. **Only accepts input from the back.** Prioritises directions used least recently.
+
+| Property  | Value |
+| --------- | ----- |
+| HP        | 20    |
+| Base cost | 6 Ti  |
+| Scaling   | 1%    |
+
+## Bridge
+
+<img src="https://mintcdn.com/cambridgebattlecode/W9OYBDP1YcA3tc0W/images/entities/bridge.png?fit=max&auto=format&n=W9OYBDP1YcA3tc0W&q=85&s=662d002ce068c838da058b5924ed9772" alt="Bridge" style={{ width: 64, float: "right", marginLeft: 16 }} width="1536" height="512" data-path="images/entities/bridge.png" />
+
+Outputs its contents to a **specific tile within Euclidean distance 3** (distance² ≤ 9), chosen when built. Bridges bypass directional restrictions — they can feed any building that accepts resources. Accepts input from all directions.
+
+| Property  | Value |
+| --------- | ----- |
+| HP        | 20    |
+| Base cost | 10 Ti |
+| Scaling   | 1%    |
+
+```python  theme={"dark"}
+# Build a bridge that outputs to a target position
+c.build_bridge(bridge_pos, target_pos)
+```
+
+## Armoured Conveyor
+
+<img src="https://mintcdn.com/cambridgebattlecode/W9OYBDP1YcA3tc0W/images/entities/armoured-conveyor.png?fit=max&auto=format&n=W9OYBDP1YcA3tc0W&q=85&s=c706382c9d7e9718c9a2d3e41322a373" alt="Armoured conveyor" style={{ width: 64, float: "right", marginLeft: 16 }} width="512" height="512" data-path="images/entities/armoured-conveyor.png" />
+
+Same function as a basic conveyor but with **much more HP**. Requires refined axionite to build.
+
+| Property  | Value       |
+| --------- | ----------- |
+| HP        | 50          |
+| Base cost | 10 Ti, 5 Ax |
+| Scaling   | 1%          |
+
+## Resource distribution
+
+At the end of each round (after all units have acted), resources are distributed. Buildings that have resources to output attempt to send them to adjacent buildings that can accept them.
+
+Key rules:
+
+* Resources are always moved in **stacks of 10**
+* **Resources can be sent to enemy buildings** — be careful with conveyor placement near opponents
+* Harvesters and splitters prioritise outputting in directions **used least recently**
+* Foundries require one stack each of titanium and raw axionite before outputting one stack of refined axionite
+* Turrets only accept resources when completely empty
+
+
+Built with [Mintlify](https://mintlify.com).
+
+> ## Documentation Index
+> Fetch the complete documentation index at: https://docs.battlecode.cam/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# Harvester & Foundry
+
+> Resource production — mining ore and refining axionite.
+
+## Harvester
+
+<img src="https://mintcdn.com/cambridgebattlecode/W9OYBDP1YcA3tc0W/images/entities/harvester.png?fit=max&auto=format&n=W9OYBDP1YcA3tc0W&q=85&s=992df718cfea7d1bdf21c47ed90faddb" alt="Harvester" style={{ width: 64, float: "right", marginLeft: 16 }} width="512" height="512" data-path="images/entities/harvester.png" />
+
+Must be placed on an **ore deposit**. Outputs one stack of the corresponding resource to an adjacent building every **4 rounds**. The first output happens immediately on the round the harvester is built.
+
+Prioritises outputting in directions used least recently.
+
+| Property        | Value    |
+| --------------- | -------- |
+| HP              | 30       |
+| Base cost       | 80 Ti    |
+| Scaling         | 10%      |
+| Output interval | 4 rounds |
+
+```python  theme={"dark"}
+# Build a harvester on an ore tile
+if c.can_build_harvester(ore_pos):
+    c.build_harvester(ore_pos)
+```
+
+<Tip>
+  Harvesters are expensive (80 Ti base, +10% scaling) but they generate resources passively. Build them on ore deposits early to fund your expansion.
+</Tip>
+
+## Axionite Foundry
+
+<img src="https://mintcdn.com/cambridgebattlecode/W9OYBDP1YcA3tc0W/images/entities/foundry.png?fit=max&auto=format&n=W9OYBDP1YcA3tc0W&q=85&s=9661cc6db96a60c933245749ab6f843a" alt="Axionite foundry" style={{ width: 64, float: "right", marginLeft: 16 }} width="512" height="512" data-path="images/entities/foundry.png" />
+
+Takes one stack each of **titanium and raw axionite**, then outputs one stack of **refined axionite**. Accepts input and produces output from any side.
+
+| Property  | Value  |
+| --------- | ------ |
+| HP        | 50     |
+| Base cost | 120 Ti |
+| Scaling   | 100%   |
+
+<Warning>
+  Foundries have the highest scaling contribution at +100% each. Building one adds 100% to your cost multiplier (e.g. 1.0x → 2.0x if it's your first build, but 1.5x → 2.5x if you've already built other things). Plan carefully before committing 120 Ti.
+</Warning>
+
+### Refining process
+
+1. Feed titanium (via conveyor) → foundry stores it
+2. Feed raw axionite (via conveyor) → foundry combines them
+3. Foundry outputs one stack of refined axionite to an adjacent accepting building
+
+
+Built with [Mintlify](https://mintlify.com).
+
+> ## Documentation Index
+> Fetch the complete documentation index at: https://docs.battlecode.cam/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# Road, Barrier & Marker
+
+> Utility buildings — walkable paths, defensive walls, and inter-unit communication.
+
+## Road
+
+<img src="https://mintcdn.com/cambridgebattlecode/W9OYBDP1YcA3tc0W/images/entities/road.png?fit=max&auto=format&n=W9OYBDP1YcA3tc0W&q=85&s=62a856e25500d9cca10e041f6c621364" alt="Road" style={{ width: 64, float: "right", marginLeft: 16 }} width="512" height="512" data-path="images/entities/road.png" />
+
+Walkable tiles for builder bots to move on. The cheapest building.
+
+| Property  | Value |
+| --------- | ----- |
+| HP        | 10    |
+| Base cost | 1 Ti  |
+| Scaling   | 0.5%  |
+
+## Barrier
+
+<img src="https://mintcdn.com/cambridgebattlecode/W9OYBDP1YcA3tc0W/images/entities/barrier.png?fit=max&auto=format&n=W9OYBDP1YcA3tc0W&q=85&s=5e85d4c7c912ff7bca23755fcf4f2847" alt="Barrier" style={{ width: 64, float: "right", marginLeft: 16 }} width="512" height="512" data-path="images/entities/barrier.png" />
+
+Cheap, takes up space, and has high HP. Useful for blocking enemy paths or protecting key buildings.
+
+| Property  | Value |
+| --------- | ----- |
+| HP        | 30    |
+| Base cost | 3 Ti  |
+| Scaling   | 1%    |
+
+## Marker
+
+<img src="https://mintcdn.com/cambridgebattlecode/W9OYBDP1YcA3tc0W/images/entities/marker.png?fit=max&auto=format&n=W9OYBDP1YcA3tc0W&q=85&s=684b25be1be46ae82cb48c7205ad5910" alt="Marker" style={{ width: 64, float: "right", marginLeft: 16 }} width="512" height="512" data-path="images/entities/marker.png" />
+
+A tile containing a single **unsigned 32-bit integer** that can be read by any allied unit. Building a marker is completely free and does **not** cost action cooldown — you may place at most one marker per round.
+
+Any team may build over markers, destroying them.
+
+| Property | Value |
+| -------- | ----- |
+| HP       | 1     |
+| Cost     | Free  |
+
+<Info>
+  Markers are the **only form of communication** between allied units. Global variables are not shared between `Player` instances — each unit has its own isolated Python environment.
+</Info>
+
+<Tip>
+  All units (core, builder bots, and turrets) can place markers — not just builder bots.
+</Tip>
+
+```python  theme={"dark"}
+# Write a value to a marker
+if c.can_place_marker(pos):
+    c.place_marker(pos, 42)
+
+# Read a marker
+building_id = c.get_tile_building_id(pos)
+if building_id is not None:
+    if c.get_entity_type(building_id) == EntityType.MARKER:
+        value = c.get_marker_value(building_id)
+```
+
+### Communication patterns
+
+Since each unit's `Player` instance is isolated, markers are essential for coordination:
+
+* **Scouting reports**: Write enemy positions to markers near your core
+* **Build orders**: Use marker values as state machine flags
+* **Territory claims**: Mark tiles to avoid duplicate work
+
+
+Built with [Mintlify](https://mintlify.com).
+
+> ## Documentation Index
+> Fetch the complete documentation index at: https://docs.battlecode.cam/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# Turrets
+
+> Defensive and offensive combat units — gunner, sentinel, breach, and launcher.
+
+Every turret **except the launcher** faces in one of **8 directions**. Ammo must be fed to turrets via conveyors, from any direction except the direction the turret is facing. Diagonal turrets can be fed from all four sides.
+
+Ammo-based turrets can hold up to one stack of one resource type and only accept incoming resources when completely empty.
+
+<Info>
+  If a tile containing both a building and a unit is hit, **both** take full damage.
+</Info>
+
+## Gunner
+
+<img src="https://mintcdn.com/cambridgebattlecode/W9OYBDP1YcA3tc0W/images/entities/gunner.png?fit=max&auto=format&n=W9OYBDP1YcA3tc0W&q=85&s=62439f66dff4e5aa36645340d4daad02" alt="Gunner" style={{ width: 64, float: "right", marginLeft: 16 }} width="512" height="512" data-path="images/entities/gunner.png" />
+
+Has a vision radius of √13. Can only target the **closest non-empty tile** in the direction it is facing. Using refined axionite as ammo deals double damage.
+
+| Property      | Value                         |
+| ------------- | ----------------------------- |
+| HP            | 40                            |
+| Base cost     | 10 Ti                         |
+| Scaling       | 10%                           |
+| Damage        | 10 (20 with refined axionite) |
+| Reload        | 1 round                       |
+| Ammo per shot | 2                             |
+| Vision r²     | 13                            |
+| Attack r²     | 13 (same as vision)           |
+
+<Tabs>
+  <Tab title="Cardinal">
+        <img src="https://mintcdn.com/cambridgebattlecode/sOfFkEKzv7YbWA_S/images/ranges/gunner-cardinal.png?fit=max&auto=format&n=sOfFkEKzv7YbWA_S&q=85&s=77b1386259e4c53e81aca66c783e18d9" alt="Gunner range — cardinal direction" width="1175" height="1182" data-path="images/ranges/gunner-cardinal.png" />
+  </Tab>
+
+  <Tab title="Diagonal">
+        <img src="https://mintcdn.com/cambridgebattlecode/sOfFkEKzv7YbWA_S/images/ranges/gunner-diagonal.png?fit=max&auto=format&n=sOfFkEKzv7YbWA_S&q=85&s=9566451973643d6ba88ec8745d8137b1" alt="Gunner range — diagonal direction" width="1175" height="1182" data-path="images/ranges/gunner-diagonal.png" />
+  </Tab>
+</Tabs>
+
+## Sentinel
+
+<img src="https://mintcdn.com/cambridgebattlecode/W9OYBDP1YcA3tc0W/images/entities/sentinel.png?fit=max&auto=format&n=W9OYBDP1YcA3tc0W&q=85&s=d9e59a60e07e843f244324b5a144cb5f" alt="Sentinel" style={{ width: 64, float: "right", marginLeft: 16 }} width="512" height="512" data-path="images/entities/sentinel.png" />
+
+High range, low damage support turret. Can hit all tiles within **1 king move** (Chebyshev distance) of the straight line in its facing direction, within vision range.
+
+Using refined axionite instead of titanium as ammo adds **+3 to the action and move cooldown** of any unit directly hit — acting as a stun.
+
+| Property      | Value               |
+| ------------- | ------------------- |
+| HP            | 30                  |
+| Base cost     | 15 Ti               |
+| Scaling       | 10%                 |
+| Damage        | 20                  |
+| Reload        | 4 rounds            |
+| Ammo per shot | 10                  |
+| Vision r²     | 32                  |
+| Attack r²     | 32 (same as vision) |
+
+<Tabs>
+  <Tab title="Cardinal">
+        <img src="https://mintcdn.com/cambridgebattlecode/sOfFkEKzv7YbWA_S/images/ranges/sentinel-cardinal.png?fit=max&auto=format&n=sOfFkEKzv7YbWA_S&q=85&s=20f20ba8f92bf979e16c04f59693a25b" alt="Sentinel range — cardinal direction" width="1428" height="1325" data-path="images/ranges/sentinel-cardinal.png" />
+  </Tab>
+
+  <Tab title="Diagonal">
+        <img src="https://mintcdn.com/cambridgebattlecode/sOfFkEKzv7YbWA_S/images/ranges/sentinel-diagonal.png?fit=max&auto=format&n=sOfFkEKzv7YbWA_S&q=85&s=a729fde3208ca6ef064c5474960dcc26" alt="Sentinel range — diagonal direction" width="1428" height="1325" data-path="images/ranges/sentinel-diagonal.png" />
+  </Tab>
+</Tabs>
+
+<Tip>
+  Sentinels with refined axionite ammo are extremely powerful — a +3 cooldown stun can completely shut down enemy builder bots.
+</Tip>
+
+## Breach
+
+<img src="https://mintcdn.com/cambridgebattlecode/W9OYBDP1YcA3tc0W/images/entities/breach.png?fit=max&auto=format&n=W9OYBDP1YcA3tc0W&q=85&s=f1d1f22a28280a787eb9ef85f4a4f145" alt="Breach" style={{ width: 64, float: "right", marginLeft: 16 }} width="512" height="512" data-path="images/entities/breach.png" />
+
+Very high damage with **splash**. Attacks in a **180° cone** in the facing direction.
+
+| Property      | Value                                       |
+| ------------- | ------------------------------------------- |
+| HP            | 60                                          |
+| Base cost     | 30 Ti, 10 Ax                                |
+| Scaling       | 10%                                         |
+| Damage        | 40 direct + 20 splash (8 surrounding tiles) |
+| Reload        | 1 round                                     |
+| Ammo per shot | 5 (refined axionite only)                   |
+| Vision r²     | 10                                          |
+| Attack r²     | 5                                           |
+
+<Tabs>
+  <Tab title="Cardinal">
+        <img src="https://mintcdn.com/cambridgebattlecode/sOfFkEKzv7YbWA_S/images/ranges/breach-cardinal.png?fit=max&auto=format&n=sOfFkEKzv7YbWA_S&q=85&s=6772d55191483a12387ffe30564d9229" alt="Breach range — cardinal direction" width="1257" height="1180" data-path="images/ranges/breach-cardinal.png" />
+  </Tab>
+
+  <Tab title="Diagonal">
+        <img src="https://mintcdn.com/cambridgebattlecode/sOfFkEKzv7YbWA_S/images/ranges/breach-diagonal.png?fit=max&auto=format&n=sOfFkEKzv7YbWA_S&q=85&s=3bd0b9962a4ff67130873b0422ba77f9" alt="Breach range — diagonal direction" width="1257" height="1180" data-path="images/ranges/breach-diagonal.png" />
+  </Tab>
+</Tabs>
+
+<Warning>
+  Breach turrets have **friendly fire** on the splash damage (8 surrounding tiles). They do not damage themselves.
+</Warning>
+
+## Launcher
+
+<img src="https://mintcdn.com/cambridgebattlecode/W9OYBDP1YcA3tc0W/images/entities/launcher.png?fit=max&auto=format&n=W9OYBDP1YcA3tc0W&q=85&s=0f147103b2279e8b33821454d9377b40" alt="Launcher" style={{ width: 64, float: "right", marginLeft: 16 }} width="512" height="512" data-path="images/entities/launcher.png" />
+
+Picks up and **throws adjacent builder bots** to a target tile within range. The target tile must be bot-passable. Unlike other turrets, launchers have **no facing direction** and do not use ammo.
+
+| Property  | Value               |
+| --------- | ------------------- |
+| HP        | 30                  |
+| Base cost | 20 Ti               |
+| Scaling   | 10%                 |
+| Reload    | 1 round             |
+| Vision r² | 26                  |
+| Attack r² | 26 (same as vision) |
+
+<img src="https://mintcdn.com/cambridgebattlecode/sNfop_mvBaJIfJyf/images/ranges/launcher.png?fit=max&auto=format&n=sNfop_mvBaJIfJyf&q=85&s=6ad5adfed217c4f27cf37e1a9feb323f" alt="Launcher range — blue is vision, red is throw range" width="1287" height="1283" data-path="images/ranges/launcher.png" />
+
+```python  theme={"dark"}
+# Build a launcher (no direction needed)
+c.build_launcher(pos)
+
+# Launch a builder bot to a distant position
+if c.can_launch(bot_pos, target_pos):
+    c.launch(bot_pos, target_pos)
+```
+
+
+Built with [Mintlify](https://mintlify.com).
+
+---
+
+Project Code Structure
+mix of .py and .pyj2 (jinja2 codegen) files.

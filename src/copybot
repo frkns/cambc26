@@ -54,8 +54,8 @@ def main():
     #     cwd=destination,
     #     check=True,
     # )
-
-    subprocess.run(["git", "init"], cwd=destination, check=True)
+    #
+    # subprocess.run(["git", "init"], cwd=destination, check=True)
 
     print("Done.")
 

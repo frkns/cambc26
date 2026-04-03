@@ -1,0 +1,80 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot.Constants import Constants
+from Awubot.Globals import Globals
+from Awubot.MoveManager import MoveManager
+from Awubot.Util import Util
+from Awubot.debug.Profiler import Profiler
+from Awubot.explore.Explore import Explore
+from Generated.MarketMaker import MarketMaker
+from Generated.RobotPlayer import Entrypoint, Player
+from Generated.Unit import Unit
+from Generated.build.BuildManager import BuildManager
+from Generated.build.Builder import BuilderState, Builder
+from Generated.build.OreExecutive import OreExecutive
+from Generated.build.OrePositionPicker import OrePositionPicker
+from Generated.build.RouteToCore import RouteToCore
+from Generated.build.SuicideExecutor import SuicideExecutor
+from Generated.core.Core import Core
+from Generated.debug.Debug import Color, Debug
+from Generated.heal.HealExecutor import HealExecutor
+from Generated.map.DarkForest import DarkForest
+from Generated.map.Map import TileInfo, Map
+from Generated.map.Symmetry import Sym, Symmetry
+from Generated.nav.BfsBureau import BfsBureau
+from Generated.nav.DirectionPicker import DirectionPicker
+from Generated.nav.Pathfinder import Pathfinder
+
+
+
+class OreExecutive:
+    banned: set[tuple[int, int]] = set()
+    ore_pos: Position | None = None
+
+    @classmethod
+    def find_ore_to_mine(cls) -> Position | None:
+        # TODO: passable check
+        ct = Globals.ct
+        tile_info = Map.tile_info
+
+        if cls.ore_pos is not None:
+            ti = tile_info[cls.ore_pos.x][cls.ore_pos.y]
+            if ti.has_building:
+                cls.ore_pos = None
+            else:
+                return cls.ore_pos
+
+        for pos in Map.nearby_tiles:
+            ti = tile_info[pos.x][pos.y]
+            env = ti.env
+            if env != Environment.ORE_TITANIUM:
+                continue
+            # if ti.entity_type == EntityType.HARVESTER:
+            #     continue
+            if ti.has_building:
+                continue
+            cls.ore_pos = pos
+            return pos
+
+        return None
+
+
+    @classmethod
+    def go_build_harvester(cls, pos):
+        Pathfinder.move_to(pos, ban_target_pos=True)
+        if BuildManager.can_dbuild_harvester(pos):
+            Debug.line(pos, Color.YELLOW)
+            BuildManager.dbuild_harvester(pos)
+
+            cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
+            RouteToCore.set_pos(cand.position)

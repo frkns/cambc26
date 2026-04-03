@@ -1,0 +1,96 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot.Constants import Constants
+from Awubot.Globals import Globals
+from Awubot.MoveManager import MoveManager
+from Awubot.Util import Util
+from Awubot.debug.Profiler import Profiler
+from Awubot.explore.Explore import Explore
+from Generated.MarketMaker import MarketMaker
+from Generated.RobotPlayer import Entrypoint, Player
+from Generated.Unit import Unit
+from Generated.build.BuildManager import BuildManager
+from Generated.build.Builder import BuilderState, Builder
+from Generated.build.OreExecutive import OreExecutive
+from Generated.build.OrePositionPicker import OrePositionPicker
+from Generated.build.RouteToCore import RouteToCore
+from Generated.build.SuicideExecutor import SuicideExecutor
+from Generated.core.Core import Core
+from Generated.debug.Debug import Color, Debug
+from Generated.heal.HealExecutor import HealExecutor
+from Generated.map.DarkForest import TreeNode, DarkForest
+from Generated.map.Map import TileInfo, Map
+from Generated.map.Symmetry import Sym, Symmetry
+from Generated.nav.BfsBureau import BfsBureau
+from Generated.nav.DirectionPicker import DirectionPicker
+from Generated.nav.Pathfinder import Pathfinder
+
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+
+
+class Unit:
+    core_pos: Position
+    core_pos_list: list[tuple[int, int]]
+    core_pos_set: set[int]
+
+    @staticmethod
+    def init():
+        BfsBureau.init()
+
+        core_id = Globals.ct.get_tile_building_id(Globals.ct.get_position())
+        Unit.core_pos = Globals.ct.get_position(core_id)
+        x = Unit.core_pos.x
+        y = Unit.core_pos.y
+        Unit.core_pos_list = [
+            {% for i in range(9) %}
+            (x {{ sign0(Dir.dx[i]) }}, y {{ sign0(Dir.dy[i]) }}),
+            {% endfor %}
+        ]
+        idx = {{ encode_pos('x', 'y') }}
+        Unit.core_pos_set = {
+            {% for dir in directions %}
+            {% set dx, dy = dir.delta() %}
+            idx {{ sign0(dx * PH + dy) }},
+            {% endfor %}
+        }
+
+
+    @classmethod
+    def start_turn(cls):
+        Globals.start_tick()
+        MarketMaker.refresh()
+
+        {{ P.start() }}
+        Map.fill_tile_info()
+        {{ P.end('fill_tile_info') }}
+
+        {{ P.start() }}
+        BfsBureau.update()
+        {{ P.end('BfsBureau.update') }}
+
+
+    @classmethod
+    def run_turn(cls):
+        pass
+
+    @classmethod
+    def end_turn(cls):
+        {% set REPORT_ROUND = min(ROUND_LIMIT + 1, 1999) if LOCAL else 1999 %}
+
+        if Globals.round == {{ REPORT_ROUND }}:
+            Profiler.report()
+        print(f'scale ratio {MarketMaker.scale_ratio:.2f}')
+
+        {# /* if Globals.round == 330: */ #}
+            {# /* Globals.ct.resign() */ #}
