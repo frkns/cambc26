@@ -1,0 +1,14 @@
+/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/target/debug/deps/pyo3_build_config-74bed368d7696afd.d: /home/sunrise/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.23.5/src/lib.rs /home/sunrise/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.23.5/src/errors.rs /home/sunrise/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.23.5/src/impl_.rs /home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/target/debug/build/pyo3-build-config-39c8ec2aebcb477f/out/pyo3-build-config-file.txt /home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/target/debug/build/pyo3-build-config-39c8ec2aebcb477f/out/pyo3-build-config.txt
+
+/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/target/debug/deps/libpyo3_build_config-74bed368d7696afd.rlib: /home/sunrise/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.23.5/src/lib.rs /home/sunrise/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.23.5/src/errors.rs /home/sunrise/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.23.5/src/impl_.rs /home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/target/debug/build/pyo3-build-config-39c8ec2aebcb477f/out/pyo3-build-config-file.txt /home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/target/debug/build/pyo3-build-config-39c8ec2aebcb477f/out/pyo3-build-config.txt
+
+/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/target/debug/deps/libpyo3_build_config-74bed368d7696afd.rmeta: /home/sunrise/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.23.5/src/lib.rs /home/sunrise/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.23.5/src/errors.rs /home/sunrise/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.23.5/src/impl_.rs /home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/target/debug/build/pyo3-build-config-39c8ec2aebcb477f/out/pyo3-build-config-file.txt /home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/target/debug/build/pyo3-build-config-39c8ec2aebcb477f/out/pyo3-build-config.txt
+
+/home/sunrise/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.23.5/src/lib.rs:
+/home/sunrise/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.23.5/src/errors.rs:
+/home/sunrise/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-build-config-0.23.5/src/impl_.rs:
+/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/target/debug/build/pyo3-build-config-39c8ec2aebcb477f/out/pyo3-build-config-file.txt:
+/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/target/debug/build/pyo3-build-config-39c8ec2aebcb477f/out/pyo3-build-config.txt:
+
+# env-dep:CARGO_PKG_VERSION=0.23.5
+# env-dep:OUT_DIR=/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/target/debug/build/pyo3-build-config-39c8ec2aebcb477f/out

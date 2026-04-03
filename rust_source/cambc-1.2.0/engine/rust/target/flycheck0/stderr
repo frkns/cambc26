@@ -1,0 +1,252 @@
+   0.073355103s  INFO prepare_target{force=false package_id=battlecode_titan v0.1.0 (/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust) target="battlecode_titan"}: cargo::core::compiler::fingerprint: dependency on `build_script_build` is newer than we are 1774931545.484691079s > 1774913919.459850352s "/home/sunrise/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-ffi-0.23.5"
+   0.078561588s  INFO prepare_target{force=false package_id=battlecode_titan v0.1.0 (/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust) target="battlecode_titan"}: cargo::core::compiler::fingerprint: fingerprint error for battlecode_titan v0.1.0 (/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust)/Check { test: false }/TargetInner { ..: lib_target("battlecode_titan", ["lib"], "/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/src/lib.rs", Edition2021) }
+   0.078604659s  INFO prepare_target{force=false package_id=battlecode_titan v0.1.0 (/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust) target="battlecode_titan"}: cargo::core::compiler::fingerprint:     err: failed to read `/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/target/debug/.fingerprint/battlecode_titan-839c12151b527f7c/lib-battlecode_titan`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: cargo_util::paths::read_bytes
+   1: cargo_util::paths::read
+   2: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   3: cargo::core::compiler::fingerprint::prepare_target
+   4: cargo::core::compiler::compile
+   5: <cargo::core::compiler::build_runner::BuildRunner>::compile
+   6: cargo::ops::cargo_compile::compile_ws
+   7: cargo::ops::cargo_compile::compile_with_exec
+   8: cargo::ops::cargo_compile::compile
+   9: cargo::commands::check::exec
+  10: <cargo::cli::Exec>::exec
+  11: cargo::main
+  12: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  13: std::rt::lang_start::<()>::{closure#0}
+  14: core::ops::function::impls::<impl core::ops::function::FnOnce<A> for &F>::call_once
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/ops/function.rs:287:21
+  15: std::panicking::catch_unwind::do_call
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panicking.rs:581:40
+  16: std::panicking::catch_unwind
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panicking.rs:544:19
+  17: std::panic::catch_unwind
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panic.rs:359:14
+  18: std::rt::lang_start_internal::{{closure}}
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/rt.rs:175:24
+  19: std::panicking::catch_unwind::do_call
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panicking.rs:581:40
+  20: std::panicking::catch_unwind
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panicking.rs:544:19
+  21: std::panic::catch_unwind
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panic.rs:359:14
+  22: std::rt::lang_start_internal
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/rt.rs:171:5
+  23: main
+  24: <unknown>
+  25: __libc_start_main
+  26: <unknown>
+   0.101368043s  INFO prepare_target{force=false package_id=battlecode_titan v0.1.0 (/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust) target="build-script-build"}: cargo::core::compiler::fingerprint: fingerprint error for battlecode_titan v0.1.0 (/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust)/RunCustomBuild/TargetInner { ..: custom_build_target("build-script-build", "/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/build.rs", Edition2021) }
+   0.101409483s  INFO prepare_target{force=false package_id=battlecode_titan v0.1.0 (/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust) target="build-script-build"}: cargo::core::compiler::fingerprint:     err: failed to read `/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/target/debug/.fingerprint/battlecode_titan-6588eddc470ac3f6/run-build-script-build-script-build`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: cargo_util::paths::read_bytes
+   1: cargo_util::paths::read
+   2: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   3: cargo::core::compiler::fingerprint::prepare_target
+   4: cargo::core::compiler::custom_build::build_work
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: <cargo::core::compiler::build_runner::BuildRunner>::compile
+   8: cargo::ops::cargo_compile::compile_ws
+   9: cargo::ops::cargo_compile::compile_with_exec
+  10: cargo::ops::cargo_compile::compile
+  11: cargo::commands::check::exec
+  12: <cargo::cli::Exec>::exec
+  13: cargo::main
+  14: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  15: std::rt::lang_start::<()>::{closure#0}
+  16: core::ops::function::impls::<impl core::ops::function::FnOnce<A> for &F>::call_once
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/ops/function.rs:287:21
+  17: std::panicking::catch_unwind::do_call
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panicking.rs:581:40
+  18: std::panicking::catch_unwind
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panicking.rs:544:19
+  19: std::panic::catch_unwind
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panic.rs:359:14
+  20: std::rt::lang_start_internal::{{closure}}
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/rt.rs:175:24
+  21: std::panicking::catch_unwind::do_call
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panicking.rs:581:40
+  22: std::panicking::catch_unwind
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panicking.rs:544:19
+  23: std::panic::catch_unwind
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panic.rs:359:14
+  24: std::rt::lang_start_internal
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/rt.rs:171:5
+  25: main
+  26: <unknown>
+  27: __libc_start_main
+  28: <unknown>
+   0.107716325s  INFO prepare_target{force=false package_id=pyo3 v0.23.5 target="pyo3"}: cargo::core::compiler::fingerprint: fingerprint dirty for pyo3 v0.23.5/Check { test: false }/TargetInner { ..: lib_target("pyo3", ["lib"], "/home/sunrise/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-0.23.5/src/lib.rs", Edition2021) }
+   0.107759535s  INFO prepare_target{force=false package_id=pyo3 v0.23.5 target="pyo3"}: cargo::core::compiler::fingerprint:     dirty: UnitDependencyInfoChanged { unit: UnitIndex(64) }
+   0.111120307s  INFO prepare_target{force=false package_id=pyo3-ffi v0.23.5 target="pyo3_ffi"}: cargo::core::compiler::fingerprint: fingerprint dirty for pyo3-ffi v0.23.5/Check { test: false }/TargetInner { ..: lib_target("pyo3_ffi", ["lib"], "/home/sunrise/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/pyo3-ffi-0.23.5/src/lib.rs", Edition2021) }
+   0.111158166s  INFO prepare_target{force=false package_id=pyo3-ffi v0.23.5 target="pyo3_ffi"}: cargo::core::compiler::fingerprint:     dirty: UnitDependencyInfoChanged { unit: UnitIndex(66) }
+   0.114673431s  INFO prepare_target{force=false package_id=battlecode_titan v0.1.0 (/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust) target="battlecode_titan"}: cargo::core::compiler::fingerprint: fingerprint error for battlecode_titan v0.1.0 (/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust)/Check { test: true }/TargetInner { ..: lib_target("battlecode_titan", ["lib"], "/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/src/lib.rs", Edition2021) }
+   0.114715777s  INFO prepare_target{force=false package_id=battlecode_titan v0.1.0 (/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust) target="battlecode_titan"}: cargo::core::compiler::fingerprint:     err: failed to read `/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/target/debug/.fingerprint/battlecode_titan-9e6e7fbe9acf78e2/test-lib-battlecode_titan`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: cargo_util::paths::read_bytes
+   1: cargo_util::paths::read
+   2: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   3: cargo::core::compiler::fingerprint::prepare_target
+   4: cargo::core::compiler::compile
+   5: <cargo::core::compiler::build_runner::BuildRunner>::compile
+   6: cargo::ops::cargo_compile::compile_ws
+   7: cargo::ops::cargo_compile::compile_with_exec
+   8: cargo::ops::cargo_compile::compile
+   9: cargo::commands::check::exec
+  10: <cargo::cli::Exec>::exec
+  11: cargo::main
+  12: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  13: std::rt::lang_start::<()>::{closure#0}
+  14: core::ops::function::impls::<impl core::ops::function::FnOnce<A> for &F>::call_once
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/ops/function.rs:287:21
+  15: std::panicking::catch_unwind::do_call
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panicking.rs:581:40
+  16: std::panicking::catch_unwind
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panicking.rs:544:19
+  17: std::panic::catch_unwind
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panic.rs:359:14
+  18: std::rt::lang_start_internal::{{closure}}
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/rt.rs:175:24
+  19: std::panicking::catch_unwind::do_call
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panicking.rs:581:40
+  20: std::panicking::catch_unwind
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panicking.rs:544:19
+  21: std::panic::catch_unwind
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panic.rs:359:14
+  22: std::rt::lang_start_internal
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/rt.rs:171:5
+  23: main
+  24: <unknown>
+  25: __libc_start_main
+  26: <unknown>
+   0.115637427s  INFO prepare_target{force=false package_id=battlecode_titan v0.1.0 (/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust) target="titan_runner"}: cargo::core::compiler::fingerprint: fingerprint error for battlecode_titan v0.1.0 (/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust)/Check { test: false }/TargetInner { name: "titan_runner", doc: true, ..: with_path("/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/src/main.rs", Edition2021) }
+   0.115676325s  INFO prepare_target{force=false package_id=battlecode_titan v0.1.0 (/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust) target="titan_runner"}: cargo::core::compiler::fingerprint:     err: failed to read `/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/target/debug/.fingerprint/battlecode_titan-c8c1fd67cc1db09a/bin-titan_runner`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: cargo_util::paths::read_bytes
+   1: cargo_util::paths::read
+   2: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   3: cargo::core::compiler::fingerprint::prepare_target
+   4: cargo::core::compiler::compile
+   5: <cargo::core::compiler::build_runner::BuildRunner>::compile
+   6: cargo::ops::cargo_compile::compile_ws
+   7: cargo::ops::cargo_compile::compile_with_exec
+   8: cargo::ops::cargo_compile::compile
+   9: cargo::commands::check::exec
+  10: <cargo::cli::Exec>::exec
+  11: cargo::main
+  12: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  13: std::rt::lang_start::<()>::{closure#0}
+  14: core::ops::function::impls::<impl core::ops::function::FnOnce<A> for &F>::call_once
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/ops/function.rs:287:21
+  15: std::panicking::catch_unwind::do_call
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panicking.rs:581:40
+  16: std::panicking::catch_unwind
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panicking.rs:544:19
+  17: std::panic::catch_unwind
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panic.rs:359:14
+  18: std::rt::lang_start_internal::{{closure}}
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/rt.rs:175:24
+  19: std::panicking::catch_unwind::do_call
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panicking.rs:581:40
+  20: std::panicking::catch_unwind
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panicking.rs:544:19
+  21: std::panic::catch_unwind
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panic.rs:359:14
+  22: std::rt::lang_start_internal
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/rt.rs:171:5
+  23: main
+  24: <unknown>
+  25: __libc_start_main
+  26: <unknown>
+   0.116520843s  INFO prepare_target{force=false package_id=battlecode_titan v0.1.0 (/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust) target="titan_runner"}: cargo::core::compiler::fingerprint: fingerprint error for battlecode_titan v0.1.0 (/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust)/Check { test: true }/TargetInner { name: "titan_runner", doc: true, ..: with_path("/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/src/main.rs", Edition2021) }
+   0.116559673s  INFO prepare_target{force=false package_id=battlecode_titan v0.1.0 (/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust) target="titan_runner"}: cargo::core::compiler::fingerprint:     err: failed to read `/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/target/debug/.fingerprint/battlecode_titan-9458a83bed65565e/test-bin-titan_runner`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: cargo_util::paths::read_bytes
+   1: cargo_util::paths::read
+   2: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   3: cargo::core::compiler::fingerprint::prepare_target
+   4: cargo::core::compiler::compile
+   5: <cargo::core::compiler::build_runner::BuildRunner>::compile
+   6: cargo::ops::cargo_compile::compile_ws
+   7: cargo::ops::cargo_compile::compile_with_exec
+   8: cargo::ops::cargo_compile::compile
+   9: cargo::commands::check::exec
+  10: <cargo::cli::Exec>::exec
+  11: cargo::main
+  12: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  13: std::rt::lang_start::<()>::{closure#0}
+  14: core::ops::function::impls::<impl core::ops::function::FnOnce<A> for &F>::call_once
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/ops/function.rs:287:21
+  15: std::panicking::catch_unwind::do_call
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panicking.rs:581:40
+  16: std::panicking::catch_unwind
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panicking.rs:544:19
+  17: std::panic::catch_unwind
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panic.rs:359:14
+  18: std::rt::lang_start_internal::{{closure}}
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/rt.rs:175:24
+  19: std::panicking::catch_unwind::do_call
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panicking.rs:581:40
+  20: std::panicking::catch_unwind
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panicking.rs:544:19
+  21: std::panic::catch_unwind
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panic.rs:359:14
+  22: std::rt::lang_start_internal
+             at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/rt.rs:171:5
+  23: main
+  24: <unknown>
+  25: __libc_start_main
+  26: <unknown>
+    Checking pyo3-ffi v0.23.5
+   Compiling battlecode_titan v0.1.0 (/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust)
+error: failed to run custom build command for `battlecode_titan v0.1.0 (/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust)`
+note: To improve backtraces for build dependencies, set the CARGO_PROFILE_DEV_BUILD_OVERRIDE_DEBUG=true environment variable to enable debug information generation.
+
+Caused by:
+  process didn't exit successfully: `/home/sunrise/cambcode/rust_source/cambc-1.2.0/engine/rust/target/debug/build/battlecode_titan-db83a46c76b72a75/build-script-build` (exit status: 101)
+  --- stdout
+  cargo:rerun-if-env-changed=PYO3_PYTHON
+  cargo:rerun-if-env-changed=PYTHON_SYS_EXECUTABLE
+  cargo:rerun-if-env-changed=PYO3_BUILD_EXTENSION_MODULE
+  cargo:rerun-if-changed=/home/sunrise/cambcode/rust_source/cambc-1.2.0/proto/cambc.proto
+
+  --- stderr
+
+  thread 'main' (3062) panicked at build.rs:26:10:
+  failed to compile cambc.proto: Custom { kind: NotFound, error: "Could not find `protoc`. If `protoc` is installed, try setting the `PROTOC` environment variable to the path of the `protoc` binary. To install it on Debian, run `apt-get install protobuf-compiler`. It is also available at https://github.com/protocolbuffers/protobuf/releases  For more information: https://docs.rs/prost-build/#sourcing-protoc" }
+  stack backtrace:
+     0: __rustc::rust_begin_unwind
+               at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/std/src/panicking.rs:689:5
+     1: core::panicking::panic_fmt
+               at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/panicking.rs:80:14
+     2: core::result::unwrap_failed
+               at /rustc/4a4ef493e3a1488c6e321570238084b38948f6db/library/core/src/result.rs:1867:5
+     3: core::result::Result<T,E>::expect
+     4: build_script_build::main
+     5: core::ops::function::FnOnce::call_once
+  note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+warning: build failed, waiting for other jobs to finish...
+    Checking pyo3 v0.23.5

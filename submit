@@ -1,0 +1,15 @@
+#!/bin/bash
+set -e
+
+cd "src"
+cd "$1"
+
+make prod
+
+if grep -q "ct\.resign()" main.py; then
+  echo "Error: main.py contains ct.resign() ❌"
+  exit 1
+fi
+
+cd ../..
+cambc submit "bots/$1"
