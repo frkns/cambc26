@@ -1,0 +1,140 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from Awubot.Constants import Constants
+from Awubot.Globals import Globals
+from Awubot.Map import TileInfo, Map
+from Awubot.MoveManager import MoveManager
+from Awubot.Util import Util
+from Awubot.build.Builder import BuilderState, Builder
+from Awubot.core.Core import Core
+from Awubot.debug.Profiler import Profiler
+from Awubot.explore.Explore import Explore
+from Awubot.nav.Pathfinder import Pathfinder
+from Generated.MarketMaker import MarketMaker
+from Generated.RobotPlayer import Entrypoint, Player
+from Generated.Unit import Unit
+from Generated.build.BuildManager import BuildManager
+from Generated.build.OreExecutive import OreExecutive
+from Generated.build.OrePositionPicker import OrePositionPicker
+from Generated.build.RouteToCore import RouteToCore
+from Generated.build.SuicideExecutor import SuicideExecutor
+from Generated.debug.Debug import Color, Debug
+from Generated.heal.HealExecutor import HealExecutor
+from Generated.nav.BfsBureau import BfsBureau
+from Generated.nav.ClaudeGlobalBfs import ClaudeGlobalBfs
+from Generated.nav.DialDijkstra import DialDijkstra
+from Generated.nav.DirectionPicker import DirectionPicker
+from Generated.nav.EgoBridgeBfs import EgoBridgeBfs
+from Generated.nav.MyGlobalBfs import MyGlobalBfs
+from Generated.nav.MyGlobalBfs2 import MyGlobalBfs2
+
+
+class MyGlobalBfs2:
+    dist: list[list[int]]  # (x,y) -> dist[x + 1][y + 1]
+
+    @classmethod
+    def init(cls):
+        W, H = Map.W, Map.H
+        # All passable, with 1-thick impassable border
+        cls.dist = [[1000000] * 52 for _ in range(52)]
+
+        # Border columns
+        for y in range(H + 2):
+            cls.dist[0][y] = 1000001
+            cls.dist[W + 1][y] = 1000001
+        # Border rows
+        for x in range(1, W + 1):
+            cls.dist[x][0] = 1000001
+            cls.dist[x][H + 1] = 1000001
+
+    @classmethod
+    def update(cls):
+        tile_info = Map.tile_info
+        _dist = cls.dist
+        for pos in Map.nearby_tiles:
+            ti = tile_info[pos.x][pos.y]
+            col = _dist[pos.x + 1]
+
+            if (
+                ti.env != Environment.WALL
+                and not (ti.has_building and ti.entity_type not in Constants.PASSABLE_SET)
+            ):
+                col[pos.y + 1] = 1000000
+            else:
+                col[pos.y + 1] = 1000001
+
+    @classmethod
+    def dists_from_pos(cls, pos: Position):
+        # Deep copy the 2D grid
+        dist = [row[:] for row in cls.dist]
+
+        sx = pos.x + 1
+        sy = pos.y + 1
+        dist[sx][sy] = 0
+
+        frontier = [(sx, sy)]
+        d = 1
+        while frontier:
+            nxt = []
+            _a = nxt.append
+            for cx, cy in frontier:
+                nx = cx + 0
+                ny = cy + -1
+                if dist[nx][ny] == 1000000:
+                    dist[nx][ny] = d
+                    _a((nx, ny))
+                nx = cx + 1
+                ny = cy + -1
+                if dist[nx][ny] == 1000000:
+                    dist[nx][ny] = d
+                    _a((nx, ny))
+                nx = cx + 1
+                ny = cy + 0
+                if dist[nx][ny] == 1000000:
+                    dist[nx][ny] = d
+                    _a((nx, ny))
+                nx = cx + 1
+                ny = cy + 1
+                if dist[nx][ny] == 1000000:
+                    dist[nx][ny] = d
+                    _a((nx, ny))
+                nx = cx + 0
+                ny = cy + 1
+                if dist[nx][ny] == 1000000:
+                    dist[nx][ny] = d
+                    _a((nx, ny))
+                nx = cx + -1
+                ny = cy + 1
+                if dist[nx][ny] == 1000000:
+                    dist[nx][ny] = d
+                    _a((nx, ny))
+                nx = cx + -1
+                ny = cy + 0
+                if dist[nx][ny] == 1000000:
+                    dist[nx][ny] = d
+                    _a((nx, ny))
+                nx = cx + -1
+                ny = cy + -1
+                if dist[nx][ny] == 1000000:
+                    dist[nx][ny] = d
+                    _a((nx, ny))
+            frontier = nxt
+            d += 1
+
+        result = [[0] * (Map.H + 1) for _ in range(Map.W + 1)]
+        for x in range(Map.W + 1):
+            row = result[x]
+            dcol = dist[x + 1]
+            for y in range(Map.H + 1):
+                v = dcol[y + 1]
+                row[y] = 1000000 if v >= 1000000 else v
+        return result

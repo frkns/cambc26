@@ -1,0 +1,99 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from Awubot.Builder import BuilderState, Builder
+from Awubot.Constants import Constants
+from Awubot.Core import Core
+from Awubot.Globals import Globals, Cache
+from Awubot.Map import LocalMask, MapMask, TileInfo, Map
+from Awubot.MoveManager import MoveManager
+from Awubot.RobotPlayer import Entrypoint, Player
+from Awubot.Unit import Unit
+from Awubot.Util import Util
+from Awubot.debug.Debug import Color, Debug
+from Awubot.debug.Profiler import Profiler
+from Awubot.explore.Explore import Explore
+from Awubot.nav.DirectionPicker import DirectionPicker
+from Awubot.nav.OmNom import OmNom
+
+
+class GlobalBfs:
+    _neighbors = None
+    _cached_dims = None
+
+    @classmethod
+    def _build_neighbors(cls, W, H):
+        if cls._cached_dims == (W, H):
+            return cls._neighbors
+
+        neighbors = [[None] * H for _ in range(W)]
+        for x in range(W):
+            for y in range(H):
+                nbrs = []
+                nx, ny = x , y -1
+                if 0 <= nx < W and 0 <= ny < H:
+                    nbrs.append((nx, ny))
+                nx, ny = x +1, y -1
+                if 0 <= nx < W and 0 <= ny < H:
+                    nbrs.append((nx, ny))
+                nx, ny = x +1, y 
+                if 0 <= nx < W and 0 <= ny < H:
+                    nbrs.append((nx, ny))
+                nx, ny = x +1, y +1
+                if 0 <= nx < W and 0 <= ny < H:
+                    nbrs.append((nx, ny))
+                nx, ny = x , y +1
+                if 0 <= nx < W and 0 <= ny < H:
+                    nbrs.append((nx, ny))
+                nx, ny = x -1, y +1
+                if 0 <= nx < W and 0 <= ny < H:
+                    nbrs.append((nx, ny))
+                nx, ny = x -1, y 
+                if 0 <= nx < W and 0 <= ny < H:
+                    nbrs.append((nx, ny))
+                nx, ny = x -1, y -1
+                if 0 <= nx < W and 0 <= ny < H:
+                    nbrs.append((nx, ny))
+                neighbors[x][y] = tuple(nbrs)
+        cls._neighbors = neighbors
+        cls._cached_dims = (W, H)
+        return neighbors
+
+    @classmethod
+    def dists_from_pos(cls, pos: Position):
+        W, H = Map.W, Map.H
+        INF = 1000000
+        WALL = Environment.WALL
+
+        neighbors = cls._build_neighbors(W, H)
+        tile_info = Map.tile_info
+
+        dist = [[INF] * H for _ in range(W)]
+        dist[pos.x][pos.y] = 0
+
+        my_pos = Globals.ct.get_position()
+        mx, my = my_pos.x, my_pos.y
+
+        q = deque([(pos.x, pos.y)])
+
+        while q:
+            x, y = q.popleft()
+            d = dist[x][y] + 1
+
+            for nx, ny in neighbors[x][y]:
+                if dist[nx][ny] == INF:
+                    ti = tile_info[nx][ny]
+                    if ti is not None and ti.env == WALL:
+                        continue
+                    dist[nx][ny] = d
+                    if nx == mx and ny == my:
+                        return dist
+                    q.append((nx, ny))
+
+        return dist

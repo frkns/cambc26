@@ -1,0 +1,421 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot.Constants import Constants
+from Awubot.Globals import Globals
+from Awubot.MoveManager import MoveManager
+from Awubot.Util import Util
+from Awubot.debug.Profiler import Profiler
+from Awubot.explore.Explore import Explore
+from Generated.MarketMaker import MarketMaker
+from Generated.RobotPlayer import Entrypoint, Player
+from Generated.Unit import Unit
+from Generated.build.BuildManager import BuildManager
+from Generated.build.Builder import BuilderState, Builder
+from Generated.build.OreExecutive import OreExecutive
+from Generated.build.OrePositionPicker import OrePositionPicker
+from Generated.build.RouteToCore import RouteToCore
+from Generated.build.SuicideExecutor import SuicideExecutor
+from Generated.core.Core import Core
+from Generated.debug.Debug import Color, Debug
+from Generated.heal.HealExecutor import HealExecutor
+from Generated.map.DarkForest import TreeNode, DarkForest
+from Generated.map.Map import TileInfo, Map
+from Generated.map.Symmetry import Sym, Symmetry
+from Generated.nav.BfsBureau import BfsBureau
+from Generated.nav.DirectionPicker import DirectionPicker
+from Generated.nav.Pathfinder import Pathfinder
+
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+
+
+class BfsBureau:
+    weight: list[int]
+    dist_bridge: list[int]
+    passable_int: int   # NEW: single bigint, bit (x*STRIDE+y) = passable
+    STRIDE: int         # NEW: H + 1 (padding bit between columns)
+
+    @classmethod
+    def init(cls):
+        W, H = Map.W, Map.H
+
+        dist = [{{ INF1 }}] * {{ PADDED_GRID_SIZE }}
+        weight = [{{ INF }}] * {{ PADDED_GRID_SIZE }}
+
+        row_inf = [{{ INF }}] * H
+        row_1 = [{{ 1 }}] * H
+        for x in range(W):
+            base = (x + {{ PAD }}) * {{ PH }} + {{ PAD }}
+            dist[base:base + H] = row_inf
+            weight[base:base + H] = row_1
+
+        cls.dist_bridge = dist
+        cls.weight = weight
+
+        # ── Bitmask BFS init ──
+        # STRIDE = H+1 so a padding zero-bit separates each column,
+        # preventing vertical shifts from leaking across columns.
+        S = H + 1
+        cls.STRIDE = S
+        col_mask = (1 << H) - 1  # bits 0..H-1
+        p = 0
+        for x in range(W):
+            p |= col_mask << (x * S)
+        cls.passable_int = p
+
+
+# ---===
+    @classmethod
+    def update(cls):
+        tile_info = Map.tile_info
+        _w = cls.weight
+        _S = cls.STRIDE
+
+        for pos in chain(Map.nearby_tiles, Map.new_syms):
+            x, y = pos.x, pos.y
+            ti = tile_info[x][y]
+
+            {% set idx -%}
+                ((pos.x + {{ PAD }}) * {{ PH }} + (pos.y + {{ PAD }}))
+            {%- endset %}
+            idx = {{ idx }}
+            _bit_mask = 1 << (x * _S + y)
+
+            # normal pathing + bitmask sync
+            if ti.env != Environment.WALL:
+                if ti.easily_passable:
+                    _w[idx] = 1
+                    cls.passable_int |= _bit_mask
+                elif ti.has_building:
+                    _w[idx] = {{ INF }}
+                    cls.passable_int &= ~_bit_mask
+                else:
+                    _w[idx] = 2  # need to fill
+                    cls.passable_int |= _bit_mask
+            else:
+                _w[idx] = {{ INF }}
+                cls.passable_int &= ~_bit_mask
+
+            # bridge (unchanged)
+            if (
+                ti.env == Environment.EMPTY and
+                (
+                    (not ti.has_building) or
+                    ((etype := ti.entity_type) == EntityType.MARKER) or
+                    (ti.is_building_ally and (
+                        etype == EntityType.ROAD or etype == EntityType.CORE))
+                )
+            ):
+                cls.dist_bridge[idx] = {{ INF }}
+            else:
+                cls.dist_bridge[idx] = {{ INF1 }}
+# ===---
+
+
+    # dists_from_pos — unchanged
+# ---===
+    @classmethod
+    def dists_from_pos(cls, pos: Position):
+        dist = cls.dist_global[:]
+
+        si = (pos.x + {{ PAD }}) * {{ PH }} + (pos.y + {{ PAD }})
+        dist[si] = 0
+
+        frontier = [si]
+        d = 1
+        while frontier:
+            nxt = []
+            _a = nxt.append
+            for idx in frontier:
+                {% for dir in range(8) %}
+                ni = idx + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
+                if dist[ni] == {{ INF }}:
+                    dist[ni] = d
+                    _a(ni)
+                {% endfor %}
+            frontier = nxt
+            d += 1
+
+        result = [[0] * (Map.H + 1) for _ in range(Map.W + 1)]
+        for x in range(Map.W + 1):
+            row = result[x]
+            base = (x + {{ PAD }}) * {{ PH }} + {{ PAD }}
+            for y in range(Map.H + 1):
+                v = dist[base + y]
+                row[y] = {{ INF }} if v >= {{ INF }} else v
+        return result
+# ===---
+
+
+    # find_bridge_route — unchanged
+# ---===
+    @classmethod
+    def find_bridge_route(cls, start: Position, sink_set: set[int]):
+        {% set main_bridge_offsets = [
+            (3,0),(-3,0),(0,3),(0,-3),
+            (2,2),(2,-2),(-2,-2),(-2,2),
+        ] %}
+
+        {% set seed_bridge_offsets = [
+            (3,0),(-3,0),(0,3),(0,-3),
+            (2,2),(2,-2),(-2,-2),(-2,2),
+            (1,2),(2,1),(2,-1),(1,-2),
+            (-1,-2),(-2,-1),(-2,1),(-1,2),
+        ] %}
+
+        dist = cls.dist_bridge[:]
+        first_hop = [None] * {{ PADDED_GRID_SIZE }}
+
+        sx, sy = start.x, start.y
+        si = {{ encode_pos('sx', 'sy') }}
+        dist[si] = 0
+
+        for s in sink_set:
+            if dist[s] == {{ INF1 }}:
+                dist[s] = {{ INF }}
+
+        q = deque()
+        _qa = q.append
+
+        {% set CONVEYOR_DEPTH = 4 %}
+
+        conv_reached = []
+        _cra = conv_reached.append
+
+        conv_front = []
+        _cfa = conv_front.append
+        {% for dx, dy in [(1,0),(-1,0),(0,1),(0,-1)] %}
+        ni = si + {{ dx * PH + dy }}
+        if dist[ni] == {{ INF }}:
+            dist[ni] = -1
+            first_hop[ni] = (sx {{ sign0(dx) }}, sy {{ sign0(dy) }})
+            _cfa(ni)
+            _cra(ni)
+        {% endfor %}
+
+        {% for _ in range(CONVEYOR_DEPTH - 1) %}
+        conv_next = []
+        _cna = conv_next.append
+        for cidx in conv_front:
+            _fh = first_hop[cidx]
+            {% for dx, dy in [(1,0),(-1,0),(0,1),(0,-1)] %}
+            ni = cidx + {{ dx * PH + dy }}
+            if dist[ni] == {{ INF }}:
+                dist[ni] = -1
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+            {% endfor %}
+        conv_front = conv_next
+        {% endfor %}
+
+        for cidx in conv_reached:
+            if dist[cidx] == -1:
+                dist[cidx] = 1
+                if cidx in sink_set:
+                    return 1, first_hop[cidx]
+                _qa(cidx)
+
+        {% for dx, dy in seed_bridge_offsets %}
+        ni = si + {{ dx * PH + dy }}
+        if dist[ni] == {{ INF }}:
+            dist[ni] = 1
+            first_hop[ni] = (sx {{ sign0(dx) }}, sy {{ sign0(dy) }})
+            if ni in sink_set:
+                return 1, first_hop[ni]
+            _qa(ni)
+        {% endfor %}
+
+        while q:
+            idx = q.popleft()
+            d = dist[idx] + 1
+            fh = first_hop[idx]
+
+            {% for dx, dy in main_bridge_offsets %}
+            ni = idx + {{ dx * PH + dy }}
+            if dist[ni] == {{ INF }}:
+                dist[ni] = d
+                first_hop[ni] = fh
+                if ni in sink_set:
+                    return d, fh
+                _qa(ni)
+            {% endfor %}
+
+        return {{ INF }}, None
+# ===---
+
+    # outward depth-limited djikstra + bitmask bfs
+
+    # ---===
+    @classmethod
+    def find_route(cls, start: Position, target: Position,
+                   ban_target: bool = False) -> tuple[int, Direction | None]:
+        {% set WEIGHTED_DEPTH = 8 %}
+
+        sx, sy = start.x, start.y
+        _tx, _ty = target.x, target.y
+
+        _w = cls.weight
+        _S = cls.STRIDE
+
+        si = {{ encode_pos('sx', 'sy') }}
+        ti = {{ encode_pos('_tx', '_ty') }}
+
+        _D = ({% for d in range(8) %}{{ directions[d] }}{% if not loop.last %}, {% endif %}{% endfor %})
+
+        # ── Same-tile shortcuts ──
+        if si == ti:
+            if not ban_target:
+                return 0, None
+            {% for dir in range(8) %}
+            ni = si + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
+            if _w[ni] < {{ INF }} and MoveManager.can_fill_move({{ directions[dir] }}):
+                return 1, {{ directions[dir] }}
+            {% endfor %}
+            return {{ INF }}, None
+
+        if ban_target:
+            _d = si - ti
+            _ad = _d if _d >= 0 else -_d
+            if _ad == 1 or _ad == {{ PH - 1 }} or _ad == {{ PH }} or _ad == {{ PH + 1 }}:
+                return 0, None
+
+        _save = _w[ti]
+        _w[ti] = 1
+
+        try:
+            # ── Phase 1: weighted Dijkstra up to {{ WEIGHTED_DEPTH }} ──
+            dist = [{{ INF }}] * {{ PADDED_GRID_SIZE }}
+            fhd  = [0]       * {{ PADDED_GRID_SIZE }}
+            dist[si] = 0
+
+            heap  = []
+            _hp   = heapq.heappush
+            _hpop = heapq.heappop
+
+            _settled = [si]
+            _sa = _settled.append
+
+            # Seed: fill-moveable directions only
+            {% for dir in range(8) %}
+            ni = si + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
+            if _w[ni] < {{ INF }} and MoveManager.can_fill_move({{ directions[dir] }}):
+                w = _w[ni]
+                dist[ni] = w
+                fhd[ni]  = {{ dir }}
+                if ni == ti:
+                    return w, {{ directions[dir] }}
+                _hp(heap, (w, ni))
+            {% endfor %}
+
+            # Dijkstra main loop
+            phase2_seeds = []
+            _p2a = phase2_seeds.append
+
+            while heap:
+                d, idx = _hpop(heap)
+                if d > dist[idx]:
+                    continue
+
+                _sa(idx)
+
+                if d >= {{ WEIGHTED_DEPTH }}:
+                    _p2a(idx)
+                    while heap:
+                        _dd, _idx = _hpop(heap)
+                        if _dd == dist[_idx]:
+                            _sa(_idx)
+                            _p2a(_idx)
+                    break
+
+                _fh = fhd[idx]
+                {% for dir in range(8) %}
+                ni = idx + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
+                w  = _w[ni]
+                if w < {{ INF }}:
+                    nd = d + w
+                    if nd < dist[ni]:
+                        dist[ni] = nd
+                        fhd[ni]  = _fh
+                        if ni == ti:
+                            return nd, _D[_fh]
+                        _hp(heap, (nd, ni))
+                {% endfor %}
+
+            if not phase2_seeds:
+                return {{ INF }}, None
+
+            # ── Phase 2: bitmask BFS from Dijkstra frontier ──
+            {{ P.start() }}
+            _tb = _tx * _S + _ty
+            _tm = 1 << _tb
+            _uc = cls.passable_int | _tm
+
+            # Remove all settled tiles from unclaimed
+            _settled_bits = 0
+            for _ci in _settled:
+                _cx = _ci // {{ PH }} - {{ PAD }}
+                _cy = _ci % {{ PH }} - {{ PAD }}
+                _settled_bits |= 1 << (_cx * _S + _cy)
+            _uc &= ~_settled_bits
+
+            # Build per-direction frontier bitmasks + min seed dist
+            {% for dir in range(8) %}
+            _fh{{ dir }} = 0
+            _md{{ dir }} = {{ INF }}
+            {% endfor %}
+
+            for _ci in phase2_seeds:
+                _cx = _ci // {{ PH }} - {{ PAD }}
+                _cy = _ci % {{ PH }} - {{ PAD }}
+                _di = fhd[_ci]
+                _bit = 1 << (_cx * _S + _cy)
+                {% for dir in range(8) %}
+                {{ 'if' if loop.first else 'elif' }} _di == {{ dir }}:
+                    _fh{{ dir }} |= _bit
+                    if dist[_ci] < _md{{ dir }}:
+                        _md{{ dir }} = dist[_ci]
+                {% endfor %}
+
+            # Bitmask BFS
+            _bfs_d = 0
+            while True:
+                _any = False
+
+                {% for dir in range(8) %}
+                _f = _fh{{ dir }}
+                if _f:
+                    _v = _f | (_f << 1) | (_f >> 1)
+                    _e = (_v | (_v << _S) | (_v >> _S)) & _uc
+                    if _e:
+                        _fh{{ dir }} = _e
+                        _uc ^= _e
+                        _any = True
+                        if _e & _tm:
+                            return _md{{ dir }} + _bfs_d + 1, _D[{{ dir }}]
+                    else:
+                        _fh{{ dir }} = 0
+                {% endfor %}
+
+                if not _any:
+                    break
+                _bfs_d += 1
+
+            return {{ INF }}, None
+
+        finally:
+            {{ P.end('BfsBureau.find_route[bfs]') }}
+            _w[ti] = _save
+
+    # ===---
+

@@ -1,0 +1,119 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from Awubot.Builder import BuilderState, Builder
+from Awubot.Constants import Constants
+from Awubot.Core import Core
+from Awubot.Globals import Globals, Cache
+from Awubot.Map import LocalMask, MapMask, TileInfo, Map
+from Awubot.MoveManager import MoveManager
+from Awubot.RobotPlayer import Entrypoint, Player
+from Awubot.Unit import Unit
+from Awubot.Util import Util
+from Awubot.debug.Debug import Color, Debug
+from Awubot.debug.Profiler import Profiler
+from Awubot.explore.Explore import Explore
+from Awubot.nav.DirectionPicker import DirectionPicker
+from Awubot.nav.OmNom import OmNom
+
+
+class Dijkstra:
+    _neighbors = None
+    _cached_dims = None
+
+    @classmethod
+    def _build_neighbors(cls, W, H):
+        if cls._cached_dims == (W, H):
+            return cls._neighbors
+
+        neighbors = [[None] * H for _ in range(W)]
+        for x in range(W):
+            for y in range(H):
+                nbrs = []
+                nx, ny = x , y -1
+                if 0 <= nx < W and 0 <= ny < H:
+                    nbrs.append((nx, ny))
+                nx, ny = x +1, y -1
+                if 0 <= nx < W and 0 <= ny < H:
+                    nbrs.append((nx, ny))
+                nx, ny = x +1, y 
+                if 0 <= nx < W and 0 <= ny < H:
+                    nbrs.append((nx, ny))
+                nx, ny = x +1, y +1
+                if 0 <= nx < W and 0 <= ny < H:
+                    nbrs.append((nx, ny))
+                nx, ny = x , y +1
+                if 0 <= nx < W and 0 <= ny < H:
+                    nbrs.append((nx, ny))
+                nx, ny = x -1, y +1
+                if 0 <= nx < W and 0 <= ny < H:
+                    nbrs.append((nx, ny))
+                nx, ny = x -1, y 
+                if 0 <= nx < W and 0 <= ny < H:
+                    nbrs.append((nx, ny))
+                nx, ny = x -1, y -1
+                if 0 <= nx < W and 0 <= ny < H:
+                    nbrs.append((nx, ny))
+                neighbors[x][y] = tuple(nbrs)
+        cls._neighbors = neighbors
+        cls._cached_dims = (W, H)
+        return neighbors
+
+    @classmethod
+    def dists_from_pos(cls, pos: Position):
+        W, H = Map.W, Map.H
+
+        neighbors = cls._build_neighbors(W, H)
+
+        # 2D cell costs
+        cell_costs = [[0] * H for _ in range(W)]
+        env_cost_map = {
+            Environment.WALL: 1000000,
+            Environment.EMPTY: 1,
+            Environment.ORE_AXIONITE: 1,
+            Environment.ORE_TITANIUM: 1,
+        }
+        tile_info = Map.tile_info
+        for x in range(W):
+            col = tile_info[x]
+            cc = cell_costs[x]
+            for y in range(H):
+                tinfo = col[y]
+                if tinfo is None:
+                    cc[y] = 3
+                    continue
+
+                cc[y] = env_cost_map[tinfo.env]
+                Globals.ct.get_entity_type(tinfo.building_id)
+                    
+
+        my_pos = Globals.ct.get_position()
+        my_x, my_y = my_pos.x, my_pos.y
+
+        # Dijkstra
+        dist = [[1000000] * H for _ in range(W)]
+        dist[pos.x][pos.y] = 0
+
+        pq = [(0, pos.x, pos.y)]
+
+        while pq:
+            d, x, y = heapq.heappop(pq)
+            if x == my_x and y == my_y:
+                break
+
+            if d > dist[x][y]:
+                continue
+
+            for nx, ny in neighbors[x][y]:
+                nd = d + cell_costs[nx][ny]
+                if nd < dist[nx][ny]:
+                    dist[nx][ny] = nd
+                    heapq.heappush(pq, (nd, nx, ny))
+
+        return dist

@@ -1,0 +1,135 @@
+# ---=== IMPORT
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot.Constants import Constants
+from Awubot.Globals import Globals
+from Awubot.MoveManager import MoveManager
+from Awubot.Util import Util
+from Awubot.debug.Profiler import Profiler
+from Generated.Comms import Comms
+from Generated.MarketMaker import MarketMaker
+from Generated.RobotPlayer import Entrypoint, Player
+from Generated.Unit import Unit
+from Generated.builder.BuildManager import BuildManager
+from Generated.builder.Builder import BuilderState, Builder
+from Generated.builder.OreExecutive import OreExecutive
+from Generated.builder.OrePositionPicker import OrePositionPicker
+from Generated.builder.RouteToCore import RouteToCore
+from Generated.builder.SuicideExecutor import SuicideExecutor
+from Generated.core.Core import Core
+from Generated.debug.Debug import Color, Debug
+from Generated.explore.Explore import Explore
+from Generated.heal.HealExecutor import HealExecutor
+from Generated.map.DarkForest import TreeNode, DarkForest
+from Generated.map.Map import TileInfo, Map
+from Generated.map.Symmetry import Sym, Symmetry
+from Generated.nav.BfsBureau import BfsBureau
+from Generated.nav.DirectionPicker import DirectionPicker
+from Generated.nav.Pathfinder import Pathfinder
+# ===--- IMPORT
+
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+
+
+class HealExecutor:
+    {% set BUILDING_WEIGHT = 2 %}
+
+    class Candidate(NamedTuple):
+        position: Position
+        score: int
+
+    cand: list[Candidate | None] = [None] * 9
+
+    max_hp_map: dict = {
+        {% for etype in EntityType %}
+        {% set ST = etype.value|upper %}
+        {{ etype }}: {{ eval('GameConstants.' ~ ST ~ '_MAX_HP') }},
+        {% endfor %}
+    }
+
+    @classmethod
+    def precompute(cls):
+        my_pos = Globals.ct.get_position()
+
+        {% for dir in directions %}
+        {% set dx, dy = dir.delta() %}
+
+        nx, ny = my_pos.x {{ sign0(dx) }}, my_pos.y {{ sign0(dy) }}
+        npos = Position(nx, ny)
+
+        if Globals.ct.can_heal(npos):
+            ti = Map.tile_info[nx][ny]
+            score = 0
+
+            if ti.has_building:
+                heal_hp = min(
+                    {{ GameConstants.HEAL_AMOUNT }},  # should be 10
+                    cls.max_hp_map[ti.entity_type] - ti.building_hp
+                )
+                score += heal_hp * {{ BUILDING_WEIGHT }} * (1 if ti.is_building_ally else -1)
+
+            {% if dir == Direction.CENTRE %}
+            heal_hp = min(
+                {{ GameConstants.HEAL_AMOUNT }},
+                {{ GameConstants.BUILDER_BOT_MAX_HP }} - Globals.ct.get_hp()
+            )
+            score += heal_hp
+            {% else %}
+            if ti.has_bot:
+                heal_hp = min(
+                    {{ GameConstants.HEAL_AMOUNT }},
+                    {{ GameConstants.BUILDER_BOT_MAX_HP }} - ti.bot_hp
+                )
+                score += heal_hp * (1 if ti.is_bot_ally else -1)
+            {% endif %}
+
+            cls.cand[{{ loop.index0 }}] = cls.Candidate(
+                npos,
+                score,
+            )
+
+        else:
+            # cannot heal
+            cls.cand[{{ loop.index0 }}] = cls.Candidate(
+                npos,
+                0,
+            )
+        {% endfor %}
+    
+
+    @classmethod
+    def execute_heal_attempt(cls):
+        if Globals.ct.get_action_cooldown() != 0:
+            return
+
+        cls.precompute()
+
+        cand: HealExecutor.Candidate = max(cls.cand, key=lambda c: c.score)
+        if cand.score <= 1:
+            return
+
+        Debug.line(cand.position, Color.LIME)
+        Globals.ct.heal(cand.position)
+    
+        
+
+
+
+
+
+
+
+
+
+

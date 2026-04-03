@@ -1,0 +1,81 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+from Awubot.Constants import Constants
+from Awubot.Core import Core
+from Awubot.Globals import Globals, Cache
+from Awubot.Map import LocalMask, MapMask, TileInfo, Map
+from Awubot.MoveManager import MoveManager
+from Awubot.RobotPlayer import Entrypoint, Player
+from Awubot.Util import Util
+from Awubot.build.Builder import BuilderState, Builder
+from Awubot.debug.Profiler import Profiler
+from Awubot.explore.Explore import Explore
+from Awubot.nav.Pathfinder import Pathfinder
+from Generated.Unit import Unit
+from Generated.build.BuildManager import BuildManager
+from Generated.build.OreExecutive import OreExecutive
+from Generated.build.RouteToCore import RouteToCore
+from Generated.debug.Debug import Color, Debug
+from Generated.nav.ClaudeGlobalBfs import ClaudeGlobalBfs
+from Generated.nav.DirectionPicker import DirectionPicker
+from Generated.nav.EgoBridgeBfs import EgoBridgeBfs
+from Generated.nav.MyGlobalBfs import MyGlobalBfs
+from Generated.nav.UnrolledGlobalBfs import UnrolledGlobalBfs
+
+
+class UnrolledGlobalBfs:
+    # unrolling is convenient for not having spike on first turn
+    @classmethod
+    def dists_from_pos(cls, pos: Position):
+        W, H = Map.W, Map.H
+        WALL = Environment.WALL
+
+        tile_info = Map.tile_info
+        cur_round = Globals.ct.get_current_round()
+
+        # +1 padding: data at [1..W][1..H], border stays blocked
+        PW = W + 2
+        PH = H + 2
+
+        blocked = [[True] * PH for _ in range(PW)]
+        for x in range(W):
+            col = tile_info[x]
+            brow = blocked[x + 1]
+            for y in range(H):
+                ti = col[y]
+                brow[y + 1] = (
+                    ti is not None and (
+                        ti.env == WALL or
+                        (ti.has_builder_bot and ti.round == cur_round)
+                    )
+                )
+
+        dist = [[{{ INF }}] * PH for _ in range(PW)]
+        sx, sy = pos.x + 1, pos.y + 1
+        dist[sx][sy] = 0
+
+        q = deque([(sx, sy)])
+
+        while q:
+            x, y = q.popleft()
+            d = dist[x][y] + 1
+
+            {% for dir in range(8) %}
+            {% set dx = Dir.dx[dir] %}
+            {% set dy = Dir.dy[dir] %}
+            nx, ny = x {{ sign(dx) if dx != 0 }}, y {{ sign(dy) if dy != 0 }}
+            if dist[nx][ny] == {{ INF }} and not blocked[nx][ny]:
+                dist[nx][ny] = d
+                q.append((nx, ny))
+            {% endfor %}
+
+        # intentional H,W padding
+        return [[dist[x + 1][y + 1] for y in range(H+1)] for x in range(W+1)]

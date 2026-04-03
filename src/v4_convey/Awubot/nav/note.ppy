@@ -1,0 +1,69 @@
+class Dijkstra:
+    @classmethod
+    def dists_from_pos(cls, pos: Position):
+        W, H = Map.W, Map.H
+        INF = 1_000_000
+
+        # --- padded flat grid (1-cell blocked border) ---
+        PH = H + 2
+        psize = (W + 2) * PH
+        cell_costs = [0] * psize          # border stays 0 = blocked
+
+        cost_map = {
+            Environment.WALL: 0,           # 0 = impassable
+            Environment.EMPTY: 1,
+            Environment.ORE_AXIONITE: 1,
+            Environment.ORE_TITANIUM: 1,
+        }
+        tile_info = Map.tile_info
+        for x in range(W):
+            col = tile_info[x]
+            base = (x + 1) * PH + 1
+            for y in range(H):
+                t = col[y]
+                cell_costs[base + y] = 3 if t is None else cost_map[t.env]
+
+        dist = [INF] * psize
+        start = (pos.x + 1) * PH + (pos.y + 1)
+        dist[start] = 0
+
+        # --- flat direction offsets (computed once) ---
+        {% for dir in range(8) %}
+        off{{ dir }} = {{ Dir.dx[dir] }} * PH + ({{ Dir.dy[dir] }})
+        {% endfor %}
+
+        # --- Dial's algorithm: 4 buckets for max-weight 3 ---
+        #   bucket slot (d+w)%4 never equals d%4 for w∈{1,2,3},
+        #   so draining a bucket is safe.
+        b0 = [start]; b1 = []; b2 = []; b3 = []
+        bkts = (b0, b1, b2, b3)
+        cur = 0
+        max_d = W * H * 3
+
+        while cur <= max_d:
+            bk = bkts[cur & 3]
+            if not bk:                     # empty bucket → skip
+                cur += 1
+                continue
+
+            while bk:
+                idx = bk.pop()
+                d = cur
+                if dist[idx] != d:         # stale entry
+                    continue
+
+                {% for dir in range(8) %}
+                nidx = idx + off{{ dir }}
+                cc = cell_costs[nidx]      # 0 → wall/border (skip)
+                if cc:
+                    nd = d + cc
+                    if nd < dist[nidx]:
+                        dist[nidx] = nd
+                        bkts[nd & 3].append(nidx)
+                {% endfor %}
+
+            cur += 1
+
+        # --- unpack to 2D ---
+        return [[dist[(x + 1) * PH + y + 1] for y in range(H)]
+                for x in range(W)]
