@@ -51,7 +51,7 @@ from Generated.units.Unit import Unit
 
 
 
-class RouteToCore:
+class RouteToFoundry:
     is_active: bool = False
     from_pos: Position
     killed: set[Position] = set()

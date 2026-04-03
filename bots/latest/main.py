@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-03 11:46:04 (local)
+# latest,  @ 2026-04-03 12:12:11 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -22094,6 +22094,23 @@ class OreExecutive:
             cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
             RouteToCore.set_pos(cand.position)
 
+    @classmethod
+    def go_build_ax_harvester(cls, pos):
+        Pathfinder.move_to(pos, ban_target_pos=True)
+
+        if Pathfinder.given_up:
+            Debug.line(pos, Color.RED)
+            Debug.diamond(Color.RED)
+            cls.state[pos] = 2
+            return
+
+        if BuildManager.can_dbuild_harvester(pos):
+            Debug.line(pos, Color.YELLOW)
+            BuildManager.dbuild_harvester(pos)
+
+            cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
+            RouteToFoundry.set_pos(cand.position)
+
 
 # ============================================================
 # OrePositionPicker
@@ -22377,6 +22394,102 @@ class Profiler:
 # ============================================================
 
 class RouteToCore:
+    is_active: bool = False
+    from_pos: Position
+    killed: set[Position] = set()
+
+    @classmethod
+    def set_pos(cls, pos: Position):
+        if (((pos.x) + 3) * 56 + ((pos.y) + 3)) in DarkForest.sink_set:
+            cls.is_active = False
+            return
+
+        cls.is_active = True
+        cls.from_pos = pos
+
+    @classmethod
+    def try_build_route(cls):
+        assert cls.is_active
+
+        bridge_dist, first_target = BfsBureau.find_bridge_route(
+            cls.from_pos,
+            Unit.core_pos_set,
+            max_iter=0,
+        )
+        if first_target is None:
+            bridge_dist, first_target = BfsBureau.find_bridge_route(
+                cls.from_pos,
+                DarkForest.sink_set,
+            )
+
+        print(f"""{bridge_dist=}""")
+
+        if first_target is None:
+            Debug.tee("first_target is None: giving up")
+            cls.give_up()
+            StateMoveTo.run(Explore.get_target()) # new
+            return
+
+        target = Position(*first_target)
+        Debug.diline(cls.from_pos, target, Color.GREEN)
+
+        if cls.from_pos.distance_squared(target) == 1:
+            if BuildManager.can_dbuild_conveyor(cls.from_pos):
+                BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
+                cls.set_pos(target)
+        elif BuildManager.can_dbuild_bridge(cls.from_pos):
+            BuildManager.dbuild_bridge(cls.from_pos, target)
+            cls.set_pos(target)
+
+    @classmethod
+    def move_to_next(cls):
+        Pathfinder.move_to(cls.from_pos, ban_target_pos=True)
+
+    @classmethod
+    def should_give_up(cls):
+        x, y = cls.from_pos
+        ti = Map.tile_info[x][y]
+        if ti is None:
+            return False
+
+        if ti.has_building:
+            if not ti.is_building_ally:
+                return True
+            if ti.entity_type in Constants.TRANSPORTERS_SET:
+                return True
+            if ti.entity_type != EntityType.ROAD:  # redundant
+                return True
+        return False
+
+
+    @classmethod
+    def give_up(cls):
+        cls.is_active = False
+        cls.killed.add(cls.from_pos)
+        Debug.diamond(Color.PURPLE)
+
+
+    @classmethod
+    def do_routing(cls):
+        if cls.should_give_up():
+            cls.give_up()
+            StateMoveTo.run(Explore.get_target()) # new
+            return
+
+        dsq = Globals.my_pos.distance_squared(cls.from_pos)
+        if Globals.ct.get_action_cooldown() == 0 \
+                and (dsq == 1 or dsq == 2):
+            cls.try_build_route()
+            cls.move_to_next()
+        else:
+            cls.move_to_next()
+
+
+# ============================================================
+# RouteToFoundry
+# ============================================================
+
+class RouteToFoundry:
     is_active: bool = False
     from_pos: Position
     killed: set[Position] = set()
@@ -22756,7 +22869,8 @@ class StateBuildHarvester:
 class StateBuildHarvesterAx:
     @classmethod
     def run(cls, pos):
-        OreExecutive.go_build_harvester(pos)
+        print("moving towards building harvester ax at", pos,file=sys.stderr)
+        OreExecutive.go_build_ax_harvester(pos)
 
 
 # ============================================================
@@ -22797,6 +22911,16 @@ class StateRoute:
     @classmethod
     def run(cls):
         RouteToCore.do_routing()
+
+
+# ============================================================
+# StateRouteFoundry
+# ============================================================
+
+class StateRouteFoundry:
+    @classmethod
+    def run(cls):
+        RouteToFoundry.do_routing()
 
 
 # ============================================================
@@ -23535,6 +23659,9 @@ class Builder(Unit):
 
     @classmethod
     def determine_state(cls):
+        if RouteToFoundry.is_active:
+            return ('RouteFoundry',)
+
         if RouteToCore.is_active:
             return ('Route',)
 
