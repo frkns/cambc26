@@ -17,13 +17,14 @@ OUTPUT_FILE = Path("../main.py")
 
 
 def git_commit(message="pre-concat checkpoint"):
-    print("checkpointing...")
-    try:
-        subprocess.run(["git", "add", "-A"], check=True)
-        subprocess.run(["git", "commit", "-m", message], check=True)
-        print("Git commit created successfully.")
-    except subprocess.CalledProcessError as e:
-        print(f"Git commit failed: {e}", file=sys.stderr)
+    pass
+    # print("checkpointing...")
+    # try:
+    #     subprocess.run(["git", "add", "-A"], check=True)
+    #     subprocess.run(["git", "commit", "-m", message], check=True)
+    #     print("Git commit created successfully.")
+    # except subprocess.CalledProcessError as e:
+    #     print(f"Git commit failed: {e}", file=sys.stderr)
 
 
 def get_bot_name() -> str:
