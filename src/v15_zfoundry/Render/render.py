@@ -9,7 +9,7 @@ import random
 import sys
 from pathlib import Path
 import argparse
-#import cambc
+import cambc
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -26,10 +26,9 @@ env = jinja2.Environment(
 )
 env.globals["LOCAL"] = not args.prod
 
-"""
 env.globals.update({name: getattr(cambc, name)
                    for name in dir(cambc) if not name.startswith("_")})
-"""
+
 env.globals.update(vars(builtins))
 env.globals.update({
     "random": random,
