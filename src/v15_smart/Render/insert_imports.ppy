@@ -164,7 +164,7 @@ def walk(root: str):
 
 
 if __name__ == "__main__":
-    git_commit()
+    # git_commit()
     for source_dir in SOURCE_DIRS:
         if source_dir.exists():
             walk(str(source_dir) + "/")

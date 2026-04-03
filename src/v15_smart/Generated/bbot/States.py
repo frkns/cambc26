@@ -19,7 +19,7 @@ from Generated.bbot.Builder import Builder
 from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
-from Generated.bbot.States import StateBuildHarvester, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
+from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
 from Generated.build.OreExecutive import OreExecutive
@@ -55,6 +55,10 @@ class StateBuildHarvester:
     def run(cls, pos):
         OreExecutive.go_build_harvester(pos)
 
+class StateBuildHarvesterAx:
+    @classmethod
+    def run(cls, pos):
+        OreExecutive.go_build_harvester(pos)
 
 class StateAttackTransporter:
     @classmethod
@@ -75,6 +79,7 @@ class StateRoute:
 class StateMoveTo:
     @classmethod
     def run(cls, pos, tag='_'):
+        print(f'{tag=}')
         Pathfinder.move_to(pos)
 
 
