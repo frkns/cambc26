@@ -35,7 +35,7 @@ env.globals.update({
 utils.register(env)
 constants.register(env)
 comms.register(env)
-# polyfill.register(env)
+polyfill.register(env)
 
 
 def render(template_dir=Path("..") / "Awubot"):

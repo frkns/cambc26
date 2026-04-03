@@ -1,0 +1,45 @@
+#!/bin/bash
+set -e
+
+echo "Benchmarking bot: $1 (Reverting to: $2)"
+
+# Submit the bot to benchmark
+bash submit "$1"
+
+# Get our team name from cambc status
+OUR_TEAM=$(cambc status | grep 'Team:' | sed 's/.*Team: \(.*\) (.*/\1/')
+
+echo "Our team: $OUR_TEAM"
+
+# Get the ladder around us and extract team names (skip header/border lines)
+LADDER=$(cambc ladder --around)
+echo "$LADDER"
+TEAMS=$(echo "$LADDER" | grep '^|' | grep -v '^\-' | grep -v '^| #' | grep -v '^|--' | awk -F'|' '{gsub(/^ +| +$/, "", $3); if ($3 != "") print $3}')
+
+echo "Sending scrimmage requests..."
+echo "$TEAMS" | while IFS= read -r TEAM; do
+  if [ -z "$TEAM" ] || [ "$TEAM" = "$OUR_TEAM" ]; then
+    echo "  Skipping ourselves: $TEAM"
+    continue
+  fi
+  # Look up team ID
+  TEAM_ID=$(cambc team search "$TEAM" | grep '│' | head -1 | awk -F'│' '{gsub(/^ +| +$/, "", $2); print $2}')
+  if [ -z "$TEAM_ID" ]; then
+    # Try ASCII pipe format
+    TEAM_ID=$(cambc team search "$TEAM" | grep '^|' | grep -v '^| Team' | grep -v '^|--' | head -1 | awk -F'|' '{gsub(/^ +| +$/, "", $2); print $2}')
+  fi
+  if [ -z "$TEAM_ID" ]; then
+    echo "  Could not find team ID for: $TEAM, skipping"
+    continue
+  fi
+  echo "  Requesting match against: $TEAM ($TEAM_ID)"
+  cambc match unrated "$TEAM_ID"
+done
+
+# Revert to the stable bot
+echo "Reverting to bot: $2"
+bash submit "$2"
+
+# TODO: Once the API is fixed, we can just reactivate whichever submission was active when the script started
+
+echo "Done. Benchmark matches requested, reverted to $2."
