@@ -14,9 +14,6 @@ from itertools import chain
 from Awubot.Globals import Globals
 from Awubot.MoveManager import MoveManager
 from Awubot.Util import Util
-from Generated.Constants import Constants
-from Generated.MarketMaker import MarketMaker
-from Generated.RobotPlayer import Entrypoint, Player
 from Generated.bbot.Attacker import Attacker
 from Generated.bbot.Builder import Builder
 from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
@@ -32,6 +29,7 @@ from Generated.build.SuicideExecutor import SuicideExecutor
 from Generated.comms.Comms import Comms
 from Generated.comms.Marker import Marker
 from Generated.comms.MarkerPositionPicker import MarkerPositionPicker
+from Generated.Constants import Constants
 from Generated.core.Core import Core
 from Generated.core.CoreHistory import CoreHistory
 from Generated.core.SpawnManager import SpawnManager
@@ -41,8 +39,10 @@ from Generated.explore.Explore import Explore
 from Generated.map.DarkForest import TreeNode, DarkForest
 from Generated.map.Map import TileInfo, Map
 from Generated.map.Symmetry import Sym, Symmetry
+from Generated.MarketMaker import MarketMaker
 from Generated.nav.BfsBureau import BfsBureau
 from Generated.nav.Pathfinder import Pathfinder
+from Generated.RobotPlayer import Entrypoint, Player
 from Generated.sentinel.Sentinel import Sentinel
 from Generated.sentinel.SentinelSupervisor import SentinelTargetInfo, SentinelSupervisor
 from Generated.units.Unit import Unit
@@ -55,6 +55,7 @@ class OreExecutive:
 
     state: dict[Position, int] = defaultdict(int)  
     ti_queue: list[tuple[int, Position]] = []
+    ax_queue: list[tuple[int, Position]] = []
 
 
     @classmethod
@@ -83,9 +84,15 @@ class OreExecutive:
                     heapq.heappush(cls.ti_queue, (dist, pos))
                     cls.state[pos] = 1
 
+            if env == Environment.ORE_AXIONITE:
+                if cls.state[pos] != 4:  # intended: can potentially requeue
+                    dist = pos.distance_squared(Unit.core_pos)
+                    heapq.heappush(cls.ax_queue, (dist, pos))
+                    cls.state[pos] = 4
+
 
     @classmethod
-    def get_target(cls) -> Position | None:
+    def get_titanium_target(cls) -> Position | None:
         ret = None
         while cls.ti_queue:
             dist, pos = cls.ti_queue[0]
@@ -102,6 +109,42 @@ class OreExecutive:
                 continue
 
             if not ti.has_bot and MarketMaker.should_build_harvester(pos):
+                ret = pos
+                break
+            else:
+                break
+
+        if ret is None:
+            return None
+
+        if not VisionTracker.me_is_canonical_ally(ret):
+            # just kill?
+            cls.state[ret] = 2
+            return None
+
+        return ret
+
+    @classmethod
+    def get_axionite_target(cls) -> Position | None:
+        if Globals.round < 200:
+            return None # don't want to waste resources on axionite early on
+            
+        ret = None
+        while cls.ax_queue:
+            dist, pos = cls.ax_queue[0]
+
+            if cls.state[pos] == 2:
+                heapq.heappop(cls.ax_queue)
+                continue
+
+            ax = Map.tile_info[pos.x][pos.y]
+
+            if ax.entity_type == EntityType.HARVESTER:
+                heapq.heappop(cls.ax_queue)
+                cls.state[pos] = 3
+                continue
+
+            if not ax.has_bot and MarketMaker.should_build_harvester(pos):
                 ret = pos
                 break
             else:

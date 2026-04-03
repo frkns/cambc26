@@ -14,9 +14,6 @@ from itertools import chain
 from Awubot.Globals import Globals
 from Awubot.MoveManager import MoveManager
 from Awubot.Util import Util
-from Generated.Constants import Constants
-from Generated.MarketMaker import MarketMaker
-from Generated.RobotPlayer import Entrypoint, Player
 from Generated.bbot.Attacker import Attacker
 from Generated.bbot.Builder import Builder
 from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
@@ -32,6 +29,7 @@ from Generated.build.SuicideExecutor import SuicideExecutor
 from Generated.comms.Comms import Comms
 from Generated.comms.Marker import Marker
 from Generated.comms.MarkerPositionPicker import MarkerPositionPicker
+from Generated.Constants import Constants
 from Generated.core.Core import Core
 from Generated.core.CoreHistory import CoreHistory
 from Generated.core.SpawnManager import SpawnManager
@@ -41,8 +39,10 @@ from Generated.explore.Explore import Explore
 from Generated.map.DarkForest import TreeNode, DarkForest
 from Generated.map.Map import TileInfo, Map
 from Generated.map.Symmetry import Sym, Symmetry
+from Generated.MarketMaker import MarketMaker
 from Generated.nav.BfsBureau import BfsBureau
 from Generated.nav.Pathfinder import Pathfinder
+from Generated.RobotPlayer import Entrypoint, Player
 from Generated.sentinel.Sentinel import Sentinel
 from Generated.sentinel.SentinelSupervisor import SentinelTargetInfo, SentinelSupervisor
 from Generated.units.Unit import Unit
@@ -67,38 +67,37 @@ class Builder(Unit):
     def start_turn(cls):
         Unit.start_turn()
 
-        Profiler.start()
+        
         BfsBureau.update()
-        Profiler.end("""BfsBureau.update""")
+        
 
         Symmetry.run_sym_check()
 
-        Profiler.start()
+        
         DarkForest.fcompute()
-        Profiler.end("""DarkForest.fcompute""")
+        
 
 
-        Profiler.start()
+        
         BfsBureau.bfs20()
-        Profiler.end("""BfsBureau.bfs20""")
+        
 
-        Profiler.start()
+        
         OreExecutive.fill()
-        Profiler.end("""OreExecutive.fill""")
+        
 
-        Profiler.start()
+        
         VisionTracker.fill()
-        Profiler.end("""VisionTracker.fill""")
+        
 
-        Profiler.start()
+        
         HarvesterAdjacent.fill()
-        Profiler.end("""HarvesterAdjacent.fill""")
+        
 
-        Profiler.start()
+        
         HealTargeter.fill()
-        Profiler.end("""HealTargeter.fill""")
+        
 
-        Symmetry.debug()
                 
 
 
@@ -106,7 +105,6 @@ class Builder(Unit):
     def run_turn(cls):
         cls.state, *args = cls.determine_state()
 
-        print(f'running: {cls.state}  @', *args, sep=' ')
 
         globals()[f'State{cls.state}'].run(*args)
 
@@ -115,13 +113,13 @@ class Builder(Unit):
     def end_turn(cls):
         Unit.end_turn()
 
-        Profiler.start()
+        
         HealExecutor.execute_heal_attempt()
-        Profiler.end("""HealExecutor.execute_heal_attempt""")
+        
 
-        Profiler.start()
+        
         Marker.attempt_mark()
-        Profiler.end("""Marker.attempt_mark""")
+        
 
 
     @classmethod
@@ -154,7 +152,12 @@ class Builder(Unit):
         if apos is not None:
             return 'AttackTransporter', apos
 
-        bhpos = OreExecutive.get_target()
+        """
+        axTarg = OreExecutive.get_axionite_target()
+        if axTarg is not None:
+            return 'BuildHarvesterAx', axTarg
+        """
+        bhpos = OreExecutive.get_titanium_target()
         if bhpos is not None:
             return 'BuildHarvester', bhpos
 

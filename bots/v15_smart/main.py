@@ -1,4 +1,4 @@
-# v15_smart,  @ 2026-04-02 19:58:01 (local)
+# v15_smart,  @ 2026-04-03 13:33:28 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -799,7 +799,7 @@ class BfsBureau:
             return 1000000, None
 
         # ── Phase 2: bitmask BFS from Dijkstra frontier ──
-        Profiler.start()
+        
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = cls.passable_int | _tm
@@ -20906,7 +20906,6 @@ class HealTargeter:
         if best.building_heal + best.bot_heal < 4:
             return None
 
-        print(f'HealTargeter {best.position=} {best.building_heal=} {best.building_hp=}')
 
         return best.position
 
@@ -21891,16 +21890,20 @@ class MarketMaker:
 
 
 
-
     @staticmethod
-    def harvester_payback(apos: Position) -> int:
-        l1 = abs(apos.x - Unit.core_pos.x) + abs(apos.y - Unit.core_pos.y)
-        Profiler.start()
+    def harvester_cost(apos: Position) -> int:
+        
         bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.sink_set)
-        Profiler.end("""BfsBureau.find_bridge_route""")
+        
         h_cost, _ = Globals.ct.get_harvester_cost()
         b_cost, _ = Globals.ct.get_bridge_cost()
-        cost = h_cost + b_cost * bridges
+        return h_cost + b_cost * bridges
+
+    @staticmethod
+    def harvester_payback(apos: Position, cost: int = None) -> int:
+        l1 = abs(apos.x - Unit.core_pos.x) + abs(apos.y - Unit.core_pos.y)
+        if cost is None:
+            cost = MarketMaker.harvester_cost(apos)
         return int(cost / 2.5) + (2 * l1)
 
 
@@ -21911,7 +21914,7 @@ class MarketMaker:
             return False
 
         pbt = MarketMaker.harvester_payback(apos)
-        print(f"""{pbt=}""")
+        
 
         if int(pbt * 1.5 + 100) < Util.get_rounds_left():
             return True
@@ -21967,6 +21970,7 @@ class OreExecutive:
 
     state: dict[Position, int] = defaultdict(int)  
     ti_queue: list[tuple[int, Position]] = []
+    ax_queue: list[tuple[int, Position]] = []
 
 
     @classmethod
@@ -21995,9 +21999,15 @@ class OreExecutive:
                     heapq.heappush(cls.ti_queue, (dist, pos))
                     cls.state[pos] = 1
 
+            if env == Environment.ORE_AXIONITE:
+                if cls.state[pos] != 4:  # intended: can potentially requeue
+                    dist = pos.distance_squared(Unit.core_pos)
+                    heapq.heappush(cls.ax_queue, (dist, pos))
+                    cls.state[pos] = 4
+
 
     @classmethod
-    def get_target(cls) -> Position | None:
+    def get_titanium_target(cls) -> Position | None:
         ret = None
         while cls.ti_queue:
             dist, pos = cls.ti_queue[0]
@@ -22014,6 +22024,42 @@ class OreExecutive:
                 continue
 
             if not ti.has_bot and MarketMaker.should_build_harvester(pos):
+                ret = pos
+                break
+            else:
+                break
+
+        if ret is None:
+            return None
+
+        if not VisionTracker.me_is_canonical_ally(ret):
+            # just kill?
+            cls.state[ret] = 2
+            return None
+
+        return ret
+
+    @classmethod
+    def get_axionite_target(cls) -> Position | None:
+        if Globals.round < 200:
+            return None # don't want to waste resources on axionite early on
+            
+        ret = None
+        while cls.ax_queue:
+            dist, pos = cls.ax_queue[0]
+
+            if cls.state[pos] == 2:
+                heapq.heappop(cls.ax_queue)
+                continue
+
+            ax = Map.tile_info[pos.x][pos.y]
+
+            if ax.entity_type == EntityType.HARVESTER:
+                heapq.heappop(cls.ax_queue)
+                cls.state[pos] = 3
+                continue
+
+            if not ax.has_bot and MarketMaker.should_build_harvester(pos):
                 ret = pos
                 break
             else:
@@ -22203,9 +22249,9 @@ class Pathfinder:
         Debug.line(target)
         my_pos = Globals.my_pos
 
-        Profiler.start()
+        
         dist, dir = BfsBureau.find_route(Globals.my_pos, target, ban_target_pos)
-        Profiler.end("""BfsBureau.find_route""")
+        
 
         if dir is None:
             cls.given_up = True
@@ -22230,8 +22276,6 @@ class Player:
 
             err = traceback.format_exc()
             Debug.tee(err)
-
-            ct.resign()
 
 
 # ============================================================
@@ -22358,7 +22402,7 @@ class RouteToCore:
                 DarkForest.sink_set,
             )
 
-        print(f"""{bridge_dist=}""")
+        
 
         if first_target is None:
             Debug.tee("first_target is None: giving up")
@@ -22703,6 +22747,16 @@ class StateBuildHarvester:
 
 
 # ============================================================
+# StateBuildHarvesterAx
+# ============================================================
+
+class StateBuildHarvesterAx:
+    @classmethod
+    def run(cls, pos):
+        OreExecutive.go_build_harvester(pos)
+
+
+# ============================================================
 # StateBuildTurret
 # ============================================================
 
@@ -22728,7 +22782,6 @@ class StateBuildTurret:
 class StateMoveTo:
     @classmethod
     def run(cls, pos, tag='_'):
-        print(f'{tag=}')
         Pathfinder.move_to(pos)
 
 
@@ -22837,9 +22890,9 @@ class Symmetry:
         cls.predict_enemy_core()
         DarkForest.register_enemy_core()
 
-        Profiler.start()
+        
         Map.sync_tile_infos()
-        Profiler.end_now("""Map.sync_tile_infos""")
+        
 
 
 
@@ -23252,9 +23305,9 @@ class Unit:
         Globals.start_tick()
         MarketMaker.refresh()
 
-        Profiler.start()
+        
         Map.fill_tile_info()
-        Profiler.end("""Map.fill_tile_info""")
+        
 
     @classmethod
     def run_turn(cls):
@@ -23263,7 +23316,7 @@ class Unit:
     @classmethod
     def end_turn(cls):
 
-        if Globals.round == 667:
+        if Globals.round == 1999:
             Profiler.report()
         print(f'scale ratio {MarketMaker.scale_ratio:.2f}')
 
@@ -23373,11 +23426,11 @@ class VisionTracker:
 
     @classmethod
     def canonical_ally(cls, from_pos: Position) -> BotInfo:
-        Profiler.start()
+        
         ret = min(cls.allies, key=
             lambda x: (Util.linf(from_pos, x.position) << 16) + x.id
         )
-        Profiler.end("""canonical_ally""")
+        
         return ret
 
 
@@ -23419,38 +23472,37 @@ class Builder(Unit):
     def start_turn(cls):
         Unit.start_turn()
 
-        Profiler.start()
+        
         BfsBureau.update()
-        Profiler.end("""BfsBureau.update""")
+        
 
         Symmetry.run_sym_check()
 
-        Profiler.start()
+        
         DarkForest.fcompute()
-        Profiler.end("""DarkForest.fcompute""")
+        
 
 
-        Profiler.start()
+        
         BfsBureau.bfs20()
-        Profiler.end("""BfsBureau.bfs20""")
+        
 
-        Profiler.start()
+        
         OreExecutive.fill()
-        Profiler.end("""OreExecutive.fill""")
+        
 
-        Profiler.start()
+        
         VisionTracker.fill()
-        Profiler.end("""VisionTracker.fill""")
+        
 
-        Profiler.start()
+        
         HarvesterAdjacent.fill()
-        Profiler.end("""HarvesterAdjacent.fill""")
+        
 
-        Profiler.start()
+        
         HealTargeter.fill()
-        Profiler.end("""HealTargeter.fill""")
+        
 
-        Symmetry.debug()
                 
 
 
@@ -23458,7 +23510,6 @@ class Builder(Unit):
     def run_turn(cls):
         cls.state, *args = cls.determine_state()
 
-        print(f'running: {cls.state}  @', *args, sep=' ')
 
         globals()[f'State{cls.state}'].run(*args)
 
@@ -23467,13 +23518,13 @@ class Builder(Unit):
     def end_turn(cls):
         Unit.end_turn()
 
-        Profiler.start()
+        
         HealExecutor.execute_heal_attempt()
-        Profiler.end("""HealExecutor.execute_heal_attempt""")
+        
 
-        Profiler.start()
+        
         Marker.attempt_mark()
-        Profiler.end("""Marker.attempt_mark""")
+        
 
 
     @classmethod
@@ -23506,7 +23557,12 @@ class Builder(Unit):
         if apos is not None:
             return 'AttackTransporter', apos
 
-        bhpos = OreExecutive.get_target()
+        """
+        axTarg = OreExecutive.get_axionite_target()
+        if axTarg is not None:
+            return 'BuildHarvesterAx', axTarg
+        """
+        bhpos = OreExecutive.get_titanium_target()
         if bhpos is not None:
             return 'BuildHarvester', bhpos
 
@@ -23537,9 +23593,6 @@ class Core(Unit):
     @classmethod
     def end_turn(cls):
         Unit.end_turn()
-
-        if Globals.round > 666:
-            Globals.ct.resign()
 
 
 # ============================================================
