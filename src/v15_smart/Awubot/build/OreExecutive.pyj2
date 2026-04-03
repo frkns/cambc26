@@ -25,11 +25,13 @@ class OreExecutive:
     ore_pos: Position | None = None  # current
 
     {% set UNSEEN = 0 %}
-    {% set QUEUED = 1 %}
+    {% set TITANIUM_QUEUED = 1 %}
     {% set KILLED = 2 %}
     {% set HAS_HARVESTER = 3 %}
+    {% set AX_QUEUED = 4 %}
     state: dict[Position, int] = defaultdict(int)  
     ti_queue: list[tuple[int, Position]] = []
+    ax_queue: list[tuple[int, Position]] = []
 
 
     @classmethod
@@ -37,7 +39,7 @@ class OreExecutive:
         if cls.state[pos] == {{ UNSEEN }}:
             dist = pos.distance_squared(Unit.core_pos)
             heapq.heappush(cls.ti_queue, (dist, pos))
-            cls.state[pos] = {{ QUEUED }}
+            cls.state[pos] = {{ TITANIUM_QUEUED }}
 
 
     @classmethod
@@ -53,14 +55,20 @@ class OreExecutive:
                 continue
 
             if env == Environment.ORE_TITANIUM:
-                if cls.state[pos] != {{ QUEUED }}:  # intended: can potentially requeue
+                if cls.state[pos] != {{ TITANIUM_QUEUED }}:  # intended: can potentially requeue
                     dist = pos.distance_squared(Unit.core_pos)
                     heapq.heappush(cls.ti_queue, (dist, pos))
-                    cls.state[pos] = {{ QUEUED }}
+                    cls.state[pos] = {{ TITANIUM_QUEUED }}
+
+            if env == Environment.ORE_AXIONITE:
+                if cls.state[pos] != {{ AX_QUEUED }}:  # intended: can potentially requeue
+                    dist = pos.distance_squared(Unit.core_pos)
+                    heapq.heappush(cls.ax_queue, (dist, pos))
+                    cls.state[pos] = {{ AX_QUEUED }}
 
 
     @classmethod
-    def get_target(cls) -> Position | None:
+    def get_titanium_target(cls) -> Position | None:
         ret = None
         while cls.ti_queue:
             dist, pos = cls.ti_queue[0]
@@ -77,6 +85,42 @@ class OreExecutive:
                 continue
 
             if not ti.has_bot and MarketMaker.should_build_harvester(pos):
+                ret = pos
+                break
+            else:
+                break
+
+        if ret is None:
+            return None
+
+        if not VisionTracker.me_is_canonical_ally(ret):
+            # just kill?
+            cls.state[ret] = {{ KILLED }}
+            return None
+
+        return ret
+
+    @classmethod
+    def get_axionite_target(cls) -> Position | None:
+        if Globals.round < 200:
+            return None # don't want to waste resources on axionite early on
+            
+        ret = None
+        while cls.ax_queue:
+            dist, pos = cls.ax_queue[0]
+
+            if cls.state[pos] == {{ KILLED }}:
+                heapq.heappop(cls.ax_queue)
+                continue
+
+            ax = Map.tile_info[pos.x][pos.y]
+
+            if ax.entity_type == EntityType.HARVESTER:
+                heapq.heappop(cls.ax_queue)
+                cls.state[pos] = {{ HAS_HARVESTER }}
+                continue
+
+            if not ax.has_bot and MarketMaker.should_build_harvester(pos):
                 ret = pos
                 break
             else:

@@ -27,6 +27,11 @@ class StateBuildHarvester:
         OreExecutive.go_build_harvester(pos)
         {# /* Debug.line(pos, Color.YELLOW) */ #}
 
+class StateBuildHarvesterAx:
+    @classmethod
+    def run(cls, pos):
+        OreExecutive.go_build_harvester(pos)
+        {# /* Debug.line(pos, Color.YELLOW) */ #}
 
 class StateAttackTransporter:
     @classmethod
