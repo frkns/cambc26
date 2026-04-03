@@ -54,8 +54,6 @@ from Generated.units.Unit import Unit
 
 
 class OreExecutive:
-    ore_pos: Position | None = None  # current
-
     {% set UNSEEN = 0 %}
     {% set QUEUED = 1 %}
     {% set KILLED = 2 %}
