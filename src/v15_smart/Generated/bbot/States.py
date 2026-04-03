@@ -55,6 +55,10 @@ class StateBuildHarvester:
     def run(cls, pos):
         OreExecutive.go_build_harvester(pos)
 
+class StateBuildHarvesterAx:
+    @classmethod
+    def run(cls, pos):
+        OreExecutive.go_build_harvester(pos)
 
 class StateAttackTransporter:
     @classmethod

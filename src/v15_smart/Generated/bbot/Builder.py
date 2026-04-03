@@ -152,7 +152,12 @@ class Builder(Unit):
         if apos is not None:
             return 'AttackTransporter', apos
 
-        bhpos = OreExecutive.get_target()
+        """
+        axTarg = OreExecutive.get_axionite_target()
+        if axTarg is not None:
+            return 'BuildHarvesterAx', axTarg
+        """
+        bhpos = OreExecutive.get_titanium_target()
         if bhpos is not None:
             return 'BuildHarvester', bhpos
 
