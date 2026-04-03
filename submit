@@ -1,4 +1,6 @@
 #!/bin/bash
+echo "Submitting bot: $1"
+
 set -e
 
 cd "src"
@@ -12,4 +14,4 @@ if grep -q "ct\.resign()" main.py; then
 fi
 
 cd ../..
-cambc submit "bots/$1"
+cambc submit "bots/$1" -n "$1"

@@ -45,19 +45,19 @@ def render(template_dir=Path("..") / "Awubot"):
         relative = src.relative_to(template_dir)
         dest_rel = relative.with_suffix(".py")
         dest = output_dir / dest_rel
-        template = env.get_template(str(relative))
+        template = env.get_template(relative.as_posix())
         rendered = template.render()
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(rendered)
+        dest.write_text(rendered, encoding="utf-8")
 
     for src in template_dir.rglob("*.ppy"):
         relative = src.relative_to(template_dir)
         dest_rel = relative.with_suffix(".ppy")
         dest = output_dir / dest_rel
-        template = env.get_template(str(relative))
+        template = env.get_template(relative.as_posix())
         rendered = template.render()
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(rendered)
+        dest.write_text(rendered, encoding="utf-8")
 
 
 render()
