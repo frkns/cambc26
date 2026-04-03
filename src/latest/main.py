@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-03 12:12:11 (local)
+# latest,  @ 2026-04-03 15:34:31 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -2503,7 +2503,7 @@ class DarkForest:
     pressure: list[int]    # pressure at node (top-down, reset at sink boundaries)
     node_kind: list[int]   # propagated kind per node (top-down)
     sink_set: set[int]
-
+    leaf_set: set[int]   # titanium leaf nodes — valid foundry sites
 
     @classmethod
     def init(cls):
@@ -20178,6 +20178,8 @@ class DarkForest:
         for i in active:
             if not cc[i]:
                 qa(i)
+        
+        _initial_leaves = list(q)
 
         # ── bottom-up BFS ──
         qi = 0
@@ -20219,6 +20221,16 @@ class DarkForest:
         cls.pressure = pressure
         cls.node_kind = nk
         cls.sink_set = sink_set
+
+        # ── titanium leaf set ──
+        # Leaves in the ally-core subtree are the only valid foundry sites.
+        # Exclude the cores themselves (isolated core with no children would
+        # pass the cc==0 test but is obviously not a foundry site).
+        _ti_leaves: set[int] = set()
+        for u in _initial_leaves:
+            if nk[u] == 1 and u not in core_pos_set:
+                _ti_leaves.add(u)
+        cls.leaf_set = _ti_leaves
 
 
 # ============================================================
@@ -22494,9 +22506,46 @@ class RouteToFoundry:
     from_pos: Position
     killed: set[Position] = set()
 
+    # Positions that have been claimed (or built) as foundry sites.
+    # Class-level so all bots in this process see the same table.
+    planned_foundry_positions: set[int] = set()
+
+    # The specific titanium leaf this bot is routing toward.
+    # None until a target is claimed in try_build_route.
+    _foundry_target: int | None = None
+
+    @classmethod
+    def _pick_target(cls) -> int | None:
+        """
+        Return the encoded position of the closest unclaimed titanium leaf,
+        or None if none exist.
+
+        Uses Manhattan distance as a cheap heuristic — good enough given that
+        bridge routing later handles the actual terrain.
+        """
+        candidates = DarkForest.leaf_set - cls.planned_foundry_positions
+        if not candidates:
+            return None
+
+        sx, sy = cls.from_pos.x, cls.from_pos.y
+        best: int | None = None
+        best_d = 1000000
+        for c in candidates:
+            cx = c // 56 - 3
+            cy = c % 56 - 3
+            d = abs(cx - sx) + abs(cy - sy)
+            if d < best_d:
+                best_d = d
+                best = c
+        return best
+
     @classmethod
     def set_pos(cls, pos: Position):
-        if (((pos.x) + 3) * 56 + ((pos.y) + 3)) in DarkForest.sink_set:
+        encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
+
+        # Arrived at the foundry site — deactivate so the caller can build.
+        # Keep the entry in planned_foundry_positions: the foundry is here now.
+        if cls._foundry_target is not None and encoded == cls._foundry_target:
             cls.is_active = False
             return
 
@@ -22507,23 +22556,37 @@ class RouteToFoundry:
     def try_build_route(cls):
         assert cls.is_active
 
+        # Claim a target on first call (or if we lost one).
+        if cls._foundry_target is None:
+            cls._foundry_target = cls._pick_target()
+            if cls._foundry_target is None:
+                Debug.tee("RouteToFoundry: no unclaimed titanium leaf available")
+                cls.give_up()
+                StateMoveTo.run(Explore.get_target())
+                return
+            cls.planned_foundry_positions.add(cls._foundry_target)
+
+        target_set = {cls._foundry_target}
+
+        # Phase 1: conveyor-only attempt (max_iter=0 skips bridge BFS).
         bridge_dist, first_target = BfsBureau.find_bridge_route(
             cls.from_pos,
-            Unit.core_pos_set,
+            target_set,
             max_iter=0,
         )
+        # Phase 2: allow bridges if conveyors can't reach.
         if first_target is None:
             bridge_dist, first_target = BfsBureau.find_bridge_route(
                 cls.from_pos,
-                DarkForest.sink_set,
+                target_set,
             )
 
         print(f"""{bridge_dist=}""")
 
         if first_target is None:
-            Debug.tee("first_target is None: giving up")
+            Debug.tee("RouteToFoundry: first_target is None, giving up")
             cls.give_up()
-            StateMoveTo.run(Explore.get_target()) # new
+            StateMoveTo.run(Explore.get_target())
             return
 
         target = Position(*first_target)
@@ -22551,25 +22614,31 @@ class RouteToFoundry:
         if ti.has_building:
             if not ti.is_building_ally:
                 return True
+            """
             if ti.entity_type in Constants.TRANSPORTERS_SET:
                 return True
-            if ti.entity_type != EntityType.ROAD:  # redundant
+            if ti.entity_type != EntityType.ROAD:
                 return True
+            """
         return False
-
 
     @classmethod
     def give_up(cls):
         cls.is_active = False
+        # Release the claim so another bot (or a retry) can use this leaf.
+        if cls._foundry_target is not None:
+            cls.planned_foundry_positions.discard(cls._foundry_target)
+            cls._foundry_target = None
         cls.killed.add(cls.from_pos)
         Debug.diamond(Color.PURPLE)
 
-
     @classmethod
     def do_routing(cls):
+        print("Aiming at foundry:",cls._foundry_target)
+
         if cls.should_give_up():
             cls.give_up()
-            StateMoveTo.run(Explore.get_target()) # new
+            StateMoveTo.run(Explore.get_target())
             return
 
         dsq = Globals.my_pos.distance_squared(cls.from_pos)

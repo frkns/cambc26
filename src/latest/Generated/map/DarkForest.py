@@ -22,7 +22,7 @@ from Generated.bbot.Builder import Builder
 from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
-from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
+from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateRouteFoundry, StateMoveTo, StateBuildTurret
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
 from Generated.build.OreExecutive import OreExecutive
@@ -69,7 +69,7 @@ class DarkForest:
     pressure: list[int]    # pressure at node (top-down, reset at sink boundaries)
     node_kind: list[int]   # propagated kind per node (top-down)
     sink_set: set[int]
-
+    leaf_set: set[int]   # titanium leaf nodes — valid foundry sites
 
     @classmethod
     def init(cls):
@@ -17744,6 +17744,8 @@ class DarkForest:
         for i in active:
             if not cc[i]:
                 qa(i)
+        
+        _initial_leaves = list(q)
 
         # ── bottom-up BFS ──
         qi = 0
@@ -17785,4 +17787,14 @@ class DarkForest:
         cls.pressure = pressure
         cls.node_kind = nk
         cls.sink_set = sink_set
+
+        # ── titanium leaf set ──
+        # Leaves in the ally-core subtree are the only valid foundry sites.
+        # Exclude the cores themselves (isolated core with no children would
+        # pass the cc==0 test but is obviously not a foundry site).
+        _ti_leaves: set[int] = set()
+        for u in _initial_leaves:
+            if nk[u] == 1 and u not in core_pos_set:
+                _ti_leaves.add(u)
+        cls.leaf_set = _ti_leaves
 # ===---
