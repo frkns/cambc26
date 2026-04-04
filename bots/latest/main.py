@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-04 12:19:21 (local)
+# latest,  @ 2026-04-04 13:08:19 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -22147,7 +22147,7 @@ class OreExecutive:
             Debug.diamond(Color.RED)
             cls.state[pos] = 2
             return
-            
+
         cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
         ti = Map.tile_info[cand.position.x][cand.position.y]
         if ti.entity_type in Constants.TRANSPORTERS_SET:
@@ -22155,11 +22155,23 @@ class OreExecutive:
             Debug.line(pos, Color.RED)
             Debug.diamond(Color.RED)
             return
+        
+        RouteToFoundry.set_pos(cand.position)
+        RouteToFoundry.try_claim_target()
+        foundry_enc = RouteToFoundry._foundry_target
+        if foundry_enc is None or not RouteToFoundry.axionite_can_reach_foundry(cand.position, foundry_enc):
+            cls.state[pos] = 2
+            Debug.line(pos, Color.RED)
+            Debug.diamond(Color.RED)
+            RouteToFoundry.give_up()
+            return
         if BuildManager.can_dbuild_harvester(pos):
             Debug.line(pos, Color.YELLOW)
             BuildManager.dbuild_harvester(pos)
             
             RouteToFoundry.set_pos(cand.position)
+        else:
+            RouteToFoundry.give_up()
 
 
 # ============================================================
@@ -22233,6 +22245,7 @@ class OrePositionPicker:
     @classmethod
     def is_better_than(cls, a: Candidate, b: Candidate) -> bool:
         # prio:
+        # 0. not null
         # 1. on map
         # 2. empty
         # 3. no building
@@ -22241,10 +22254,17 @@ class OrePositionPicker:
         # 6. build metric
         # 7. arbitrary
 
+        if a is None and b is not None:
+            return False
+        if a is not None and b is None:
+            return True
+
         if a.ti is None and (b.ti is not None):
             return False
         if (a.ti is not None) and b.ti is None:
             return True
+        if a.ti is None and b.ti is None:
+            return True  # arbitrary, both are off-map
 
         EMPTY = Environment.EMPTY
 
@@ -22556,6 +22576,29 @@ class RouteToFoundry:
     _foundry_target: int | None = None
 
     @classmethod
+    def axionite_can_reach_foundry(cls, ore_pos: Position, foundry_encoded: int) -> bool:
+        """
+        Quick reachability check: can we bridge-route from an axionite ore
+        position to a specific foundry site?
+
+        Returns False if BfsBureau finds no path, so the caller can reject
+        this (ore, foundry) pairing before any routing work begins.
+
+        Intentionally uses a small max_iter so it fails fast on clearly
+        disconnected positions rather than spending the full BFS budget.
+        """
+        target_set = {foundry_encoded}
+
+        # Try conveyor-only first (max_iter=0).
+        _, first = BfsBureau.find_bridge_route(ore_pos, target_set, max_iter=0)
+        if first is not None:
+            return True
+
+        # Fall back to bridge BFS with a capped iteration budget.
+        _, first = BfsBureau.find_bridge_route(ore_pos, target_set, max_iter=200)
+        return first is not None
+
+    @classmethod
     def _pick_target(cls) -> int | None:
         """
         Return the encoded position of the closest unclaimed titanium leaf,
@@ -22579,7 +22622,6 @@ class RouteToFoundry:
                 best_d = d
                 best = c
         return best
-
     @classmethod
     def set_pos(cls, pos: Position):
         encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
@@ -22664,7 +22706,7 @@ class RouteToFoundry:
         Debug.diamond(Color.PURPLE)
 
     @classmethod
-    def do_routing(cls):
+    def try_claim_target(cls):
         # Claim a target on first call (or if we lost one).
         if cls._foundry_target is None:
             cls._foundry_target = cls._pick_target()
@@ -22674,8 +22716,11 @@ class RouteToFoundry:
                 StateMoveTo.run(Explore.get_target())
                 return
             cls.planned_foundry_positions.add(cls._foundry_target)
-        print("Aiming at foundry:",((cls._foundry_target) // 56 - 3), ((cls._foundry_target) % 56 - 3))
 
+    @classmethod
+    def do_routing(cls):
+        print("Aiming at foundry:",((cls._foundry_target) // 56 - 3), ((cls._foundry_target) % 56 - 3))
+        cls.try_claim_target()
         if cls.should_give_up():
             cls.give_up()
             StateMoveTo.run(Explore.get_target())

@@ -89,6 +89,7 @@ class OrePositionPicker:
     @classmethod
     def is_better_than(cls, a: Candidate, b: Candidate) -> bool:
         # prio:
+        # 0. not null
         # 1. on map
         # 2. empty
         # 3. no building
@@ -97,10 +98,17 @@ class OrePositionPicker:
         # 6. build metric
         # 7. arbitrary
 
+        if a is None and b is not None:
+            return False
+        if a is not None and b is None:
+            return True
+
         if a.ti is None and (b.ti is not None):
             return False
         if (a.ti is not None) and b.ti is None:
             return True
+        if a.ti is None and b.ti is None:
+            return True  # arbitrary, both are off-map
 
         EMPTY = Environment.EMPTY
 

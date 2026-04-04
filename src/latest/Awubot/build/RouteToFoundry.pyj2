@@ -69,6 +69,29 @@ class RouteToFoundry:
     _foundry_target: int | None = None
 
     @classmethod
+    def axionite_can_reach_foundry(cls, ore_pos: Position, foundry_encoded: int) -> bool:
+        """
+        Quick reachability check: can we bridge-route from an axionite ore
+        position to a specific foundry site?
+
+        Returns False if BfsBureau finds no path, so the caller can reject
+        this (ore, foundry) pairing before any routing work begins.
+
+        Intentionally uses a small max_iter so it fails fast on clearly
+        disconnected positions rather than spending the full BFS budget.
+        """
+        target_set = {foundry_encoded}
+
+        # Try conveyor-only first (max_iter=0).
+        _, first = BfsBureau.find_bridge_route(ore_pos, target_set, max_iter=0)
+        if first is not None:
+            return True
+
+        # Fall back to bridge BFS with a capped iteration budget.
+        _, first = BfsBureau.find_bridge_route(ore_pos, target_set, max_iter=200)
+        return first is not None
+
+    @classmethod
     def _pick_target(cls) -> int | None:
         """
         Return the encoded position of the closest unclaimed titanium leaf,
@@ -92,7 +115,6 @@ class RouteToFoundry:
                 best_d = d
                 best = c
         return best
-
     @classmethod
     def set_pos(cls, pos: Position):
         encoded = {{ encode_pos('pos.x', 'pos.y') }}
@@ -177,7 +199,7 @@ class RouteToFoundry:
         Debug.diamond(Color.PURPLE)
 
     @classmethod
-    def do_routing(cls):
+    def try_claim_target(cls):
         # Claim a target on first call (or if we lost one).
         if cls._foundry_target is None:
             cls._foundry_target = cls._pick_target()
@@ -187,8 +209,11 @@ class RouteToFoundry:
                 StateMoveTo.run(Explore.get_target())
                 return
             cls.planned_foundry_positions.add(cls._foundry_target)
-        print("Aiming at foundry:",{{decode_pos('cls._foundry_target') | join(', ')}})
 
+    @classmethod
+    def do_routing(cls):
+        print("Aiming at foundry:",{{decode_pos('cls._foundry_target') | join(', ')}})
+        cls.try_claim_target()
         if cls.should_give_up():
             cls.give_up()
             StateMoveTo.run(Explore.get_target())

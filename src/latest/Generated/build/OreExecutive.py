@@ -192,7 +192,7 @@ class OreExecutive:
             Debug.diamond(Color.RED)
             cls.state[pos] = 2
             return
-            
+
         cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
         ti = Map.tile_info[cand.position.x][cand.position.y]
         if ti.entity_type in Constants.TRANSPORTERS_SET:
@@ -200,8 +200,20 @@ class OreExecutive:
             Debug.line(pos, Color.RED)
             Debug.diamond(Color.RED)
             return
+        
+        RouteToFoundry.set_pos(cand.position)
+        RouteToFoundry.try_claim_target()
+        foundry_enc = RouteToFoundry._foundry_target
+        if foundry_enc is None or not RouteToFoundry.axionite_can_reach_foundry(cand.position, foundry_enc):
+            cls.state[pos] = 2
+            Debug.line(pos, Color.RED)
+            Debug.diamond(Color.RED)
+            RouteToFoundry.give_up()
+            return
         if BuildManager.can_dbuild_harvester(pos):
             Debug.line(pos, Color.YELLOW)
             BuildManager.dbuild_harvester(pos)
             
             RouteToFoundry.set_pos(cand.position)
+        else:
+            RouteToFoundry.give_up()
