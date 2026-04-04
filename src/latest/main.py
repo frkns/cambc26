@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-04 10:38:17 (local)
+# latest,  @ 2026-04-04 10:41:34 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -22823,7 +22823,7 @@ class ShieldTargeterExecutor:
 
 
     @classmethod
-    def execute_shield_attempt(cls) -> Psosition | None:
+    def execute_shield_attempt(cls) -> Position | None:
         if not cls.cand:
             return None
         
@@ -23704,9 +23704,9 @@ class Builder(Unit):
         HealTargeter.fill()
         
 
-        
-        ShieldTargeterExecutor.fill()
-        
+        # 
+        # ShieldTargeterExecutor.fill()
+        # 
 
                 
 
@@ -23727,9 +23727,9 @@ class Builder(Unit):
         HealExecutor.execute_heal_attempt()
         
 
-        
-        ShieldTargeterExecutor.execute_shield_attempt()
-        
+        # 
+        # ShieldTargeterExecutor.execute_shield_attempt()
+        # 
 
         
         Marker.attempt_mark()

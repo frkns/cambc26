@@ -100,9 +100,9 @@ class Builder(Unit):
         HealTargeter.fill()
         
 
-        
-        ShieldTargeterExecutor.fill()
-        
+        # 
+        # ShieldTargeterExecutor.fill()
+        # 
 
                 
 
@@ -123,9 +123,9 @@ class Builder(Unit):
         HealExecutor.execute_heal_attempt()
         
 
-        
-        ShieldTargeterExecutor.execute_shield_attempt()
-        
+        # 
+        # ShieldTargeterExecutor.execute_shield_attempt()
+        # 
 
         
         Marker.attempt_mark()

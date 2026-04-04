@@ -71,7 +71,7 @@ class ShieldTargeterExecutor:
 
 
     @classmethod
-    def execute_shield_attempt(cls) -> Psosition | None:
+    def execute_shield_attempt(cls) -> Position | None:
         if not cls.cand:
             return None
         

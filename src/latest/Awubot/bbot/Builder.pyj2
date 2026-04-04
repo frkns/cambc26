@@ -106,9 +106,9 @@ class Builder({{ super() }}):
         HealTargeter.fill()
         {{ P.end('HealTargeter.fill') }}
 
-        {{ P.start() }}
-        ShieldTargeterExecutor.fill()
-        {{ P.end('ShieldTargeterExecutor.fill') }}
+        # {{ P.start() }}
+        # ShieldTargeterExecutor.fill()
+        # {{ P.end('ShieldTargeterExecutor.fill') }}
 
         {% if LOCAL %}
         Symmetry.debug()
@@ -135,9 +135,9 @@ class Builder({{ super() }}):
         HealExecutor.execute_heal_attempt()
         {{ P.end('HealExecutor.execute_heal_attempt') }}
 
-        {{ P.start() }}
-        ShieldTargeterExecutor.execute_shield_attempt()
-        {{ P.end('ShieldTargeterExecutor.execute_shield_attempt') }}
+        # {{ P.start() }}
+        # ShieldTargeterExecutor.execute_shield_attempt()
+        # {{ P.end('ShieldTargeterExecutor.execute_shield_attempt') }}
 
         {{ P.start() }}
         Marker.attempt_mark()
