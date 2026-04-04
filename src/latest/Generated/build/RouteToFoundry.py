@@ -107,16 +107,6 @@ class RouteToFoundry:
     def try_build_route(cls):
         assert cls.is_active
 
-        # Claim a target on first call (or if we lost one).
-        if cls._foundry_target is None:
-            cls._foundry_target = cls._pick_target()
-            if cls._foundry_target is None:
-                Debug.tee("RouteToFoundry: no unclaimed titanium leaf available")
-                cls.give_up()
-                StateMoveTo.run(Explore.get_target())
-                return
-            cls.planned_foundry_positions.add(cls._foundry_target)
-
         target_set = {cls._foundry_target}
 
         # Phase 1: conveyor-only attempt (max_iter=0 skips bridge BFS).
@@ -185,7 +175,16 @@ class RouteToFoundry:
 
     @classmethod
     def do_routing(cls):
-        print("Aiming at foundry:",cls._foundry_target)
+        # Claim a target on first call (or if we lost one).
+        if cls._foundry_target is None:
+            cls._foundry_target = cls._pick_target()
+            if cls._foundry_target is None:
+                Debug.tee("RouteToFoundry: no unclaimed titanium leaf available")
+                cls.give_up()
+                StateMoveTo.run(Explore.get_target())
+                return
+            cls.planned_foundry_positions.add(cls._foundry_target)
+        print("Aiming at foundry:",((cls._foundry_target) // 56 - 3), ((cls._foundry_target) % 56 - 3))
 
         if cls.should_give_up():
             cls.give_up()

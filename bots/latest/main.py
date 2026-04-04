@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-03 22:47:47 (local)
+# latest,  @ 2026-04-04 12:19:21 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -20405,8 +20405,7 @@ class FoundryBuild:
         print("Trying to build foundry at", pos)
         print("Foundry cost:", Globals.ct.get_foundry_cost()[0])
 
-        if Globals.my_pos.distance_squared(pos) > 2:
-            Pathfinder.move_to(pos, ban_target_pos=True)
+        Pathfinder.move_to(pos, ban_target_pos=True)
         if Globals.ct.get_global_resources()[0]> Globals.ct.get_foundry_cost()[0] and Globals.ct.can_destroy(pos) and Globals.ct.get_action_cooldown()==0:
             Globals.ct.destroy(pos)
         if Globals.ct.can_build_foundry(pos):
@@ -22042,6 +22041,9 @@ class OreExecutive:
                     heapq.heappush(cls.ti_queue, (dist, pos))
                     cls.state[pos] = 1
 
+            if cls.state[pos] == 2:
+                continue
+
             if env == Environment.ORE_AXIONITE:
                 if cls.state[pos] != 4:  # intended: can potentially requeue
                     dist = pos.distance_squared(Unit.core_pos)
@@ -22145,12 +22147,18 @@ class OreExecutive:
             Debug.diamond(Color.RED)
             cls.state[pos] = 2
             return
-
+            
+        cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
+        ti = Map.tile_info[cand.position.x][cand.position.y]
+        if ti.entity_type in Constants.TRANSPORTERS_SET:
+            cls.state[pos] = 2
+            Debug.line(pos, Color.RED)
+            Debug.diamond(Color.RED)
+            return
         if BuildManager.can_dbuild_harvester(pos):
             Debug.line(pos, Color.YELLOW)
             BuildManager.dbuild_harvester(pos)
-
-            cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
+            
             RouteToFoundry.set_pos(cand.position)
 
 
@@ -22589,16 +22597,6 @@ class RouteToFoundry:
     def try_build_route(cls):
         assert cls.is_active
 
-        # Claim a target on first call (or if we lost one).
-        if cls._foundry_target is None:
-            cls._foundry_target = cls._pick_target()
-            if cls._foundry_target is None:
-                Debug.tee("RouteToFoundry: no unclaimed titanium leaf available")
-                cls.give_up()
-                StateMoveTo.run(Explore.get_target())
-                return
-            cls.planned_foundry_positions.add(cls._foundry_target)
-
         target_set = {cls._foundry_target}
 
         # Phase 1: conveyor-only attempt (max_iter=0 skips bridge BFS).
@@ -22667,7 +22665,16 @@ class RouteToFoundry:
 
     @classmethod
     def do_routing(cls):
-        print("Aiming at foundry:",cls._foundry_target)
+        # Claim a target on first call (or if we lost one).
+        if cls._foundry_target is None:
+            cls._foundry_target = cls._pick_target()
+            if cls._foundry_target is None:
+                Debug.tee("RouteToFoundry: no unclaimed titanium leaf available")
+                cls.give_up()
+                StateMoveTo.run(Explore.get_target())
+                return
+            cls.planned_foundry_positions.add(cls._foundry_target)
+        print("Aiming at foundry:",((cls._foundry_target) // 56 - 3), ((cls._foundry_target) % 56 - 3))
 
         if cls.should_give_up():
             cls.give_up()
@@ -22971,7 +22978,6 @@ class StateBuildHarvester:
 class StateBuildHarvesterAx:
     @classmethod
     def run(cls, pos):
-        print("moving towards building harvester ax at", pos,file=sys.stderr)
         OreExecutive.go_build_ax_harvester(pos)
 
 
@@ -23789,7 +23795,6 @@ class Builder(Unit):
         if foundry_target is not None:
             return 'FoundryBuild', foundry_target
 
-        """
         trans: TransporterInfo = ConnectManager.get_connect_target_info()
         if trans is not None:
             tpos = trans.target
@@ -23805,7 +23810,7 @@ class Builder(Unit):
         apos = Attacker.get_trans_target()
         if apos is not None:
             return 'AttackTransporter', apos
-        """
+
         
         axTarg = OreExecutive.get_axionite_target()
         if axTarg is not None:

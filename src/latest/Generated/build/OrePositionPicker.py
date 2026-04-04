@@ -177,13 +177,3 @@ class OrePositionPicker:
             best = cls.cand[0]
 
         return best
-
-
-
-
-
-
-
-
-
-

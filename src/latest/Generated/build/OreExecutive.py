@@ -86,6 +86,9 @@ class OreExecutive:
                     heapq.heappush(cls.ti_queue, (dist, pos))
                     cls.state[pos] = 1
 
+            if cls.state[pos] == 2:
+                continue
+
             if env == Environment.ORE_AXIONITE:
                 if cls.state[pos] != 4:  # intended: can potentially requeue
                     dist = pos.distance_squared(Unit.core_pos)
@@ -189,10 +192,16 @@ class OreExecutive:
             Debug.diamond(Color.RED)
             cls.state[pos] = 2
             return
-
+            
+        cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
+        ti = Map.tile_info[cand.position.x][cand.position.y]
+        if ti.entity_type in Constants.TRANSPORTERS_SET:
+            cls.state[pos] = 2
+            Debug.line(pos, Color.RED)
+            Debug.diamond(Color.RED)
+            return
         if BuildManager.can_dbuild_harvester(pos):
             Debug.line(pos, Color.YELLOW)
             BuildManager.dbuild_harvester(pos)
-
-            cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
+            
             RouteToFoundry.set_pos(cand.position)

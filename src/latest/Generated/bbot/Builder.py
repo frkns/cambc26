@@ -146,7 +146,6 @@ class Builder(Unit):
         if foundry_target is not None:
             return 'FoundryBuild', foundry_target
 
-        """
         trans: TransporterInfo = ConnectManager.get_connect_target_info()
         if trans is not None:
             tpos = trans.target
@@ -162,7 +161,7 @@ class Builder(Unit):
         apos = Attacker.get_trans_target()
         if apos is not None:
             return 'AttackTransporter', apos
-        """
+
         
         axTarg = OreExecutive.get_axionite_target()
         if axTarg is not None:

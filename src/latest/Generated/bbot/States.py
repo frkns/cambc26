@@ -60,7 +60,6 @@ class StateBuildHarvester:
 class StateBuildHarvesterAx:
     @classmethod
     def run(cls, pos):
-        print("moving towards building harvester ax at", pos,file=sys.stderr)
         OreExecutive.go_build_ax_harvester(pos)
 
 class StateAttackTransporter:

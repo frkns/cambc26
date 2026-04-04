@@ -77,6 +77,7 @@ print(f"Generated {len(IMPORTS)} import lines\n")
 
 
 def git_commit(message="pre-insert-imports checkpoint"):
+    """
     print("Checkpointing...")
     try:
         subprocess.run(["git", "add", "-A"], check=True)
@@ -84,6 +85,7 @@ def git_commit(message="pre-insert-imports checkpoint"):
         print("Git commit created successfully.")
     except subprocess.CalledProcessError as e:
         print(f"Git commit failed: {e}", file=sys.stderr)
+    """
 
 
 def is_import_line(s):

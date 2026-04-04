@@ -145,14 +145,3 @@ class OrePositionPicker:
         {% endfor %}
 
         return best
-
-
-
-
-
-
-
-
-
-
-

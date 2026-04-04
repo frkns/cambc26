@@ -187,7 +187,7 @@ class RouteToFoundry:
                 StateMoveTo.run(Explore.get_target())
                 return
             cls.planned_foundry_positions.add(cls._foundry_target)
-        print("Aiming at foundry:",cls._foundry_target)
+        print("Aiming at foundry:",{{decode_pos('cls._foundry_target') | join(', ')}})
 
         if cls.should_give_up():
             cls.give_up()
