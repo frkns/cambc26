@@ -22,9 +22,10 @@ from Generated.bbot.Builder import Builder
 from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
-from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateRouteFoundry, StateMoveTo, StateBuildTurret
+from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateFoundryBuild, StateRouteFoundry, StateMoveTo, StateBuildTurret
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
+from Generated.build.FoundryBuild import FoundryBuild
 from Generated.build.OreExecutive import OreExecutive
 from Generated.build.OrePositionPicker import OrePositionPicker
 from Generated.build.RouteToCore import RouteToCore
@@ -76,6 +77,11 @@ class StateRoute:
     @classmethod
     def run(cls):
         RouteToCore.do_routing()
+
+class StateFoundryBuild:
+    @classmethod
+    def run(cls, pos):
+        FoundryBuild.build_foundry(pos)
 
 class StateRouteFoundry:
     @classmethod

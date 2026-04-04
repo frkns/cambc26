@@ -52,46 +52,28 @@ from Generated.units.Unit import Unit
 
 
 
-class Entrypoint:
-    me: type[Core | Builder]
-    needs_init = True
-
+class FoundryBuild:
     @classmethod
-    def init(cls, ct: Controller):
-        Globals.init(ct)
-        Map.init()
+    def build_foundry(cls, pos):
+        print("Trying to build foundry at", pos)
+        print("Foundry cost:", Globals.ct.get_foundry_cost()[0])
 
-        match ct.get_entity_type():
-            case EntityType.CORE:
-                Core.init()
-                cls.me = Core
-            case EntityType.BUILDER_BOT:
-                Builder.init()
-                cls.me = Builder
-            case EntityType.SENTINEL:
-                Sentinel.init()
-                cls.me = Sentinel
-
+        if Globals.my_pos.distance_squared(pos) > 2:
+            Pathfinder.move_to(pos, ban_target_pos=True)
+        if Globals.ct.get_global_resources()[0]> Globals.ct.get_foundry_cost()[0] and Globals.ct.can_destroy(pos) and Globals.ct.get_action_cooldown()==0:
+            Globals.ct.destroy(pos)
+        if Globals.ct.can_build_foundry(pos):
+            Globals.ct.build_foundry(pos)
+            RouteToFoundry._foundry_target = None
+            DarkForest.register_sink((((pos.x) + 3) * 56 + ((pos.y) + 3)), 3)
+            return True
+        return False
+        
+    
     @classmethod
-    def run(cls, ct: Controller):
-        Globals.ct = ct  # in case not fixed...
-        if cls.needs_init:
-            cls.init(ct)
-            cls.needs_init = False
-
-        cls.me.start_turn()
-        cls.me.run_turn()
-        cls.me.end_turn()
-
-
-class Player:
-    def run(self, ct):
-        try:
-            Entrypoint.run(ct)
-        except Exception as e:
-            Debug.line(Position(0, 0), Color.RED)
-
-            err = traceback.format_exc()
-            Debug.tee(err)
-
-            ct.resign()
+    def _pick_target(cls):
+        if RouteToFoundry._foundry_target is None:
+            return None
+        t = ((RouteToFoundry._foundry_target) // 56 - 3), ((RouteToFoundry._foundry_target) % 56 - 3)
+        return Position(t[0], t[1])
+        

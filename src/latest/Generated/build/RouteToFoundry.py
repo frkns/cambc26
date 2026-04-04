@@ -22,9 +22,10 @@ from Generated.bbot.Builder import Builder
 from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
-from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateRouteFoundry, StateMoveTo, StateBuildTurret
+from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateFoundryBuild, StateRouteFoundry, StateMoveTo, StateBuildTurret
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
+from Generated.build.FoundryBuild import FoundryBuild
 from Generated.build.OreExecutive import OreExecutive
 from Generated.build.OrePositionPicker import OrePositionPicker
 from Generated.build.RouteToCore import RouteToCore
@@ -164,12 +165,12 @@ class RouteToFoundry:
         if ti.has_building:
             if not ti.is_building_ally:
                 return True
-            """
-            if ti.entity_type in Constants.TRANSPORTERS_SET:
-                return True
-            if ti.entity_type != EntityType.ROAD:
-                return True
-            """
+            if cls._foundry_target != (((x) + 3) * 56 + ((y) + 3)):
+                if ti.entity_type in Constants.TRANSPORTERS_SET:
+                    return True
+                if ti.entity_type != EntityType.ROAD:
+                    return True
+            
         return False
 
     @classmethod

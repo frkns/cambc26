@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-03 15:34:31 (local)
+# latest,  @ 2026-04-03 22:34:11 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -20396,6 +20396,36 @@ class Explore:
 
 
 # ============================================================
+# FoundryBuild
+# ============================================================
+
+class FoundryBuild:
+    @classmethod
+    def build_foundry(cls, pos):
+        print("Trying to build foundry at", pos)
+        print("Foundry cost:", Globals.ct.get_foundry_cost()[0])
+
+        if Globals.my_pos.distance_squared(pos) > 2:
+            Pathfinder.move_to(pos, ban_target_pos=True)
+        if Globals.ct.get_global_resources()[0]> Globals.ct.get_foundry_cost()[0] and Globals.ct.can_destroy(pos) and Globals.ct.get_action_cooldown()==0:
+            Globals.ct.destroy(pos)
+        if Globals.ct.can_build_foundry(pos):
+            Globals.ct.build_foundry(pos)
+            RouteToFoundry._foundry_target = None
+            DarkForest.register_sink((((pos.x) + 3) * 56 + ((pos.y) + 3)), 3)
+            return True
+        return False
+        
+    
+    @classmethod
+    def _pick_target(cls):
+        if RouteToFoundry._foundry_target is None:
+            return None
+        t = ((RouteToFoundry._foundry_target) // 56 - 3), ((RouteToFoundry._foundry_target) % 56 - 3)
+        return Position(t[0], t[1])
+
+
+# ============================================================
 # Globals
 # ============================================================
 
@@ -22614,12 +22644,12 @@ class RouteToFoundry:
         if ti.has_building:
             if not ti.is_building_ally:
                 return True
-            """
-            if ti.entity_type in Constants.TRANSPORTERS_SET:
-                return True
-            if ti.entity_type != EntityType.ROAD:
-                return True
-            """
+            if cls._foundry_target != (((x) + 3) * 56 + ((y) + 3)):
+                if ti.entity_type in Constants.TRANSPORTERS_SET:
+                    return True
+                if ti.entity_type != EntityType.ROAD:
+                    return True
+            
         return False
 
     @classmethod
@@ -22959,6 +22989,16 @@ class StateBuildTurret:
                 dir = dir.rotate_left() if random.random() < 0.5 else dir.rotate_right()
 
             BuildManager.dbuild_sentinel(pos, dir)
+
+
+# ============================================================
+# StateFoundryBuild
+# ============================================================
+
+class StateFoundryBuild:
+    @classmethod
+    def run(cls, pos):
+        FoundryBuild.build_foundry(pos)
 
 
 # ============================================================
@@ -23742,6 +23782,9 @@ class Builder(Unit):
         healpos = HealTargeter.get_best_target()
         if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
+        foundry_target = FoundryBuild._pick_target()
+        if foundry_target is not None:
+            return 'FoundryBuild', foundry_target
 
         trans: TransporterInfo = ConnectManager.get_connect_target_info()
         if trans is not None:
