@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-03 22:34:11 (local)
+# latest,  @ 2026-04-03 22:40:45 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -22477,7 +22477,10 @@ class RouteToCore:
 
         if cls.from_pos.distance_squared(target) == 1:
             if BuildManager.can_dbuild_conveyor(cls.from_pos):
-                BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
+                if BuildManager.can_dbuild_armoured_conveyor(cls.from_pos):
+                    BuildManager.dbuild_armoured_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
+                else:
+                    BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
                 cls.set_pos(target)
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)

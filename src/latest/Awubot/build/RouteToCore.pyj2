@@ -98,7 +98,10 @@ class RouteToCore:
 
         if cls.from_pos.distance_squared(target) == 1:
             if BuildManager.can_dbuild_conveyor(cls.from_pos):
-                BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
+                if BuildManager.can_dbuild_armoured_conveyor(cls.from_pos):
+                    BuildManager.dbuild_armoured_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
+                else:
+                    BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
                 cls.set_pos(target)
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
