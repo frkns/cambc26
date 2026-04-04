@@ -69,6 +69,93 @@ class Explore:
         # ))
         return Util.rand_pos()
 
+        # bestDx: int = None
+        # bestDy: int = None
+        # best_score: int = -1000000
+
+        #         # 
+        # score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, 0, -1)
+        
+        #         
+        # if score > best_score:
+        #     best_score = score
+        #     bestDx = 0
+        #     bestDy = -1
+            
+        #         # 
+        # score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, 1, -1)
+        
+        #         # score += 1 # slightly prefer diagonals
+        #         
+        # if score > best_score:
+        #     best_score = score
+        #     bestDx = 1
+        #     bestDy = -1
+            
+        #         # 
+        # score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, 1, 0)
+        
+        #         
+        # if score > best_score:
+        #     best_score = score
+        #     bestDx = 1
+        #     bestDy = 0
+            
+        #         # 
+        # score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, 1, 1)
+        
+        #         # score += 1 # slightly prefer diagonals
+        #         
+        # if score > best_score:
+        #     best_score = score
+        #     bestDx = 1
+        #     bestDy = 1
+            
+        #         # 
+        # score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, 0, 1)
+        
+        #         
+        # if score > best_score:
+        #     best_score = score
+        #     bestDx = 0
+        #     bestDy = 1
+            
+        #         # 
+        # score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, -1, 1)
+        
+        #         # score += 1 # slightly prefer diagonals
+        #         
+        # if score > best_score:
+        #     best_score = score
+        #     bestDx = -1
+        #     bestDy = 1
+            
+        #         # 
+        # score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, -1, 0)
+        
+        #         
+        # if score > best_score:
+        #     best_score = score
+        #     bestDx = -1
+        #     bestDy = 0
+            
+        #         # 
+        # score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, -1, -1)
+        
+        #         # score += 1 # slightly prefer diagonals
+        #         
+        # if score > best_score:
+        #     best_score = score
+        #     bestDx = -1
+        #     bestDy = -1
+            
+        # 
+        # if bestDx is None:
+        #     return Util.rand_pos()
+            
+        # return Util.follow_to_edge(Globals.my_pos.x, Globals.my_pos.y, bestDx, bestDy)
+
+
     @classmethod
     def get_target(cls) -> Position:
 

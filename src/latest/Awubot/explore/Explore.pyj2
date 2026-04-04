@@ -72,6 +72,32 @@ class Explore:
         # ))
         return Util.rand_pos()
 
+        # bestDx: int = None
+        # bestDy: int = None
+        # best_score: int = -{{ INF }}
+
+        # {% for dir in directions if dir != Direction.CENTRE%}
+        # {% set dx, dy = dir.delta() %}
+
+        # score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, {{ dx }}, {{ dy }})
+        
+        # {% if dir in diagonal_directions %}
+        # score += 1 # slightly prefer diagonals
+        # {% endif %}
+        
+        # if score > best_score:
+        #     best_score = score
+        #     bestDx = {{ dx }}
+        #     bestDy = {{ dy }}
+            
+        # {% endfor %}
+
+        # if bestDx is None:
+        #     return Util.rand_pos()
+            
+        # return Util.follow_to_edge(Globals.my_pos.x, Globals.my_pos.y, bestDx, bestDy)
+
+
     @classmethod
     def get_target(cls) -> Position:
         {% set cond1 -%}

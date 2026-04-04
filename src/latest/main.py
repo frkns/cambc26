@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-03 14:39:33 (local)
+# latest,  @ 2026-04-03 20:22:50 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -20374,6 +20374,93 @@ class Explore:
         # ))
         return Util.rand_pos()
 
+        # bestDx: int = None
+        # bestDy: int = None
+        # best_score: int = -1000000
+
+        #         # 
+        # score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, 0, -1)
+        
+        #         
+        # if score > best_score:
+        #     best_score = score
+        #     bestDx = 0
+        #     bestDy = -1
+            
+        #         # 
+        # score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, 1, -1)
+        
+        #         # score += 1 # slightly prefer diagonals
+        #         
+        # if score > best_score:
+        #     best_score = score
+        #     bestDx = 1
+        #     bestDy = -1
+            
+        #         # 
+        # score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, 1, 0)
+        
+        #         
+        # if score > best_score:
+        #     best_score = score
+        #     bestDx = 1
+        #     bestDy = 0
+            
+        #         # 
+        # score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, 1, 1)
+        
+        #         # score += 1 # slightly prefer diagonals
+        #         
+        # if score > best_score:
+        #     best_score = score
+        #     bestDx = 1
+        #     bestDy = 1
+            
+        #         # 
+        # score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, 0, 1)
+        
+        #         
+        # if score > best_score:
+        #     best_score = score
+        #     bestDx = 0
+        #     bestDy = 1
+            
+        #         # 
+        # score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, -1, 1)
+        
+        #         # score += 1 # slightly prefer diagonals
+        #         
+        # if score > best_score:
+        #     best_score = score
+        #     bestDx = -1
+        #     bestDy = 1
+            
+        #         # 
+        # score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, -1, 0)
+        
+        #         
+        # if score > best_score:
+        #     best_score = score
+        #     bestDx = -1
+        #     bestDy = 0
+            
+        #         # 
+        # score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, -1, -1)
+        
+        #         # score += 1 # slightly prefer diagonals
+        #         
+        # if score > best_score:
+        #     best_score = score
+        #     bestDx = -1
+        #     bestDy = -1
+            
+        # 
+        # if bestDx is None:
+        #     return Util.rand_pos()
+            
+        # return Util.follow_to_edge(Globals.my_pos.x, Globals.my_pos.y, bestDx, bestDy)
+
+
     @classmethod
     def get_target(cls) -> Position:
 
@@ -23338,6 +23425,25 @@ class Util:
     def rand_pos() -> Position:
         return Position(random.randrange(Map.W), random.randrange(Map.H))
 
+    @staticmethod
+    def distance_to_edge(x, y, dx, dy):
+        """Calculate how many steps in the direction represented by (dx, dy) before going off map."""
+        dist = 1_000_000
+        if dx > 0:
+            dist = min(dist, Map.W - x - 1)
+        elif dx < 0:
+            dist = min(dist, x)
+        if dy > 0:
+            dist = min(dist, Map.H - y - 1)
+        elif dy < 0:
+            dist = min(dist, y)
+        return dist
+    
+    @staticmethod
+    def follow_to_edge(x, y, dx, dy):
+        """Follows the direction represented by (dx, dy) to the edge of the map, and returns the closest position."""
+        dist = Util.distance_to_edge(x, y, dx, dy)
+        return Position(x + dx * dist, y + dy * dist)
 
     @staticmethod
     def is_cardinal(dir: Direction) -> bool:

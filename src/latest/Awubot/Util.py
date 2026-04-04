@@ -57,6 +57,25 @@ class Util:
     def rand_pos() -> Position:
         return Position(random.randrange(Map.W), random.randrange(Map.H))
 
+    @staticmethod
+    def distance_to_edge(x, y, dx, dy):
+        """Calculate how many steps in the direction represented by (dx, dy) before going off map."""
+        dist = 1_000_000
+        if dx > 0:
+            dist = min(dist, Map.W - x - 1)
+        elif dx < 0:
+            dist = min(dist, x)
+        if dy > 0:
+            dist = min(dist, Map.H - y - 1)
+        elif dy < 0:
+            dist = min(dist, y)
+        return dist
+    
+    @staticmethod
+    def follow_to_edge(x, y, dx, dy):
+        """Follows the direction represented by (dx, dy) to the edge of the map, and returns the closest position."""
+        dist = Util.distance_to_edge(x, y, dx, dy)
+        return Position(x + dx * dist, y + dy * dist)
 
     @staticmethod
     def is_cardinal(dir: Direction) -> bool:

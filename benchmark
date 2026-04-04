@@ -38,7 +38,8 @@ done
 
 # Revert to the stable bot
 echo "Reverting to bot: $2"
-bash submit "$2"
+cambc submit "bots/$2" -n "$2 (reverting from $1)"
+# bash submit "$2"
 
 # TODO: Once the API is fixed, we can just reactivate whichever submission was active when the script started
 
