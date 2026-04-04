@@ -38,4 +38,7 @@ __pycache__/
 *$py.class
 
 # engine source
-rust_src/
+rust_source/
+
+# Mypy cache
+.mypy_cache/
