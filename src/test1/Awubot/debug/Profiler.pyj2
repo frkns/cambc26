@@ -1,0 +1,110 @@
+# ---=== IMPORT
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot.Globals import Globals
+from Awubot.MoveManager import MoveManager
+from Awubot.Util import Util
+# ===--- IMPORT
+
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+
+
+class Profiler:
+    _stack: list = []
+    _stats: dict = {}  # desc -> [count, mean, M2, max]
+
+    {% set PREFIX_FSTRING = "[{Globals.my_team.__str__()[-1]}][{Globals.my_type.value}]" %}
+
+    @classmethod
+    def start(cls):
+        cls._stack.append(Globals.ct.get_cpu_time_elapsed())
+
+    @classmethod
+    def end(cls, desc: str):
+        end_time = Globals.ct.get_cpu_time_elapsed()
+        if not cls._stack:
+            return
+        start_time = cls._stack.pop()
+        elapsed = (end_time - start_time) / 1_000_000
+        if desc in cls._stats:
+            entry = cls._stats[desc]
+            entry[0] += 1
+            delta = elapsed - entry[1]
+            entry[1] += delta / entry[0]
+            entry[2] += delta * (elapsed - entry[1])
+            if elapsed > entry[3]:
+                entry[3] = elapsed
+        else:
+            cls._stats[desc] = [1, elapsed, 0.0, elapsed]
+
+        team = Globals.my_team.__str__()[-1]
+        s = f"{{ PREFIX_FSTRING }} {desc}: {cls._format_time(elapsed)}"
+        {# /* print(s) */ #}
+
+    @classmethod
+    def end_now(cls, desc: str):
+        end_time = Globals.ct.get_cpu_time_elapsed()
+        if not cls._stack:
+            return
+        start_time = cls._stack.pop()
+        elapsed = (end_time - start_time) / 1_000_000
+
+        team = Globals.my_team.__str__()[-1]
+        s = f"{{ PREFIX_FSTRING }} {desc}: {cls._format_time(elapsed)}"
+        print(s)
+        Debug.log(s)
+
+    @classmethod
+    def compare(cls, f, g):
+        if Globals.round & 1:
+            Profiler.start()
+            ret = f()
+            Profiler.end('1')
+        else:
+            Profiler.start()
+            ret = g()
+            Profiler.end('2')
+        return ret
+
+    @classmethod
+    def _format_time(cls, t: float) -> str:
+        if t < 1e-6:
+            return f"{t * 1e9:.1f}ns"
+        elif t < 1e-3:
+            return f"{t * 1e6:.1f}µs"
+        elif t < 1:
+            return f"{t * 1e3:.2f}ms"
+        else:
+            return f"{t:.2f}s"
+
+    @classmethod
+    def report(cls):
+        if not cls._stats:
+            return
+        team = Globals.my_team.__str__()[-1]
+        Debug.tee(f" *  Profiling report {team}:")
+        for desc, (count, mean, M2, max_time) in sorted(cls._stats.items()):
+            stddev = math.sqrt(M2 / count) if count > 1 else 0.0
+            s = (f"{{ PREFIX_FSTRING }} {desc}: "
+                 f"avg={cls._format_time(mean)}, "
+                 f"stddev={cls._format_time(stddev)}, "
+                 f"max={cls._format_time(max_time)}, "
+                 f"count={count}")
+            Debug.tee(s)
+
+    @classmethod
+    def reset(cls):
+        cls._stack.clear()
+        cls._stats.clear()

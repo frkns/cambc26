@@ -14,12 +14,15 @@ from itertools import chain
 from Awubot.Globals import Globals
 from Awubot.MoveManager import MoveManager
 from Awubot.Util import Util
+from Generated.Constants import Constants
+from Generated.MarketMaker import MarketMaker
+from Generated.RobotPlayer import Entrypoint, Player
 from Generated.bbot.Attacker import Attacker
 from Generated.bbot.Builder import Builder
 from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
-from Generated.bbot.States import StateBuildHarvester, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
+from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
 from Generated.build.OreExecutive import OreExecutive
@@ -29,7 +32,6 @@ from Generated.build.SuicideExecutor import SuicideExecutor
 from Generated.comms.Comms import Comms
 from Generated.comms.Marker import Marker
 from Generated.comms.MarkerPositionPicker import MarkerPositionPicker
-from Generated.Constants import Constants
 from Generated.core.Core import Core
 from Generated.core.CoreHistory import CoreHistory
 from Generated.core.SpawnManager import SpawnManager
@@ -39,10 +41,8 @@ from Generated.explore.Explore import Explore
 from Generated.map.DarkForest import TreeNode, DarkForest
 from Generated.map.Map import TileInfo, Map
 from Generated.map.Symmetry import Sym, Symmetry
-from Generated.MarketMaker import MarketMaker
 from Generated.nav.BfsBureau import BfsBureau
 from Generated.nav.Pathfinder import Pathfinder
-from Generated.RobotPlayer import Entrypoint, Player
 from Generated.sentinel.Sentinel import Sentinel
 from Generated.sentinel.SentinelSupervisor import SentinelTargetInfo, SentinelSupervisor
 from Generated.units.Unit import Unit
@@ -53,6 +53,7 @@ from Generated.units.Unit import Unit
 
 class BfsBureau:
     weight: list[int]
+    now_weight: list[int]  # copied from weight every turn
     dist_bridge: list[int]
     passable_int: int
     STRIDE: int
@@ -89,27 +90,26 @@ class BfsBureau:
         tile_info = Map.tile_info
         weight = cls.weight
         stride = cls.STRIDE
+        ct = Globals.ct
 
-        for pos in chain(Map.nearby_tiles, Map.new_syms):
-            x, y = pos.x, pos.y
-            ti = tile_info[x][y]
 
-            idx = ((pos.x + 3) * 56 + (pos.y + 3))
-            _bit_mask = 1 << (x * stride + y)
+        # update persistent
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            bit = 1 << (x * stride + y)
 
             if ti.env != Environment.WALL:
                 if ti.easily_passable:
                     weight[idx] = 1
-                    cls.passable_int |= _bit_mask
+                    cls.passable_int |= bit
                 elif ti.has_building:
                     weight[idx] = 1000000
-                    cls.passable_int &= ~_bit_mask
+                    cls.passable_int &= ~bit
                 else:
                     weight[idx] = 2
-                    cls.passable_int |= _bit_mask
+                    cls.passable_int |= bit
             else:
                 weight[idx] = 1000000
-                cls.passable_int &= ~_bit_mask
+                cls.passable_int &= ~bit
 
             if (
                 ti.env == Environment.EMPTY and
@@ -123,6 +123,31 @@ class BfsBureau:
                 cls.dist_bridge[idx] = 1000000
             else:
                 cls.dist_bridge[idx] = 1000001
+
+        cls.now_weight = weight.copy()
+        now_weight = cls.now_weight
+
+        # update for current turn
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            if not ti.has_building or ti.is_building_ally:
+                continue
+
+            # enemy turret penalty
+            if ti.has_turret:
+                for pos in ct.get_attackable_tiles_from(pos, ti.turret_direction, ti.entity_type):
+                    now_weight[(((pos.x) + 3) * 56 + ((pos.y) + 3))] += 2
+
+            # enemy launcher penalty
+            if ti.entity_type == EntityType.LAUNCHER:
+                now_weight[idx + -1] += 10
+                now_weight[idx + 55] += 10
+                now_weight[idx + 56] += 10
+                now_weight[idx + 57] += 10
+                now_weight[idx + 1] += 10
+                now_weight[idx + -55] += 10
+                now_weight[idx + -56] += 10
+                now_weight[idx + -57] += 10
+
 # ===---
 
     # works. but slow
@@ -470,7 +495,7 @@ class BfsBureau:
         sx, sy = start.x, start.y
         _tx, _ty = target.x, target.y
 
-        weight = cls.weight.copy()
+        weight = cls.now_weight
         stride = cls.STRIDE
 
         si = (((sx) + 3) * 56 + ((sy) + 3))
@@ -593,7 +618,7 @@ class BfsBureau:
 
         # we do this because try...finally is banned by engine
 
-        # ── Phase 1: weighted Dijkstra up to 8 ──
+        # ── Phase 1: weighted Dijkstra up to 10 ──
         dist = [1000000] * 3136
         fhd  = [0]       * 3136
         dist[si] = 0
@@ -688,7 +713,7 @@ class BfsBureau:
 
             _sa(idx)
 
-            if d >= 8:
+            if d >= 10:
                 _p2a(idx)
                 while heap:
                     _dd, _idx = _hpop(heap)
@@ -792,7 +817,7 @@ class BfsBureau:
             return 1000000, None
 
         # ── Phase 2: bitmask BFS from Dijkstra frontier ──
-        
+        Profiler.start()
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = cls.passable_int | _tm
@@ -1056,7 +1081,7 @@ class BfsBureau:
     @classmethod
     def bfs20(cls):
         """Weighted Dijkstra from pos, limited to tiles within vision r²≤20."""
-        weight = cls.weight
+        weight = cls.now_weight
         distances = cls.bfs20_dist
         IMPASSABLE = 1000000
 
