@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-04 19:04:13 (local)
+# latest,  @ 2026-04-04 16:25:07 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -2503,7 +2503,7 @@ class DarkForest:
     pressure: list[int]    # pressure at node (top-down, reset at sink boundaries)
     node_kind: list[int]   # propagated kind per node (top-down)
     sink_set: set[int]
-
+    leaf_set: set[int]   # titanium leaf nodes — valid foundry sites
 
     @classmethod
     def init(cls):
@@ -20178,6 +20178,8 @@ class DarkForest:
         for i in active:
             if not cc[i]:
                 qa(i)
+        
+        _initial_leaves = list(q)
 
         # ── bottom-up BFS ──
         qi = 0
@@ -20219,6 +20221,16 @@ class DarkForest:
         cls.pressure = pressure
         cls.node_kind = nk
         cls.sink_set = sink_set
+
+        # ── titanium leaf set ──
+        # Leaves in the ally-core subtree are the only valid foundry sites.
+        # Exclude the cores themselves (isolated core with no children would
+        # pass the cc==0 test but is obviously not a foundry site).
+        _ti_leaves: set[int] = set()
+        for u in _initial_leaves:
+            if nk[u] == 1 and u not in core_pos_set:
+                _ti_leaves.add(u)
+        cls.leaf_set = _ti_leaves
 
 
 # ============================================================
@@ -20468,6 +20480,35 @@ class Explore:
             cls.target = cls.new_target()
 
         return cls.target
+
+
+# ============================================================
+# FoundryBuild
+# ============================================================
+
+class FoundryBuild:
+    @classmethod
+    def build_foundry(cls, pos):
+        print("Trying to build foundry at", pos)
+        print("Foundry cost:", Globals.ct.get_foundry_cost()[0])
+
+        Pathfinder.move_to(pos, ban_target_pos=True)
+        if Globals.ct.get_global_resources()[0]> Globals.ct.get_foundry_cost()[0] and Globals.ct.can_destroy(pos) and Globals.ct.get_action_cooldown()==0:
+            Globals.ct.destroy(pos)
+        if Globals.ct.can_build_foundry(pos):
+            Globals.ct.build_foundry(pos)
+            RouteToFoundry._foundry_target = None
+            DarkForest.register_sink((((pos.x) + 3) * 56 + ((pos.y) + 3)), 3)
+            return True
+        return False
+        
+    
+    @classmethod
+    def _pick_target(cls):
+        if RouteToFoundry._foundry_target is None:
+            return None
+        t = ((RouteToFoundry._foundry_target) // 56 - 3), ((RouteToFoundry._foundry_target) % 56 - 3)
+        return Position(t[0], t[1])
 
 
 # ============================================================
@@ -22111,6 +22152,9 @@ class OreExecutive:
                     heapq.heappush(cls.ti_queue, (dist, pos))
                     cls.state[pos] = 1
 
+            if cls.state[pos] == 2:
+                continue
+
             if env == Environment.ORE_AXIONITE:
                 if cls.state[pos] != 4:  # intended: can potentially requeue
                     dist = pos.distance_squared(Unit.core_pos)
@@ -22205,6 +22249,41 @@ class OreExecutive:
             cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
             RouteToCore.set_pos(cand.position)
 
+    @classmethod
+    def go_build_ax_harvester(cls, pos):
+        Pathfinder.move_to(pos, ban_target_pos=True)
+
+        if Pathfinder.given_up:
+            Debug.line(pos, Color.RED)
+            Debug.diamond(Color.RED)
+            cls.state[pos] = 2
+            return
+
+        cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
+        ti = Map.tile_info[cand.position.x][cand.position.y]
+        if ti.entity_type in Constants.TRANSPORTERS_SET:
+            cls.state[pos] = 2
+            Debug.line(pos, Color.RED)
+            Debug.diamond(Color.RED)
+            return
+        
+        RouteToFoundry.set_pos(cand.position)
+        RouteToFoundry.try_claim_target()
+        foundry_enc = RouteToFoundry._foundry_target
+        if foundry_enc is None or not RouteToFoundry.axionite_can_reach_foundry(cand.position, foundry_enc):
+            cls.state[pos] = 2
+            Debug.line(pos, Color.RED)
+            Debug.diamond(Color.RED)
+            RouteToFoundry.give_up()
+            return
+        if BuildManager.can_dbuild_harvester(pos):
+            Debug.line(pos, Color.YELLOW)
+            BuildManager.dbuild_harvester(pos)
+            
+            RouteToFoundry.set_pos(cand.position)
+        else:
+            RouteToFoundry.give_up()
+
 
 # ============================================================
 # OrePositionPicker
@@ -22277,6 +22356,7 @@ class OrePositionPicker:
     @classmethod
     def is_better_than(cls, a: Candidate, b: Candidate) -> bool:
         # prio:
+        # 0. not null
         # 1. on map
         # 2. empty
         # 3. no building
@@ -22285,10 +22365,17 @@ class OrePositionPicker:
         # 6. build metric
         # 7. arbitrary
 
+        if a is None and b is not None:
+            return False
+        if a is not None and b is None:
+            return True
+
         if a.ti is None and (b.ti is not None):
             return False
         if (a.ti is not None) and b.ti is None:
             return True
+        if a.ti is None and b.ti is None:
+            return True  # arbitrary, both are off-map
 
         EMPTY = Environment.EMPTY
 
@@ -22583,7 +22670,10 @@ class RouteToCore:
 
         if cls.from_pos.distance_squared(target) == 1:
             if BuildManager.can_dbuild_conveyor(cls.from_pos):
-                BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
+                if BuildManager.can_dbuild_armoured_conveyor(cls.from_pos):
+                    BuildManager.dbuild_armoured_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
+                else:
+                    BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
                 cls.set_pos(target)
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
@@ -22634,18 +22724,182 @@ class RouteToCore:
 
 
 # ============================================================
-# RushTargeter
+# RouteToFoundry
 # ============================================================
 
-class RushTargeter:
+class RouteToFoundry:
+    is_active: bool = False
+    from_pos: Position
+    killed: set[Position] = set()
+
+    # Positions that have been claimed (or built) as foundry sites.
+    # Class-level so all bots in this process see the same table.
+    planned_foundry_positions: set[int] = set()
+
+    # The specific titanium leaf this bot is routing toward.
+    # None until a target is claimed in try_build_route.
+    _foundry_target: int | None = None
 
     @classmethod
-    def get_best_target(cls) -> Position | None:
-        if Symmetry.is_sym_known:
-            if Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100:
-                return Symmetry.enemy_core_pos
-        else:
+    def axionite_can_reach_foundry(cls, ore_pos: Position, foundry_encoded: int) -> bool:
+        """
+        Quick reachability check: can we bridge-route from an axionite ore
+        position to a specific foundry site?
+
+        Returns False if BfsBureau finds no path, so the caller can reject
+        this (ore, foundry) pairing before any routing work begins.
+
+        Intentionally uses a small max_iter so it fails fast on clearly
+        disconnected positions rather than spending the full BFS budget.
+        """
+        target_set = {foundry_encoded}
+
+        # Try conveyor-only first (max_iter=0).
+        _, first = BfsBureau.find_bridge_route(ore_pos, target_set, max_iter=0)
+        if first is not None:
+            return True
+
+        # Fall back to bridge BFS with a capped iteration budget.
+        _, first = BfsBureau.find_bridge_route(ore_pos, target_set, max_iter=200)
+        return first is not None
+
+    @classmethod
+    def _pick_target(cls) -> int | None:
+        """
+        Return the encoded position of the closest unclaimed titanium leaf,
+        or None if none exist.
+
+        Uses Manhattan distance as a cheap heuristic — good enough given that
+        bridge routing later handles the actual terrain.
+        """
+        candidates = DarkForest.leaf_set - cls.planned_foundry_positions
+        if not candidates:
             return None
+
+        sx, sy = cls.from_pos.x, cls.from_pos.y
+        best: int | None = None
+        best_d = 1000000
+        for c in candidates:
+            cx = c // 56 - 3
+            cy = c % 56 - 3
+            d = abs(cx - sx) + abs(cy - sy)
+            if d < best_d:
+                best_d = d
+                best = c
+        return best
+    @classmethod
+    def set_pos(cls, pos: Position):
+        encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
+
+        # Arrived at the foundry site — deactivate so the caller can build.
+        # Keep the entry in planned_foundry_positions: the foundry is here now.
+        if cls._foundry_target is not None and encoded == cls._foundry_target:
+            cls.is_active = False
+            return
+
+        cls.is_active = True
+        cls.from_pos = pos
+
+    @classmethod
+    def try_build_route(cls):
+        assert cls.is_active
+
+        target_set = {cls._foundry_target}
+
+        # Phase 1: conveyor-only attempt (max_iter=0 skips bridge BFS).
+        bridge_dist, first_target = BfsBureau.find_bridge_route(
+            cls.from_pos,
+            target_set,
+            max_iter=0,
+        )
+        # Phase 2: allow bridges if conveyors can't reach.
+        if first_target is None:
+            bridge_dist, first_target = BfsBureau.find_bridge_route(
+                cls.from_pos,
+                target_set,
+            )
+
+        print(f"""{bridge_dist=}""")
+
+        if first_target is None:
+            Debug.tee("RouteToFoundry: first_target is None, giving up")
+            cls.give_up()
+            StateMoveTo.run(Explore.get_target())
+            return
+
+        target = Position(*first_target)
+        Debug.diline(cls.from_pos, target, Color.GREEN)
+
+        if cls.from_pos.distance_squared(target) == 1:
+            if BuildManager.can_dbuild_conveyor(cls.from_pos):
+                BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
+                cls.set_pos(target)
+        elif BuildManager.can_dbuild_bridge(cls.from_pos):
+            BuildManager.dbuild_bridge(cls.from_pos, target)
+            cls.set_pos(target)
+
+    @classmethod
+    def move_to_next(cls):
+        Pathfinder.move_to(cls.from_pos, ban_target_pos=True)
+
+    @classmethod
+    def should_give_up(cls):
+        x, y = cls.from_pos
+        ti = Map.tile_info[x][y]
+        if ti is None:
+            return False
+
+        if ti.has_building:
+            if not ti.is_building_ally:
+                return True
+            if ti.entity_type == EntityType.BRIDGE: #just avoid building foundry on top of a bridge, since that would be sad (too much logic an thinking required)
+                    return True
+            if cls._foundry_target != (((x) + 3) * 56 + ((y) + 3)):
+                if ti.entity_type in Constants.TRANSPORTERS_SET:
+                    return True
+                if ti.entity_type != EntityType.ROAD:
+                    return True
+            
+        return False
+
+    @classmethod
+    def give_up(cls):
+        cls.is_active = False
+        # Release the claim so another bot (or a retry) can use this leaf.
+        if cls._foundry_target is not None:
+            cls.planned_foundry_positions.discard(cls._foundry_target)
+            cls._foundry_target = None
+        cls.killed.add(cls.from_pos)
+        Debug.diamond(Color.PURPLE)
+
+    @classmethod
+    def try_claim_target(cls):
+        # Claim a target on first call (or if we lost one).
+        if cls._foundry_target is None:
+            cls._foundry_target = cls._pick_target()
+            if cls._foundry_target is None:
+                Debug.tee("RouteToFoundry: no unclaimed titanium leaf available")
+                cls.give_up()
+                StateMoveTo.run(Explore.get_target())
+                return
+            cls.planned_foundry_positions.add(cls._foundry_target)
+
+    @classmethod
+    def do_routing(cls):
+        print("Aiming at foundry:",((cls._foundry_target) // 56 - 3), ((cls._foundry_target) % 56 - 3))
+        cls.try_claim_target()
+        if cls.should_give_up():
+            cls.give_up()
+            StateMoveTo.run(Explore.get_target())
+            return
+
+        dsq = Globals.my_pos.distance_squared(cls.from_pos)
+        if Globals.ct.get_action_cooldown() == 0 \
+                and (dsq == 1 or dsq == 2):
+            cls.try_build_route()
+            cls.move_to_next()
+        else:
+            cls.move_to_next()
 
 
 # ============================================================
@@ -23039,7 +23293,7 @@ class StateBuildHarvester:
 class StateBuildHarvesterAx:
     @classmethod
     def run(cls, pos):
-        OreExecutive.go_build_harvester(pos)
+        OreExecutive.go_build_ax_harvester(pos)
 
 
 # ============================================================
@@ -23062,6 +23316,16 @@ class StateBuildTurret:
 
 
 # ============================================================
+# StateFoundryBuild
+# ============================================================
+
+class StateFoundryBuild:
+    @classmethod
+    def run(cls, pos):
+        FoundryBuild.build_foundry(pos)
+
+
+# ============================================================
 # StateMoveTo
 # ============================================================
 
@@ -23079,6 +23343,16 @@ class StateRoute:
     @classmethod
     def run(cls):
         RouteToCore.do_routing()
+
+
+# ============================================================
+# StateRouteFoundry
+# ============================================================
+
+class StateRouteFoundry:
+    @classmethod
+    def run(cls):
+        RouteToFoundry.do_routing()
 
 
 # ============================================================
@@ -23838,6 +24112,9 @@ class Builder(Unit):
 
     @classmethod
     def determine_state(cls):
+        if RouteToFoundry.is_active:
+            return ('RouteFoundry',)
+
         if RouteToCore.is_active:
             return ('Route',)
 
@@ -23849,6 +24126,9 @@ class Builder(Unit):
         healpos = HealTargeter.get_best_target()
         if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
+        foundry_target = FoundryBuild._pick_target()
+        if foundry_target is not None:
+            return 'FoundryBuild', foundry_target
 
         # shieldpos = ShieldTargeter.get_best_target()
         # if shieldpos is not None:
@@ -23870,11 +24150,11 @@ class Builder(Unit):
         if apos is not None:
             return 'AttackTransporter', apos
 
-        """
+        
         axTarg = OreExecutive.get_axionite_target()
         if axTarg is not None:
             return 'BuildHarvesterAx', axTarg
-        """
+        
         bhpos = OreExecutive.get_titanium_target()
         if bhpos is not None:
             return 'BuildHarvester', bhpos

@@ -8,10 +8,6 @@
 __pycache__/
 *.pyc
 
-# Virtual environments
-.venv/
-venv/
-
 # Test output HTMLs
 tests/*.html
 
@@ -27,6 +23,10 @@ src/**
 # Re-include src/latest and everything inside
 !src/latest/
 !src/latest/**
+
+# Virtual environments
+.venv/
+venv/
 
 # Ignore specific things inside latest
 src/latest/Generated/**

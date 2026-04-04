@@ -14,6 +14,9 @@ from itertools import chain
 from Awubot.Globals import Globals
 from Awubot.MoveManager import MoveManager
 from Awubot.Util import Util
+from Generated.Constants import Constants
+from Generated.MarketMaker import MarketMaker
+from Generated.RobotPlayer import Entrypoint, Player
 from Generated.bbot.Attacker import Attacker
 from Generated.bbot.Builder import Builder
 from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
@@ -24,16 +27,18 @@ from Generated.bbot.RushTargeter import RushTargeter
 from Generated.bbot.ShieldTargeter import ShieldTargetInfo, ShieldTargeter
 from Generated.bbot.StalkTargeter import StalkTargeter
 from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret, StateBuildBarrier
+from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateFoundryBuild, StateRouteFoundry, StateMoveTo, StateBuildTurret
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
+from Generated.build.FoundryBuild import FoundryBuild
 from Generated.build.OreExecutive import OreExecutive
 from Generated.build.OrePositionPicker import OrePositionPicker
 from Generated.build.RouteToCore import RouteToCore
+from Generated.build.RouteToFoundry import RouteToFoundry
 from Generated.build.SuicideExecutor import SuicideExecutor
 from Generated.comms.Comms import Comms
 from Generated.comms.Marker import Marker
 from Generated.comms.MarkerPositionPicker import MarkerPositionPicker
-from Generated.Constants import Constants
 from Generated.core.Core import Core
 from Generated.core.CoreHistory import CoreHistory
 from Generated.core.SpawnManager import SpawnManager
@@ -43,10 +48,8 @@ from Generated.explore.Explore import Explore
 from Generated.map.DarkForest import TreeNode, DarkForest
 from Generated.map.Map import TileInfo, Map
 from Generated.map.Symmetry import Sym, Symmetry
-from Generated.MarketMaker import MarketMaker
 from Generated.nav.BfsBureau import BfsBureau
 from Generated.nav.Pathfinder import Pathfinder
-from Generated.RobotPlayer import Entrypoint, Player
 from Generated.sentinel.Sentinel import Sentinel
 from Generated.sentinel.SentinelSupervisor import SentinelTargetInfo, SentinelSupervisor
 from Generated.units.Unit import Unit
@@ -121,6 +124,7 @@ class OrePositionPicker:
     @classmethod
     def is_better_than(cls, a: Candidate, b: Candidate) -> bool:
         # prio:
+        # 0. not null
         # 1. on map
         # 2. empty
         # 3. no building
@@ -129,10 +133,17 @@ class OrePositionPicker:
         # 6. build metric
         # 7. arbitrary
 
+        if a is None and b is not None:
+            return False
+        if a is not None and b is None:
+            return True
+
         if a.ti is None and (b.ti is not None):
             return False
         if (a.ti is not None) and b.ti is None:
             return True
+        if a.ti is None and b.ti is None:
+            return True  # arbitrary, both are off-map
 
         EMPTY = Environment.EMPTY
 
@@ -179,13 +190,3 @@ class OrePositionPicker:
             best = cls.cand[0]
 
         return best
-
-
-
-
-
-
-
-
-
-

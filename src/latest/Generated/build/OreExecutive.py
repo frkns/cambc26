@@ -14,6 +14,9 @@ from itertools import chain
 from Awubot.Globals import Globals
 from Awubot.MoveManager import MoveManager
 from Awubot.Util import Util
+from Generated.Constants import Constants
+from Generated.MarketMaker import MarketMaker
+from Generated.RobotPlayer import Entrypoint, Player
 from Generated.bbot.Attacker import Attacker
 from Generated.bbot.Builder import Builder
 from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
@@ -24,16 +27,18 @@ from Generated.bbot.RushTargeter import RushTargeter
 from Generated.bbot.ShieldTargeter import ShieldTargetInfo, ShieldTargeter
 from Generated.bbot.StalkTargeter import StalkTargeter
 from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret, StateBuildBarrier
+from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateFoundryBuild, StateRouteFoundry, StateMoveTo, StateBuildTurret
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
+from Generated.build.FoundryBuild import FoundryBuild
 from Generated.build.OreExecutive import OreExecutive
 from Generated.build.OrePositionPicker import OrePositionPicker
 from Generated.build.RouteToCore import RouteToCore
+from Generated.build.RouteToFoundry import RouteToFoundry
 from Generated.build.SuicideExecutor import SuicideExecutor
 from Generated.comms.Comms import Comms
 from Generated.comms.Marker import Marker
 from Generated.comms.MarkerPositionPicker import MarkerPositionPicker
-from Generated.Constants import Constants
 from Generated.core.Core import Core
 from Generated.core.CoreHistory import CoreHistory
 from Generated.core.SpawnManager import SpawnManager
@@ -43,10 +48,8 @@ from Generated.explore.Explore import Explore
 from Generated.map.DarkForest import TreeNode, DarkForest
 from Generated.map.Map import TileInfo, Map
 from Generated.map.Symmetry import Sym, Symmetry
-from Generated.MarketMaker import MarketMaker
 from Generated.nav.BfsBureau import BfsBureau
 from Generated.nav.Pathfinder import Pathfinder
-from Generated.RobotPlayer import Entrypoint, Player
 from Generated.sentinel.Sentinel import Sentinel
 from Generated.sentinel.SentinelSupervisor import SentinelTargetInfo, SentinelSupervisor
 from Generated.units.Unit import Unit
@@ -87,6 +90,9 @@ class OreExecutive:
                     dist = pos.distance_squared(Unit.core_pos)
                     heapq.heappush(cls.ti_queue, (dist, pos))
                     cls.state[pos] = 1
+
+            if cls.state[pos] == 2:
+                continue
 
             if env == Environment.ORE_AXIONITE:
                 if cls.state[pos] != 4:  # intended: can potentially requeue
@@ -181,3 +187,38 @@ class OreExecutive:
 
             cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
             RouteToCore.set_pos(cand.position)
+
+    @classmethod
+    def go_build_ax_harvester(cls, pos):
+        Pathfinder.move_to(pos, ban_target_pos=True)
+
+        if Pathfinder.given_up:
+            Debug.line(pos, Color.RED)
+            Debug.diamond(Color.RED)
+            cls.state[pos] = 2
+            return
+
+        cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
+        ti = Map.tile_info[cand.position.x][cand.position.y]
+        if ti.entity_type in Constants.TRANSPORTERS_SET:
+            cls.state[pos] = 2
+            Debug.line(pos, Color.RED)
+            Debug.diamond(Color.RED)
+            return
+        
+        RouteToFoundry.set_pos(cand.position)
+        RouteToFoundry.try_claim_target()
+        foundry_enc = RouteToFoundry._foundry_target
+        if foundry_enc is None or not RouteToFoundry.axionite_can_reach_foundry(cand.position, foundry_enc):
+            cls.state[pos] = 2
+            Debug.line(pos, Color.RED)
+            Debug.diamond(Color.RED)
+            RouteToFoundry.give_up()
+            return
+        if BuildManager.can_dbuild_harvester(pos):
+            Debug.line(pos, Color.YELLOW)
+            BuildManager.dbuild_harvester(pos)
+            
+            RouteToFoundry.set_pos(cand.position)
+        else:
+            RouteToFoundry.give_up()

@@ -22,11 +22,6 @@ from Generated.bbot.Builder import Builder
 from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
-from Generated.bbot.PatrolTargeter import PatrolTargeter
-from Generated.bbot.RushTargeter import RushTargeter
-from Generated.bbot.ShieldTargeter import ShieldTargetInfo, ShieldTargeter
-from Generated.bbot.StalkTargeter import StalkTargeter
-from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret, StateBuildBarrier
 from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateFoundryBuild, StateRouteFoundry, StateMoveTo, StateBuildTurret
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
@@ -57,26 +52,27 @@ from Generated.units.Unit import Unit
 
 
 
-
-
-class Core(Unit):
-
+class FoundryBuild:
     @classmethod
-    def init(cls):
-        Unit.init()
+    def build_foundry(cls, pos):
+        print("Trying to build foundry at", pos)
+        print("Foundry cost:", Globals.ct.get_foundry_cost()[0])
 
+        Pathfinder.move_to(pos, ban_target_pos=True)
+        if Globals.ct.get_global_resources()[0]> Globals.ct.get_foundry_cost()[0] and Globals.ct.can_destroy(pos) and Globals.ct.get_action_cooldown()==0:
+            Globals.ct.destroy(pos)
+        if Globals.ct.can_build_foundry(pos):
+            Globals.ct.build_foundry(pos)
+            RouteToFoundry._foundry_target = None
+            DarkForest.register_sink((((pos.x) + 3) * 56 + ((pos.y) + 3)), 3)
+            return True
+        return False
+        
+    
     @classmethod
-    def start_turn(cls):
-        Unit.start_turn()
-        CoreHistory.fill()
-        print(f'est income: {MarketMaker.est_income}')
-
-    @classmethod
-    def run_turn(cls):
-        if SpawnManager.should_spawn() or SpawnManager.should_spawn_emergency():
-            SpawnManager.spawn()
-
-    @classmethod
-    def end_turn(cls):
-        Unit.end_turn()
-
+    def _pick_target(cls):
+        if RouteToFoundry._foundry_target is None:
+            return None
+        t = ((RouteToFoundry._foundry_target) // 56 - 3), ((RouteToFoundry._foundry_target) % 56 - 3)
+        return Position(t[0], t[1])
+        
