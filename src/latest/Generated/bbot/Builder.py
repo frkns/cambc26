@@ -19,8 +19,10 @@ from Generated.bbot.Builder import Builder
 from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
+from Generated.bbot.PatrolTargeter import PatrolTargeter
 from Generated.bbot.RushTargeter import RushTargeter
 from Generated.bbot.ShieldTargeter import ShieldTargetInfo, ShieldTargeter
+from Generated.bbot.StalkTargeter import StalkTargeter
 from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret, StateBuildBarrier
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
@@ -170,9 +172,17 @@ class Builder(Unit):
         bhpos = OreExecutive.get_titanium_target()
         if bhpos is not None:
             return 'BuildHarvester', bhpos
+            
+        stalkTarget = StalkTargeter.get_best_target()
+        if stalkTarget is not None:
+            return 'MoveTo', stalkTarget, 'Stalk'
 
         rushTarget = RushTargeter.get_best_target()
         if rushTarget is not None:
             return 'MoveTo', rushTarget, 'Rush'
+            
+        patrolTarget = PatrolTargeter.get_best_target()
+        if patrolTarget is not None:
+            return 'MoveTo', patrolTarget, 'Patrol'
 
         return 'MoveTo', Explore.get_target(), 'Explore'
