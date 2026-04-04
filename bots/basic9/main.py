@@ -1,14 +1,14 @@
 from cambc import *
-from bots.basic9.utils.vision import Vision
-from bots.basic9.utils.movement import Movement
-from bots.basic9.utils.goal import Objective
-from bots.basic9.utils.build import Build
-from bots.basic9.utils.attack import Attack
-from bots.basic9.utils.defense import Defense
-from bots.basic9.builderbot import BuilderBot
-from bots.basic9.core import Core
-from bots.basic9.launcher import Launcher
-from bots.basic9.sentinel import Sentinel
+from utils.vision import Vision
+from utils.movement import Movement
+from utils.goal import Objective
+from utils.build import Build
+from utils.attack import Attack
+from utils.defense import Defense
+from builderbot import BuilderBot
+from core import Core
+from launcher import Launcher
+from sentinel import Sentinel
 import random
 
 

@@ -1,5 +1,5 @@
 from cambc import *
-from bots.basic9.utils.constants import DIRECTIONS
+from utils.constants import DIRECTIONS
 import heapq
 
 

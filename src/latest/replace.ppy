@@ -33,7 +33,7 @@ def main():
     try:
         old = input("Old text: ")
         new = input("New text: ")
-        git_commit()
+        # git_commit()
     except EOFError:
         print("\nInput cancelled.", file=sys.stderr)
         sys.exit(1)

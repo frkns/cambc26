@@ -1,6 +1,6 @@
 from cambc import *
-from bots.basic9.utils.constants import *
-from bots.basic9.robot import Robot
+from utils.constants import *
+from robot import Robot
 
 
 class Core(Robot):

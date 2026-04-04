@@ -1,5 +1,5 @@
 from cambc import *
-from bots.basic9.utils.constants import DIRECTIONS, CARDINAL_DIRECTIONS, CONVEYORS, WALKABLE, TURRETS
+from utils.constants import DIRECTIONS, CARDINAL_DIRECTIONS, CONVEYORS, WALKABLE, TURRETS
 import random
 
 

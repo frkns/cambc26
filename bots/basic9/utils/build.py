@@ -1,5 +1,5 @@
 from cambc import *
-from bots.basic9.utils.constants import CARDINAL_DIRECTIONS
+from utils.constants import CARDINAL_DIRECTIONS
 
 
 class Build:

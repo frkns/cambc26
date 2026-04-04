@@ -1,6 +1,6 @@
 from cambc import *
-from bots.basic9.robot import Robot
-from bots.basic9.utils.constants import CONVEYORS
+from robot import Robot
+from utils.constants import CONVEYORS
 
 
 class Sentinel(Robot):

@@ -1,6 +1,6 @@
 from cambc import *
-from bots.basic9.utils.bugpath import BugPath
-from bots.basic9.utils.astar import Astar
+from utils.bugpath import BugPath
+from utils.astar import Astar
 import random
 
 

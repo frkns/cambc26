@@ -16,7 +16,7 @@ from Awubot.MoveManager import MoveManager
 from Awubot.Util import Util
 from Generated.Constants import Constants
 from Generated.MarketMaker import MarketMaker
-from Generated.RobotPlayer import Entrypoint, Player
+from Generated.RobotPlayer import FoundryBuild
 from Generated.bbot.Attacker import Attacker
 from Generated.bbot.Builder import Builder
 from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
