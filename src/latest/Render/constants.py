@@ -88,6 +88,7 @@ def sentinel_target_valid(rx, ry, direction: Direction) -> bool:
 
 
 sentinel_pattern: list[list[tuple]] = [[] for _ in range(8)]
+sentinel_reverse: dict[tuple, list[int]] = {}
 
 def _scope():
     for i in range(8):
@@ -95,6 +96,11 @@ def _scope():
             for ry in range(-5, 6):
                 if sentinel_target_valid(rx, ry, directions[i]):
                     sentinel_pattern[i].append((rx, ry))
+    for i in range(8):
+        for rx, ry in sentinel_pattern[i]:
+            if (rx, ry) not in sentinel_reverse:
+                sentinel_reverse[(rx, ry)] = []
+            sentinel_reverse[(rx, ry)].append(i)
 
 _scope()
 

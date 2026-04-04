@@ -22,6 +22,7 @@ from Generated.bbot.Builder import Builder
 from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
+from Generated.bbot.SentinelDirectionPicker import SentinelDirectionInfo, SentinelDirectionPicker
 from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
@@ -89,9 +90,10 @@ class Unit:
     @classmethod
     def init(cls):
         random.seed(Globals.my_id)
+        BfsBureau.init()
+
         if Globals.my_type == EntityType.BUILDER_BOT:
             Unit.core_pos_init()
-            BfsBureau.init()
             Symmetry.predict_enemy_core()
         else:
             cls.core_pos_set = set()

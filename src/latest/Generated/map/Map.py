@@ -22,6 +22,7 @@ from Generated.bbot.Builder import Builder
 from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
+from Generated.bbot.SentinelDirectionPicker import SentinelDirectionInfo, SentinelDirectionPicker
 from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
@@ -120,6 +121,8 @@ class Map:
     @classmethod
     def fill_tile_infoV(cls):
         ct = Globals.ct
+        my_pos = Globals.my_pos
+        my_type = Globals.my_type
         round = ct.get_current_round()
         tile_info = cls.tile_info
 
@@ -139,6 +142,8 @@ class Map:
             if ti is None:
                 ti = TileInfo()
                 tile_info[x][y] = ti
+                ti.has_building = False
+                ti.entity_type = None
 
             cls.proc_nearby_tiles.append(
                 (pos, x, y, idx, ti)
@@ -147,6 +152,7 @@ class Map:
 
         for pos, x, y, pos_idx, ti in cls.proc_nearby_tiles:
             tile_env: Environment = ct.get_tile_env(pos)
+            old_etype = ti.entity_type
 
             ox, oy = maxX - x, y
 
@@ -159,6 +165,8 @@ class Map:
                 opp_ti.has_building = False
                 opp_ti.easily_passable = False
                 opp_ti.harvester_adjacent = False
+                opp_ti.entity_type = None
+                opp_ti.target = None
                 tile_info[ox][oy] = opp_ti
                 new_syms.append(Position(ox, oy))
 
@@ -170,11 +178,24 @@ class Map:
             ti.building_id = building_id
             ti.bot_id = bot_id
 
-            etype = None
+            if building_id is None:
+                etype = None
+            else:
+                etype = ct.get_entity_type(building_id)
+            is_fresh_enemy_tower = old_etype != etype and ti.has_building and not ti.is_building_ally
+
+            # remove check
+            if is_fresh_enemy_tower:
+                if old_etype == EntityType.SENTINEL:
+                    BfsBureau.remove_enemy_sentinel(pos, ti)
+                elif old_etype == EntityType.LAUNCHER:
+                    BfsBureau.remove_enemy_launcher(pos_idx)
+
             ti.has_building = (
                 building_id is not None and 
-                (etype := ct.get_entity_type(building_id)) != EntityType.MARKER
-            )
+                etype != EntityType.MARKER
+            ) or (pos == my_pos and my_type != EntityType.BUILDER_BOT)
+
             ti.entity_type = etype
             ti.has_bot = bot_id is not None and bot_id != Globals.my_id
 
@@ -202,6 +223,7 @@ class Map:
                 )):
                     ti.easily_passable = True
 
+
             ti.has_turret = False
                     
             if etype == EntityType.CONVEYOR or etype == EntityType.ARMOURED_CONVEYOR:
@@ -220,12 +242,25 @@ class Map:
                         ti.has_turret = True
                         ti.turret_direction = ct.get_direction(building_id)
 
-                    if ti.is_building_ally:
-                        DarkForest.register_sink(pos_idx, 3)
-                    else:
-                        DarkForest.register_sink(pos_idx, 4)
+                        # AttributeError: 'TileInfo' object has no attribute 'is_building_ally'
+                        try:
+                            if ti.is_building_ally:
+                                DarkForest.register_sink(
+                                  pos_idx,
+                                  3)
+                        except Exception:
+                            Debug.tee(ti.__dict__)
+
                 else:
                     DarkForest.remove_node(pos_idx)
+
+            # add check
+            if is_fresh_enemy_tower:
+                if etype == EntityType.SENTINEL:
+                    BfsBureau.add_enemy_sentinel(pos, ti)
+                elif etype == EntityType.LAUNCHER:
+                    BfsBureau.add_enemy_launcher(pos_idx)
+
 
             # maybe check ti/ax?
             if etype == EntityType.HARVESTER:
@@ -249,6 +284,8 @@ class Map:
     @classmethod
     def fill_tile_infoH(cls):
         ct = Globals.ct
+        my_pos = Globals.my_pos
+        my_type = Globals.my_type
         round = ct.get_current_round()
         tile_info = cls.tile_info
 
@@ -268,6 +305,8 @@ class Map:
             if ti is None:
                 ti = TileInfo()
                 tile_info[x][y] = ti
+                ti.has_building = False
+                ti.entity_type = None
 
             cls.proc_nearby_tiles.append(
                 (pos, x, y, idx, ti)
@@ -276,6 +315,7 @@ class Map:
 
         for pos, x, y, pos_idx, ti in cls.proc_nearby_tiles:
             tile_env: Environment = ct.get_tile_env(pos)
+            old_etype = ti.entity_type
 
             ox, oy = x, maxY - y 
 
@@ -288,6 +328,8 @@ class Map:
                 opp_ti.has_building = False
                 opp_ti.easily_passable = False
                 opp_ti.harvester_adjacent = False
+                opp_ti.entity_type = None
+                opp_ti.target = None
                 tile_info[ox][oy] = opp_ti
                 new_syms.append(Position(ox, oy))
 
@@ -299,11 +341,24 @@ class Map:
             ti.building_id = building_id
             ti.bot_id = bot_id
 
-            etype = None
+            if building_id is None:
+                etype = None
+            else:
+                etype = ct.get_entity_type(building_id)
+            is_fresh_enemy_tower = old_etype != etype and ti.has_building and not ti.is_building_ally
+
+            # remove check
+            if is_fresh_enemy_tower:
+                if old_etype == EntityType.SENTINEL:
+                    BfsBureau.remove_enemy_sentinel(pos, ti)
+                elif old_etype == EntityType.LAUNCHER:
+                    BfsBureau.remove_enemy_launcher(pos_idx)
+
             ti.has_building = (
                 building_id is not None and 
-                (etype := ct.get_entity_type(building_id)) != EntityType.MARKER
-            )
+                etype != EntityType.MARKER
+            ) or (pos == my_pos and my_type != EntityType.BUILDER_BOT)
+
             ti.entity_type = etype
             ti.has_bot = bot_id is not None and bot_id != Globals.my_id
 
@@ -331,6 +386,7 @@ class Map:
                 )):
                     ti.easily_passable = True
 
+
             ti.has_turret = False
                     
             if etype == EntityType.CONVEYOR or etype == EntityType.ARMOURED_CONVEYOR:
@@ -349,12 +405,25 @@ class Map:
                         ti.has_turret = True
                         ti.turret_direction = ct.get_direction(building_id)
 
-                    if ti.is_building_ally:
-                        DarkForest.register_sink(pos_idx, 3)
-                    else:
-                        DarkForest.register_sink(pos_idx, 4)
+                        # AttributeError: 'TileInfo' object has no attribute 'is_building_ally'
+                        try:
+                            if ti.is_building_ally:
+                                DarkForest.register_sink(
+                                  pos_idx,
+                                  3)
+                        except Exception:
+                            Debug.tee(ti.__dict__)
+
                 else:
                     DarkForest.remove_node(pos_idx)
+
+            # add check
+            if is_fresh_enemy_tower:
+                if etype == EntityType.SENTINEL:
+                    BfsBureau.add_enemy_sentinel(pos, ti)
+                elif etype == EntityType.LAUNCHER:
+                    BfsBureau.add_enemy_launcher(pos_idx)
+
 
             # maybe check ti/ax?
             if etype == EntityType.HARVESTER:
@@ -378,6 +447,8 @@ class Map:
     @classmethod
     def fill_tile_infoR(cls):
         ct = Globals.ct
+        my_pos = Globals.my_pos
+        my_type = Globals.my_type
         round = ct.get_current_round()
         tile_info = cls.tile_info
 
@@ -397,6 +468,8 @@ class Map:
             if ti is None:
                 ti = TileInfo()
                 tile_info[x][y] = ti
+                ti.has_building = False
+                ti.entity_type = None
 
             cls.proc_nearby_tiles.append(
                 (pos, x, y, idx, ti)
@@ -405,6 +478,7 @@ class Map:
 
         for pos, x, y, pos_idx, ti in cls.proc_nearby_tiles:
             tile_env: Environment = ct.get_tile_env(pos)
+            old_etype = ti.entity_type
 
             ox, oy = maxX - x, maxY - y 
 
@@ -417,6 +491,8 @@ class Map:
                 opp_ti.has_building = False
                 opp_ti.easily_passable = False
                 opp_ti.harvester_adjacent = False
+                opp_ti.entity_type = None
+                opp_ti.target = None
                 tile_info[ox][oy] = opp_ti
                 new_syms.append(Position(ox, oy))
 
@@ -428,11 +504,24 @@ class Map:
             ti.building_id = building_id
             ti.bot_id = bot_id
 
-            etype = None
+            if building_id is None:
+                etype = None
+            else:
+                etype = ct.get_entity_type(building_id)
+            is_fresh_enemy_tower = old_etype != etype and ti.has_building and not ti.is_building_ally
+
+            # remove check
+            if is_fresh_enemy_tower:
+                if old_etype == EntityType.SENTINEL:
+                    BfsBureau.remove_enemy_sentinel(pos, ti)
+                elif old_etype == EntityType.LAUNCHER:
+                    BfsBureau.remove_enemy_launcher(pos_idx)
+
             ti.has_building = (
                 building_id is not None and 
-                (etype := ct.get_entity_type(building_id)) != EntityType.MARKER
-            )
+                etype != EntityType.MARKER
+            ) or (pos == my_pos and my_type != EntityType.BUILDER_BOT)
+
             ti.entity_type = etype
             ti.has_bot = bot_id is not None and bot_id != Globals.my_id
 
@@ -460,6 +549,7 @@ class Map:
                 )):
                     ti.easily_passable = True
 
+
             ti.has_turret = False
                     
             if etype == EntityType.CONVEYOR or etype == EntityType.ARMOURED_CONVEYOR:
@@ -478,12 +568,25 @@ class Map:
                         ti.has_turret = True
                         ti.turret_direction = ct.get_direction(building_id)
 
-                    if ti.is_building_ally:
-                        DarkForest.register_sink(pos_idx, 3)
-                    else:
-                        DarkForest.register_sink(pos_idx, 4)
+                        # AttributeError: 'TileInfo' object has no attribute 'is_building_ally'
+                        try:
+                            if ti.is_building_ally:
+                                DarkForest.register_sink(
+                                  pos_idx,
+                                  3)
+                        except Exception:
+                            Debug.tee(ti.__dict__)
+
                 else:
                     DarkForest.remove_node(pos_idx)
+
+            # add check
+            if is_fresh_enemy_tower:
+                if etype == EntityType.SENTINEL:
+                    BfsBureau.add_enemy_sentinel(pos, ti)
+                elif etype == EntityType.LAUNCHER:
+                    BfsBureau.add_enemy_launcher(pos_idx)
+
 
             # maybe check ti/ax?
             if etype == EntityType.HARVESTER:
@@ -507,6 +610,8 @@ class Map:
     @classmethod
     def fill_tile_infoUNKNOWN(cls):
         ct = Globals.ct
+        my_pos = Globals.my_pos
+        my_type = Globals.my_type
         round = ct.get_current_round()
         tile_info = cls.tile_info
 
@@ -523,6 +628,8 @@ class Map:
             if ti is None:
                 ti = TileInfo()
                 tile_info[x][y] = ti
+                ti.has_building = False
+                ti.entity_type = None
 
             cls.proc_nearby_tiles.append(
                 (pos, x, y, idx, ti)
@@ -531,6 +638,7 @@ class Map:
 
         for pos, x, y, pos_idx, ti in cls.proc_nearby_tiles:
             tile_env: Environment = ct.get_tile_env(pos)
+            old_etype = ti.entity_type
 
 
 
@@ -542,11 +650,24 @@ class Map:
             ti.building_id = building_id
             ti.bot_id = bot_id
 
-            etype = None
+            if building_id is None:
+                etype = None
+            else:
+                etype = ct.get_entity_type(building_id)
+            is_fresh_enemy_tower = old_etype != etype and ti.has_building and not ti.is_building_ally
+
+            # remove check
+            if is_fresh_enemy_tower:
+                if old_etype == EntityType.SENTINEL:
+                    BfsBureau.remove_enemy_sentinel(pos, ti)
+                elif old_etype == EntityType.LAUNCHER:
+                    BfsBureau.remove_enemy_launcher(pos_idx)
+
             ti.has_building = (
                 building_id is not None and 
-                (etype := ct.get_entity_type(building_id)) != EntityType.MARKER
-            )
+                etype != EntityType.MARKER
+            ) or (pos == my_pos and my_type != EntityType.BUILDER_BOT)
+
             ti.entity_type = etype
             ti.has_bot = bot_id is not None and bot_id != Globals.my_id
 
@@ -574,6 +695,7 @@ class Map:
                 )):
                     ti.easily_passable = True
 
+
             ti.has_turret = False
                     
             if etype == EntityType.CONVEYOR or etype == EntityType.ARMOURED_CONVEYOR:
@@ -592,12 +714,25 @@ class Map:
                         ti.has_turret = True
                         ti.turret_direction = ct.get_direction(building_id)
 
-                    if ti.is_building_ally:
-                        DarkForest.register_sink(pos_idx, 3)
-                    else:
-                        DarkForest.register_sink(pos_idx, 4)
+                        # AttributeError: 'TileInfo' object has no attribute 'is_building_ally'
+                        try:
+                            if ti.is_building_ally:
+                                DarkForest.register_sink(
+                                  pos_idx,
+                                  3)
+                        except Exception:
+                            Debug.tee(ti.__dict__)
+
                 else:
                     DarkForest.remove_node(pos_idx)
+
+            # add check
+            if is_fresh_enemy_tower:
+                if etype == EntityType.SENTINEL:
+                    BfsBureau.add_enemy_sentinel(pos, ti)
+                elif etype == EntityType.LAUNCHER:
+                    BfsBureau.add_enemy_launcher(pos_idx)
+
 
             # maybe check ti/ax?
             if etype == EntityType.HARVESTER:
@@ -686,6 +821,8 @@ class Map:
                     opp_ti.has_building = False
                     opp_ti.easily_passable = False
                     opp_ti.harvester_adjacent = False
+                    opp_ti.entity_type = None
+                    opp_ti.target = None
                     orow[oy] = opp_ti
                     new_syms.append(Position(ox, oy))
 # ===---

@@ -22,6 +22,7 @@ from Generated.bbot.Builder import Builder
 from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
+from Generated.bbot.SentinelDirectionPicker import SentinelDirectionInfo, SentinelDirectionPicker
 from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
@@ -55,7 +56,11 @@ class BfsBureau:
     weight: list[int]
     now_weight: list[int]  # copied from weight every turn
     dist_bridge: list[int]
+
+    # bitmask
     passable_int: int
+    now_passable_int: int
+    enemy_launcher: int = 0
     STRIDE: int
 
     @classmethod
@@ -126,29 +131,52 @@ class BfsBureau:
 
         cls.now_weight = weight.copy()
         now_weight = cls.now_weight
+        cls.now_passable_int = cls.passable_int
 
-        # update for current turn
-        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
-            if not ti.has_building or ti.is_building_ally:
-                continue
-
-            # enemy turret penalty
-            if ti.has_turret:
-                for pos in ct.get_attackable_tiles_from(pos, ti.turret_direction, ti.entity_type):
-                    now_weight[(((pos.x) + 3) * 56 + ((pos.y) + 3))] += 2
-
-            # enemy launcher penalty
-            if ti.entity_type == EntityType.LAUNCHER:
-                now_weight[idx + -1] += 10
-                now_weight[idx + 55] += 10
-                now_weight[idx + 56] += 10
-                now_weight[idx + 57] += 10
-                now_weight[idx + 1] += 10
-                now_weight[idx + -55] += 10
-                now_weight[idx + -56] += 10
-                now_weight[idx + -57] += 10
-
+        # remove enemy launchers
+        wide = cls.enemy_launcher | (cls.enemy_launcher << 1) | (cls.enemy_launcher >> 1)
+        expanded = wide | (wide >> stride) | (wide << stride)
+        cls.now_passable_int &= ~expanded
 # ===---
+
+    # incremental
+                        
+    @classmethod
+    def add_enemy_sentinel(cls, pos, ti):
+        for pos in Globals.ct.get_attackable_tiles_from(pos, ti.turret_direction, ti.entity_type):
+            cls.weight[(((pos.x) + 3) * 56 + ((pos.y) + 3))] += 2
+
+    @classmethod
+    def remove_enemy_sentinel(cls, pos, ti):
+        for pos in Globals.ct.get_attackable_tiles_from(pos, ti.turret_direction, ti.entity_type):
+            cls.weight[(((pos.x) + 3) * 56 + ((pos.y) + 3))] -= 2
+
+    @classmethod
+    def add_enemy_launcher(cls, idx):
+        bit = 1 << (x * stride + y)
+        cls.enemy_launcher |= bit
+        cls.weight[idx + -1] += 1000000
+        cls.weight[idx + 55] += 1000000
+        cls.weight[idx + 56] += 1000000
+        cls.weight[idx + 57] += 1000000
+        cls.weight[idx + 1] += 1000000
+        cls.weight[idx + -55] += 1000000
+        cls.weight[idx + -56] += 1000000
+        cls.weight[idx + -57] += 1000000
+
+    @classmethod
+    def remove_enemy_launcher(cls, idx):
+        bit = 1 << (x * stride + y)
+        cls.enemy_launcher &= ~bit
+        cls.weight[idx + -1] -= 1000000
+        cls.weight[idx + 55] -= 1000000
+        cls.weight[idx + 56] -= 1000000
+        cls.weight[idx + 57] -= 1000000
+        cls.weight[idx + 1] -= 1000000
+        cls.weight[idx + -55] -= 1000000
+        cls.weight[idx + -56] -= 1000000
+        cls.weight[idx + -57] -= 1000000
+
 
     # works. but slow
 # ---===
@@ -820,7 +848,7 @@ class BfsBureau:
         Profiler.start()
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
-        _uc = cls.passable_int | _tm
+        _uc = cls.now_passable_int | _tm
 
         _settled_bits = 0
         for _ci in _settled:

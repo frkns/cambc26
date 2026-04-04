@@ -22,6 +22,7 @@ from Generated.bbot.Builder import Builder
 from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
+from Generated.bbot.SentinelDirectionPicker import SentinelDirectionInfo, SentinelDirectionPicker
 from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
@@ -96,8 +97,14 @@ class Constants:
         {% endfor %}
     }
 
-    SENTINEL_PATTERN: list[list[tuple]] = (
+    SENTINEL_PATTERN: list[list[tuple[int, int]]] = (
         {% for dir_row in sentinel_pattern %}
         {{ tuple(dir_row) }},
         {% endfor %}
     )
+
+    SENTINEL_REVERSE: dict[tuple, tuple[int, ...]] = {
+        {% for pos, dir_indices in sentinel_reverse.items() %}
+        {{ pos }}: {{ tuple(dir_indices) }},
+        {% endfor %}
+    }

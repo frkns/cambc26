@@ -22,6 +22,7 @@ from Generated.bbot.Builder import Builder
 from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
+from Generated.bbot.SentinelDirectionPicker import SentinelDirectionInfo, SentinelDirectionPicker
 from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
@@ -89,10 +90,5 @@ class StateBuildTurret:
         Pathfinder.move_to(pos, ban_target_pos=True)
 
         if BuildManager.can_dbuild_sentinel(pos):
-
-            # download better dir logic soon
-            dir: Direction = pos.direction_to(Symmetry.enemy_core_pos) 
-            if dir == banned_dir:
-                dir = dir.rotate_left() if random.random() < 0.5 else dir.rotate_right()
-
+            dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
             BuildManager.dbuild_sentinel(pos, dir)
