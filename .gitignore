@@ -31,3 +31,8 @@ src/**
 # Ignore specific things inside latest
 src/latest/Generated/**
 src/latest/main.py
+
+# Python compiled files
+__pycache__/
+*.py[cod]
+*$py.class
