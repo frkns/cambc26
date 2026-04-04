@@ -1,4 +1,0 @@
-Sym	Transformed X'	Transformed Y'	sym_idx = X'·PH + Y'
-R	maxX+2P − X	maxY+2P − Y	(maxX+2P)·PH + (maxY+2P) − (X·PH + Y) = C_R − idx
-V	maxX+2P − X	Y	(maxX+2P)·PH − X·PH + Y = C_V − idx + 2Y
-H	X	maxY+2P − Y	X·PH + (maxY+2P) − Y = idx + C_H − 2Y
