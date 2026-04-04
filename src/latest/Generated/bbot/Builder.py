@@ -20,6 +20,7 @@ from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
 from Generated.bbot.RushTargeter import RushTargeter
+from Generated.bbot.ShieldTargeterExecutor import ShieldTargetInfo, ShieldTargeterExecutor
 from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
@@ -99,6 +100,10 @@ class Builder(Unit):
         HealTargeter.fill()
         
 
+        
+        ShieldTargeterExecutor.fill()
+        
+
                 
 
 
@@ -116,6 +121,10 @@ class Builder(Unit):
 
         
         HealExecutor.execute_heal_attempt()
+        
+
+        
+        ShieldTargeterExecutor.execute_shield_attempt()
         
 
         

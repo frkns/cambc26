@@ -20,6 +20,7 @@ from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
 from Generated.bbot.RushTargeter import RushTargeter
+from Generated.bbot.ShieldTargeterExecutor import ShieldTargetInfo, ShieldTargeterExecutor
 from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
@@ -57,12 +58,24 @@ class HealTargetInfo:
     building_hp: int
     bot_heal: int
     bot_hp: int
+    is_transporter: bool
+    has_enemy_bot: bool
 
     @staticmethod
     def is_better_than(a: HealTargetInfo, b: HealTargetInfo) -> bool:
         if a.building_heal != b.building_heal:
             return a.building_heal > b.building_heal
+        
+        # Make sure at least one building is healable
+        if a.building_heal > 0:
+            if a.is_transporter != b.is_transporter:
+                if a.is_transporter:
+                    return True
 
+            if a.building_heal > 0 and a.has_enemy_bot != b.has_enemy_bot:
+                if a.has_enemy_bot:
+                    return True
+                
         if a.building_hp != b.building_hp:
             return a.building_hp < b.building_hp
 
@@ -111,6 +124,8 @@ class HealTargeter:
             info.bot_heal = 0
             info.building_hp = 1000000
             info.bot_hp = 1000000
+            info.is_transporter = (ti.entity_type is not None and ti.entity_type in Constants.TRANSPORTERS_SET)
+            info.has_enemy_bot = False
 
             if ti.has_building and ti.is_building_ally:
                 info.building_heal = min(
@@ -119,12 +134,16 @@ class HealTargeter:
                 )
                 info.building_hp = ti.building_hp
 
-            if ti.has_bot and ti.is_bot_ally:
-                info.bot_heal = min(
-                    4,
-                    30 - ti.bot_hp
-                )
-                info.bot_hp = ti.bot_hp
+            if ti.has_bot:
+                if ti.is_bot_ally:
+                    info.bot_heal = min(
+                        4,
+                        30 - ti.bot_hp
+                    )
+                    info.bot_hp = ti.bot_hp
+                else:
+                    info.has_enemy_bot = True
+                    
 
 
             targets.append(info)

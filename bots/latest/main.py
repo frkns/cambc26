@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-03 20:51:32 (local)
+# latest,  @ 2026-04-04 10:38:17 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -20953,12 +20953,24 @@ class HealTargetInfo:
     building_hp: int
     bot_heal: int
     bot_hp: int
+    is_transporter: bool
+    has_enemy_bot: bool
 
     @staticmethod
     def is_better_than(a: HealTargetInfo, b: HealTargetInfo) -> bool:
         if a.building_heal != b.building_heal:
             return a.building_heal > b.building_heal
+        
+        # Make sure at least one building is healable
+        if a.building_heal > 0:
+            if a.is_transporter != b.is_transporter:
+                if a.is_transporter:
+                    return True
 
+            if a.building_heal > 0 and a.has_enemy_bot != b.has_enemy_bot:
+                if a.has_enemy_bot:
+                    return True
+                
         if a.building_hp != b.building_hp:
             return a.building_hp < b.building_hp
 
@@ -21011,6 +21023,8 @@ class HealTargeter:
             info.bot_heal = 0
             info.building_hp = 1000000
             info.bot_hp = 1000000
+            info.is_transporter = (ti.entity_type is not None and ti.entity_type in Constants.TRANSPORTERS_SET)
+            info.has_enemy_bot = False
 
             if ti.has_building and ti.is_building_ally:
                 info.building_heal = min(
@@ -21019,12 +21033,16 @@ class HealTargeter:
                 )
                 info.building_hp = ti.building_hp
 
-            if ti.has_bot and ti.is_bot_ally:
-                info.bot_heal = min(
-                    4,
-                    30 - ti.bot_hp
-                )
-                info.bot_hp = ti.bot_hp
+            if ti.has_bot:
+                if ti.is_bot_ally:
+                    info.bot_heal = min(
+                        4,
+                        30 - ti.bot_hp
+                    )
+                    info.bot_hp = ti.bot_hp
+                else:
+                    info.has_enemy_bot = True
+                    
 
 
             targets.append(info)
@@ -22781,6 +22799,68 @@ class SentinelTargetInfo:
 
 
 # ============================================================
+# ShieldTargetInfo
+# ============================================================
+
+class ShieldTargetInfo:
+    position: Position
+    harvester_adjacent: bool
+    dist_ally_core: int
+
+    @staticmethod
+    def is_better_than(a: ShieldTargetInfo, b: ShieldTargetInfo):
+        if a.harvester_adjacent != b.harvester_adjacent:
+            return a.harvester_adjacent > b.harvester_adjacent
+        return a.dist_ally_core < b.dist_ally_core
+
+
+# ============================================================
+# ShieldTargeterExecutor
+# ============================================================
+
+class ShieldTargeterExecutor:
+    cand: list[ShieldTargetInfo] = []# adjacent candidate build positions
+
+
+    @classmethod
+    def execute_shield_attempt(cls) -> Psosition | None:
+        if not cls.cand:
+            return None
+        
+        if MarketMaker.est_income < 5:
+            return None
+        
+        if not BuildManager.can_afford_bridge():
+            return None
+
+        best = cls.cand[0]
+        for c in cls.cand[1:]:
+            if ShieldTargetInfo.is_better_than(c, best):
+                best = c
+
+        if BuildManager.can_build_road(best.position):
+            BuildManager.build_road(best.position)
+
+    @classmethod
+    def fill(cls):
+        cls.cand = []
+        tile_info = Map.tile_info
+
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            if ti.has_building:
+                continue
+
+            if pos.distance_squared(Globals.my_pos) > 2:
+                continue
+
+            info = ShieldTargetInfo()
+            cls.cand.append(info)
+            info.position = pos
+            info.dist_ally_core = Util.dist_sq(pos, Unit.core_pos)
+            info.harvester_adjacent = ti.harvester_adjacent
+
+
+# ============================================================
 # SpawnManager
 # ============================================================
 
@@ -23624,6 +23704,10 @@ class Builder(Unit):
         HealTargeter.fill()
         
 
+        
+        ShieldTargeterExecutor.fill()
+        
+
                 
 
 
@@ -23641,6 +23725,10 @@ class Builder(Unit):
 
         
         HealExecutor.execute_heal_attempt()
+        
+
+        
+        ShieldTargeterExecutor.execute_shield_attempt()
         
 
         

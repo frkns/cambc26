@@ -50,17 +50,59 @@ from Generated.sentinel.SentinelSupervisor import SentinelTargetInfo, SentinelSu
 from Generated.units.Unit import Unit
 # ===--- IMPORT
 
-{% import 'debug/debug.j2' as D %}
-{% import 'debug/profiler.j2' as P %}
-{% from 'map/kind.j2' import Kind %}
 
 
-class Marker:
+# for choosing build position
+
+class ShieldTargetInfo:
+    position: Position
+    harvester_adjacent: bool
+    dist_ally_core: int
+
+    @staticmethod
+    def is_better_than(a: ShieldTargetInfo, b: ShieldTargetInfo):
+        if a.harvester_adjacent != b.harvester_adjacent:
+            return a.harvester_adjacent > b.harvester_adjacent
+        return a.dist_ally_core < b.dist_ally_core
+
+
+class ShieldTargeterExecutor:
+    cand: list[ShieldTargetInfo] = []# adjacent candidate build positions
+
+
     @classmethod
-    def attempt_mark(cls):
-        pos = MarkerPositionPicker.get_marker_pos()
-        if pos is None:
-            return
+    def execute_shield_attempt(cls) -> Psosition | None:
+        if not cls.cand:
+            return None
         
-        val = Comms.pack_simple1(Symmetry.V, Symmetry.H, Symmetry.R, 63, 63)
-        Globals.ct.place_marker(pos, val)
+        if MarketMaker.est_income < 5:
+            return None
+        
+        if not BuildManager.can_afford_bridge():
+            return None
+
+        best = cls.cand[0]
+        for c in cls.cand[1:]:
+            if ShieldTargetInfo.is_better_than(c, best):
+                best = c
+
+        if BuildManager.can_build_road(best.position):
+            BuildManager.build_road(best.position)
+
+    @classmethod
+    def fill(cls):
+        cls.cand = []
+        tile_info = Map.tile_info
+
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            if ti.has_building:
+                continue
+
+            if pos.distance_squared(Globals.my_pos) > 2:
+                continue
+
+            info = ShieldTargetInfo()
+            cls.cand.append(info)
+            info.position = pos
+            info.dist_ally_core = Util.dist_sq(pos, Unit.core_pos)
+            info.harvester_adjacent = ti.harvester_adjacent

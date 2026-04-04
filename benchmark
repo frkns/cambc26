@@ -33,7 +33,7 @@ echo "$TEAMS" | while IFS= read -r TEAM; do
     continue
   fi
   echo "  Requesting match against: $TEAM ($TEAM_ID)"
-  cambc match unrated "$TEAM_ID"
+  cambc match unrated "$TEAM_ID" || echo "Error requesting matchup"
 done
 
 # Revert to the stable bot
