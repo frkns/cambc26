@@ -20,8 +20,8 @@ from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
 from Generated.bbot.RushTargeter import RushTargeter
-from Generated.bbot.ShieldTargeterExecutor import ShieldTargetInfo, ShieldTargeterExecutor
-from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
+from Generated.bbot.ShieldTargeter import ShieldTargetInfo, ShieldTargeter
+from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret, StateBuildBarrier
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
 from Generated.build.OreExecutive import OreExecutive
@@ -100,9 +100,9 @@ class Builder(Unit):
         HealTargeter.fill()
         
 
-        # 
-        # ShieldTargeterExecutor.fill()
-        # 
+        
+        ShieldTargeter.fill()
+        
 
                 
 
@@ -123,10 +123,6 @@ class Builder(Unit):
         HealExecutor.execute_heal_attempt()
         
 
-        # 
-        # ShieldTargeterExecutor.execute_shield_attempt()
-        # 
-
         
         Marker.attempt_mark()
         
@@ -145,6 +141,10 @@ class Builder(Unit):
         healpos = HealTargeter.get_best_target()
         if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
+
+        shieldpos = ShieldTargeter.get_best_target()
+        if shieldpos is not None:
+            return 'BuildBarrier', shieldpos, None
 
         trans: TransporterInfo = ConnectManager.get_connect_target_info()
         if trans is not None:

@@ -20,8 +20,8 @@ from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
 from Generated.bbot.RushTargeter import RushTargeter
-from Generated.bbot.ShieldTargeterExecutor import ShieldTargetInfo, ShieldTargeterExecutor
-from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
+from Generated.bbot.ShieldTargeter import ShieldTargetInfo, ShieldTargeter
+from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret, StateBuildBarrier
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
 from Generated.build.OreExecutive import OreExecutive
@@ -106,9 +106,9 @@ class Builder({{ super() }}):
         HealTargeter.fill()
         {{ P.end('HealTargeter.fill') }}
 
-        # {{ P.start() }}
-        # ShieldTargeterExecutor.fill()
-        # {{ P.end('ShieldTargeterExecutor.fill') }}
+        {{ P.start() }}
+        ShieldTargeter.fill()
+        {{ P.end('ShieldTargeter.fill') }}
 
         {% if LOCAL %}
         Symmetry.debug()
@@ -135,10 +135,6 @@ class Builder({{ super() }}):
         HealExecutor.execute_heal_attempt()
         {{ P.end('HealExecutor.execute_heal_attempt') }}
 
-        # {{ P.start() }}
-        # ShieldTargeterExecutor.execute_shield_attempt()
-        # {{ P.end('ShieldTargeterExecutor.execute_shield_attempt') }}
-
         {{ P.start() }}
         Marker.attempt_mark()
         {{ P.end('Marker.attempt_mark') }}
@@ -157,6 +153,10 @@ class Builder({{ super() }}):
         healpos = HealTargeter.get_best_target()
         if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
+
+        shieldpos = ShieldTargeter.get_best_target()
+        if shieldpos is not None:
+            return 'BuildBarrier', shieldpos, None
 
         trans: TransporterInfo = ConnectManager.get_connect_target_info()
         if trans is not None:

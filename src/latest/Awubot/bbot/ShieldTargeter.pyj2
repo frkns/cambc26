@@ -20,8 +20,8 @@ from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
 from Generated.bbot.RushTargeter import RushTargeter
-from Generated.bbot.ShieldTargeterExecutor import ShieldTargetInfo, ShieldTargeterExecutor
-from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
+from Generated.bbot.ShieldTargeter import ShieldTargetInfo, ShieldTargeter
+from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret, StateBuildBarrier
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
 from Generated.build.OreExecutive import OreExecutive
@@ -50,59 +50,70 @@ from Generated.sentinel.SentinelSupervisor import SentinelTargetInfo, SentinelSu
 from Generated.units.Unit import Unit
 # ===--- IMPORT
 
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
 
-
-# for choosing build position
 
 class ShieldTargetInfo:
     position: Position
     harvester_adjacent: bool
-    dist_ally_core: int
 
     @staticmethod
-    def is_better_than(a: ShieldTargetInfo, b: ShieldTargetInfo):
-        if a.harvester_adjacent != b.harvester_adjacent:
-            return a.harvester_adjacent > b.harvester_adjacent
-        return a.dist_ally_core < b.dist_ally_core
+    def is_better_than(a: ShieldTargetInfo, b: ShieldTargetInfo) -> bool:
+        if not a.harvester_adjacent: return False
+        if not b.harvester_adjacent: return True
+        
+        return False
 
 
-class ShieldTargeterExecutor:
-    cand: list[ShieldTargetInfo] = []# adjacent candidate build positions
+class ShieldTargeter:
+    targets: list[ShieldTargetInfo] = []
 
 
     @classmethod
-    def execute_shield_attempt(cls) -> Position | None:
-        if not cls.cand:
-            return None
-        
-        if MarketMaker.est_income < 5:
-            return None
-        
-        if not BuildManager.can_afford_bridge():
+    def get_best_target(cls) -> Position | None:
+        targets = cls.targets
+        if not targets:
             return None
 
-        best = cls.cand[0]
-        for c in cls.cand[1:]:
-            if ShieldTargetInfo.is_better_than(c, best):
-                best = c
+        best = targets[0]
+        for cand in targets[1:]:
+            if ShieldTargetInfo.is_better_than(cand, best):
+                best = cand
 
-        if BuildManager.can_build_road(best.position):
-            BuildManager.build_road(best.position)
+        if not best.harvester_adjacent:
+            return None
+
+        {% if LOCAL %}
+        print(f'ShieldTargetInfo {best.position=} {best.harvester_adjacent=}')
+        {% endif %}
+
+        return best.position
+
 
     @classmethod
     def fill(cls):
-        cls.cand = []
-        tile_info = Map.tile_info
+        cls.targets = []
+        targets = cls.targets
 
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
-            if ti.has_building:
+            ti: TileInfo
+            
+            if not ti.harvester_adjacent:
                 continue
-
-            if pos.distance_squared(Globals.my_pos) > 2:
+            
+            if ti.has_building:
+                if not ti.is_building_ally:
+                    continue
+                elif ti.entity_type != EntityType.ROAD:
+                    continue
+                
+            if ti.has_bot:
                 continue
 
             info = ShieldTargetInfo()
-            cls.cand.append(info)
             info.position = pos
-            info.dist_ally_core = Util.dist_sq(pos, Unit.core_pos)
             info.harvester_adjacent = ti.harvester_adjacent
+
+            targets.append(info)

@@ -20,8 +20,8 @@ from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
 from Generated.bbot.RushTargeter import RushTargeter
-from Generated.bbot.ShieldTargeterExecutor import ShieldTargetInfo, ShieldTargeterExecutor
-from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
+from Generated.bbot.ShieldTargeter import ShieldTargetInfo, ShieldTargeter
+from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret, StateBuildBarrier
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
 from Generated.build.OreExecutive import OreExecutive
@@ -71,10 +71,14 @@ class HealTargetInfo:
             if a.is_transporter != b.is_transporter:
                 if a.is_transporter:
                     return True
+                else:
+                    return False
 
-            if a.building_heal > 0 and a.has_enemy_bot != b.has_enemy_bot:
+            if a.has_enemy_bot != b.has_enemy_bot:
                 if a.has_enemy_bot:
                     return True
+                else:
+                    return False
                 
         if a.building_hp != b.building_hp:
             return a.building_hp < b.building_hp

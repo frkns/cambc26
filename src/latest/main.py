@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-04 10:41:34 (local)
+# latest,  @ 2026-04-04 14:22:47 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -20966,10 +20966,14 @@ class HealTargetInfo:
             if a.is_transporter != b.is_transporter:
                 if a.is_transporter:
                     return True
+                else:
+                    return False
 
-            if a.building_heal > 0 and a.has_enemy_bot != b.has_enemy_bot:
+            if a.has_enemy_bot != b.has_enemy_bot:
                 if a.has_enemy_bot:
                     return True
+                else:
+                    return False
                 
         if a.building_hp != b.building_hp:
             return a.building_hp < b.building_hp
@@ -22017,6 +22021,9 @@ class MarketMaker:
         if Globals.round < 500 and \
                 apos.distance_squared(Symmetry.enemy_core_pos) < apos.distance_squared(Unit.core_pos):
             return False
+            
+        if MarketMaker.est_income >= 20 and MarketMaker.ti < Globals.ct.get_harvester_cost()[0] * 2:
+            return False
 
         pbt = MarketMaker.harvester_payback(apos)
         
@@ -22805,59 +22812,66 @@ class SentinelTargetInfo:
 class ShieldTargetInfo:
     position: Position
     harvester_adjacent: bool
-    dist_ally_core: int
 
     @staticmethod
-    def is_better_than(a: ShieldTargetInfo, b: ShieldTargetInfo):
-        if a.harvester_adjacent != b.harvester_adjacent:
-            return a.harvester_adjacent > b.harvester_adjacent
-        return a.dist_ally_core < b.dist_ally_core
+    def is_better_than(a: ShieldTargetInfo, b: ShieldTargetInfo) -> bool:
+        if not a.harvester_adjacent: return False
+        if not b.harvester_adjacent: return True
+        
+        return False
 
 
 # ============================================================
-# ShieldTargeterExecutor
+# ShieldTargeter
 # ============================================================
 
-class ShieldTargeterExecutor:
-    cand: list[ShieldTargetInfo] = []# adjacent candidate build positions
+class ShieldTargeter:
+    targets: list[ShieldTargetInfo] = []
 
 
     @classmethod
-    def execute_shield_attempt(cls) -> Position | None:
-        if not cls.cand:
-            return None
-        
-        if MarketMaker.est_income < 5:
-            return None
-        
-        if not BuildManager.can_afford_bridge():
+    def get_best_target(cls) -> Position | None:
+        targets = cls.targets
+        if not targets:
             return None
 
-        best = cls.cand[0]
-        for c in cls.cand[1:]:
-            if ShieldTargetInfo.is_better_than(c, best):
-                best = c
+        best = targets[0]
+        for cand in targets[1:]:
+            if ShieldTargetInfo.is_better_than(cand, best):
+                best = cand
 
-        if BuildManager.can_build_road(best.position):
-            BuildManager.build_road(best.position)
+        if not best.harvester_adjacent:
+            return None
+
+
+        return best.position
+
 
     @classmethod
     def fill(cls):
-        cls.cand = []
-        tile_info = Map.tile_info
+        cls.targets = []
+        targets = cls.targets
 
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
-            if ti.has_building:
+            ti: TileInfo
+            
+            if not ti.harvester_adjacent:
                 continue
-
-            if pos.distance_squared(Globals.my_pos) > 2:
+            
+            if ti.has_building:
+                if not ti.is_building_ally:
+                    continue
+                elif ti.entity_type != EntityType.ROAD:
+                    continue
+                
+            if ti.has_bot:
                 continue
 
             info = ShieldTargetInfo()
-            cls.cand.append(info)
             info.position = pos
-            info.dist_ally_core = Util.dist_sq(pos, Unit.core_pos)
             info.harvester_adjacent = ti.harvester_adjacent
+
+            targets.append(info)
 
 
 # ============================================================
@@ -22916,6 +22930,25 @@ class StateAttackTransporter:
         if Globals.my_pos == pos:
             if Globals.ct.can_fire(pos):
                 Globals.ct.fire(pos)
+
+
+# ============================================================
+# StateBuildBarrier
+# ============================================================
+
+class StateBuildBarrier:
+    @classmethod
+    def run(cls, pos, banned_dir: Direction | None):
+        Pathfinder.move_to(pos, ban_target_pos=True)
+
+        if BuildManager.can_dbuild_barrier(pos):
+
+            # download better dir logic soon
+            dir: Direction = pos.direction_to(Symmetry.enemy_core_pos) 
+            if dir == banned_dir:
+                dir = dir.rotate_left() if random.random() < 0.5 else dir.rotate_right()
+
+            BuildManager.dbuild_barrier(pos)
 
 
 # ============================================================
@@ -23704,9 +23737,9 @@ class Builder(Unit):
         HealTargeter.fill()
         
 
-        # 
-        # ShieldTargeterExecutor.fill()
-        # 
+        
+        ShieldTargeter.fill()
+        
 
                 
 
@@ -23727,10 +23760,6 @@ class Builder(Unit):
         HealExecutor.execute_heal_attempt()
         
 
-        # 
-        # ShieldTargeterExecutor.execute_shield_attempt()
-        # 
-
         
         Marker.attempt_mark()
         
@@ -23749,6 +23778,10 @@ class Builder(Unit):
         healpos = HealTargeter.get_best_target()
         if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
+
+        shieldpos = ShieldTargeter.get_best_target()
+        if shieldpos is not None:
+            return 'BuildBarrier', shieldpos, None
 
         trans: TransporterInfo = ConnectManager.get_connect_target_info()
         if trans is not None:
