@@ -19,6 +19,7 @@ from Generated.bbot.Builder import Builder
 from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
+from Generated.bbot.RushTargeter import RushTargeter
 from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
@@ -102,9 +103,9 @@ class Unit:
         Globals.start_tick()
         MarketMaker.refresh()
 
-        Profiler.start()
+        
         Map.fill_tile_info()
-        Profiler.end("""Map.fill_tile_info""")
+        
 
     @classmethod
     def run_turn(cls):
@@ -113,7 +114,7 @@ class Unit:
     @classmethod
     def end_turn(cls):
 
-        if Globals.round == 667:
+        if Globals.round == 1999:
             Profiler.report()
         print(f'scale ratio {MarketMaker.scale_ratio:.2f}')
 

@@ -49,50 +49,14 @@ from Generated.sentinel.SentinelSupervisor import SentinelTargetInfo, SentinelSu
 from Generated.units.Unit import Unit
 # ===--- IMPORT
 
-{% import 'debug/debug.j2' as D %}
-{% import 'debug/profiler.j2' as P %}
-{% from 'map/kind.j2' import Kind %}
 
 
-class Constants:
-    ALL_DIRECTIONS: list[Direction] = [
-        Direction.NORTH,
-        Direction.NORTHEAST,
-        Direction.EAST,
-        Direction.SOUTHEAST,
-        Direction.SOUTH,
-        Direction.SOUTHWEST,
-        Direction.WEST,
-        Direction.NORTHWEST,
-        Direction.CENTRE
-    ]
-    DIRECTIONS: list[Direction] = [
-        Direction.NORTH,
-        Direction.NORTHEAST,
-        Direction.EAST,
-        Direction.SOUTHEAST,
-        Direction.SOUTH,
-        Direction.SOUTHWEST,
-        Direction.WEST,
-        Direction.NORTHWEST,
-    ]
-    TRANSPORTERS_SET: set[EntityType] = {
-        EntityType.CONVEYOR,
-        EntityType.ARMOURED_CONVEYOR,
-        EntityType.BRIDGE,
-        EntityType.SPLITTER,
-    }
-    PASSABLE_SET: set[EntityType] = {
-        EntityType.ROAD,
-        EntityType.CONVEYOR,
-        EntityType.ARMOURED_CONVEYOR,
-        EntityType.BRIDGE,
-        EntityType.SPLITTER,
-    }
+class RushTargeter:
 
-    MAX_HP_MAP: dict[EntityType, int] = {
-        {% for etype in EntityType %}
-        {% set ST = etype.value|upper %}
-        {{ etype }}: {{ eval('GameConstants.' ~ ST ~ '_MAX_HP') }},
-        {% endfor %}
-    }
+    @classmethod
+    def get_best_target(cls) -> Position | None:
+        if Symmetry.is_sym_known:
+            if Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100:
+                return Symmetry.enemy_core_pos
+        else:
+            return None

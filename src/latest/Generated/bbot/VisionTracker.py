@@ -19,6 +19,7 @@ from Generated.bbot.Builder import Builder
 from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
+from Generated.bbot.RushTargeter import RushTargeter
 from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
@@ -185,11 +186,11 @@ class VisionTracker:
 
     @classmethod
     def canonical_ally(cls, from_pos: Position) -> BotInfo:
-        Profiler.start()
+        
         ret = min(cls.allies, key=
             lambda x: (Util.linf(from_pos, x.position) << 16) + x.id
         )
-        Profiler.end("""canonical_ally""")
+        
         return ret
 
 

@@ -19,6 +19,7 @@ from Generated.bbot.Builder import Builder
 from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
 from Generated.bbot.HealExecutor import HealExecutor
 from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
+from Generated.bbot.RushTargeter import RushTargeter
 from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
 from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
 from Generated.build.BuildManager import BuildManager
@@ -67,38 +68,37 @@ class Builder(Unit):
     def start_turn(cls):
         Unit.start_turn()
 
-        Profiler.start()
+        
         BfsBureau.update()
-        Profiler.end("""BfsBureau.update""")
+        
 
         Symmetry.run_sym_check()
 
-        Profiler.start()
+        
         DarkForest.fcompute()
-        Profiler.end("""DarkForest.fcompute""")
+        
 
 
-        Profiler.start()
+        
         BfsBureau.bfs20()
-        Profiler.end("""BfsBureau.bfs20""")
+        
 
-        Profiler.start()
+        
         OreExecutive.fill()
-        Profiler.end("""OreExecutive.fill""")
+        
 
-        Profiler.start()
+        
         VisionTracker.fill()
-        Profiler.end("""VisionTracker.fill""")
+        
 
-        Profiler.start()
+        
         HarvesterAdjacent.fill()
-        Profiler.end("""HarvesterAdjacent.fill""")
+        
 
-        Profiler.start()
+        
         HealTargeter.fill()
-        Profiler.end("""HealTargeter.fill""")
+        
 
-        Symmetry.debug()
                 
 
 
@@ -106,7 +106,6 @@ class Builder(Unit):
     def run_turn(cls):
         cls.state, *args = cls.determine_state()
 
-        print(f'running: {cls.state}  @', *args, sep=' ')
 
         globals()[f'State{cls.state}'].run(*args)
 
@@ -115,13 +114,13 @@ class Builder(Unit):
     def end_turn(cls):
         Unit.end_turn()
 
-        Profiler.start()
+        
         HealExecutor.execute_heal_attempt()
-        Profiler.end("""HealExecutor.execute_heal_attempt""")
+        
 
-        Profiler.start()
+        
         Marker.attempt_mark()
-        Profiler.end("""Marker.attempt_mark""")
+        
 
 
     @classmethod
@@ -162,5 +161,9 @@ class Builder(Unit):
         bhpos = OreExecutive.get_titanium_target()
         if bhpos is not None:
             return 'BuildHarvester', bhpos
+
+        rushTarget = RushTargeter.get_best_target()
+        if rushTarget is not None:
+            return 'MoveTo', rushTarget, 'Rush'
 
         return 'MoveTo', Explore.get_target(), 'Explore'
