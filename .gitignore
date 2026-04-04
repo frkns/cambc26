@@ -36,3 +36,6 @@ src/latest/main.py
 __pycache__/
 *.py[cod]
 *$py.class
+
+# engine source
+rust_src/
