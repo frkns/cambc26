@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-04 13:08:19 (local)
+# latest,  @ 2026-04-04 15:46:19 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -22687,6 +22687,8 @@ class RouteToFoundry:
         if ti.has_building:
             if not ti.is_building_ally:
                 return True
+            if ti.entity_type == EntityType.BRIDGE: #just avoid building foundry on top of a bridge, since that would be sad (too much logic an thinking required)
+                    return True
             if cls._foundry_target != (((x) + 3) * 56 + ((y) + 3)):
                 if ti.entity_type in Constants.TRANSPORTERS_SET:
                     return True
