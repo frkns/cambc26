@@ -8,9 +8,34 @@
 __pycache__/
 *.pyc
 
+# Test output HTMLs
+tests/*.html
+
+
+# Ignore everything in bots (recursive)
+bots/**
+!bots/
+
+# Ignore everything in src (recursive)
+src/**
+!src/
+
+# Re-include src/latest and everything inside
+!src/latest/
+!src/latest/**
+
 # Virtual environments
 .venv/
 venv/
 
-# Test output HTMLs
-tests/*.html
+# Ignore specific things inside latest
+src/latest/Generated/**
+src/latest/main.py
+
+# Python compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# engine source
+rust_src/
