@@ -142,9 +142,9 @@ class Builder(Unit):
         if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
 
-        shieldpos = ShieldTargeter.get_best_target()
-        if shieldpos is not None:
-            return 'BuildBarrier', shieldpos, None
+        # shieldpos = ShieldTargeter.get_best_target()
+        # if shieldpos is not None:
+        #     return 'BuildBarrier', shieldpos, None
 
         trans: TransporterInfo = ConnectManager.get_connect_target_info()
         if trans is not None:

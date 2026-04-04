@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-04 14:22:47 (local)
+# latest,  @ 2026-04-04 14:27:19 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -23779,9 +23779,9 @@ class Builder(Unit):
         if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
 
-        shieldpos = ShieldTargeter.get_best_target()
-        if shieldpos is not None:
-            return 'BuildBarrier', shieldpos, None
+        # shieldpos = ShieldTargeter.get_best_target()
+        # if shieldpos is not None:
+        #     return 'BuildBarrier', shieldpos, None
 
         trans: TransporterInfo = ConnectManager.get_connect_target_info()
         if trans is not None:
