@@ -8,10 +8,6 @@
 __pycache__/
 *.pyc
 
-# Virtual environments
-.venv/
-venv/
-
 # Test output HTMLs
 tests/*.html
 
@@ -28,6 +24,10 @@ src/**
 !src/latest/
 !src/latest/**
 
+# Virtual environments
+.venv/
+venv/
+
 # Ignore specific things inside latest
 src/latest/Generated/**
 src/latest/main.py
@@ -39,6 +39,3 @@ __pycache__/
 
 # engine source
 rust_source/
-
-# Mypy cache
-.mypy_cache/
