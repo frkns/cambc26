@@ -15,6 +15,7 @@ tests/*.html
 # Ignore everything in bots (recursive)
 bots/**
 !bots/
+!bots/bot3v4
 
 # Ignore everything in src (recursive)
 src/**

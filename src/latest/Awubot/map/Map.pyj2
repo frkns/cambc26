@@ -128,6 +128,7 @@ class Map:
         for pos, x, y, pos_idx, ti in cls.proc_nearby_tiles:
             tile_env: Environment = ct.get_tile_env(pos)
             old_etype = ti.entity_type
+            old_is_building_ally = ti.has_building and ti.is_building_ally
 
             {% if sym == 'V' %}
             ox, oy = maxX - x, y
@@ -165,14 +166,7 @@ class Map:
                 etype = None
             else:
                 etype = ct.get_entity_type(building_id)
-            is_fresh_enemy_tower = old_etype != etype and ti.has_building and not ti.is_building_ally
 
-            # remove check
-            if is_fresh_enemy_tower:
-                if old_etype == EntityType.SENTINEL:
-                    BfsBureau.remove_enemy_sentinel(pos, ti)
-                elif old_etype == EntityType.LAUNCHER:
-                    BfsBureau.remove_enemy_launcher(pos_idx)
 
             ti.has_building = (
                 building_id is not None and 
@@ -232,6 +226,18 @@ class Map:
 
                 else:
                     DarkForest.remove_node(pos_idx)
+
+            is_fresh_enemy_tower = old_etype != etype and \
+                (not ti.is_building_ally or not old_is_building_ally) and \
+                (etype in (EntityType.SENTINEL, EntityType.LAUNCHER) or
+                 old_etype in (EntityType.SENTINEL, EntityType.LAUNCHER))
+
+            # remove check
+            if is_fresh_enemy_tower:
+                if old_etype == EntityType.SENTINEL:
+                    BfsBureau.remove_enemy_sentinel(pos, ti)
+                elif old_etype == EntityType.LAUNCHER:
+                    BfsBureau.remove_enemy_launcher(pos_idx)
 
             # add check
             if is_fresh_enemy_tower:

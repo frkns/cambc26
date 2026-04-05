@@ -25,6 +25,7 @@ class BfsBureau:
     dist_bridge: list[int]
 
     # bitmask
+    board_mask: int
     passable_int: int
     now_passable_int: int
     enemy_launcher: int = 0
@@ -54,6 +55,7 @@ class BfsBureau:
         for x in range(W):
             p |= col_mask << (x * S)
         cls.passable_int = p
+        cls.board_mask = p
 
 
 # ---===
@@ -102,8 +104,8 @@ class BfsBureau:
         cls.now_passable_int = cls.passable_int
 
         # remove enemy launchers
-        wide = cls.enemy_launcher | (cls.enemy_launcher << 1) | (cls.enemy_launcher >> 1)
-        expanded = wide | (wide >> stride) | (wide << stride)
+        wide = (cls.enemy_launcher | (cls.enemy_launcher << 1) | (cls.enemy_launcher >> 1)) & cls.board_mask
+        expanded = (wide | (wide >> stride) | (wide << stride)) & cls.board_mask
         cls.now_passable_int &= ~expanded
 # ===---
 
@@ -117,11 +119,16 @@ class BfsBureau:
     @classmethod
     def remove_enemy_sentinel(cls, pos, ti):
         for pos in Globals.ct.get_attackable_tiles_from(pos, ti.turret_direction, ti.entity_type):
-            cls.weight[{{ encode_pos('pos.x', 'pos.y') }}] -= 2
+            i = {{ encode_pos('pos.x', 'pos.y') }}
+            cls.weight[i] -= 2
+            if cls.weight[i] < 1:
+                cls.weight[i] = 1
 
     @classmethod
     def add_enemy_launcher(cls, idx):
-        bit = 1 << (x * stride + y)
+        x = idx // {{ PH }} - {{ PAD }}
+        y = idx %  {{ PH }} - {{ PAD }}
+        bit = 1 << (x * cls.STRIDE + y)
         cls.enemy_launcher |= bit
         {% for dir in directions[:8] %}
         {% set dx, dy = dir.delta() %}
@@ -129,15 +136,29 @@ class BfsBureau:
         cls.weight[idx + {{ off }}] += {{ INF }}
         {% endfor %}
 
+        {% if LOCAL %}
+        Debug.dot(Position(x, y), Color.YELLOW)
+        {% endif %}
+
     @classmethod
     def remove_enemy_launcher(cls, idx):
-        bit = 1 << (x * stride + y)
+        x = idx // {{ PH }} - {{ PAD }}
+        y = idx %  {{ PH }} - {{ PAD }}
+        bit = 1 << (x * cls.STRIDE + y)
         cls.enemy_launcher &= ~bit
         {% for dir in directions[:8] %}
         {% set dx, dy = dir.delta() %}
         {% set off = dx * PH + dy %}
-        cls.weight[idx + {{ off }}] -= {{ INF }}
+        i = idx + {{ off }}
+        cls.weight[i] -= {{ INF }}
+        if cls.weight[i] < 1:
+            cls.weight[i] = 1
+            {# /* Debug.error(f'{cls.weight[idx + {{ off }}]=}') */ #}
         {% endfor %}
+
+        {% if LOCAL %}
+        Debug.dot(Position(x, y), Color.GREEN)
+        {% endif %}
 
 
     # works. but slow
@@ -249,7 +270,189 @@ class BfsBureau:
 # ===---
 
     # outward depth-limited dijkstra + bitmask bfs
-    # ---===
+    {# /* # ---=== */ #}
+    {# /* @classmethod */ #}
+    {# /* def find_route(cls, start: Position, target: Position, */ #}
+                   {# /* ban_target: bool = False, */ #}
+                   {# /* center_weight: int = 1) -> tuple[int, Direction | None]: */ #}
+        {# /* {% set WEIGHTED_DEPTH = 10 %} */ #}
+
+        {# /* sx, sy = start.x, start.y */ #}
+        {# /* _tx, _ty = target.x, target.y */ #}
+
+        {# /* weight = cls.now_weight */ #}
+        {# /* stride = cls.STRIDE */ #}
+
+        {# /* si = {{ encode_pos('sx', 'sy') }} */ #}
+        {# /* ti = {{ encode_pos('_tx', '_ty') }} */ #}
+
+        {# /* _D = ({% for d in range(8) %}{{ directions[d] }}{% if not loop.last %}, {% endif %}{% endfor %}) */ #}
+
+        {# /* # ── Same-tile: CENTRE competes with neighbors ── */ #}
+        {# /* if si == ti: */ #}
+            {# /* if ban_target: */ #}
+                {# /* _best_c = {{ INF }} */ #}
+                {# /* _best_d = None */ #}
+            {# /* else: */ #}
+                {# /* _best_c = center_weight */ #}
+                {# /* _best_d = Direction.CENTRE if center_weight < {{ INF }} else None */ #}
+            {# /* {% for dir in range(8) %} */ #}
+            {# /* ni = si + {{ Dir.dx[dir] * PH + Dir.dy[dir] }} */ #}
+            {# /* w = weight[ni] */ #}
+            {# /* if w < _best_c and MoveManager.can_fill_move({{ directions[dir] }}): */ #}
+                {# /* _best_c = w */ #}
+                {# /* _best_d = {{ directions[dir] }} */ #}
+            {# /* {% endfor %} */ #}
+            {# /* if _best_d is not None: */ #}
+                {# /* return _best_c, _best_d */ #}
+            {# /* return {{ INF }}, None */ #}
+
+        {# /* # ── Adjacent to banned target: CENTRE competes, but ti is excluded ── */ #}
+        {# /* if ban_target: */ #}
+            {# /* _d = si - ti */ #}
+            {# /* _ad = _d if _d >= 0 else -_d */ #}
+            {# /* if _ad == 1 or _ad == {{ PH - 1 }} or _ad == {{ PH }} or _ad == {{ PH + 1 }}: */ #}
+                {# /* _best_c = center_weight */ #}
+                {# /* _best_d = Direction.CENTRE if center_weight < {{ INF }} else None */ #}
+                {# /* {% for dir in range(8) %} */ #}
+                {# /* ni = si + {{ Dir.dx[dir] * PH + Dir.dy[dir] }} */ #}
+                {# /* if ni != ti: */ #}
+                    {# /* w = weight[ni] */ #}
+                    {# /* if w < _best_c and MoveManager.can_fill_move({{ directions[dir] }}): */ #}
+                        {# /* _best_c = w */ #}
+                        {# /* _best_d = {{ directions[dir] }} */ #}
+                {# /* {% endfor %} */ #}
+                {# /* if _best_d is not None: */ #}
+                    {# /* return _best_c, _best_d */ #}
+                {# /* return {{ INF }}, None */ #}
+
+        {# /* weight[ti] = 1  # allow target */ #}
+
+        {# /* # we do this because try...finally is banned by engine */ #}
+        {# /* {% set before_ret -%} */ #}
+        {# /* # don't need to save anymore! */ #}
+        {# /* {%- endset %} */ #}
+
+        {# /* # ── Phase 1: weighted Dijkstra up to {{ WEIGHTED_DEPTH }} ── */ #}
+        {# /* dist = [{{ INF }}] * {{ PADDED_GRID_SIZE }} */ #}
+        {# /* fhd  = [0]       * {{ PADDED_GRID_SIZE }} */ #}
+        {# /* dist[si] = 0 */ #}
+
+        {# /* heap  = [] */ #}
+        {# /* _hp   = heapq.heappush */ #}
+        {# /* _hpop = heapq.heappop */ #}
+
+        {# /* _settled = [si] */ #}
+        {# /* _sa = _settled.append */ #}
+
+        {# /* {% for dir in range(8) %} */ #}
+        {# /* ni = si + {{ Dir.dx[dir] * PH + Dir.dy[dir] }} */ #}
+        {# /* if weight[ni] < {{ INF }} and MoveManager.can_fill_move({{ directions[dir] }}): */ #}
+            {# /* w = weight[ni] */ #}
+            {# /* dist[ni] = w */ #}
+            {# /* fhd[ni]  = {{ dir }} */ #}
+            {# /* if ni == ti: */ #}
+                {# /* {{ before_ret }} */ #}
+                {# /* return w, {{ directions[dir] }} */ #}
+            {# /* _hp(heap, (w, ni)) */ #}
+        {# /* {% endfor %} */ #}
+
+        {# /* phase2_seeds = [] */ #}
+        {# /* _p2a = phase2_seeds.append */ #}
+
+        {# /* while heap: */ #}
+            {# /* d, idx = _hpop(heap) */ #}
+            {# /* if d > dist[idx]: */ #}
+                {# /* continue */ #}
+
+            {# /* _sa(idx) */ #}
+
+            {# /* if d >= {{ WEIGHTED_DEPTH }}: */ #}
+                {# /* _p2a(idx) */ #}
+                {# /* while heap: */ #}
+                    {# /* _dd, _idx = _hpop(heap) */ #}
+                    {# /* if _dd == dist[_idx]: */ #}
+                        {# /* _sa(_idx) */ #}
+                        {# /* _p2a(_idx) */ #}
+                {# /* break */ #}
+
+            {# /* _fh = fhd[idx] */ #}
+            {# /* {% for dir in range(8) %} */ #}
+            {# /* ni = idx + {{ Dir.dx[dir] * PH + Dir.dy[dir] }} */ #}
+            {# /* w  = weight[ni] */ #}
+            {# /* if w < {{ INF }}: */ #}
+                {# /* nd = d + w */ #}
+                {# /* if nd < dist[ni]: */ #}
+                    {# /* dist[ni] = nd */ #}
+                    {# /* fhd[ni]  = _fh */ #}
+                    {# /* if ni == ti: */ #}
+                        {# /* {{ before_ret }} */ #}
+                        {# /* return nd, _D[_fh] */ #}
+                    {# /* _hp(heap, (nd, ni)) */ #}
+            {# /* {% endfor %} */ #}
+
+        {# /* if not phase2_seeds: */ #}
+            {# /* {{ before_ret }} */ #}
+            {# /* return {{ INF }}, None */ #}
+
+        {# /* # ── Phase 2: bitmask BFS from Dijkstra frontier ── */ #}
+        {# /* {{ P.start() }} */ #}
+        {# /* _tb = _tx * stride + _ty */ #}
+        {# /* _tm = 1 << _tb */ #}
+        {# /* _uc = (cls.now_passable_int | _tm) & cls.board_mask */ #}
+
+        {# /* _settled_bits = 0 */ #}
+        {# /* for _ci in _settled: */ #}
+            {# /* _cx = _ci // {{ PH }} - {{ PAD }} */ #}
+            {# /* _cy = _ci % {{ PH }} - {{ PAD }} */ #}
+            {# /* _settled_bits |= 1 << (_cx * stride + _cy) */ #}
+        {# /* _uc &= ~_settled_bits */ #}
+
+        {# /* {% for dir in range(8) %} */ #}
+        {# /* _fh{{ dir }} = 0 */ #}
+        {# /* _md{{ dir }} = {{ INF }} */ #}
+        {# /* {% endfor %} */ #}
+
+        {# /* for _ci in phase2_seeds: */ #}
+            {# /* _cx = _ci // {{ PH }} - {{ PAD }} */ #}
+            {# /* _cy = _ci % {{ PH }} - {{ PAD }} */ #}
+            {# /* _di = fhd[_ci] */ #}
+            {# /* _bit = 1 << (_cx * stride + _cy) */ #}
+            {# /* {% for dir in range(8) %} */ #}
+            {# /* {{ 'if' if loop.first else 'elif' }} _di == {{ dir }}: */ #}
+                {# /* _fh{{ dir }} |= _bit */ #}
+                {# /* if dist[_ci] < _md{{ dir }}: */ #}
+                    {# /* _md{{ dir }} = dist[_ci] */ #}
+            {# /* {% endfor %} */ #}
+
+        {# /* _bfs_d = 0 */ #}
+        {# /* while True: */ #}
+            {# /* _any = False */ #}
+
+            {# /* {% for dir in range(8) %} */ #}
+            {# /* _f = _fh{{ dir }} */ #}
+            {# /* if _f: */ #}
+                {# /* _v = _f | (_f << 1) | (_f >> 1) */ #}
+                {# /* _e = (_v | (_v << stride) | (_v >> stride)) & _uc */ #}
+                {# /* _e &= ~_f */ #}
+                {# /* if _e: */ #}
+                    {# /* _fh{{ dir }} = _e */ #}
+                    {# /* _uc &= ~_e */ #}
+                    {# /* _any = True */ #}
+                    {# /* if _e & _tm: */ #}
+                        {# /* return _md{{ dir }} + _bfs_d + 1, _D[{{ dir }}] */ #}
+                {# /* else: */ #}
+                    {# /* _fh{{ dir }} = 0 */ #}
+            {# /* {% endfor %} */ #}
+
+            {# /* if not _any: */ #}
+                {# /* break */ #}
+            {# /* _bfs_d += 1 */ #}
+
+        {# /* {{ before_ret }} */ #}
+        {# /* return {{ INF }}, None */ #}
+    {# /* # ===--- */ #}
+# ---===
     @classmethod
     def find_route(cls, start: Position, target: Position,
                    ban_target: bool = False,
@@ -286,25 +489,7 @@ class BfsBureau:
                 return _best_c, _best_d
             return {{ INF }}, None
 
-        # ── Adjacent to banned target: CENTRE competes, but ti is excluded ──
-        if ban_target:
-            _d = si - ti
-            _ad = _d if _d >= 0 else -_d
-            if _ad == 1 or _ad == {{ PH - 1 }} or _ad == {{ PH }} or _ad == {{ PH + 1 }}:
-                _best_c = center_weight
-                _best_d = Direction.CENTRE if center_weight < {{ INF }} else None
-                {% for dir in range(8) %}
-                ni = si + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
-                if ni != ti:
-                    w = weight[ni]
-                    if w < _best_c and MoveManager.can_fill_move({{ directions[dir] }}):
-                        _best_c = w
-                        _best_d = {{ directions[dir] }}
-                {% endfor %}
-                if _best_d is not None:
-                    return _best_c, _best_d
-                return {{ INF }}, None
-
+        _ban_first_hop_target = ban_target
         weight[ti] = 1  # allow target
 
         # we do this because try...finally is banned by engine
@@ -326,14 +511,15 @@ class BfsBureau:
 
         {% for dir in range(8) %}
         ni = si + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
-        if weight[ni] < {{ INF }} and MoveManager.can_fill_move({{ directions[dir] }}):
-            w = weight[ni]
-            dist[ni] = w
-            fhd[ni]  = {{ dir }}
-            if ni == ti:
-                {{ before_ret }}
-                return w, {{ directions[dir] }}
-            _hp(heap, (w, ni))
+        if ni != ti or not _ban_first_hop_target:
+            if weight[ni] < {{ INF }} and MoveManager.can_fill_move({{ directions[dir] }}):
+                w = weight[ni]
+                dist[ni] = w
+                fhd[ni]  = {{ dir }}
+                if ni == ti:
+                    {{ before_ret }}
+                    return w, {{ directions[dir] }}
+                _hp(heap, (w, ni))
         {% endfor %}
 
         phase2_seeds = []
@@ -378,7 +564,7 @@ class BfsBureau:
         {{ P.start() }}
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
-        _uc = cls.now_passable_int | _tm
+        _uc = (cls.now_passable_int | _tm) & cls.board_mask
 
         _settled_bits = 0
         for _ci in _settled:
@@ -413,12 +599,12 @@ class BfsBureau:
             if _f:
                 _v = _f | (_f << 1) | (_f >> 1)
                 _e = (_v | (_v << stride) | (_v >> stride)) & _uc
+                _e &= ~_f
                 if _e:
                     _fh{{ dir }} = _e
-                    _uc ^= _e
+                    _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        {{ before_ret }}
                         return _md{{ dir }} + _bfs_d + 1, _D[{{ dir }}]
                 else:
                     _fh{{ dir }} = 0
@@ -430,7 +616,7 @@ class BfsBureau:
 
         {{ before_ret }}
         return {{ INF }}, None
-    # ===---
+# ===---
 
     # bfs20
 # ---===
@@ -530,3 +716,19 @@ class BfsBureau:
     @classmethod
     def get_bfs20_dist(cls, pos: Position):
         return cls.bfs20_dist[{{ encode_pos('pos.x', 'pos.y') }}]
+
+    @classmethod
+    def debug_enemy_launcher_zone(cls):
+        stride = cls.STRIDE
+        bits = cls.enemy_launcher & cls.board_mask
+        wide = (bits | (bits << 1) | (bits >> 1)) & cls.board_mask
+        expanded = (wide | (wide << stride) | (wide >> stride)) & cls.board_mask
+        col_mask = (1 << Map.H) - 1
+
+        for x in range(Map.W):
+            col = (expanded >> (x * stride)) & col_mask
+            while col:
+                lsb = col & -col
+                y = lsb.bit_length() - 1
+                Debug.dot(Position(x, y), Color.PINK)
+                col ^= lsb

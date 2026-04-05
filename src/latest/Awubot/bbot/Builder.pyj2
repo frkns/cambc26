@@ -97,6 +97,8 @@ class Builder({{ super() }}):
         Marker.attempt_mark()
         {{ P.end('Marker.attempt_mark') }}
 
+        {# /* BfsBureau.debug_enemy_launcher_zone() */ #}
+
 
     @classmethod
     def determine_state(cls):
