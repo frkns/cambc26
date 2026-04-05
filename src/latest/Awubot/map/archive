@@ -82,4 +82,8 @@
             # for now just assume 1 harvester in our path
             if ally_core_connected[u] and pressure[u] + {{ FLOW_PER_HARVESTER }} <= {{ MAX_ACCEPTABLE_PRESSURE }}:
                 sink_set.add(u)
+<<<<<<< HEAD
 # ===---
+=======
+# ===---
+>>>>>>> main

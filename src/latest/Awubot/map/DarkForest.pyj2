@@ -1,54 +1,3 @@
-# ---=== IMPORT
-from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
-import random
-import heapq
-import array
-import time
-import math
-import sys
-from collections import deque, defaultdict
-from typing import NamedTuple
-from enum import Enum
-import traceback
-from itertools import chain
-from Awubot.Globals import Globals
-from Awubot.MoveManager import MoveManager
-from Awubot.Util import Util
-from Generated.Constants import Constants
-from Generated.MarketMaker import MarketMaker
-from Generated.RobotPlayer import Entrypoint, Player
-from Generated.bbot.Attacker import Attacker
-from Generated.bbot.Builder import Builder
-from Generated.bbot.HarvesterAdjacent import AdjacentInfo, HarvesterAdjacent
-from Generated.bbot.HealExecutor import HealExecutor
-from Generated.bbot.HealTargeter import HealTargetInfo, HealTargeter
-from Generated.bbot.SentinelDirectionPicker import SentinelDirectionInfo, SentinelDirectionPicker
-from Generated.bbot.States import StateBuildHarvester, StateBuildHarvesterAx, StateAttackTransporter, StateRoute, StateMoveTo, StateBuildTurret
-from Generated.bbot.VisionTracker import TransporterInfo, ConnectManager, BotInfo, VisionTracker
-from Generated.build.BuildManager import BuildManager
-from Generated.build.OreExecutive import OreExecutive
-from Generated.build.OrePositionPicker import OrePositionPicker
-from Generated.build.RouteToCore import RouteToCore
-from Generated.build.SuicideExecutor import SuicideExecutor
-from Generated.comms.Comms import Comms
-from Generated.comms.Marker import Marker
-from Generated.comms.MarkerPositionPicker import MarkerPositionPicker
-from Generated.core.Core import Core
-from Generated.core.CoreHistory import CoreHistory
-from Generated.core.SpawnManager import SpawnManager
-from Generated.debug.Debug import Color, Debug
-from Generated.debug.Profiler import Profiler
-from Generated.explore.Explore import Explore
-from Generated.map.DarkForest import TreeNode, DarkForest
-from Generated.map.Map import TileInfo, Map
-from Generated.map.Symmetry import Sym, Symmetry
-from Generated.nav.BfsBureau import BfsBureau
-from Generated.nav.Pathfinder import Pathfinder
-from Generated.sentinel.Sentinel import Sentinel
-from Generated.sentinel.SentinelSupervisor import SentinelTargetInfo, SentinelSupervisor
-from Generated.units.Unit import Unit
-# ===--- IMPORT
-
 {% import 'debug/debug.j2' as D %}
 {% import 'debug/profiler.j2' as P %}
 {% from 'map/kind.j2' import Kind %}
@@ -74,7 +23,7 @@ class DarkForest:
     pressure: list[int]    # pressure at node (top-down, reset at sink boundaries)
     node_kind: list[int]   # propagated kind per node (top-down)
     sink_set: set[int]
-
+    leaf_set: set[int]   # titanium leaf nodes — valid foundry sites
 
     @classmethod
     def init(cls):
@@ -255,6 +204,8 @@ class DarkForest:
         for i in active:
             if not cc[i]:
                 qa(i)
+        
+        _initial_leaves = list(q)
 
         # ── bottom-up BFS ──
         qi = 0
@@ -296,4 +247,14 @@ class DarkForest:
         cls.pressure = pressure
         cls.node_kind = nk
         cls.sink_set = sink_set
+
+        # ── titanium leaf set ──
+        # Leaves in the ally-core subtree are the only valid foundry sites.
+        # Exclude the cores themselves (isolated core with no children would
+        # pass the cc==0 test but is obviously not a foundry site).
+        _ti_leaves: set[int] = set()
+        for u in _initial_leaves:
+            if nk[u] == {{ Kind.ALLY_CORE }} and u not in core_pos_set:
+                _ti_leaves.add(u)
+        cls.leaf_set = _ti_leaves
 # ===---
