@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-06 18:58:52 (local)
+# latest,  @ 2026-04-06 19:15:48 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -21394,16 +21394,13 @@ class GunnerSupervisor:
     @classmethod
     def try_fire(cls):
         pos = cls.get_best_target()
-        if pos is None:
+        if pos is None or pos == Globals.my_pos:
             return
 
         print(f'attempt fire @ {pos}')
         Debug.line(pos, Color.TEAL)
         
         dirToPos = Globals.my_pos.direction_to(pos)
-        
-        if dirToPos == Direction.CENTRE:
-            return
         
         if dirToPos != Globals.ct.get_direction(): # Rotate if the target isn't in our current direction
             if Globals.ct.can_rotate(dirToPos):
@@ -21428,6 +21425,10 @@ class GunnerSupervisor:
             return None
 
         if not best.has_bot and best.ally_connected:
+            return None
+        
+        # Don't bother turning just to knock out some roads
+        if not best.has_bot and best.is_road and not best.current_dir:
             return None
 
         if best.is_harvester_feeding_ally:
