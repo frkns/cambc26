@@ -72,6 +72,11 @@ class RouteToFoundry:
         for c in candidates:
             cx = c // {{ PH }} - {{ PAD }}
             cy = c % {{ PH }} - {{ PAD }}
+            ti = Map.tile_info[cx][cy]
+            if ti is None:
+                continue
+            if ti is not None and ti.entity_type == EntityType.BRIDGE:
+                continue # do not consider bridges.
             d = abs(cx - sx) + abs(cy - sy)
             if d < best_d:
                 best_d = d

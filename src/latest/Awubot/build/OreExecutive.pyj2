@@ -103,7 +103,7 @@ class OreExecutive:
 
     @classmethod
     def get_axionite_target(cls) -> Position | None:
-        if Globals.round < 200:
+        if Globals.round < Constants.AXIONITE_START:
             return None # don't want to waste resources on axionite early on
             
         ret = None
