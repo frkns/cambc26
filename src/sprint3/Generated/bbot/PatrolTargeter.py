@@ -1,0 +1,66 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+
+
+class PatrolTargeter:
+    target: Position
+    target = None
+    recentHits: set[int] = set()
+    lastHitRound: int = 0
+
+    @classmethod
+    def init(cls) -> None:
+        cls.target = cls.new_target()
+        
+    @classmethod
+    def new_target(cls) -> Position:
+        if Map.harvester_set:
+            # Check which targets we haven't visited recently
+            active_targets = Map.harvester_set.difference(cls.recentHits)
+            
+            # If there are no active targets, we'll either wait, or if it's been a while since our last hit, reset
+            if not active_targets:
+                # If it's been a while since we hit the last target, reset our visited set and consider all targets again
+                if Globals.round - cls.lastHitRound > 10:
+                    cls.recentHits.clear()
+                    active_targets = Map.harvester_set
+                    
+                return None
+            else:
+                # Choose a random one of the targets we haven't visited recently
+                i = random.choice(list(active_targets))
+                return Position(((i) // 56 - 3), ((i) % 56 - 3))
+        else:
+            return None
+
+    @classmethod
+    def get_best_target(cls) -> Position | None:
+        if not Map.harvester_set:
+            return None
+        
+        if BuildManager.can_afford_harvester():
+            return None
+        
+        if cls.target is None:
+            cls.target = cls.new_target()
+        else:
+            if (Globals.my_pos.distance_squared(cls.target) <= 2) or (Pathfinder.cur_target == cls.target and Pathfinder.given_up):
+                # Add the position to our set of recently visited targets
+                cls.recentHits.add((((cls.target.x) + 3) * 56 + ((cls.target.y) + 3)))
+                cls.lastHitRound = Globals.round
+                
+                cls.target = cls.new_target()
+                
+        return cls.target

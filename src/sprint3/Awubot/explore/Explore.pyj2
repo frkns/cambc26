@@ -1,0 +1,77 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+
+
+class Explore:
+    target: Position
+    target = None
+
+    @classmethod
+    def init(cls) -> None:
+        cls.target = cls.new_target()
+
+    @classmethod
+    def new_target(cls) -> Position:
+        # return random.choice((Position(0, 0), Position(Map.W - 1, Map.H - 1)))
+        # return random.choice((
+        #     Position(0, 0),
+        #     Position(0, Map.maxY),
+        #     Position(Map.maxX, 0),
+        #     Position(Map.maxX, Map.maxY),
+        # ))
+        return Util.rand_pos()
+
+        # bestDx: int = None
+        # bestDy: int = None
+        # best_score: int = -{{ INF }}
+
+        # {% for dir in directions if dir != Direction.CENTRE%}
+        # {% set dx, dy = dir.delta() %}
+
+        # score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, {{ dx }}, {{ dy }})
+
+        # {% if dir in diagonal_directions %}
+        # score += 1 # slightly prefer diagonals
+        # {% endif %}
+
+        # if score > best_score:
+        #     best_score = score
+        #     bestDx = {{ dx }}
+        #     bestDy = {{ dy }}
+
+        # {% endfor %}
+
+        # if bestDx is None:
+        #     return Util.rand_pos()
+
+        # return Util.follow_to_edge(Globals.my_pos.x, Globals.my_pos.y, bestDx, bestDy)
+
+
+    @classmethod
+    def get_target(cls) -> Position:
+        {% set cond1 -%}
+            (Globals.my_pos.distance_squared(cls.target) <= 2)
+        {%- endset %}
+        {% set cond2 -%}
+            (Pathfinder.cur_target == cls.target and Pathfinder.given_up)
+        {%- endset %}
+
+        if {{ cond1 }} or {{ cond2 }}:
+            cls.target = cls.new_target()
+
+        return cls.target

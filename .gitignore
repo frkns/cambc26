@@ -13,17 +13,17 @@ tests/*.html
 
 
 # Ignore everything in bots (recursive)
-bots/**
-!bots/
-!bots/bot3v4
+# bots/**
+# !bots/
+# !bots/bot3v4
 
-# Ignore everything in src (recursive)
-src/**
-!src/
+# # Ignore everything in src (recursive)
+# src/**
+# !src/
 
-# Re-include src/latest and everything inside
-!src/latest/
-!src/latest/**
+# # Re-include src/latest and everything inside
+# !src/latest/
+# !src/latest/**
 
 # Virtual environments
 .venv/
