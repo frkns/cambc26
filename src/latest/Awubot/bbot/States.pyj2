@@ -73,6 +73,16 @@ class StateBuildTurret:
             dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
             BuildManager.dbuild_sentinel(pos, dir)
 
+class StateBuildGunner:
+    @classmethod
+    def run(cls, pos, banned_dir: Direction | None):
+        Pathfinder.move_to(pos, ban_target_pos=True)
+
+        if BuildManager.can_dbuild_gunner(pos):
+            dir: Direction = GunnerDirectionPicker.get_best_direction(pos)
+            
+            BuildManager.dbuild_gunner(pos, dir)
+
 class StateBuildBarrier:
     @classmethod
     def run(cls, pos, banned_dir: Direction | None):

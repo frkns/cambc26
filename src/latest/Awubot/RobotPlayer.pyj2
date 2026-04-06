@@ -18,7 +18,7 @@ from Generated import *
 
 
 class Entrypoint:
-    me: type[Core | Builder]
+    me: type[Core | Builder | Sentinel | Gunner]
     needs_init = True
 
     @classmethod
@@ -36,6 +36,9 @@ class Entrypoint:
             case EntityType.SENTINEL:
                 Sentinel.init()
                 cls.me = Sentinel
+            case EntityType.GUNNER:
+                Gunner.init()
+                cls.me = Gunner
 
     @classmethod
     def run(cls, ct: Controller):
