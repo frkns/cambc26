@@ -56,4 +56,4 @@ summary_df_games = pd.DataFrame(team_games)
 
 print(summary_df)
 summary_df.to_csv("Win.csv")
-summary_df_games.to_csv("Games.csv")
+summary_df_games.to_csv("ProcGames.csv")
