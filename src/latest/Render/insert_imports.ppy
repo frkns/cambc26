@@ -29,6 +29,12 @@ STATIC_IMPORTS = [
 
 SOURCE_DIRS = [Path("../Awubot"), Path("../Generated")]
 
+# .pyj2 files in Awubot render into Generated/*.py - don't double-count them
+SOURCE_EXTENSIONS: dict[Path, set[str]] = {
+    Path("../Awubot"):    {".py"},
+    Path("../Generated"): {".py"},
+}
+
 CLASS_RE = re.compile(r"^class\s+(\w+)")
 FUNC_RE = re.compile(r"^def\s+(\w+)")
 CONST_RE = re.compile(r"^([A-Z][A-Z_0-9]+)\s*=")
@@ -61,17 +67,25 @@ def path_to_module(path: Path) -> str:
     return ".".join(rel.with_suffix("").parts)
 
 
-def collect_all_names(dirpath: Path) -> list[str]:
+def get_extensions(dirpath: Path) -> set[str]:
+    """Get the file extensions to scan for exports in a given directory."""
+    for source_dir, exts in SOURCE_EXTENSIONS.items():
+        try:
+            Path(dirpath).relative_to(source_dir)
+            return exts
+        except ValueError:
+            continue
+    return {".py"}
+
+
+def collect_all_names(dirpath: Path, extensions: set[str]) -> list[str]:
     """Recursively collect all exported names from a package directory."""
     names = []
-    for path in sorted(dirpath.rglob("*.py")):
-        if path.name.startswith("_"):
-            continue
-        names.extend(find_exports(path))
-    for path in sorted(dirpath.rglob("*.pyj2")):
-        if path.name.startswith("_"):
-            continue
-        names.extend(find_exports(path))
+    for ext in sorted(extensions):
+        for path in sorted(dirpath.rglob(f"*{ext}")):
+            if path.name.startswith("_"):
+                continue
+            names.extend(find_exports(path))
     seen: set[str] = set()
     return [n for n in names if not (n in seen or seen.add(n))]  # type: ignore
 
@@ -79,13 +93,15 @@ def collect_all_names(dirpath: Path) -> list[str]:
 def generate_init_files():
     """
     For each package directory under SOURCE_DIRS, generate an __init__.py
-    that explicitly re-exports everything from all non-underscore .py/.pyj2
-    files in that directory and all subdirectories, so mypy can see all names.
+    that explicitly re-exports everything from all non-underscore files,
+    so mypy can see all names.
     """
     for source_dir in SOURCE_DIRS:
         if not source_dir.exists():
             print(f"  Skipping {source_dir} (not found)")
             continue
+
+        extensions = SOURCE_EXTENSIONS.get(source_dir, {".py"})
 
         for dirpath, dirnames, filenames in os.walk(source_dir):
             dirpath = Path(dirpath)
@@ -96,9 +112,9 @@ def generate_init_files():
             exports: list[tuple[str, list[str]]] = []
             subpackages: list[str] = []
 
-            # Collect exports from .py and .pyj2 files in this directory
+            # Collect exports from files in this directory
             for name in filenames:
-                if not (name.endswith(".py") or name.endswith(".pyj2")):
+                if not any(name.endswith(ext) for ext in extensions):
                     continue
                 if name.startswith("_"):
                     continue
@@ -116,7 +132,7 @@ def generate_init_files():
                     continue
                 subdir = dirpath / d
                 has_py = any(
-                    f.endswith(".py") or f.endswith(".pyj2")
+                    any(f.endswith(ext) for ext in extensions)
                     for f in os.listdir(subdir)
                 )
                 if has_py:
@@ -135,7 +151,7 @@ def generate_init_files():
 
             # Subpackage exports - explicit so mypy can see every name
             for subpkg in subpackages:
-                subpkg_names = collect_all_names(dirpath / subpkg)
+                subpkg_names = collect_all_names(dirpath / subpkg, extensions)
                 if subpkg_names:
                     lines.append(f"from .{subpkg} import {', '.join(subpkg_names)}\n")
                     all_names.extend(subpkg_names)
@@ -250,6 +266,8 @@ def process_file(path_s: str, import_lines: list[str]):
 def walk(root: str, import_lines: list[str]):
     for dirpath, _, filenames in os.walk(root):
         for name in sorted(filenames):
+            # Insert imports into .py and .pyj2 files
+            # (pyj2 gets jinja imports too, handled inside process_file)
             if name.endswith(".py") or name.endswith(".pyj2"):
                 process_file(os.path.join(dirpath, name), import_lines)
 

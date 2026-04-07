@@ -75,7 +75,7 @@ class Builder({{ super() }}):
         {% if LOCAL %}
         Symmetry.debug()
         {% endif %}
-                
+
 
 
     @classmethod
@@ -144,11 +144,11 @@ class Builder({{ super() }}):
         if apos is not None:
             return 'AttackTransporter', apos
 
-        
+
         axTarg = OreExecutive.get_axionite_target()
         if axTarg is not None:
             return 'BuildHarvesterAx', axTarg
-        
+
         bhpos = OreExecutive.get_titanium_target()
         if bhpos is not None:
             return 'BuildHarvester', bhpos
