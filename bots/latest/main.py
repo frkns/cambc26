@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-06 18:06:01 (local)
+# latest,  @ 2026-04-06 21:53:12 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -22745,6 +22745,7 @@ class Map:
                 opp_ti.harvester_adjacent = False
                 opp_ti.entity_type = None
                 opp_ti.target = None
+                opp_ti.allied_bot_adjacent = False
                 tile_info[ox][oy] = opp_ti
                 new_syms.append(Position(ox, oy))
 
@@ -22859,6 +22860,12 @@ class Map:
                 ((nti := tile_info[x+1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
                 ((nti := tile_info[x][y-1]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
                 ((nti := tile_info[x][y+1]) is not None and nti.has_building and nti.entity_type == HARVESTER)
+                
+            ti.allied_bot_adjacent = \
+                ((nti := tile_info[x-1][y]) is not None and nti.has_bot and nti.is_bot_ally) or \
+                ((nti := tile_info[x+1][y]) is not None and nti.has_bot and nti.is_bot_ally) or \
+                ((nti := tile_info[x][y-1]) is not None and nti.has_bot and nti.is_bot_ally) or \
+                ((nti := tile_info[x][y+1]) is not None and nti.has_bot and nti.is_bot_ally)
 
     @classmethod
     def fill_tile_infoH(cls):
@@ -22910,6 +22917,7 @@ class Map:
                 opp_ti.harvester_adjacent = False
                 opp_ti.entity_type = None
                 opp_ti.target = None
+                opp_ti.allied_bot_adjacent = False
                 tile_info[ox][oy] = opp_ti
                 new_syms.append(Position(ox, oy))
 
@@ -23024,6 +23032,12 @@ class Map:
                 ((nti := tile_info[x+1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
                 ((nti := tile_info[x][y-1]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
                 ((nti := tile_info[x][y+1]) is not None and nti.has_building and nti.entity_type == HARVESTER)
+                
+            ti.allied_bot_adjacent = \
+                ((nti := tile_info[x-1][y]) is not None and nti.has_bot and nti.is_bot_ally) or \
+                ((nti := tile_info[x+1][y]) is not None and nti.has_bot and nti.is_bot_ally) or \
+                ((nti := tile_info[x][y-1]) is not None and nti.has_bot and nti.is_bot_ally) or \
+                ((nti := tile_info[x][y+1]) is not None and nti.has_bot and nti.is_bot_ally)
 
     @classmethod
     def fill_tile_infoR(cls):
@@ -23075,6 +23089,7 @@ class Map:
                 opp_ti.harvester_adjacent = False
                 opp_ti.entity_type = None
                 opp_ti.target = None
+                opp_ti.allied_bot_adjacent = False
                 tile_info[ox][oy] = opp_ti
                 new_syms.append(Position(ox, oy))
 
@@ -23189,6 +23204,12 @@ class Map:
                 ((nti := tile_info[x+1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
                 ((nti := tile_info[x][y-1]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
                 ((nti := tile_info[x][y+1]) is not None and nti.has_building and nti.entity_type == HARVESTER)
+                
+            ti.allied_bot_adjacent = \
+                ((nti := tile_info[x-1][y]) is not None and nti.has_bot and nti.is_bot_ally) or \
+                ((nti := tile_info[x+1][y]) is not None and nti.has_bot and nti.is_bot_ally) or \
+                ((nti := tile_info[x][y-1]) is not None and nti.has_bot and nti.is_bot_ally) or \
+                ((nti := tile_info[x][y+1]) is not None and nti.has_bot and nti.is_bot_ally)
 
     @classmethod
     def fill_tile_infoUNKNOWN(cls):
@@ -23337,6 +23358,12 @@ class Map:
                 ((nti := tile_info[x+1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
                 ((nti := tile_info[x][y-1]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
                 ((nti := tile_info[x][y+1]) is not None and nti.has_building and nti.entity_type == HARVESTER)
+                
+            ti.allied_bot_adjacent = \
+                ((nti := tile_info[x-1][y]) is not None and nti.has_bot and nti.is_bot_ally) or \
+                ((nti := tile_info[x+1][y]) is not None and nti.has_bot and nti.is_bot_ally) or \
+                ((nti := tile_info[x][y-1]) is not None and nti.has_bot and nti.is_bot_ally) or \
+                ((nti := tile_info[x][y+1]) is not None and nti.has_bot and nti.is_bot_ally)
 
 
 
@@ -23408,6 +23435,7 @@ class Map:
                     opp_ti.harvester_adjacent = False
                     opp_ti.entity_type = None
                     opp_ti.target = None
+                    opp_ti.allied_bot_adjacent = False
                     orow[oy] = opp_ti
                     new_syms.append(Position(ox, oy))
 
@@ -26413,7 +26441,7 @@ class StalkTargeter:
             return None
 
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
-            if ti.has_bot and not ti.is_bot_ally:
+            if ti.has_bot and not ti.is_bot_ally and not ti.allied_bot_adjacent:
                 return Position(x, y)
 
 
@@ -26933,6 +26961,8 @@ class TileInfo:
     bot_hp: int
     bot_id: int
     is_bot_ally: bool
+    
+    allied_bot_adjacent: bool
 
     has_turret: bool
     turret_direction: Direction
