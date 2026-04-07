@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-05 20:21:40 (local)
+# latest,  @ 2026-04-06 18:32:08 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -180,6 +180,7 @@ class BfsBureau:
         cls.weight[idx + -56] += 1000000
         cls.weight[idx + -57] += 1000000
 
+        Debug.dot(Position(x, y), Color.YELLOW)
 
     @classmethod
     def remove_enemy_launcher(cls, idx):
@@ -220,6 +221,7 @@ class BfsBureau:
         if cls.weight[i] < 1:
             cls.weight[i] = 1
 
+        Debug.dot(Position(x, y), Color.GREEN)
 
 
     # works. but slow
@@ -558,33 +560,7 @@ class BfsBureau:
 
 
     # outward depth-limited dijkstra + bitmask bfs
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    
     @classmethod
     def find_route(cls, start: Position, target: Position,
                    ban_target: bool = False,
@@ -653,7 +629,65 @@ class BfsBureau:
                 return _best_c, _best_d
             return 1000000, None
 
-        _ban_first_hop_target = ban_target
+        # ── Adjacent to banned target: CENTRE competes, but ti is excluded ──
+        if ban_target:
+            _d = si - ti
+            _ad = _d if _d >= 0 else -_d
+            if _ad == 1 or _ad == 55 or _ad == 56 or _ad == 57:
+                _best_c = center_weight
+                _best_d = Direction.CENTRE if center_weight < 1000000 else None
+                ni = si + -1
+                if ni != ti:
+                    w = weight[ni]
+                    if w < _best_c and MoveManager.can_fill_move(Direction.NORTH):
+                        _best_c = w
+                        _best_d = Direction.NORTH
+                ni = si + 55
+                if ni != ti:
+                    w = weight[ni]
+                    if w < _best_c and MoveManager.can_fill_move(Direction.NORTHEAST):
+                        _best_c = w
+                        _best_d = Direction.NORTHEAST
+                ni = si + 56
+                if ni != ti:
+                    w = weight[ni]
+                    if w < _best_c and MoveManager.can_fill_move(Direction.EAST):
+                        _best_c = w
+                        _best_d = Direction.EAST
+                ni = si + 57
+                if ni != ti:
+                    w = weight[ni]
+                    if w < _best_c and MoveManager.can_fill_move(Direction.SOUTHEAST):
+                        _best_c = w
+                        _best_d = Direction.SOUTHEAST
+                ni = si + 1
+                if ni != ti:
+                    w = weight[ni]
+                    if w < _best_c and MoveManager.can_fill_move(Direction.SOUTH):
+                        _best_c = w
+                        _best_d = Direction.SOUTH
+                ni = si + -55
+                if ni != ti:
+                    w = weight[ni]
+                    if w < _best_c and MoveManager.can_fill_move(Direction.SOUTHWEST):
+                        _best_c = w
+                        _best_d = Direction.SOUTHWEST
+                ni = si + -56
+                if ni != ti:
+                    w = weight[ni]
+                    if w < _best_c and MoveManager.can_fill_move(Direction.WEST):
+                        _best_c = w
+                        _best_d = Direction.WEST
+                ni = si + -57
+                if ni != ti:
+                    w = weight[ni]
+                    if w < _best_c and MoveManager.can_fill_move(Direction.NORTHWEST):
+                        _best_c = w
+                        _best_d = Direction.NORTHWEST
+                if _best_d is not None:
+                    return _best_c, _best_d
+                return 1000000, None
+
         weight[ti] = 1  # allow target
 
         # we do this because try...finally is banned by engine
@@ -671,85 +705,77 @@ class BfsBureau:
         _sa = _settled.append
 
         ni = si + -1
-        if ni != ti or not _ban_first_hop_target:
-            if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.NORTH):
-                w = weight[ni]
-                dist[ni] = w
-                fhd[ni]  = 0
-                if ni == ti:
-                    # don't need to save anymore!
-                    return w, Direction.NORTH
-                _hp(heap, (w, ni))
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.NORTH):
+            w = weight[ni]
+            dist[ni] = w
+            fhd[ni]  = 0
+            if ni == ti:
+                # don't need to save anymore!
+                return w, Direction.NORTH
+            _hp(heap, (w, ni))
         ni = si + 55
-        if ni != ti or not _ban_first_hop_target:
-            if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.NORTHEAST):
-                w = weight[ni]
-                dist[ni] = w
-                fhd[ni]  = 1
-                if ni == ti:
-                    # don't need to save anymore!
-                    return w, Direction.NORTHEAST
-                _hp(heap, (w, ni))
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.NORTHEAST):
+            w = weight[ni]
+            dist[ni] = w
+            fhd[ni]  = 1
+            if ni == ti:
+                # don't need to save anymore!
+                return w, Direction.NORTHEAST
+            _hp(heap, (w, ni))
         ni = si + 56
-        if ni != ti or not _ban_first_hop_target:
-            if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.EAST):
-                w = weight[ni]
-                dist[ni] = w
-                fhd[ni]  = 2
-                if ni == ti:
-                    # don't need to save anymore!
-                    return w, Direction.EAST
-                _hp(heap, (w, ni))
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.EAST):
+            w = weight[ni]
+            dist[ni] = w
+            fhd[ni]  = 2
+            if ni == ti:
+                # don't need to save anymore!
+                return w, Direction.EAST
+            _hp(heap, (w, ni))
         ni = si + 57
-        if ni != ti or not _ban_first_hop_target:
-            if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.SOUTHEAST):
-                w = weight[ni]
-                dist[ni] = w
-                fhd[ni]  = 3
-                if ni == ti:
-                    # don't need to save anymore!
-                    return w, Direction.SOUTHEAST
-                _hp(heap, (w, ni))
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.SOUTHEAST):
+            w = weight[ni]
+            dist[ni] = w
+            fhd[ni]  = 3
+            if ni == ti:
+                # don't need to save anymore!
+                return w, Direction.SOUTHEAST
+            _hp(heap, (w, ni))
         ni = si + 1
-        if ni != ti or not _ban_first_hop_target:
-            if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.SOUTH):
-                w = weight[ni]
-                dist[ni] = w
-                fhd[ni]  = 4
-                if ni == ti:
-                    # don't need to save anymore!
-                    return w, Direction.SOUTH
-                _hp(heap, (w, ni))
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.SOUTH):
+            w = weight[ni]
+            dist[ni] = w
+            fhd[ni]  = 4
+            if ni == ti:
+                # don't need to save anymore!
+                return w, Direction.SOUTH
+            _hp(heap, (w, ni))
         ni = si + -55
-        if ni != ti or not _ban_first_hop_target:
-            if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.SOUTHWEST):
-                w = weight[ni]
-                dist[ni] = w
-                fhd[ni]  = 5
-                if ni == ti:
-                    # don't need to save anymore!
-                    return w, Direction.SOUTHWEST
-                _hp(heap, (w, ni))
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.SOUTHWEST):
+            w = weight[ni]
+            dist[ni] = w
+            fhd[ni]  = 5
+            if ni == ti:
+                # don't need to save anymore!
+                return w, Direction.SOUTHWEST
+            _hp(heap, (w, ni))
         ni = si + -56
-        if ni != ti or not _ban_first_hop_target:
-            if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.WEST):
-                w = weight[ni]
-                dist[ni] = w
-                fhd[ni]  = 6
-                if ni == ti:
-                    # don't need to save anymore!
-                    return w, Direction.WEST
-                _hp(heap, (w, ni))
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.WEST):
+            w = weight[ni]
+            dist[ni] = w
+            fhd[ni]  = 6
+            if ni == ti:
+                # don't need to save anymore!
+                return w, Direction.WEST
+            _hp(heap, (w, ni))
         ni = si + -57
-        if ni != ti or not _ban_first_hop_target:
-            if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.NORTHWEST):
-                w = weight[ni]
-                dist[ni] = w
-                fhd[ni]  = 7
-                if ni == ti:
-                    # don't need to save anymore!
-                    return w, Direction.NORTHWEST
-                _hp(heap, (w, ni))
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.NORTHWEST):
+            w = weight[ni]
+            dist[ni] = w
+            fhd[ni]  = 7
+            if ni == ti:
+                # don't need to save anymore!
+                return w, Direction.NORTHWEST
+            _hp(heap, (w, ni))
 
         phase2_seeds = []
         _p2a = phase2_seeds.append
@@ -865,7 +891,7 @@ class BfsBureau:
             return 1000000, None
 
         # ── Phase 2: bitmask BFS from Dijkstra frontier ──
-        
+        Profiler.start()
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = (cls.now_passable_int | _tm) & cls.board_mask
@@ -1047,6 +1073,31 @@ class BfsBureau:
 
         # don't need to save anymore!
         return 1000000, None
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     # bfs20
@@ -22551,6 +22602,7 @@ class HealTargeter:
         if best.building_heal + best.bot_heal < 4:
             return None
 
+        print(f'HealTargeter {best.position=} {best.building_heal=} {best.building_hp=}')
 
         return best.position
 
@@ -23686,9 +23738,9 @@ class MarketMaker:
 
     @staticmethod
     def harvester_cost(apos: Position) -> int:
-        
+        Profiler.start()
         bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.sink_set)
-        
+        Profiler.end("""BfsBureau.find_bridge_route""")
         h_cost, _ = Globals.ct.get_harvester_cost()
         b_cost, _ = Globals.ct.get_bridge_cost()
         return h_cost + b_cost * bridges
@@ -23708,7 +23760,7 @@ class MarketMaker:
             return False
 
         pbt = MarketMaker.harvester_payback(apos)
-        
+        print(f"""{pbt=}""")
 
         if int(pbt * 1.5 + 100) < Util.get_rounds_left():
             return True
@@ -24095,9 +24147,9 @@ class Pathfinder:
         Debug.line(target)
         my_pos = Globals.my_pos
 
-        
+        Profiler.start()
         dist, dir = BfsBureau.find_route(Globals.my_pos, target, ban_target_pos)
-        
+        Profiler.end("""BfsBureau.find_route""")
 
         if dir is None:
             cls.given_up = True
@@ -24179,6 +24231,8 @@ class Player:
             err = traceback.format_exc()
             Debug.tee(err)
             Debug.tee(f'(I am a {Globals.my_type})')
+
+            ct.resign()
 
 
 # ============================================================
@@ -24305,7 +24359,7 @@ class RouteToCore:
                 DarkForest.sink_set,
             )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("first_target is None: giving up")
@@ -24472,7 +24526,7 @@ class RouteToFoundry:
                 target_set,
             )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("RouteToFoundry: first_target is None, giving up")
@@ -26259,6 +26313,7 @@ class ShieldTargeter:
         if not best.harvester_adjacent:
             return None
 
+        print(f'ShieldTargetInfo {best.position=} {best.harvester_adjacent=}')
 
         return best.position
 
@@ -26373,12 +26428,6 @@ class StateBuildBarrier:
         Pathfinder.move_to(pos, ban_target_pos=True)
 
         if BuildManager.can_dbuild_barrier(pos):
-
-            # download better dir logic soon
-            dir: Direction = pos.direction_to(Symmetry.enemy_core_pos)
-            if dir == banned_dir:
-                dir = dir.rotate_left() if random.random() < 0.5 else dir.rotate_right()
-
             BuildManager.dbuild_barrier(pos)
 
 
@@ -26448,6 +26497,7 @@ class StateFoundryBuild:
 class StateMoveTo:
     @classmethod
     def run(cls, pos, tag='_'):
+        print(f'{tag=}')
         Pathfinder.move_to(pos)
 
 
@@ -26566,9 +26616,9 @@ class Symmetry:
         cls.predict_enemy_core()
         DarkForest.register_enemy_core()
 
-        
+        Profiler.start()
         Map.sync_tile_infos()
-        
+        Profiler.end_now("""Map.sync_tile_infos""")
 
 
 
@@ -27086,9 +27136,9 @@ class Unit:
         Globals.start_tick()
         MarketMaker.refresh()
 
-        
+        Profiler.start()
         Map.fill_tile_info()
-        
+        Profiler.end("""Map.fill_tile_info""")
 
     @classmethod
     def run_turn(cls):
@@ -27097,7 +27147,7 @@ class Unit:
     @classmethod
     def end_turn(cls):
 
-        if Globals.round == 1999:
+        if Globals.round == 667:
             Profiler.report()
         print(f'scale ratio {MarketMaker.scale_ratio:.2f}')
 
@@ -27226,11 +27276,11 @@ class VisionTracker:
 
     @classmethod
     def canonical_ally(cls, from_pos: Position) -> BotInfo:
-        
+        Profiler.start()
         ret = min(cls.allies, key=
             lambda x: (Util.linf(from_pos, x.position) << 16) + x.id
         )
-        
+        Profiler.end("""canonical_ally""")
         return ret
 
 
@@ -27272,52 +27322,54 @@ class Builder(Unit):
     def start_turn(cls):
         Unit.start_turn()
 
-        
+        Profiler.start()
         BfsBureau.update()
-        
+        Profiler.end("""BfsBureau.update""")
 
         Symmetry.run_sym_check()
 
-        
+        Profiler.start()
         DarkForest.fcompute()
-        
+        Profiler.end("""DarkForest.fcompute""")
 
 
-        
+        Profiler.start()
         BfsBureau.bfs20()
-        
+        Profiler.end("""BfsBureau.bfs20""")
 
-        
+        Profiler.start()
         OreExecutive.fill()
-        
+        Profiler.end("""OreExecutive.fill""")
 
-        
+        Profiler.start()
         VisionTracker.fill()
-        
+        Profiler.end("""VisionTracker.fill""")
 
-        
+        Profiler.start()
         TurretTakedown.fill()
-        
+        Profiler.end("""TurretTakedown.fill""")
 
-        
+        Profiler.start()
         HarvesterAdjacent.fill()
-        
+        Profiler.end("""HarvesterAdjacent.fill""")
 
-        
+        Profiler.start()
         HealTargeter.fill()
-        
+        Profiler.end("""HealTargeter.fill""")
 
-        
+        Profiler.start()
         ShieldTargeter.fill()
-        
+        Profiler.end("""ShieldTargeter.fill""")
 
-                
+        Symmetry.debug()
+
 
 
     @classmethod
     def run_turn(cls):
         cls.state, *args = cls.determine_state()
 
+        print(f'running: {cls.state}  @', *args, sep=' ')
 
         globals()[f'State{cls.state}'].run(*args)
 
@@ -27326,13 +27378,13 @@ class Builder(Unit):
     def end_turn(cls):
         Unit.end_turn()
 
-        
+        Profiler.start()
         HealExecutor.execute_heal_attempt()
-        
+        Profiler.end("""HealExecutor.execute_heal_attempt""")
 
-        
+        Profiler.start()
         Marker.attempt_mark()
-        
+        Profiler.end("""Marker.attempt_mark""")
 
 
 
@@ -27381,11 +27433,11 @@ class Builder(Unit):
         if apos is not None:
             return 'AttackTransporter', apos
 
-        
+
         axTarg = OreExecutive.get_axionite_target()
         if axTarg is not None:
             return 'BuildHarvesterAx', axTarg
-        
+
         bhpos = OreExecutive.get_titanium_target()
         if bhpos is not None:
             return 'BuildHarvester', bhpos
@@ -27429,6 +27481,9 @@ class Core(Unit):
     @classmethod
     def end_turn(cls):
         Unit.end_turn()
+
+        if Globals.round > 666:
+            Globals.ct.resign()
 
 
 # ============================================================
