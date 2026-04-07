@@ -34,8 +34,8 @@ class Core({{ super() }}):
 
     @classmethod
     def run_turn(cls):
-        if BurnManager.should_burn() or BurnManager.should_burn_emergency():
-            BurnManager.burn_out()
+        if BurnManager.should_burn_emergency():
+            BurnManager.burn()
         
         if SpawnManager.should_spawn() or SpawnManager.should_spawn_emergency():
             SpawnManager.spawn()

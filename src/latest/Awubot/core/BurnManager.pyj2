@@ -19,34 +19,19 @@ from Generated import *
 
 class BurnManager:
     @classmethod
-    def burn_out(cls):
-        # Convert all our axionite into titanium (except leave 1 for the wincon)
-        
-        ct = Globals.ct
-        ti, ax = ct.get_global_resources()
-        
-        if ax > 1:
-            ct.convert(ax - 1)
+    def burn(cls):
+        if not BuildManager.can_afford_builder_bot():
+            ct = Globals.ct
+            ti, ax = ct.get_global_resources()
             
-    @classmethod
-    def should_burn(cls):
-        ct = Globals.ct
-        num_units = ct.get_unit_count()
-
-        ti, ax = ct.get_global_resources()
-        bot_ti, bot_ax = ct.get_builder_bot_cost()
-        
-        # No capabilities to randomly burn right now
-
-        # if Globals.round <= 10 and cls.num_spawned < 5:
-        #     return True
-
-        # if ti - bot_ti >= num_units * 100:
-        #     return True
-
-        return False
-
-
+            builderCost = Globals.ct.get_builder_bot_cost()[0]
+            
+            tiNeeded = builderCost - ti
+            axNeeded = max(0, math.ceil(tiNeeded/4))
+            
+            ct.convert(min(axNeeded, ax - 1))
+            
+    
     @classmethod
     def should_burn_emergency(cls):
         lost_short = CoreHistory.hp_delta(1) < 0 
@@ -57,6 +42,3 @@ class BurnManager:
             return True
 
         return False
-
-
-
