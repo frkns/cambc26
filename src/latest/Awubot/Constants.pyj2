@@ -39,6 +39,12 @@ class Constants:
         Direction.WEST,
         Direction.NORTHWEST,
     )
+    CARDINAL_DIRECTIONS: list[Direction] = (
+        Direction.NORTH,
+        Direction.EAST,
+        Direction.SOUTH,
+        Direction.WEST,
+    )
     TRANSPORTERS_SET: set[EntityType] = {
         EntityType.CONVEYOR,
         EntityType.ARMOURED_CONVEYOR,
