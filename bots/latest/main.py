@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-07 12:56:51 (local)
+# latest,  @ 2026-04-07 14:33:50 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -1933,6 +1933,15 @@ class BreachBuild:
     def build_breach(cls, pos):
         print("Trying to build breach at", pos)
         print("Breach cost:", Globals.ct.get_breach_cost()[0])
+        ti = Map.tile_info[pos.x][pos.y]
+        if ti.has_building and not ti.is_building_ally:
+            print("Can't build breach at", pos, "because of enemy building")
+            RouteToBreach._breach_target = None
+            return False
+        if ti.has_building and ti.is_building_ally and ti.entity_type == EntityType.BREACH:
+            print("Already have breach at", pos)
+            RouteToBreach._breach_target = None
+            return False
 
         Pathfinder.move_to(pos, ban_target_pos=True)
         if Globals.ct.get_global_resources()[0] > Globals.ct.get_breach_cost()[0] \
