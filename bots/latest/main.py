@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-07 11:33:35 (local)
+# latest,  @ 2026-04-07 14:02:02 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -2480,7 +2480,8 @@ class BurnManager:
             tiNeeded = builderCost - ti
             axNeeded = max(0, math.ceil(tiNeeded/4))
             
-            ct.convert(min(axNeeded, ax - 1))
+            if axNeeded > ax and axNeeded > 0:
+                ct.convert(min(axNeeded, ax - 1))
             
     
     @classmethod
