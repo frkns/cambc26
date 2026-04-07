@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-# latest,  @ 2026-04-05 20:21:40 (local)
-=======
-# latest,  @ 2026-04-06 17:54:45 (local)
->>>>>>> foundry
+# latest,  @ 2026-04-06 18:06:01 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -562,33 +558,7 @@ class BfsBureau:
 
 
     # outward depth-limited dijkstra + bitmask bfs
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    
     @classmethod
     def find_route(cls, start: Position, target: Position,
                    ban_target: bool = False,
@@ -657,7 +627,65 @@ class BfsBureau:
                 return _best_c, _best_d
             return 1000000, None
 
-        _ban_first_hop_target = ban_target
+        # ── Adjacent to banned target: CENTRE competes, but ti is excluded ──
+        if ban_target:
+            _d = si - ti
+            _ad = _d if _d >= 0 else -_d
+            if _ad == 1 or _ad == 55 or _ad == 56 or _ad == 57:
+                _best_c = center_weight
+                _best_d = Direction.CENTRE if center_weight < 1000000 else None
+                ni = si + -1
+                if ni != ti:
+                    w = weight[ni]
+                    if w < _best_c and MoveManager.can_fill_move(Direction.NORTH):
+                        _best_c = w
+                        _best_d = Direction.NORTH
+                ni = si + 55
+                if ni != ti:
+                    w = weight[ni]
+                    if w < _best_c and MoveManager.can_fill_move(Direction.NORTHEAST):
+                        _best_c = w
+                        _best_d = Direction.NORTHEAST
+                ni = si + 56
+                if ni != ti:
+                    w = weight[ni]
+                    if w < _best_c and MoveManager.can_fill_move(Direction.EAST):
+                        _best_c = w
+                        _best_d = Direction.EAST
+                ni = si + 57
+                if ni != ti:
+                    w = weight[ni]
+                    if w < _best_c and MoveManager.can_fill_move(Direction.SOUTHEAST):
+                        _best_c = w
+                        _best_d = Direction.SOUTHEAST
+                ni = si + 1
+                if ni != ti:
+                    w = weight[ni]
+                    if w < _best_c and MoveManager.can_fill_move(Direction.SOUTH):
+                        _best_c = w
+                        _best_d = Direction.SOUTH
+                ni = si + -55
+                if ni != ti:
+                    w = weight[ni]
+                    if w < _best_c and MoveManager.can_fill_move(Direction.SOUTHWEST):
+                        _best_c = w
+                        _best_d = Direction.SOUTHWEST
+                ni = si + -56
+                if ni != ti:
+                    w = weight[ni]
+                    if w < _best_c and MoveManager.can_fill_move(Direction.WEST):
+                        _best_c = w
+                        _best_d = Direction.WEST
+                ni = si + -57
+                if ni != ti:
+                    w = weight[ni]
+                    if w < _best_c and MoveManager.can_fill_move(Direction.NORTHWEST):
+                        _best_c = w
+                        _best_d = Direction.NORTHWEST
+                if _best_d is not None:
+                    return _best_c, _best_d
+                return 1000000, None
+
         weight[ti] = 1  # allow target
 
         # we do this because try...finally is banned by engine
@@ -675,85 +703,77 @@ class BfsBureau:
         _sa = _settled.append
 
         ni = si + -1
-        if ni != ti or not _ban_first_hop_target:
-            if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.NORTH):
-                w = weight[ni]
-                dist[ni] = w
-                fhd[ni]  = 0
-                if ni == ti:
-                    # don't need to save anymore!
-                    return w, Direction.NORTH
-                _hp(heap, (w, ni))
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.NORTH):
+            w = weight[ni]
+            dist[ni] = w
+            fhd[ni]  = 0
+            if ni == ti:
+                # don't need to save anymore!
+                return w, Direction.NORTH
+            _hp(heap, (w, ni))
         ni = si + 55
-        if ni != ti or not _ban_first_hop_target:
-            if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.NORTHEAST):
-                w = weight[ni]
-                dist[ni] = w
-                fhd[ni]  = 1
-                if ni == ti:
-                    # don't need to save anymore!
-                    return w, Direction.NORTHEAST
-                _hp(heap, (w, ni))
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.NORTHEAST):
+            w = weight[ni]
+            dist[ni] = w
+            fhd[ni]  = 1
+            if ni == ti:
+                # don't need to save anymore!
+                return w, Direction.NORTHEAST
+            _hp(heap, (w, ni))
         ni = si + 56
-        if ni != ti or not _ban_first_hop_target:
-            if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.EAST):
-                w = weight[ni]
-                dist[ni] = w
-                fhd[ni]  = 2
-                if ni == ti:
-                    # don't need to save anymore!
-                    return w, Direction.EAST
-                _hp(heap, (w, ni))
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.EAST):
+            w = weight[ni]
+            dist[ni] = w
+            fhd[ni]  = 2
+            if ni == ti:
+                # don't need to save anymore!
+                return w, Direction.EAST
+            _hp(heap, (w, ni))
         ni = si + 57
-        if ni != ti or not _ban_first_hop_target:
-            if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.SOUTHEAST):
-                w = weight[ni]
-                dist[ni] = w
-                fhd[ni]  = 3
-                if ni == ti:
-                    # don't need to save anymore!
-                    return w, Direction.SOUTHEAST
-                _hp(heap, (w, ni))
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.SOUTHEAST):
+            w = weight[ni]
+            dist[ni] = w
+            fhd[ni]  = 3
+            if ni == ti:
+                # don't need to save anymore!
+                return w, Direction.SOUTHEAST
+            _hp(heap, (w, ni))
         ni = si + 1
-        if ni != ti or not _ban_first_hop_target:
-            if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.SOUTH):
-                w = weight[ni]
-                dist[ni] = w
-                fhd[ni]  = 4
-                if ni == ti:
-                    # don't need to save anymore!
-                    return w, Direction.SOUTH
-                _hp(heap, (w, ni))
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.SOUTH):
+            w = weight[ni]
+            dist[ni] = w
+            fhd[ni]  = 4
+            if ni == ti:
+                # don't need to save anymore!
+                return w, Direction.SOUTH
+            _hp(heap, (w, ni))
         ni = si + -55
-        if ni != ti or not _ban_first_hop_target:
-            if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.SOUTHWEST):
-                w = weight[ni]
-                dist[ni] = w
-                fhd[ni]  = 5
-                if ni == ti:
-                    # don't need to save anymore!
-                    return w, Direction.SOUTHWEST
-                _hp(heap, (w, ni))
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.SOUTHWEST):
+            w = weight[ni]
+            dist[ni] = w
+            fhd[ni]  = 5
+            if ni == ti:
+                # don't need to save anymore!
+                return w, Direction.SOUTHWEST
+            _hp(heap, (w, ni))
         ni = si + -56
-        if ni != ti or not _ban_first_hop_target:
-            if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.WEST):
-                w = weight[ni]
-                dist[ni] = w
-                fhd[ni]  = 6
-                if ni == ti:
-                    # don't need to save anymore!
-                    return w, Direction.WEST
-                _hp(heap, (w, ni))
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.WEST):
+            w = weight[ni]
+            dist[ni] = w
+            fhd[ni]  = 6
+            if ni == ti:
+                # don't need to save anymore!
+                return w, Direction.WEST
+            _hp(heap, (w, ni))
         ni = si + -57
-        if ni != ti or not _ban_first_hop_target:
-            if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.NORTHWEST):
-                w = weight[ni]
-                dist[ni] = w
-                fhd[ni]  = 7
-                if ni == ti:
-                    # don't need to save anymore!
-                    return w, Direction.NORTHWEST
-                _hp(heap, (w, ni))
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.NORTHWEST):
+            w = weight[ni]
+            dist[ni] = w
+            fhd[ni]  = 7
+            if ni == ti:
+                # don't need to save anymore!
+                return w, Direction.NORTHWEST
+            _hp(heap, (w, ni))
 
         phase2_seeds = []
         _p2a = phase2_seeds.append
@@ -1051,6 +1071,31 @@ class BfsBureau:
 
         # don't need to save anymore!
         return 1000000, None
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     # bfs20
@@ -23945,7 +23990,7 @@ class OreExecutive:
                 ti = Map.tile_info[newPos.x][newPos.y]
                 if ti is None: # off-map, ignore
                     continue
-                if ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET:
+                if ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET:
                     break # If already routed ignore
             else:
                 RouteToFoundry.set_pos(cand.position)
@@ -26396,12 +26441,6 @@ class StateBuildBarrier:
         Pathfinder.move_to(pos, ban_target_pos=True)
 
         if BuildManager.can_dbuild_barrier(pos):
-
-            # download better dir logic soon
-            dir: Direction = pos.direction_to(Symmetry.enemy_core_pos)
-            if dir == banned_dir:
-                dir = dir.rotate_left() if random.random() < 0.5 else dir.rotate_right()
-
             BuildManager.dbuild_barrier(pos)
 
 
@@ -27334,7 +27373,7 @@ class Builder(Unit):
         ShieldTargeter.fill()
         
 
-                
+
 
 
     @classmethod
@@ -27404,11 +27443,11 @@ class Builder(Unit):
         if apos is not None:
             return 'AttackTransporter', apos
 
-        
+
         axTarg = OreExecutive.get_axionite_target()
         if axTarg is not None:
             return 'BuildHarvesterAx', axTarg
-        
+
         bhpos = OreExecutive.get_titanium_target()
         if bhpos is not None:
             return 'BuildHarvester', bhpos

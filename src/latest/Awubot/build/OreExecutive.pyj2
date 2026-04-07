@@ -198,7 +198,7 @@ class OreExecutive:
                 ti = Map.tile_info[newPos.x][newPos.y]
                 if ti is None: # off-map, ignore
                     continue
-                if ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET:
+                if ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET:
                     break # If already routed ignore
             else:
                 RouteToFoundry.set_pos(cand.position)
