@@ -41,6 +41,8 @@ class TileInfo:
     bot_hp: int
     bot_id: int
     is_bot_ally: bool
+    
+    allied_bots_adjacent: int # number of adjacent allied bots
 
     has_turret: bool
     turret_direction: Direction
@@ -150,6 +152,7 @@ class Map:
                 opp_ti.harvester_adjacent = False
                 opp_ti.entity_type = None
                 opp_ti.target = None
+                opp_ti.allied_bots_adjacent = 0
                 tile_info[ox][oy] = opp_ti
                 new_syms.append(Position(ox, oy))
             {% endif %}
@@ -265,6 +268,16 @@ class Map:
                 ((nti := tile_info[x+1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
                 ((nti := tile_info[x][y-1]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
                 ((nti := tile_info[x][y+1]) is not None and nti.has_building and nti.entity_type == HARVESTER)
+                
+            ti.allied_bots_adjacent = \
+                ((nti := tile_info[x-1][y]) is not None and nti.has_bot and nti.is_bot_ally) + \
+                ((nti := tile_info[x+1][y]) is not None and nti.has_bot and nti.is_bot_ally) + \
+                ((nti := tile_info[x][y-1]) is not None and nti.has_bot and nti.is_bot_ally) + \
+                ((nti := tile_info[x][y+1]) is not None and nti.has_bot and nti.is_bot_ally) + \
+                ((nti := tile_info[x-1][y-1]) is not None and nti.has_bot and nti.is_bot_ally) + \
+                ((nti := tile_info[x+1][y-1]) is not None and nti.has_bot and nti.is_bot_ally) + \
+                ((nti := tile_info[x-1][y+1]) is not None and nti.has_bot and nti.is_bot_ally) + \
+                ((nti := tile_info[x+1][y+1]) is not None and nti.has_bot and nti.is_bot_ally)
 
     {% endfor %}
 
@@ -337,6 +350,7 @@ class Map:
                     opp_ti.harvester_adjacent = False
                     opp_ti.entity_type = None
                     opp_ti.target = None
+                    opp_ti.allied_bots_adjacent = 0
                     orow[oy] = opp_ti
                     new_syms.append(Position(ox, oy))
 # ===---

@@ -17,12 +17,27 @@ from Generated import *
 {% from 'map/kind.j2' import Kind %}
 
 
-class StalkTargeter:
-    @classmethod
-    def get_best_target(cls) -> Position | None:
-        if not Map.harvester_set:
-            return None
+{% macro super() %}Unit{% endmacro %}
 
-        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
-            if ti.has_bot and not ti.is_bot_ally and ti.allied_bots_adjacent < 2:
-                return Position(x, y)
+
+class Launcher({{ super() }}):
+    @classmethod
+    def init(cls):
+        {{ super() }}.init()
+        DarkForest.init()
+
+    @classmethod
+    def start_turn(cls):
+        {{ super() }}.start_turn()
+        DarkForest.fcompute()
+        DarkForest.debug_kind()
+
+        LauncherSupervisor.fill()
+
+    @classmethod
+    def run_turn(cls):
+        LauncherSupervisor.try_launch()
+
+    @classmethod
+    def end_turn(cls):
+        {{ super() }}.end_turn()

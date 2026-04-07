@@ -34,32 +34,43 @@ class Explore:
         #     Position(Map.maxX, 0),
         #     Position(Map.maxX, Map.maxY),
         # ))
+        
+        # # Special early game heuristics
+        # if Globals.round < 50:
+        #     # Move away from the core when starting out (except for the first couple bots)
+        #     if Globals.spawn_round >= 3 and cls.target is None:
+        #         direction_to_core = Globals.my_pos.direction_to(Unit.core_pos)
+        #         if direction_to_core != Direction.CENTRE:
+        #             return Util.follow_to_edge(Globals.my_pos.x, Globals.my_pos.y, *direction_to_core.delta())
+
+        #     # Find the direction that will let us move the furthest before hitting the edge
+        #     bestDx: int = None
+        #     bestDy: int = None
+        #     best_score: int = -{{ INF }}
+
+        #     {% for dir in directions if dir != Direction.CENTRE%}
+        #     {% set dx, dy = dir.delta() %}
+
+        #     score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, {{ dx }}, {{ dy }})
+
+        #     {% if dir in diagonal_directions %}
+        #     score += 1 # slightly prefer diagonals
+        #     {% endif %}
+
+        #     if score > best_score:
+        #         best_score = score
+        #         bestDx = {{ dx }}
+        #         bestDy = {{ dy }}
+
+        #     {% endfor %}
+
+        #     if bestDx is None:
+        #         return Util.rand_pos()
+
+        #     return Util.follow_to_edge(Globals.my_pos.x, Globals.my_pos.y, bestDx, bestDy)
+        # # Later in the game, we should just go to random places to hit every last corner
+        # else:
         return Util.rand_pos()
-
-        # bestDx: int = None
-        # bestDy: int = None
-        # best_score: int = -{{ INF }}
-
-        # {% for dir in directions if dir != Direction.CENTRE%}
-        # {% set dx, dy = dir.delta() %}
-
-        # score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, {{ dx }}, {{ dy }})
-
-        # {% if dir in diagonal_directions %}
-        # score += 1 # slightly prefer diagonals
-        # {% endif %}
-
-        # if score > best_score:
-        #     best_score = score
-        #     bestDx = {{ dx }}
-        #     bestDy = {{ dy }}
-
-        # {% endfor %}
-
-        # if bestDx is None:
-        #     return Util.rand_pos()
-
-        # return Util.follow_to_edge(Globals.my_pos.x, Globals.my_pos.y, bestDx, bestDy)
 
 
     @classmethod

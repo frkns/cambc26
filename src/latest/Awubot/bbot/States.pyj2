@@ -83,6 +83,16 @@ class StateBuildGunner:
             
             BuildManager.dbuild_gunner(pos, dir)
 
+class StateBuildLauncherAround:
+    @classmethod
+    def run(cls, pos):
+        pos = pos.add(pos.direction_to(Globals.my_pos))
+        
+        Pathfinder.move_to(pos, ban_target_pos=True)
+
+        if BuildManager.can_dbuild_launcher(pos):            
+            BuildManager.dbuild_launcher(pos)
+
 class StateBuildBarrier:
     @classmethod
     def run(cls, pos, banned_dir: Direction | None):

@@ -64,6 +64,9 @@ class ShieldTargeter:
 
             if not ti.harvester_adjacent:
                 continue
+            
+            if ti.env == Environment.WALL:
+                continue
 
             if ti.has_building:
                 if not ti.is_building_ally:

@@ -178,7 +178,7 @@ def build():
         if not source_dir.exists():
             print(f"  Skipping {source_dir} (not found)")
             continue
-        found = sorted(source_dir.rglob("*.py"))
+        found = sorted(f for f in source_dir.rglob("*.py") if f.name != "__init__.py")
         print(f"  {source_dir}: {len(found)} files")
         py_files.extend((source_dir, path) for path in found)
 

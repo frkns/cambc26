@@ -92,7 +92,7 @@ def gunner_target_valid(rx, ry, direction: Direction) -> bool:
         return False
     dx, dy = direction.delta()
     k = 1
-    while k * k * (dx * dx + dy * dy) <= 8: # TODO: Find the right GameConstant for this
+    while k * k * (dx * dx + dy * dy) <= GameConstants.GUNNER_VISION_RADIUS_SQ:
         lx = rx - k * dx
         ly = ry - k * dy
         if abs(lx) <= 1 and abs(ly) <= 1:
@@ -120,8 +120,8 @@ def _scope():
             sentinel_reverse[(rx, ry)].append(i)
             
     for i in range(8):
-        for rx in range(-5, 6):
-            for ry in range(-5, 6):
+        for rx in range(-3, 4):
+            for ry in range(-3, 4):
                 if gunner_target_valid(rx, ry, directions[i]):
                     gunner_pattern[i].append((rx, ry))
     for i in range(8):
