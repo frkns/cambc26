@@ -19,25 +19,68 @@ from Generated import *
 
 class FoundryBuild:
     @classmethod
+    def _prune_branch(cls, encoded_pos: int):
+        """
+        After a foundry is placed at `encoded_pos`, walk up DarkForest.nodes
+        following .up pointers and add every ancestor to
+        RouteToFoundry.planned_foundry_positions — stopping when we reach an
+        existing sink (core, another foundry, etc.).
+
+        Why this is necessary:
+          Before the build, encoded_pos was a leaf (in-degree 0).  Once it
+          becomes an ALLY_CONSUMER sink its parent loses its only non-sink
+          child and becomes the NEW leaf on the same arm.  Without pruning,
+          _pick_target would immediately claim that parent as the next foundry
+          site, building two foundries back-to-back on the same branch.
+          By adding every ancestor up to the nearest sink into
+          planned_foundry_positions, we ensure _pick_target skips the whole
+          arm between this new foundry and the core (or the next upstream sink).
+        """
+        nodes = DarkForest.nodes
+        kind  = DarkForest.kind
+        planned = RouteToFoundry.planned_foundry_positions
+
+        current = encoded_pos
+        while True:
+            node = nodes[current]
+            if node is None or node.up is None:
+                break                          # reached a detached root
+            parent = node.up
+            if kind[parent] != {{ Kind.NONE }}:
+                break                          # hit an existing sink — stop here
+            planned.add(parent)
+            current = parent
+
+    @classmethod
     def build_foundry(cls, pos):
         print("Trying to build foundry at", pos)
         print("Foundry cost:", Globals.ct.get_foundry_cost()[0])
 
         Pathfinder.move_to(pos, ban_target_pos=True)
-        if Globals.ct.get_global_resources()[0]> Globals.ct.get_foundry_cost()[0] and Globals.ct.can_destroy(pos) and Globals.ct.get_action_cooldown()==0:
+        if Globals.ct.get_global_resources()[0] > Globals.ct.get_foundry_cost()[0] \
+                and Globals.ct.can_destroy(pos) \
+                and Globals.ct.get_action_cooldown() == 0:
             Globals.ct.destroy(pos)
         if Globals.ct.can_build_foundry(pos):
             Globals.ct.build_foundry(pos)
+
+            encoded = {{ encode_pos('pos.x', 'pos.y') }}
+
+            # Register the new foundry as a sink so fcompute updates the tree.
+            DarkForest.register_sink(encoded, {{ Kind.ALLY_CONSUMER }})
+
+            # Block every ancestor up to the next existing sink from being
+            # chosen as a future foundry site (they would otherwise become
+            # the new leaf on this arm after the next fcompute).
+            cls._prune_branch(encoded)
+
             RouteToFoundry._foundry_target = None
-            DarkForest.register_sink({{encode_pos('pos.x', 'pos.y')}}, {{Kind.ALLY_CONSUMER}})
             return True
         return False
-        
-    
+
     @classmethod
     def _pick_target(cls):
         if RouteToFoundry._foundry_target is None:
             return None
-        t = {{decode_pos('RouteToFoundry._foundry_target') | join(', ')}}
+        t = {{ decode_pos('RouteToFoundry._foundry_target') | join(', ') }}
         return Position(t[0], t[1])
-        
