@@ -111,22 +111,21 @@ class LauncherSupervisor:
         {% for dir in directions %}
         {% set dx, dy = dir.delta() %}
         x, y = my_pos.x {{ sign0(dx) }}, my_pos.y {{ sign0(dy) }}
-        pos = Position(x, y)
-        idx = {{ encode_pos('x', 'y') }}
         ti = tile_info[x][y]
         
-        info = LauncherTargetInfo()
-        info.position = pos
-        info.has_bot = False
-        info.rand_key = random.random()
+        if ti is not None:
+            info = LauncherTargetInfo()
+            info.position = Position(x, y)
+            info.has_bot = False
+            info.rand_key = random.random()
 
-        info.harvester_adjacent = ti.harvester_adjacent
+            info.harvester_adjacent = ti.harvester_adjacent
 
-        if ti.has_bot and not ti.is_bot_ally:
-            info.has_bot = True
-            info.bot_hp = ti.bot_hp
+            if ti.has_bot and not ti.is_bot_ally:
+                info.has_bot = True
+                info.bot_hp = ti.bot_hp
 
-        cls.targets.append(info)
+            cls.targets.append(info)
             
         {% endfor %}
 

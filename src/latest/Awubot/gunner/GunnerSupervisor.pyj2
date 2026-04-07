@@ -171,11 +171,11 @@ class GunnerSupervisor:
         {% for dir in directions %}
         {% set dx, dy = dir.delta() %}
         x, y = my_pos.x {{ sign0(dx) }}, my_pos.y {{ sign0(dy) }}
-        pos = Position(x, y)
+        ti = tile_info[x][y]
         
-        if Util.on_the_map(pos):
+        if ti is not None:
+            pos = Position(x, y)
             idx = {{ encode_pos('x', 'y') }}
-            ti = tile_info[x][y]
             
             info = GunnerTargetInfo()
             info.position = pos

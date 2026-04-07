@@ -89,8 +89,7 @@ class HarvesterAdjacent:
             {% set ny %}y {{ sign0(dy) }}{% endset %}
 
             nti = tile_info[{{ nx }}][{{ ny }}]
-            if nti is not None and nti.has_building and nti.entity_type == EntityType.HARVESTER \
-                    and nti.env == Environment.ORE_TITANIUM: # don't consider ax ore to build stuff on
+            if nti is not None and nti.has_building and nti.entity_type == EntityType.HARVESTER:
                 if nti.is_building_ally:
                     info.ally_hadj += 1
                 else:

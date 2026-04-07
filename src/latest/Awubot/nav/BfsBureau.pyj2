@@ -107,6 +107,10 @@ class BfsBureau:
         wide = (cls.enemy_launcher | (cls.enemy_launcher << 1) | (cls.enemy_launcher >> 1)) & cls.board_mask
         expanded = (wide | (wide >> stride) | (wide << stride)) & cls.board_mask
         cls.now_passable_int &= ~expanded
+
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            if ti.has_bot:
+                now_weight[idx] = {{ INF }}
 # ===---
 
     # incremental

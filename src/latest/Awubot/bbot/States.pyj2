@@ -29,14 +29,17 @@ class StateBuildHarvesterAx:
         OreExecutive.go_build_ax_harvester(pos)
         {# /* Debug.line(pos, Color.YELLOW) */ #}
 
+
 class StateAttackTransporter:
     @classmethod
     def run(cls, pos):
         Pathfinder.move_to(pos)
 
-        if Globals.my_pos == pos:
-            if Globals.ct.can_fire(pos):
-                Globals.ct.fire(pos)
+        if Globals.my_pos != pos:
+            return
+
+        if Globals.ct.can_fire(pos) and Attacker.should_fire(pos):
+            Globals.ct.fire(pos)
 
 
 class StateRoute:
