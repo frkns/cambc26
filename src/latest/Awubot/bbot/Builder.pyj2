@@ -65,6 +65,10 @@ class Builder({{ super() }}):
         {{ P.end('TurretTakedown.fill') }}
 
         {{ P.start() }}
+        SitterTakedown.fill()
+        {{ P.end('SitterTakedown.fill') }}
+
+        {{ P.start() }}
         HarvesterAdjacent.fill()
         {{ P.end('HarvesterAdjacent.fill') }}
 
@@ -120,6 +124,11 @@ class Builder({{ super() }}):
         if takedownpos is not None:
             Debug.dot(takedownpos, Color.PURPLE)
             return 'BuildGunner', takedownpos, None
+            
+        sitterpos = SitterTakedown.get_best_hijack_position()
+        if sitterpos is not None:
+            Debug.dot(sitterpos, Color.PURPLE)
+            return 'BuildLauncherAround', sitterpos
 
         hpos = HarvesterAdjacent.get_best_hijack_position()
         if hpos is not None:
