@@ -59,6 +59,13 @@ class Constants:
         EntityType.SPLITTER,
     }
 
+    TURRET_SET: set[EntityType] = {
+        EntityType.SENTINEL,
+        EntityType.GUNNER,
+        EntityType.LAUNCHER,
+        EntityType.BREACH,
+    }
+
     AXIONITE_START: int = 20 # Start producing axionite at this round
 
     MAX_HP_MAP: dict[EntityType, int] = {

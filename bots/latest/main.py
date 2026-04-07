@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-07 12:44:08 (local)
+# latest,  @ 2026-04-07 12:56:51 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -2656,6 +2656,13 @@ class Constants:
         EntityType.ARMOURED_CONVEYOR,
         EntityType.BRIDGE,
         EntityType.SPLITTER,
+    }
+
+    TURRET_SET: set[EntityType] = {
+        EntityType.SENTINEL,
+        EntityType.GUNNER,
+        EntityType.LAUNCHER,
+        EntityType.BREACH,
     }
 
     AXIONITE_START: int = 20 # Start producing axionite at this round
@@ -24835,6 +24842,8 @@ class RouteToBreach:
                     continue
                 if tile.has_building and (not tile.is_building_ally):
                     continue
+                if tile.has_building and tile.entity_type in Constants.TURRET_SET:
+                    continue
                 d = currLoc.distance_squared(candidate)
                 if d < best_attack_dist:
                     best_attack_dist = d
@@ -24911,6 +24920,8 @@ class RouteToBreach:
 
         if ti.has_building:
             if not ti.is_building_ally:
+                return True
+            if ti.entity_type in Constants.TURRET_SET:
                 return True
             """
             if cls._breach_target != (((x) + 3) * 56 + ((y) + 3)):
