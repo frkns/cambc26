@@ -49,10 +49,20 @@ class StateFoundryBuild:
     def run(cls, pos):
         FoundryBuild.build_foundry(pos)
 
+class StateBreachBuild:
+    @classmethod
+    def run(cls, pos):
+        BreachBuild.build_breach(pos)
+
 class StateRouteFoundry:
     @classmethod
     def run(cls):
         RouteToFoundry.do_routing()
+        
+class StateRouteBreach:
+    @classmethod
+    def run(cls):
+        RouteToBreach.do_routing()
 
 
 class StateMoveTo:
