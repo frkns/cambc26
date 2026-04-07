@@ -34,32 +34,33 @@ class Explore:
         #     Position(Map.maxX, 0),
         #     Position(Map.maxX, Map.maxY),
         # ))
-        return Util.rand_pos()
+        if Globals.round < 50:
+            bestDx: int = None
+            bestDy: int = None
+            best_score: int = -{{ INF }}
 
-        # bestDx: int = None
-        # bestDy: int = None
-        # best_score: int = -{{ INF }}
+            {% for dir in directions if dir != Direction.CENTRE%}
+            {% set dx, dy = dir.delta() %}
 
-        # {% for dir in directions if dir != Direction.CENTRE%}
-        # {% set dx, dy = dir.delta() %}
+            score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, {{ dx }}, {{ dy }})
 
-        # score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, {{ dx }}, {{ dy }})
+            {% if dir in diagonal_directions %}
+            score += 1 # slightly prefer diagonals
+            {% endif %}
 
-        # {% if dir in diagonal_directions %}
-        # score += 1 # slightly prefer diagonals
-        # {% endif %}
+            if score > best_score:
+                best_score = score
+                bestDx = {{ dx }}
+                bestDy = {{ dy }}
 
-        # if score > best_score:
-        #     best_score = score
-        #     bestDx = {{ dx }}
-        #     bestDy = {{ dy }}
+            {% endfor %}
 
-        # {% endfor %}
+            if bestDx is None:
+                return Util.rand_pos()
 
-        # if bestDx is None:
-        #     return Util.rand_pos()
-
-        # return Util.follow_to_edge(Globals.my_pos.x, Globals.my_pos.y, bestDx, bestDy)
+            return Util.follow_to_edge(Globals.my_pos.x, Globals.my_pos.y, bestDx, bestDy)
+        else:
+            return Util.rand_pos()
 
 
     @classmethod
