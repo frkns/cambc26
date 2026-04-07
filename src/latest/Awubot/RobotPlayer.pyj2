@@ -42,6 +42,9 @@ class Entrypoint:
             case EntityType.LAUNCHER:
                 Launcher.init()
                 cls.me = Launcher
+            case EntityType.BREACH:
+                Launcher.init()
+                cls.me = Launcher
 
     @classmethod
     def run(cls, ct: Controller):

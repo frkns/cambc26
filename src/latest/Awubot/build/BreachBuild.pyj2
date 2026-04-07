@@ -28,8 +28,9 @@ class BreachBuild:
                 and Globals.ct.can_destroy(pos) \
                 and Globals.ct.get_action_cooldown() == 0:
             Globals.ct.destroy(pos)
-        if Globals.ct.can_build_barrier(pos):
-            Globals.ct.build_barrier(pos)
+        if Globals.ct.can_build_breach(pos,Direction.NORTH):
+            Globals.ct.build_breach(pos,Direction.NORTH)
+            print("OMGGGGGG I ACTUALLY BUILT THE BREACH AT", pos,file = sys.stderr)
 
             encoded = {{ encode_pos('pos.x', 'pos.y') }}
 

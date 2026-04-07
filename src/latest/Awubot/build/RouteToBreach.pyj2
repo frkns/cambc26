@@ -62,7 +62,7 @@ class RouteToBreach:
             print("[RouteToBreach] No valid attack position within breach attack of enemy core")
             return None
         print("CLEARLY the best attack position is", attack_pos)
-        return {{encode_pos('attack_pos.x', 'attack_pos.x')}}
+        return {{encode_pos('attack_pos.x', 'attack_pos.y')}}
         
 
     @classmethod
