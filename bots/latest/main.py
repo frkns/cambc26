@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-07 10:55:56 (local)
+# latest,  @ 2026-04-07 11:04:18 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -24816,6 +24816,7 @@ class RouteToBreach:
         if not Symmetry.is_sym_known:
             return None
         enemy_core = Symmetry.enemy_core_pos
+        print("Yo so the enemy core is at", enemy_core)
 
         vision_r = int(GameConstants.BREACH_ATTACK_RADIUS_SQ ** 0.5) + 1
 
@@ -24841,6 +24842,7 @@ class RouteToBreach:
         if attack_pos is None:
             print("[RouteToBreach] No valid attack position within breach attack of enemy core")
             return None
+        print("CLEARLY the best attack position is", attack_pos)
         return (((attack_pos.x) + 3) * 56 + ((attack_pos.x) + 3))
         
 

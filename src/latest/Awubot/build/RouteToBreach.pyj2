@@ -35,6 +35,7 @@ class RouteToBreach:
         if not Symmetry.is_sym_known:
             return None
         enemy_core = Symmetry.enemy_core_pos
+        print("Yo so the enemy core is at", enemy_core)
 
         vision_r = int(GameConstants.BREACH_ATTACK_RADIUS_SQ ** 0.5) + 1
 
@@ -60,6 +61,7 @@ class RouteToBreach:
         if attack_pos is None:
             print("[RouteToBreach] No valid attack position within breach attack of enemy core")
             return None
+        print("CLEARLY the best attack position is", attack_pos)
         return {{encode_pos('attack_pos.x', 'attack_pos.x')}}
         
 
