@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # latest,  @ 2026-04-05 20:21:40 (local)
+=======
+# latest,  @ 2026-04-06 17:54:45 (local)
+>>>>>>> foundry
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -2519,6 +2523,12 @@ class Constants:
         Direction.SOUTHWEST,
         Direction.WEST,
         Direction.NORTHWEST,
+    )
+    CARDINAL_DIRECTIONS: list[Direction] = (
+        Direction.NORTH,
+        Direction.EAST,
+        Direction.SOUTH,
+        Direction.WEST,
     )
     TRANSPORTERS_SET: set[EntityType] = {
         EntityType.CONVEYOR,
@@ -23893,8 +23903,10 @@ class OreExecutive:
             Debug.line(pos, Color.YELLOW)
             BuildManager.dbuild_harvester(pos)
 
+            
             cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
-            RouteToCore.set_pos(cand.position)
+            if cand is not None:
+                RouteToCore.set_pos(cand.position)
 
     @classmethod
     def go_build_ax_harvester(cls, pos):
@@ -23914,6 +23926,7 @@ class OreExecutive:
             Debug.diamond(Color.RED)
             return
 
+
         RouteToFoundry.set_pos(cand.position)
         RouteToFoundry.try_claim_target()
         foundry_enc = RouteToFoundry._foundry_target
@@ -23926,8 +23939,18 @@ class OreExecutive:
         if BuildManager.can_dbuild_harvester(pos):
             Debug.line(pos, Color.YELLOW)
             BuildManager.dbuild_harvester(pos)
-
-            RouteToFoundry.set_pos(cand.position)
+            #Check if already routed naturally
+            for d in Constants.CARDINAL_DIRECTIONS:
+                newPos = pos.add(d)
+                ti = Map.tile_info[newPos.x][newPos.y]
+                if ti is None: # off-map, ignore
+                    continue
+                if ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET:
+                    break # If already routed ignore
+            else:
+                RouteToFoundry.set_pos(cand.position)
+                return
+            RouteToFoundry.give_up()
         else:
             RouteToFoundry.give_up()
 
