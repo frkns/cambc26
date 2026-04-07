@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-07 09:12:53 (local)
+# latest,  @ 2026-04-07 09:25:05 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -2460,6 +2460,52 @@ class BuildManager:
             Debug.log('ax branch triggered')
             return False
         return True
+
+
+# ============================================================
+# BurnManager
+# ============================================================
+
+class BurnManager:
+    @classmethod
+    def burn_out(cls):
+        # Convert all our axionite into titanium (except leave 1 for the wincon)
+        
+        ct = Globals.ct
+        ti, ax = ct.get_global_resources()
+        
+        if ax > 1:
+            ct.convert(ax - 1)
+            
+    @classmethod
+    def should_burn(cls):
+        ct = Globals.ct
+        num_units = ct.get_unit_count()
+
+        ti, ax = ct.get_global_resources()
+        bot_ti, bot_ax = ct.get_builder_bot_cost()
+        
+        # No capabilities to randomly burn right now
+
+        # if Globals.round <= 10 and cls.num_spawned < 5:
+        #     return True
+
+        # if ti - bot_ti >= num_units * 100:
+        #     return True
+
+        return False
+
+
+    @classmethod
+    def should_burn_emergency(cls):
+        lost_short = CoreHistory.hp_delta(1) < 0 
+        lost_long = CoreHistory.hp_delta(10) < 0 
+        low_hp = Globals.ct.get_hp() < 450
+
+        if (lost_short or lost_long) and low_hp:
+            return True
+
+        return False
 
 
 # ============================================================
@@ -27593,6 +27639,9 @@ class Core(Unit):
 
     @classmethod
     def run_turn(cls):
+        if BurnManager.should_burn() or BurnManager.should_burn_emergency():
+            BurnManager.burn_out()
+        
         if SpawnManager.should_spawn() or SpawnManager.should_spawn_emergency():
             SpawnManager.spawn()
 
