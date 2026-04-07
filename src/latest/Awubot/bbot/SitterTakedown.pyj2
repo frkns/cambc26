@@ -17,25 +17,25 @@ from Generated import *
 {% from 'map/kind.j2' import Kind %}
 
 
-# for choosing build position
+# for choosing sitter position
 
-class AdjacentInfo:
+class SitterTargetInfo:
     position: Position
-    enemy_hadj: int  # enemy harvesters adjacent
-    ally_hadj: int   # ally  "          "
-    dist_enemy_core: int
+    dist_enemy_core: int # distance to the enemy core
+    has_transporter: bool # whether the tile has an allied transporter
+    enemy_turrets_nearby: int # enemy turrets on nearby tiles
 
     @staticmethod
-    def is_better_than(a: AdjacentInfo, b: AdjacentInfo):
-        if a.enemy_hadj != b.enemy_hadj:
-            return a.enemy_hadj > b.enemy_hadj
-        if a.ally_hadj != b.ally_hadj:
-            return a.ally_hadj > b.ally_hadj
+    def is_better_than(a: SitterTargetInfo, b: SitterTargetInfo):
+        if a.enemy_turrets_nearby != b.enemy_turrets_nearby:
+            return a.enemy_turrets_nearby > b.enemy_turrets_nearby
+        if a.has_transporter != b.has_transporter:
+            return a.has_transporter < b.has_transporter
         return a.dist_enemy_core < b.dist_enemy_core
 
 
-class HarvesterAdjacent:
-    cand: list[AdjacentInfo]  # adjacent candidate build positions
+class SitterTakedown:
+    cand: list[SitterTargetInfo] # adjacent candidate build positions
 
 
     @classmethod
@@ -45,10 +45,10 @@ class HarvesterAdjacent:
 
         best = cls.cand[0]
         for c in cls.cand[1:]:
-            if AdjacentInfo.is_better_than(c, best):
+            if SitterTargetInfo.is_better_than(c, best):
                 best = c
 
-        if best.enemy_hadj == 0:
+        if best.enemy_turrets_nearby == 0:
             return None
 
         if not VisionTracker.me_is_canonical_ally(best.position):
@@ -68,32 +68,25 @@ class HarvesterAdjacent:
             
             if ti.env == Environment.WALL:
                 continue
+            
+            if not ti.has_bot:
+                continue
 
-            if ti.has_building:
-                if not ti.is_building_ally:
-                    continue
-                if ti.entity_type != EntityType.ROAD:
-                    continue
-
-            info = AdjacentInfo()
+            info = SitterTargetInfo()
             cls.cand.append(info)
             info.position = pos
             info.dist_enemy_core = Util.dist_sq(pos, Symmetry.enemy_core_pos)
-            info.has_ally_road = ti.entity_type == EntityType.ROAD
-            info.enemy_hadj = 0
-            info.ally_hadj = 0
+            info.has_transporter = (ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET)
+            info.enemy_turrets_nearby = 0
 
-            {% for dir in cardinal_directions %}
+            {% for dir in directions if dir != Direction.CENTRE %}
             {% set dx, dy = dir.delta() %}
             {% set nx %}x {{ sign0(dx) }}{% endset %}
             {% set ny %}y {{ sign0(dy) }}{% endset %}
 
             nti = tile_info[{{ nx }}][{{ ny }}]
-            if nti is not None and nti.has_building and nti.entity_type == EntityType.HARVESTER:
-                if nti.is_building_ally:
-                    info.ally_hadj += 1
-                else:
-                    info.enemy_hadj += 1
+            if nti is not None and nti.has_turret and not nti.is_building_ally:
+                info.enemy_turrets_nearby += 1
             {% endfor %}
             
 
