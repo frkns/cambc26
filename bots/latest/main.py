@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-07 09:38:03 (local)
+# latest,  @ 2026-04-07 09:56:47 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -2485,7 +2485,7 @@ class BurnManager:
     def should_burn_emergency(cls):
         lost_short = CoreHistory.hp_delta(1) < 0 
         lost_long = CoreHistory.hp_delta(10) < 0 
-        low_hp = Globals.ct.get_hp() < 450
+        low_hp = Globals.ct.get_hp() < 250
 
         if (lost_short or lost_long) and low_hp:
             return True
