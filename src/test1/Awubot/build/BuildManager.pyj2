@@ -1,0 +1,110 @@
+# ---=== IMPORT
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot.Globals import Globals
+from Awubot.MoveManager import MoveManager
+from Awubot.Util import Util
+# ===--- IMPORT
+
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+
+
+class BuildManager:
+    reserve_ti: int = 100  # scale this
+    reserve_ax: int = 0
+
+    @staticmethod
+    def scale(cost: int) -> int:
+        return int(cost * MarketMaker.scale_ratio)
+
+    @staticmethod
+    def is_buildable(pos: Position):
+        dsq = Globals.my_pos.distance_squared(pos)
+        if dsq > 2 or dsq == 0:
+            return False
+
+        ti = Map.tile_info[pos.x][pos.y]
+        return (
+            {# /* ti is not None and  */ #}
+            ti.env != Environment.WALL 
+            and not ti.has_building
+            and not ti.has_bot
+        )
+
+    @staticmethod
+    def is_dbuildable(pos: Position):
+        dsq = Globals.my_pos.distance_squared(pos)
+        if dsq > 2 or dsq == 0:
+            return False
+
+        ti = Map.tile_info[pos.x][pos.y]
+
+        if Globals.ct.can_destroy(pos) and not ti.has_bot:
+            return True
+
+        return (
+            {# /* ti is not None and  */ #}
+            ti.env != Environment.WALL
+            and not ti.has_bot
+            and (not ti.has_building or (ti.is_building_ally and ti.entity_type != EntityType.CORE))
+        )
+
+
+    {% for etype in EntityType %}
+    {% set st = etype.value %}
+    {% if hasattr(Controller, 'get_' ~ st ~ '_cost') %}
+
+    @staticmethod
+    def build_{{ st }}(*a):
+        Globals.ct.build_{{ st }}(*a)
+
+    @staticmethod
+    def dbuild_{{ st }}(pos, *a):
+        if Globals.ct.can_destroy(pos):
+            Globals.ct.destroy(pos)
+        Globals.ct.build_{{ st }}(pos, *a)
+
+    @staticmethod
+    def can_dbuild_{{ st }}(pos) -> bool:
+        return (
+            Globals.ct.get_action_cooldown() == 0 and
+            BuildManager.is_dbuildable(pos) and 
+            BuildManager.can_afford_{{ st }}()
+        )
+
+    @staticmethod
+    def can_build_{{ st }}(*a) -> bool:
+        return Globals.ct.can_build_{{ st }}(*a)
+
+    @staticmethod
+    def can_afford_{{ st }}() -> bool:
+        ti_cost, ax_cost = Globals.ct.get_{{ st }}_cost()
+        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
+
+    @classmethod
+    def reserve_check_{{ st }}(cls) -> bool:
+        ti_cost, ax_cost = Globals.ct.get_{{ st }}_cost()
+        if (MarketMaker.ti - ti_cost) < cls.reserve_ti * MarketMaker.scale_ratio:
+            return False
+        if (MarketMaker.ax - ax_cost) < cls.reserve_ax * MarketMaker.scale_ratio:
+            Debug.log('ax branch triggered')
+            return False
+        return True
+
+    {% endif %}
+    {% endfor %}
+
+
+

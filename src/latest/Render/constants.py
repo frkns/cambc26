@@ -86,9 +86,26 @@ def sentinel_target_valid(rx, ry, direction: Direction) -> bool:
         k += 1
     return False
 
+def gunner_target_valid(rx, ry, direction: Direction) -> bool:
+    dist_sq = rx * rx + ry * ry
+    if dist_sq == 0 or dist_sq > GameConstants.GUNNER_VISION_RADIUS_SQ:
+        return False
+    dx, dy = direction.delta()
+    k = 1
+    while k * k * (dx * dx + dy * dy) <= 8: # TODO: Find the right GameConstant for this
+        lx = rx - k * dx
+        ly = ry - k * dy
+        if abs(lx) <= 1 and abs(ly) <= 1:
+            return True
+        k += 1
+    return False
+    
 
 sentinel_pattern: list[list[tuple]] = [[] for _ in range(8)]
 sentinel_reverse: dict[tuple, list[int]] = {}
+
+gunner_pattern: list[list[tuple]] = [[] for _ in range(8)]
+gunner_reverse: dict[tuple, list[int]] = {}
 
 def _scope():
     for i in range(8):
@@ -101,6 +118,17 @@ def _scope():
             if (rx, ry) not in sentinel_reverse:
                 sentinel_reverse[(rx, ry)] = []
             sentinel_reverse[(rx, ry)].append(i)
+            
+    for i in range(8):
+        for rx in range(-5, 6):
+            for ry in range(-5, 6):
+                if gunner_target_valid(rx, ry, directions[i]):
+                    gunner_pattern[i].append((rx, ry))
+    for i in range(8):
+        for rx, ry in gunner_pattern[i]:
+            if (rx, ry) not in gunner_reverse:
+                gunner_reverse[(rx, ry)] = []
+            gunner_reverse[(rx, ry)].append(i)
 
 _scope()
 

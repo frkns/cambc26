@@ -61,6 +61,10 @@ class Builder({{ super() }}):
         {{ P.end('VisionTracker.fill') }}
 
         {{ P.start() }}
+        TurretTakedown.fill()
+        {{ P.end('TurretTakedown.fill') }}
+
+        {{ P.start() }}
         HarvesterAdjacent.fill()
         {{ P.end('HarvesterAdjacent.fill') }}
 
@@ -111,6 +115,11 @@ class Builder({{ super() }}):
 
         if RouteToCore.is_active:
             return ('Route',)
+
+        takedownpos = TurretTakedown.get_best_hijack_position()
+        if takedownpos is not None:
+            Debug.dot(takedownpos, Color.PURPLE)
+            return 'BuildGunner', takedownpos, None
 
         hpos = HarvesterAdjacent.get_best_hijack_position()
         if hpos is not None:

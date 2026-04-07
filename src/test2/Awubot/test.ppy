@@ -1,0 +1,5 @@
+SENTINEL_PATTERN: list[list[tuple]] = [
+    {% for x in sentinel_pattern %}
+    {{ x }},
+    {% endfor %}
+]

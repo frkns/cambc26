@@ -1,0 +1,38 @@
+Sym	Transformed X'	Transformed Y'	sym_idx = X'·PH + Y'
+R	maxX+2P − X	maxY+2P − Y	(maxX+2P)·PH + (maxY+2P) − (X·PH + Y) = C_R − idx
+V	maxX+2P − X	Y	(maxX+2P)·PH − X·PH + Y = C_V − idx + 2Y
+H	X	maxY+2P − Y	X·PH + (maxY+2P) − Y = idx + C_H − 2Y
+
+# ---===
+    @classmethod
+    def dists_from_pos(cls, pos: Position):
+        dist = cls.dist_global[:]
+
+        si = (pos.x + {{ PAD }}) * {{ PH }} + (pos.y + {{ PAD }})
+        dist[si] = 0
+
+        frontier = [si]
+        d = 1
+        while frontier:
+            nxt = []
+            _a = nxt.append
+            for idx in frontier:
+                {% for dir in range(8) %}
+                ni = idx + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
+                if dist[ni] == {{ INF }}:
+                    dist[ni] = d
+                    _a(ni)
+                {% endfor %}
+            frontier = nxt
+            d += 1
+
+        result = [[0] * (Map.H + 1) for _ in range(Map.W + 1)]
+        for x in range(Map.W + 1):
+            row = result[x]
+            base = (x + {{ PAD }}) * {{ PH }} + {{ PAD }}
+            for y in range(Map.H + 1):
+                v = dist[base + y]
+                row[y] = {{ INF }} if v >= {{ INF }} else v
+        return result
+# ===---
+

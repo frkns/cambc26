@@ -47,6 +47,8 @@ class OreExecutive:
             env = ti.env
             if ti.entity_type == EntityType.HARVESTER:
                 continue
+            if ti.entity_type == EntityType.FOUNDRY:
+                continue
 
             if env == Environment.ORE_TITANIUM:
                 if cls.state[pos] != {{ TITANIUM_QUEUED }}:  # intended: can potentially requeue
@@ -54,8 +56,6 @@ class OreExecutive:
                     heapq.heappush(cls.ti_queue, (dist, pos))
                     cls.state[pos] = {{ TITANIUM_QUEUED }}
 
-            if cls.state[pos] == {{ KILLED }}:
-                continue
 
             if env == Environment.ORE_AXIONITE:
                 if cls.state[pos] != {{ AX_QUEUED }}:  # intended: can potentially requeue
@@ -80,6 +80,10 @@ class OreExecutive:
                 heapq.heappop(cls.ti_queue)
                 cls.state[pos] = {{ HAS_HARVESTER }}
                 continue
+            if ti.entity_type == EntityType.FOUNDRY:
+                heapq.heappop(cls.ti_queue)
+                cls.state[pos] = {{ HAS_HARVESTER }} # just to prevent requeuing, doesn't matter much
+                continue
 
             if not ti.has_bot and MarketMaker.should_build_harvester(pos):
                 ret = pos
@@ -99,7 +103,7 @@ class OreExecutive:
 
     @classmethod
     def get_axionite_target(cls) -> Position | None:
-        if Globals.round < 200:
+        if Globals.round < Constants.AXIONITE_START:
             return None # don't want to waste resources on axionite early on
             
         ret = None
@@ -115,6 +119,10 @@ class OreExecutive:
             if ax.entity_type == EntityType.HARVESTER:
                 heapq.heappop(cls.ax_queue)
                 cls.state[pos] = {{ HAS_HARVESTER }}
+                continue
+            if ax.entity_type == EntityType.FOUNDRY:
+                heapq.heappop(cls.ax_queue)
+                cls.state[pos] = {{ HAS_HARVESTER }} # just to prevent requeuing, doesn't matter much
                 continue
 
             if not ax.has_bot and MarketMaker.should_build_harvester(pos):

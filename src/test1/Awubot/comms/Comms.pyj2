@@ -1,0 +1,54 @@
+# ---=== IMPORT
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot.Globals import Globals
+from Awubot.MoveManager import MoveManager
+from Awubot.Util import Util
+# ===--- IMPORT
+
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+
+
+class Comms:
+    @staticmethod
+    def handle_simple1(symV, symH, symR, tix, tiy):
+        Symmetry.and_sym(symV, symH, symR)
+        if tix != 63:
+            OreExecutive.register_ti(Position(tix, tiy))
+
+
+    {% for e in comms_entries %}
+    {{ e.NAME }} = {{ e.type_id }}
+
+    @staticmethod
+    def pack_{{ e.name }}({{ e.sig }}):
+        return {{ e.pack_expr }}
+
+    @staticmethod
+    def unpack_{{ e.name }}(val):
+        return ({{ e.unpack_tuple }})
+    {% endfor %}
+
+    @staticmethod
+    def handle_message(val):
+        t = val >> {{ 32 - TYPE_BITS }}
+
+        {% for e in comms_entries %}
+        if t == {{ e.type_id }}:
+            Comms.handle_{{ e.name }}({{ e.unpack_tuple }})
+            return
+        {% endfor %}
+
+        assert False

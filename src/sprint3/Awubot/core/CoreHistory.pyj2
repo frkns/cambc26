@@ -1,0 +1,35 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+
+
+class CoreHistory:
+    {% set LENGTH = 100 %}
+
+    wround: int
+    hp_hist = [{{ GameConstants.CORE_MAX_HP }}] * {{ LENGTH }}
+
+    @classmethod
+    def fill(cls):
+        cls.wround = Globals.round % {{ LENGTH }}
+        cls.hp_hist[cls.wround] = Globals.ct.get_hp()
+
+    @classmethod
+    def hp_delta(cls, rounds: int):  
+        # negative when HP lost
+        assert rounds < {{ LENGTH }}
+        return cls.hp_hist[cls.wround] - cls.hp_hist[(cls.wround - rounds) % {{ LENGTH }}]
