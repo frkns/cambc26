@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-07 07:58:22 (local)
+# latest,  @ 2026-04-07 08:20:59 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -2623,7 +2623,7 @@ class Constants:
     AXIONITE_START: int = 150 # Start producing axionite at this round
 
     MAX_HP_MAP: dict[EntityType, int] = {
-        EntityType.BUILDER_BOT: 30,
+        EntityType.BUILDER_BOT: 40,
         EntityType.CORE: 500,
         EntityType.GUNNER: 40,
         EntityType.SENTINEL: 30,
@@ -22302,7 +22302,7 @@ class HealExecutor:
             if ti.has_bot and ti.is_bot_ally:
                 cand.bot_heal = min(
                     4,
-                    30 - ti.bot_hp
+                    40 - ti.bot_hp
                 )
                 cand.bot_hp = ti.bot_hp
         else:
@@ -22334,7 +22334,7 @@ class HealExecutor:
             if ti.has_bot and ti.is_bot_ally:
                 cand.bot_heal = min(
                     4,
-                    30 - ti.bot_hp
+                    40 - ti.bot_hp
                 )
                 cand.bot_hp = ti.bot_hp
         else:
@@ -22366,7 +22366,7 @@ class HealExecutor:
             if ti.has_bot and ti.is_bot_ally:
                 cand.bot_heal = min(
                     4,
-                    30 - ti.bot_hp
+                    40 - ti.bot_hp
                 )
                 cand.bot_hp = ti.bot_hp
         else:
@@ -22398,7 +22398,7 @@ class HealExecutor:
             if ti.has_bot and ti.is_bot_ally:
                 cand.bot_heal = min(
                     4,
-                    30 - ti.bot_hp
+                    40 - ti.bot_hp
                 )
                 cand.bot_hp = ti.bot_hp
         else:
@@ -22430,7 +22430,7 @@ class HealExecutor:
             if ti.has_bot and ti.is_bot_ally:
                 cand.bot_heal = min(
                     4,
-                    30 - ti.bot_hp
+                    40 - ti.bot_hp
                 )
                 cand.bot_hp = ti.bot_hp
         else:
@@ -22462,7 +22462,7 @@ class HealExecutor:
             if ti.has_bot and ti.is_bot_ally:
                 cand.bot_heal = min(
                     4,
-                    30 - ti.bot_hp
+                    40 - ti.bot_hp
                 )
                 cand.bot_hp = ti.bot_hp
         else:
@@ -22494,7 +22494,7 @@ class HealExecutor:
             if ti.has_bot and ti.is_bot_ally:
                 cand.bot_heal = min(
                     4,
-                    30 - ti.bot_hp
+                    40 - ti.bot_hp
                 )
                 cand.bot_hp = ti.bot_hp
         else:
@@ -22526,7 +22526,7 @@ class HealExecutor:
             if ti.has_bot and ti.is_bot_ally:
                 cand.bot_heal = min(
                     4,
-                    30 - ti.bot_hp
+                    40 - ti.bot_hp
                 )
                 cand.bot_hp = ti.bot_hp
         else:
@@ -22557,7 +22557,7 @@ class HealExecutor:
 
             cand.bot_heal = min(
                 4,
-                30 - Globals.ct.get_hp()
+                40 - Globals.ct.get_hp()
             )
             cand.bot_hp = Globals.ct.get_hp() 
         else:
@@ -22717,7 +22717,7 @@ class HealTargeter:
                 if ti.is_bot_ally:
                     info.bot_heal = min(
                         4,
-                        30 - ti.bot_hp
+                        40 - ti.bot_hp
                     )
                     info.bot_hp = ti.bot_hp
                 else:
