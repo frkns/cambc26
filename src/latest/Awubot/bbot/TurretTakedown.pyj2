@@ -27,10 +27,10 @@ class TakedownTargetInfo:
 
     @staticmethod
     def is_better_than(a: TakedownTargetInfo, b: TakedownTargetInfo):
-        if a.has_transporter != b.has_transporter:
-            return a.has_transporter < b.has_transporter
         if a.enemy_turrets_nearby != b.enemy_turrets_nearby:
             return a.enemy_turrets_nearby > b.enemy_turrets_nearby
+        if a.has_transporter != b.has_transporter:
+            return a.has_transporter < b.has_transporter
         return a.dist_enemy_core < b.dist_enemy_core
 
 
@@ -65,6 +65,14 @@ class TurretTakedown:
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             if not ti.harvester_adjacent: 
                 continue
+
+            if ti.has_building:
+                if not ti.is_building_ally:
+                    continue
+                if ti.entity_type != EntityType.ROAD:
+                    # We can build on top of allied transporters if we really need to
+                    if not ti.entity_type in Constants.TRANSPORTERS_SET:
+                        continue
 
             info = TakedownTargetInfo()
             cls.cand.append(info)

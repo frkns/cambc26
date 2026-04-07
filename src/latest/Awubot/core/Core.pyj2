@@ -31,7 +31,6 @@ class Core({{ super() }}):
         {{ super() }}.start_turn()
         CoreHistory.fill()
         print(f'est income: {MarketMaker.est_income}')
-        print(f'sentinel cost: {Globals.ct.get_sentinel_cost()}')
 
     @classmethod
     def run_turn(cls):
