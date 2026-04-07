@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-07 12:07:17 (local)
+# latest,  @ 2026-04-07 12:31:37 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -1939,8 +1939,9 @@ class BreachBuild:
                 and Globals.ct.can_destroy(pos) \
                 and Globals.ct.get_action_cooldown() == 0:
             Globals.ct.destroy(pos)
-        if Globals.ct.can_build_breach(pos,Direction.NORTH):
-            Globals.ct.build_breach(pos,Direction.NORTH)
+        dirToBuild = pos.direction_to(Symmetry.enemy_core_pos )
+        if Globals.ct.can_build_breach(pos, dirToBuild):
+            Globals.ct.build_breach(pos, dirToBuild)
             print("OMGGGGGG I ACTUALLY BUILT THE BREACH AT", pos,file = sys.stderr)
 
             encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
@@ -20669,8 +20670,8 @@ class Entrypoint:
                 Launcher.init()
                 cls.me = Launcher
             case EntityType.BREACH:
-                Launcher.init()
-                cls.me = Launcher
+                Breach.init()
+                cls.me = Breach
 
     @classmethod
     def run(cls, ct: Controller):
@@ -28118,6 +28119,43 @@ class VisionTracker:
             if TransporterInfo.is_better_trans_atk_target_than(cand, best):
                 best = cand
         return best  # no checks..?
+
+
+# ============================================================
+# Breach
+# ============================================================
+
+class Breach(Unit):
+    @classmethod
+    def init(cls):
+        Unit.init()
+        DarkForest.init()
+
+    @classmethod
+    def start_turn(cls):
+        Unit.start_turn()
+        DarkForest.fcompute()
+        DarkForest.debug_kind()
+
+    @classmethod
+    def run_turn(cls):
+        myDir = Globals.ct.get_direction()
+        myPos = Globals.my_pos
+        newPos =myPos.add(myDir).add(myDir).add(myDir)
+        print("Yo my pos is", Globals.my_pos, "and I'm facing", myDir)
+        print("Imma try to fire at", newPos)
+        if Globals.ct.can_fire(newPos):
+            Globals.ct.fire(newPos)
+            print("Yo we fire!", file=sys.stderr)
+        newPos = myPos.add(myDir).add(myDir)
+        print("Imma try to fire at", newPos)
+        if Globals.ct.can_fire(newPos):
+            Globals.ct.fire(newPos)
+            print("Yo we fire!", file=sys.stderr)
+
+    @classmethod
+    def end_turn(cls):
+        Unit.end_turn()
 
 
 # ============================================================
