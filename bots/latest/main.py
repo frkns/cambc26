@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-07 09:56:47 (local)
+# latest,  @ 2026-04-07 07:58:22 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -20780,35 +20780,25 @@ class FoundryBuild:
     @classmethod
     def _prune_branch(cls, encoded_pos: int):
         """
-        After a foundry is placed at `encoded_pos`, walk up DarkForest.nodes
-        following .up pointers and add every ancestor to
-        RouteToFoundry.planned_foundry_positions — stopping when we reach an
-        existing sink (core, another foundry, etc.).
-
-        Why this is necessary:
-          Before the build, encoded_pos was a leaf (in-degree 0).  Once it
-          becomes an ALLY_CONSUMER sink its parent loses its only non-sink
-          child and becomes the NEW leaf on the same arm.  Without pruning,
-          _pick_target would immediately claim that parent as the next foundry
-          site, building two foundries back-to-back on the same branch.
-          By adding every ancestor up to the nearest sink into
-          planned_foundry_positions, we ensure _pick_target skips the whole
-          arm between this new foundry and the core (or the next upstream sink).
+        Prunes branch so successive foundries would not be built here. 
         """
         nodes = DarkForest.nodes
         kind  = DarkForest.kind
         planned = RouteToFoundry.planned_foundry_positions
 
-        current = encoded_pos
-        while True:
-            node = nodes[current]
-            if node is None or node.up is None:
-                break                          # reached a detached root
-            parent = node.up
-            if kind[parent] != 0:
-                break                          # hit an existing sink — stop here
-            planned.add(parent)
-            current = parent
+        node = nodes[encoded_pos]
+        if node is None:
+            return
+        # Capture parent BEFORE register_sink wipes .up = None
+        current = node.up
+        while current is not None:
+            if kind[current] != 0:
+                break  # hit an existing sink
+            planned.add(current)
+            n = nodes[current]
+            if n is None or n.up is None:
+                break
+            current = n.up
 
     @classmethod
     def build_foundry(cls, pos):
@@ -20825,13 +20815,13 @@ class FoundryBuild:
 
             encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
 
-            # Register the new foundry as a sink so fcompute updates the tree.
-            DarkForest.register_sink(encoded, 3)
-
             # Block every ancestor up to the next existing sink from being
             # chosen as a future foundry site (they would otherwise become
             # the new leaf on this arm after the next fcompute).
             cls._prune_branch(encoded)
+
+            # Register the new foundry as a sink so fcompute updates the tree.
+            DarkForest.register_sink(encoded, 3)
 
             RouteToFoundry._foundry_target = None
             return True
