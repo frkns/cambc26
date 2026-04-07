@@ -73,6 +73,10 @@ class TurretTakedown:
                     # We can build on top of allied transporters if we really need to
                     if not ti.entity_type in Constants.TRANSPORTERS_SET:
                         continue
+                    
+            # Some teams will leave their bots on turret spots to stop builders
+            if ti.has_bot and not ti.is_bot_ally:
+                continue
 
             info = TakedownTargetInfo()
             cls.cand.append(info)
