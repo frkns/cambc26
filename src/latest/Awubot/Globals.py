@@ -19,6 +19,7 @@ class Globals:
     my_id: int
     my_team: Team
     my_type: EntityType
+    spawn_round: int
 
     # updating
     round: int
@@ -30,6 +31,7 @@ class Globals:
         cls.my_id = ct.get_id()
         cls.my_team = ct.get_team()
         cls.round = cls.ct.get_current_round()
+        cls.spawn_round = cls.round
         cls.my_pos = ct.get_position()
         cls.my_type = ct.get_entity_type()
 
