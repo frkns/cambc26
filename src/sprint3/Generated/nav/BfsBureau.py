@@ -113,6 +113,10 @@ class BfsBureau:
 
     @classmethod
     def remove_enemy_sentinel(cls, pos, ti):
+        # HOTFIXED THIS HERE SO sprint3 BOT IS USABLE
+        if ti.turret_direction is None or ti.entity_type != EntityType.SENTINEL:
+            # For some reason, turret info is sometimes None after a gunner defeats an enemy turret
+            return
         for pos in Globals.ct.get_attackable_tiles_from(pos, ti.turret_direction, ti.entity_type):
             i = (((pos.x) + 3) * 56 + ((pos.y) + 3))
             cls.weight[i] -= 2

@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-06 16:46:25 (local)
+# latest,  @ 2026-04-05 20:21:40 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -156,6 +156,9 @@ class BfsBureau:
 
     @classmethod
     def remove_enemy_sentinel(cls, pos, ti):
+        if ti.turret_direction is None or ti.entity_type != EntityType.SENTINEL:
+            # For some reason, turret info is sometimes None after a gunner defeats an enemy turret
+            return
         for pos in Globals.ct.get_attackable_tiles_from(pos, ti.turret_direction, ti.entity_type):
             i = (((pos.x) + 3) * 56 + ((pos.y) + 3))
             cls.weight[i] -= 2
@@ -20519,7 +20522,7 @@ class Debug:
 # ============================================================
 
 class Entrypoint:
-    me: type[Core | Builder]
+    me: type[Core | Builder | Sentinel | Gunner]
     needs_init = True
 
     @classmethod
@@ -20537,6 +20540,9 @@ class Entrypoint:
             case EntityType.SENTINEL:
                 Sentinel.init()
                 cls.me = Sentinel
+            case EntityType.GUNNER:
+                Gunner.init()
+                cls.me = Gunner
 
     @classmethod
     def run(cls, ct: Controller):
@@ -20725,6 +20731,1314 @@ class Globals:
     def start_tick(cls):
         cls.round = cls.ct.get_current_round()
         cls.my_pos = cls.ct.get_position()
+
+
+# ============================================================
+# GunnerDirectionInfo
+# ============================================================
+
+class GunnerDirectionInfo:
+    direction: Direction
+    banned: bool
+    enemy_building_hp: int  # sum of all in attack range
+    enemy_bot_hp: int
+    cosine_sim: float  # normalised dot product of vector to enemy core
+
+    @staticmethod
+    def is_better_than(a: GunnerDirectionInfo, b: GunnerDirectionInfo) -> bool:
+        if a.banned: return False
+        if b.banned: return True
+        
+        if a.enemy_building_hp != b.enemy_building_hp:
+            return a.enemy_building_hp > b.enemy_building_hp
+
+        if a.enemy_bot_hp != b.enemy_bot_hp:
+            return a.enemy_bot_hp > b.enemy_bot_hp
+
+        return a.cosine_sim > b.cosine_sim
+
+
+# ============================================================
+# GunnerDirectionPicker
+# ============================================================
+
+class GunnerDirectionPicker:
+    infos: list[GunnerDirectionInfo] = []
+
+
+    @classmethod
+    def get_best_direction(cls, spos) -> Direction:
+        cls.precompute(spos)
+        best = cls.infos[0]
+        for info in cls.infos[1:]:
+            if GunnerDirectionInfo.is_better_than(info, best):
+                best = info
+        return best.direction
+
+    @classmethod
+    def precompute(cls, spos):
+        infos = cls.infos
+        infos.clear()
+
+        tile_info = Map.tile_info
+
+        sx, sy = spos.x, spos.y
+        sidx = (((sx) + 3) * 56 + ((sy) + 3))
+
+        has_feeder = [False] * 8
+        nadj_feeders = 0
+
+        ti = tile_info[sx + 0][sy + -1]
+        if ti is not None:
+            if ti.entity_type == EntityType.HARVESTER or ti.target == spos:
+                has_feeder[0] = True
+                nadj_feeders += 1
+        ti = tile_info[sx + 1][sy + 0]
+        if ti is not None:
+            if ti.entity_type == EntityType.HARVESTER or ti.target == spos:
+                has_feeder[2] = True
+                nadj_feeders += 1
+        ti = tile_info[sx + 0][sy + 1]
+        if ti is not None:
+            if ti.entity_type == EntityType.HARVESTER or ti.target == spos:
+                has_feeder[4] = True
+                nadj_feeders += 1
+        ti = tile_info[sx + -1][sy + 0]
+        if ti is not None:
+            if ti.entity_type == EntityType.HARVESTER or ti.target == spos:
+                has_feeder[6] = True
+                nadj_feeders += 1
+
+        ecore = Symmetry.enemy_core_pos
+
+
+        if nadj_feeders == 1:
+
+            info0 = GunnerDirectionInfo()
+            info0.direction = Direction.NORTH
+            info0.banned = has_feeder[0]
+            info0.enemy_building_hp = 0
+            info0.enemy_bot_hp = 0
+
+            u1, u2 = ecore.x - sx, ecore.y - sy
+            mu = math.hypot(u1, u2)
+            u1 /= mu
+            u2 /= mu
+            info0.cosine_sim = u1 * 0.0 + u2 * -1.0
+
+            infos.append(info0)
+
+            info1 = GunnerDirectionInfo()
+            info1.direction = Direction.NORTHEAST
+            info1.banned = has_feeder[1]
+            info1.enemy_building_hp = 0
+            info1.enemy_bot_hp = 0
+
+            u1, u2 = ecore.x - sx, ecore.y - sy
+            mu = math.hypot(u1, u2)
+            u1 /= mu
+            u2 /= mu
+            info1.cosine_sim = u1 * 0.7071067811865475 + u2 * -0.7071067811865475
+
+            infos.append(info1)
+
+            info2 = GunnerDirectionInfo()
+            info2.direction = Direction.EAST
+            info2.banned = has_feeder[2]
+            info2.enemy_building_hp = 0
+            info2.enemy_bot_hp = 0
+
+            u1, u2 = ecore.x - sx, ecore.y - sy
+            mu = math.hypot(u1, u2)
+            u1 /= mu
+            u2 /= mu
+            info2.cosine_sim = u1 * 1.0 + u2 * 0.0
+
+            infos.append(info2)
+
+            info3 = GunnerDirectionInfo()
+            info3.direction = Direction.SOUTHEAST
+            info3.banned = has_feeder[3]
+            info3.enemy_building_hp = 0
+            info3.enemy_bot_hp = 0
+
+            u1, u2 = ecore.x - sx, ecore.y - sy
+            mu = math.hypot(u1, u2)
+            u1 /= mu
+            u2 /= mu
+            info3.cosine_sim = u1 * 0.7071067811865475 + u2 * 0.7071067811865475
+
+            infos.append(info3)
+
+            info4 = GunnerDirectionInfo()
+            info4.direction = Direction.SOUTH
+            info4.banned = has_feeder[4]
+            info4.enemy_building_hp = 0
+            info4.enemy_bot_hp = 0
+
+            u1, u2 = ecore.x - sx, ecore.y - sy
+            mu = math.hypot(u1, u2)
+            u1 /= mu
+            u2 /= mu
+            info4.cosine_sim = u1 * 0.0 + u2 * 1.0
+
+            infos.append(info4)
+
+            info5 = GunnerDirectionInfo()
+            info5.direction = Direction.SOUTHWEST
+            info5.banned = has_feeder[5]
+            info5.enemy_building_hp = 0
+            info5.enemy_bot_hp = 0
+
+            u1, u2 = ecore.x - sx, ecore.y - sy
+            mu = math.hypot(u1, u2)
+            u1 /= mu
+            u2 /= mu
+            info5.cosine_sim = u1 * -0.7071067811865475 + u2 * 0.7071067811865475
+
+            infos.append(info5)
+
+            info6 = GunnerDirectionInfo()
+            info6.direction = Direction.WEST
+            info6.banned = has_feeder[6]
+            info6.enemy_building_hp = 0
+            info6.enemy_bot_hp = 0
+
+            u1, u2 = ecore.x - sx, ecore.y - sy
+            mu = math.hypot(u1, u2)
+            u1 /= mu
+            u2 /= mu
+            info6.cosine_sim = u1 * -1.0 + u2 * 0.0
+
+            infos.append(info6)
+
+            info7 = GunnerDirectionInfo()
+            info7.direction = Direction.NORTHWEST
+            info7.banned = has_feeder[7]
+            info7.enemy_building_hp = 0
+            info7.enemy_bot_hp = 0
+
+            u1, u2 = ecore.x - sx, ecore.y - sy
+            mu = math.hypot(u1, u2)
+            u1 /= mu
+            u2 /= mu
+            info7.cosine_sim = u1 * -0.7071067811865475 + u2 * -0.7071067811865475
+
+            infos.append(info7)
+
+        else:
+
+            info0 = GunnerDirectionInfo()
+            info0.direction = Direction.NORTH
+            info0.banned = False
+            info0.enemy_building_hp = 0
+            info0.enemy_bot_hp = 0
+
+            u1, u2 = ecore.x - sx, ecore.y - sy
+            mu = math.hypot(u1, u2)
+            u1 /= mu
+            u2 /= mu
+            info0.cosine_sim = u1 * 0.0 + u2 * -1.0
+
+            infos.append(info0)
+
+            info1 = GunnerDirectionInfo()
+            info1.direction = Direction.NORTHEAST
+            info1.banned = False
+            info1.enemy_building_hp = 0
+            info1.enemy_bot_hp = 0
+
+            u1, u2 = ecore.x - sx, ecore.y - sy
+            mu = math.hypot(u1, u2)
+            u1 /= mu
+            u2 /= mu
+            info1.cosine_sim = u1 * 0.7071067811865475 + u2 * -0.7071067811865475
+
+            infos.append(info1)
+
+            info2 = GunnerDirectionInfo()
+            info2.direction = Direction.EAST
+            info2.banned = False
+            info2.enemy_building_hp = 0
+            info2.enemy_bot_hp = 0
+
+            u1, u2 = ecore.x - sx, ecore.y - sy
+            mu = math.hypot(u1, u2)
+            u1 /= mu
+            u2 /= mu
+            info2.cosine_sim = u1 * 1.0 + u2 * 0.0
+
+            infos.append(info2)
+
+            info3 = GunnerDirectionInfo()
+            info3.direction = Direction.SOUTHEAST
+            info3.banned = False
+            info3.enemy_building_hp = 0
+            info3.enemy_bot_hp = 0
+
+            u1, u2 = ecore.x - sx, ecore.y - sy
+            mu = math.hypot(u1, u2)
+            u1 /= mu
+            u2 /= mu
+            info3.cosine_sim = u1 * 0.7071067811865475 + u2 * 0.7071067811865475
+
+            infos.append(info3)
+
+            info4 = GunnerDirectionInfo()
+            info4.direction = Direction.SOUTH
+            info4.banned = False
+            info4.enemy_building_hp = 0
+            info4.enemy_bot_hp = 0
+
+            u1, u2 = ecore.x - sx, ecore.y - sy
+            mu = math.hypot(u1, u2)
+            u1 /= mu
+            u2 /= mu
+            info4.cosine_sim = u1 * 0.0 + u2 * 1.0
+
+            infos.append(info4)
+
+            info5 = GunnerDirectionInfo()
+            info5.direction = Direction.SOUTHWEST
+            info5.banned = False
+            info5.enemy_building_hp = 0
+            info5.enemy_bot_hp = 0
+
+            u1, u2 = ecore.x - sx, ecore.y - sy
+            mu = math.hypot(u1, u2)
+            u1 /= mu
+            u2 /= mu
+            info5.cosine_sim = u1 * -0.7071067811865475 + u2 * 0.7071067811865475
+
+            infos.append(info5)
+
+            info6 = GunnerDirectionInfo()
+            info6.direction = Direction.WEST
+            info6.banned = False
+            info6.enemy_building_hp = 0
+            info6.enemy_bot_hp = 0
+
+            u1, u2 = ecore.x - sx, ecore.y - sy
+            mu = math.hypot(u1, u2)
+            u1 /= mu
+            u2 /= mu
+            info6.cosine_sim = u1 * -1.0 + u2 * 0.0
+
+            infos.append(info6)
+
+            info7 = GunnerDirectionInfo()
+            info7.direction = Direction.NORTHWEST
+            info7.banned = False
+            info7.enemy_building_hp = 0
+            info7.enemy_bot_hp = 0
+
+            u1, u2 = ecore.x - sx, ecore.y - sy
+            mu = math.hypot(u1, u2)
+            u1 /= mu
+            u2 /= mu
+            info7.cosine_sim = u1 * -0.7071067811865475 + u2 * -0.7071067811865475
+
+            infos.append(info7)
+
+
+
+        ti = tile_info[sx + -2][sy + -2]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info7.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info7.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + -2][sy + -1]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info6.enemy_building_hp += e_building_hp
+                info7.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info6.enemy_bot_hp += e_bot_hp
+                info7.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + -2][sy + 0]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info5.enemy_building_hp += e_building_hp
+                info6.enemy_building_hp += e_building_hp
+                info7.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info5.enemy_bot_hp += e_bot_hp
+                info6.enemy_bot_hp += e_bot_hp
+                info7.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + -2][sy + 1]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info5.enemy_building_hp += e_building_hp
+                info6.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info5.enemy_bot_hp += e_bot_hp
+                info6.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + -2][sy + 2]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info5.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info5.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + -1][sy + -2]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info0.enemy_building_hp += e_building_hp
+                info7.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info0.enemy_bot_hp += e_bot_hp
+                info7.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + -1][sy + -1]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info0.enemy_building_hp += e_building_hp
+                info6.enemy_building_hp += e_building_hp
+                info7.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info0.enemy_bot_hp += e_bot_hp
+                info6.enemy_bot_hp += e_bot_hp
+                info7.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + -1][sy + 0]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info0.enemy_building_hp += e_building_hp
+                info4.enemy_building_hp += e_building_hp
+                info5.enemy_building_hp += e_building_hp
+                info6.enemy_building_hp += e_building_hp
+                info7.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info0.enemy_bot_hp += e_bot_hp
+                info4.enemy_bot_hp += e_bot_hp
+                info5.enemy_bot_hp += e_bot_hp
+                info6.enemy_bot_hp += e_bot_hp
+                info7.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + -1][sy + 1]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info4.enemy_building_hp += e_building_hp
+                info5.enemy_building_hp += e_building_hp
+                info6.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info4.enemy_bot_hp += e_bot_hp
+                info5.enemy_bot_hp += e_bot_hp
+                info6.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + -1][sy + 2]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info4.enemy_building_hp += e_building_hp
+                info5.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info4.enemy_bot_hp += e_bot_hp
+                info5.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + 0][sy + -2]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info0.enemy_building_hp += e_building_hp
+                info1.enemy_building_hp += e_building_hp
+                info7.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info0.enemy_bot_hp += e_bot_hp
+                info1.enemy_bot_hp += e_bot_hp
+                info7.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + 0][sy + -1]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info0.enemy_building_hp += e_building_hp
+                info1.enemy_building_hp += e_building_hp
+                info2.enemy_building_hp += e_building_hp
+                info6.enemy_building_hp += e_building_hp
+                info7.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info0.enemy_bot_hp += e_bot_hp
+                info1.enemy_bot_hp += e_bot_hp
+                info2.enemy_bot_hp += e_bot_hp
+                info6.enemy_bot_hp += e_bot_hp
+                info7.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + 0][sy + 0]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+        ti = tile_info[sx + 0][sy + 1]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info2.enemy_building_hp += e_building_hp
+                info3.enemy_building_hp += e_building_hp
+                info4.enemy_building_hp += e_building_hp
+                info5.enemy_building_hp += e_building_hp
+                info6.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info2.enemy_bot_hp += e_bot_hp
+                info3.enemy_bot_hp += e_bot_hp
+                info4.enemy_bot_hp += e_bot_hp
+                info5.enemy_bot_hp += e_bot_hp
+                info6.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + 0][sy + 2]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info3.enemy_building_hp += e_building_hp
+                info4.enemy_building_hp += e_building_hp
+                info5.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info3.enemy_bot_hp += e_bot_hp
+                info4.enemy_bot_hp += e_bot_hp
+                info5.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + 1][sy + -2]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info0.enemy_building_hp += e_building_hp
+                info1.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info0.enemy_bot_hp += e_bot_hp
+                info1.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + 1][sy + -1]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info0.enemy_building_hp += e_building_hp
+                info1.enemy_building_hp += e_building_hp
+                info2.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info0.enemy_bot_hp += e_bot_hp
+                info1.enemy_bot_hp += e_bot_hp
+                info2.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + 1][sy + 0]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info0.enemy_building_hp += e_building_hp
+                info1.enemy_building_hp += e_building_hp
+                info2.enemy_building_hp += e_building_hp
+                info3.enemy_building_hp += e_building_hp
+                info4.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info0.enemy_bot_hp += e_bot_hp
+                info1.enemy_bot_hp += e_bot_hp
+                info2.enemy_bot_hp += e_bot_hp
+                info3.enemy_bot_hp += e_bot_hp
+                info4.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + 1][sy + 1]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info2.enemy_building_hp += e_building_hp
+                info3.enemy_building_hp += e_building_hp
+                info4.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info2.enemy_bot_hp += e_bot_hp
+                info3.enemy_bot_hp += e_bot_hp
+                info4.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + 1][sy + 2]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info3.enemy_building_hp += e_building_hp
+                info4.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info3.enemy_bot_hp += e_bot_hp
+                info4.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + 2][sy + -2]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info1.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info1.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + 2][sy + -1]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info1.enemy_building_hp += e_building_hp
+                info2.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info1.enemy_bot_hp += e_bot_hp
+                info2.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + 2][sy + 0]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info1.enemy_building_hp += e_building_hp
+                info2.enemy_building_hp += e_building_hp
+                info3.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info1.enemy_bot_hp += e_bot_hp
+                info2.enemy_bot_hp += e_bot_hp
+                info3.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + 2][sy + 1]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info2.enemy_building_hp += e_building_hp
+                info3.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info2.enemy_bot_hp += e_bot_hp
+                info3.enemy_bot_hp += e_bot_hp
+        ti = tile_info[sx + 2][sy + 2]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                info3.enemy_building_hp += e_building_hp
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info3.enemy_bot_hp += e_bot_hp
+
+
+# ============================================================
+# GunnerSupervisor
+# ============================================================
+
+class GunnerSupervisor:
+    targets: list[GunnerTargetInfo]
+
+
+
+    importance_score: dict[EntityType, int] = {
+        None: 0,
+        EntityType.BUILDER_BOT: 
+            0,
+        EntityType.CORE: 
+            96,
+        EntityType.GUNNER: 
+            0,
+        EntityType.SENTINEL: 
+            0,
+        EntityType.BREACH: 
+            0,
+        EntityType.LAUNCHER: 
+            0,
+        EntityType.CONVEYOR: 
+            97,
+        EntityType.SPLITTER: 
+            100,
+        EntityType.ARMOURED_CONVEYOR: 
+            95,
+        EntityType.BRIDGE: 
+            98,
+        EntityType.HARVESTER: 
+            0,
+        EntityType.FOUNDRY: 
+            99,
+        EntityType.ROAD: 
+            0,
+        EntityType.BARRIER: 
+            0,
+        EntityType.MARKER: 
+            0,
+    }
+
+
+    @classmethod
+    def try_fire(cls):
+        pos = cls.get_best_target()
+        if pos is None or pos == Globals.my_pos:
+            return
+
+        print(f'attempt fire @ {pos}')
+        Debug.line(pos, Color.TEAL)
+        
+        dirToPos = Globals.my_pos.direction_to(pos)
+        
+        if dirToPos != Globals.ct.get_direction(): # Rotate if the target isn't in our current direction
+            if Globals.ct.can_rotate(dirToPos):
+                Globals.ct.rotate(dirToPos)
+        else:
+            if Globals.ct.can_fire(pos):
+                Globals.ct.fire(pos)
+
+
+    @classmethod
+    def get_best_target(cls) -> Position | None:
+        targets = cls.targets
+        if not targets:
+            return None
+
+        best = targets[0]
+        for target in targets[1:]:
+            if GunnerTargetInfo.is_better_than(target, best):
+                best = target
+
+        if not best.has_bot and not best.has_building:
+            return None
+
+        if not best.has_bot and best.ally_connected:
+            return None
+        
+        # Don't bother turning just to knock out some roads
+        if not best.has_bot and best.is_road and not best.current_dir:
+            return None
+
+        if best.is_harvester_feeding_ally:
+            return None
+
+        return best.position
+
+
+    @classmethod
+    def fill(cls):
+        ct = Globals.ct
+        cls.targets = []
+        tile_info = Map.tile_info
+        my_pos = Globals.my_pos
+        
+        current_dir = ct.get_direction()
+
+        x, y = my_pos.x , my_pos.y -1
+        pos = Position(x, y)
+        idx = (((x) + 3) * 56 + ((y) + 3))
+        ti = tile_info[x][y]
+        
+        info = GunnerTargetInfo()
+        info.position = pos
+        info.has_bot = False
+        info.has_turret = False
+        info.has_building = False
+        info.has_launcher = False
+        info.can_shoot_me = False
+        info.iscore = cls.importance_score[ti.entity_type]
+        info.entity_type = ti.entity_type
+        info.is_road = ti.entity_type == EntityType.ROAD
+        info.current_dir = current_dir == Direction.NORTH
+        info.rand_key = random.random()
+        info.ally_connected = DarkForest.node_kind[idx] in \
+            (1, 3)
+
+        info.is_harvester_feeding_ally = False
+        info.harvester_adjacent = ti.harvester_adjacent
+
+        if ti.entity_type == EntityType.HARVESTER:
+            nidx = idx -1
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx +1
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx -56
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx +56
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+
+        if ti.has_bot and not ti.is_bot_ally:
+            info.has_bot = True
+            info.bot_hp = ti.bot_hp
+
+        if ti.has_building and not ti.is_building_ally:
+            info.has_building = True
+            info.building_hp = ti.building_hp
+            if ti.has_turret:
+                info.has_turret = True
+                info.can_shoot_me = ct.can_fire_from(
+                    pos, 
+                    ti.turret_direction, 
+                    ti.entity_type,
+                    Globals.my_pos
+                )
+
+            elif info.entity_type == EntityType.LAUNCHER:
+                info.has_launcher = True
+
+        cls.targets.append(info)
+            
+        x, y = my_pos.x +1, my_pos.y -1
+        pos = Position(x, y)
+        idx = (((x) + 3) * 56 + ((y) + 3))
+        ti = tile_info[x][y]
+        
+        info = GunnerTargetInfo()
+        info.position = pos
+        info.has_bot = False
+        info.has_turret = False
+        info.has_building = False
+        info.has_launcher = False
+        info.can_shoot_me = False
+        info.iscore = cls.importance_score[ti.entity_type]
+        info.entity_type = ti.entity_type
+        info.is_road = ti.entity_type == EntityType.ROAD
+        info.current_dir = current_dir == Direction.NORTHEAST
+        info.rand_key = random.random()
+        info.ally_connected = DarkForest.node_kind[idx] in \
+            (1, 3)
+
+        info.is_harvester_feeding_ally = False
+        info.harvester_adjacent = ti.harvester_adjacent
+
+        if ti.entity_type == EntityType.HARVESTER:
+            nidx = idx -1
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx +1
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx -56
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx +56
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+
+        if ti.has_bot and not ti.is_bot_ally:
+            info.has_bot = True
+            info.bot_hp = ti.bot_hp
+
+        if ti.has_building and not ti.is_building_ally:
+            info.has_building = True
+            info.building_hp = ti.building_hp
+            if ti.has_turret:
+                info.has_turret = True
+                info.can_shoot_me = ct.can_fire_from(
+                    pos, 
+                    ti.turret_direction, 
+                    ti.entity_type,
+                    Globals.my_pos
+                )
+
+            elif info.entity_type == EntityType.LAUNCHER:
+                info.has_launcher = True
+
+        cls.targets.append(info)
+            
+        x, y = my_pos.x +1, my_pos.y 
+        pos = Position(x, y)
+        idx = (((x) + 3) * 56 + ((y) + 3))
+        ti = tile_info[x][y]
+        
+        info = GunnerTargetInfo()
+        info.position = pos
+        info.has_bot = False
+        info.has_turret = False
+        info.has_building = False
+        info.has_launcher = False
+        info.can_shoot_me = False
+        info.iscore = cls.importance_score[ti.entity_type]
+        info.entity_type = ti.entity_type
+        info.is_road = ti.entity_type == EntityType.ROAD
+        info.current_dir = current_dir == Direction.EAST
+        info.rand_key = random.random()
+        info.ally_connected = DarkForest.node_kind[idx] in \
+            (1, 3)
+
+        info.is_harvester_feeding_ally = False
+        info.harvester_adjacent = ti.harvester_adjacent
+
+        if ti.entity_type == EntityType.HARVESTER:
+            nidx = idx -1
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx +1
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx -56
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx +56
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+
+        if ti.has_bot and not ti.is_bot_ally:
+            info.has_bot = True
+            info.bot_hp = ti.bot_hp
+
+        if ti.has_building and not ti.is_building_ally:
+            info.has_building = True
+            info.building_hp = ti.building_hp
+            if ti.has_turret:
+                info.has_turret = True
+                info.can_shoot_me = ct.can_fire_from(
+                    pos, 
+                    ti.turret_direction, 
+                    ti.entity_type,
+                    Globals.my_pos
+                )
+
+            elif info.entity_type == EntityType.LAUNCHER:
+                info.has_launcher = True
+
+        cls.targets.append(info)
+            
+        x, y = my_pos.x +1, my_pos.y +1
+        pos = Position(x, y)
+        idx = (((x) + 3) * 56 + ((y) + 3))
+        ti = tile_info[x][y]
+        
+        info = GunnerTargetInfo()
+        info.position = pos
+        info.has_bot = False
+        info.has_turret = False
+        info.has_building = False
+        info.has_launcher = False
+        info.can_shoot_me = False
+        info.iscore = cls.importance_score[ti.entity_type]
+        info.entity_type = ti.entity_type
+        info.is_road = ti.entity_type == EntityType.ROAD
+        info.current_dir = current_dir == Direction.SOUTHEAST
+        info.rand_key = random.random()
+        info.ally_connected = DarkForest.node_kind[idx] in \
+            (1, 3)
+
+        info.is_harvester_feeding_ally = False
+        info.harvester_adjacent = ti.harvester_adjacent
+
+        if ti.entity_type == EntityType.HARVESTER:
+            nidx = idx -1
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx +1
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx -56
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx +56
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+
+        if ti.has_bot and not ti.is_bot_ally:
+            info.has_bot = True
+            info.bot_hp = ti.bot_hp
+
+        if ti.has_building and not ti.is_building_ally:
+            info.has_building = True
+            info.building_hp = ti.building_hp
+            if ti.has_turret:
+                info.has_turret = True
+                info.can_shoot_me = ct.can_fire_from(
+                    pos, 
+                    ti.turret_direction, 
+                    ti.entity_type,
+                    Globals.my_pos
+                )
+
+            elif info.entity_type == EntityType.LAUNCHER:
+                info.has_launcher = True
+
+        cls.targets.append(info)
+            
+        x, y = my_pos.x , my_pos.y +1
+        pos = Position(x, y)
+        idx = (((x) + 3) * 56 + ((y) + 3))
+        ti = tile_info[x][y]
+        
+        info = GunnerTargetInfo()
+        info.position = pos
+        info.has_bot = False
+        info.has_turret = False
+        info.has_building = False
+        info.has_launcher = False
+        info.can_shoot_me = False
+        info.iscore = cls.importance_score[ti.entity_type]
+        info.entity_type = ti.entity_type
+        info.is_road = ti.entity_type == EntityType.ROAD
+        info.current_dir = current_dir == Direction.SOUTH
+        info.rand_key = random.random()
+        info.ally_connected = DarkForest.node_kind[idx] in \
+            (1, 3)
+
+        info.is_harvester_feeding_ally = False
+        info.harvester_adjacent = ti.harvester_adjacent
+
+        if ti.entity_type == EntityType.HARVESTER:
+            nidx = idx -1
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx +1
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx -56
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx +56
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+
+        if ti.has_bot and not ti.is_bot_ally:
+            info.has_bot = True
+            info.bot_hp = ti.bot_hp
+
+        if ti.has_building and not ti.is_building_ally:
+            info.has_building = True
+            info.building_hp = ti.building_hp
+            if ti.has_turret:
+                info.has_turret = True
+                info.can_shoot_me = ct.can_fire_from(
+                    pos, 
+                    ti.turret_direction, 
+                    ti.entity_type,
+                    Globals.my_pos
+                )
+
+            elif info.entity_type == EntityType.LAUNCHER:
+                info.has_launcher = True
+
+        cls.targets.append(info)
+            
+        x, y = my_pos.x -1, my_pos.y +1
+        pos = Position(x, y)
+        idx = (((x) + 3) * 56 + ((y) + 3))
+        ti = tile_info[x][y]
+        
+        info = GunnerTargetInfo()
+        info.position = pos
+        info.has_bot = False
+        info.has_turret = False
+        info.has_building = False
+        info.has_launcher = False
+        info.can_shoot_me = False
+        info.iscore = cls.importance_score[ti.entity_type]
+        info.entity_type = ti.entity_type
+        info.is_road = ti.entity_type == EntityType.ROAD
+        info.current_dir = current_dir == Direction.SOUTHWEST
+        info.rand_key = random.random()
+        info.ally_connected = DarkForest.node_kind[idx] in \
+            (1, 3)
+
+        info.is_harvester_feeding_ally = False
+        info.harvester_adjacent = ti.harvester_adjacent
+
+        if ti.entity_type == EntityType.HARVESTER:
+            nidx = idx -1
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx +1
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx -56
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx +56
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+
+        if ti.has_bot and not ti.is_bot_ally:
+            info.has_bot = True
+            info.bot_hp = ti.bot_hp
+
+        if ti.has_building and not ti.is_building_ally:
+            info.has_building = True
+            info.building_hp = ti.building_hp
+            if ti.has_turret:
+                info.has_turret = True
+                info.can_shoot_me = ct.can_fire_from(
+                    pos, 
+                    ti.turret_direction, 
+                    ti.entity_type,
+                    Globals.my_pos
+                )
+
+            elif info.entity_type == EntityType.LAUNCHER:
+                info.has_launcher = True
+
+        cls.targets.append(info)
+            
+        x, y = my_pos.x -1, my_pos.y 
+        pos = Position(x, y)
+        idx = (((x) + 3) * 56 + ((y) + 3))
+        ti = tile_info[x][y]
+        
+        info = GunnerTargetInfo()
+        info.position = pos
+        info.has_bot = False
+        info.has_turret = False
+        info.has_building = False
+        info.has_launcher = False
+        info.can_shoot_me = False
+        info.iscore = cls.importance_score[ti.entity_type]
+        info.entity_type = ti.entity_type
+        info.is_road = ti.entity_type == EntityType.ROAD
+        info.current_dir = current_dir == Direction.WEST
+        info.rand_key = random.random()
+        info.ally_connected = DarkForest.node_kind[idx] in \
+            (1, 3)
+
+        info.is_harvester_feeding_ally = False
+        info.harvester_adjacent = ti.harvester_adjacent
+
+        if ti.entity_type == EntityType.HARVESTER:
+            nidx = idx -1
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx +1
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx -56
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx +56
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+
+        if ti.has_bot and not ti.is_bot_ally:
+            info.has_bot = True
+            info.bot_hp = ti.bot_hp
+
+        if ti.has_building and not ti.is_building_ally:
+            info.has_building = True
+            info.building_hp = ti.building_hp
+            if ti.has_turret:
+                info.has_turret = True
+                info.can_shoot_me = ct.can_fire_from(
+                    pos, 
+                    ti.turret_direction, 
+                    ti.entity_type,
+                    Globals.my_pos
+                )
+
+            elif info.entity_type == EntityType.LAUNCHER:
+                info.has_launcher = True
+
+        cls.targets.append(info)
+            
+        x, y = my_pos.x -1, my_pos.y -1
+        pos = Position(x, y)
+        idx = (((x) + 3) * 56 + ((y) + 3))
+        ti = tile_info[x][y]
+        
+        info = GunnerTargetInfo()
+        info.position = pos
+        info.has_bot = False
+        info.has_turret = False
+        info.has_building = False
+        info.has_launcher = False
+        info.can_shoot_me = False
+        info.iscore = cls.importance_score[ti.entity_type]
+        info.entity_type = ti.entity_type
+        info.is_road = ti.entity_type == EntityType.ROAD
+        info.current_dir = current_dir == Direction.NORTHWEST
+        info.rand_key = random.random()
+        info.ally_connected = DarkForest.node_kind[idx] in \
+            (1, 3)
+
+        info.is_harvester_feeding_ally = False
+        info.harvester_adjacent = ti.harvester_adjacent
+
+        if ti.entity_type == EntityType.HARVESTER:
+            nidx = idx -1
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx +1
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx -56
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx +56
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+
+        if ti.has_bot and not ti.is_bot_ally:
+            info.has_bot = True
+            info.bot_hp = ti.bot_hp
+
+        if ti.has_building and not ti.is_building_ally:
+            info.has_building = True
+            info.building_hp = ti.building_hp
+            if ti.has_turret:
+                info.has_turret = True
+                info.can_shoot_me = ct.can_fire_from(
+                    pos, 
+                    ti.turret_direction, 
+                    ti.entity_type,
+                    Globals.my_pos
+                )
+
+            elif info.entity_type == EntityType.LAUNCHER:
+                info.has_launcher = True
+
+        cls.targets.append(info)
+            
+        x, y = my_pos.x , my_pos.y 
+        pos = Position(x, y)
+        idx = (((x) + 3) * 56 + ((y) + 3))
+        ti = tile_info[x][y]
+        
+        info = GunnerTargetInfo()
+        info.position = pos
+        info.has_bot = False
+        info.has_turret = False
+        info.has_building = False
+        info.has_launcher = False
+        info.can_shoot_me = False
+        info.iscore = cls.importance_score[ti.entity_type]
+        info.entity_type = ti.entity_type
+        info.is_road = ti.entity_type == EntityType.ROAD
+        info.current_dir = current_dir == Direction.CENTRE
+        info.rand_key = random.random()
+        info.ally_connected = DarkForest.node_kind[idx] in \
+            (1, 3)
+
+        info.is_harvester_feeding_ally = False
+        info.harvester_adjacent = ti.harvester_adjacent
+
+        if ti.entity_type == EntityType.HARVESTER:
+            nidx = idx -1
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx +1
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx -56
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+            nidx = idx +56
+            if DarkForest.node_kind[nidx] in (1, 3):
+                info.is_harvester_feeding_ally = True
+
+        if ti.has_bot and not ti.is_bot_ally:
+            info.has_bot = True
+            info.bot_hp = ti.bot_hp
+
+        if ti.has_building and not ti.is_building_ally:
+            info.has_building = True
+            info.building_hp = ti.building_hp
+            if ti.has_turret:
+                info.has_turret = True
+                info.can_shoot_me = ct.can_fire_from(
+                    pos, 
+                    ti.turret_direction, 
+                    ti.entity_type,
+                    Globals.my_pos
+                )
+
+            elif info.entity_type == EntityType.LAUNCHER:
+                info.has_launcher = True
+
+        cls.targets.append(info)
+
+
+# ============================================================
+# GunnerTargetInfo
+# ============================================================
+
+class GunnerTargetInfo:
+    position: Position
+
+    # enemy
+    has_bot: bool
+    has_building: bool
+    has_turret: bool  # subset of building
+    has_launcher: bool
+    can_shoot_me: bool
+    is_road: bool
+
+    bot_hp: int
+    building_hp: int
+    iscore: int  # probably won't be used
+    ally_connected: bool
+
+    current_dir: bool # whether it's our current facing dir
+    rand_key: float  # for sake of beauty, should almost never matter
+    entity_type: EntityType
+
+    is_harvester_feeding_ally: bool
+    harvester_adjacent: bool
+
+
+    @staticmethod
+    def is_better_than(a: GunnerTargetInfo, b: GunnerTargetInfo):
+
+        if a.is_harvester_feeding_ally: return False
+        if b.is_harvester_feeding_ally: return True
+
+        if a.has_turret and (not b.has_turret): return True
+        if (not a.has_turret) and b.has_turret: return False
+
+        if a.has_turret and b.has_turret:
+            if a.can_shoot_me and (not b.can_shoot_me): return True
+            if (not a.can_shoot_me) and b.can_shoot_me: return False
+
+        # if there is a bot on top of the tile, nothing underneath gets hit
+        if a.has_bot and (not b.has_bot): return True
+        if (not a.has_bot) and b.has_bot: return False
+
+        if a.has_bot and b.has_bot:
+            if a.bot_hp != b.bot_hp:
+                return a.bot_hp < b.bot_hp
+
+        if a.ally_connected and (not b.ally_connected): return False  # don't target allied routes
+        if (not a.ally_connected) and b.ally_connected: return True
+
+        if a.has_building and (not b.has_building): return True
+        if (not a.has_building) and b.has_building: return False
+
+        if a.harvester_adjacent and (not b.harvester_adjacent): return True
+        if (not a.harvester_adjacent) and b.harvester_adjacent: return False
+
+        if a.is_road and (not b.is_road): return False  # prefer non-roads
+        if (not a.is_road) and b.is_road: return True
+
+        if a.has_building and b.has_building:
+            if a.building_hp != b.building_hp:
+                return a.building_hp < b.building_hp
+            
+        # prefer the direction we're currently facing
+        if a.current_dir != b.current_dir:
+            return a.current_dir > b.current_dir
+
+        return a.rand_key < b.rand_key
 
 
 # ============================================================
@@ -25069,6 +26383,21 @@ class StateBuildBarrier:
 
 
 # ============================================================
+# StateBuildGunner
+# ============================================================
+
+class StateBuildGunner:
+    @classmethod
+    def run(cls, pos, banned_dir: Direction | None):
+        Pathfinder.move_to(pos, ban_target_pos=True)
+
+        if BuildManager.can_dbuild_gunner(pos):
+            dir: Direction = GunnerDirectionPicker.get_best_direction(pos)
+            
+            BuildManager.dbuild_gunner(pos, dir)
+
+
+# ============================================================
 # StateBuildHarvester
 # ============================================================
 
@@ -25501,6 +26830,25 @@ class Symmetry:
 
 
 # ============================================================
+# TakedownTargetInfo
+# ============================================================
+
+class TakedownTargetInfo:
+    position: Position
+    dist_enemy_core: int # distance to the enemy core
+    has_transporter: bool # whether the tile has an allied transporter already
+    enemy_turrets_nearby: int # enemy turrets on nearby tiles
+
+    @staticmethod
+    def is_better_than(a: TakedownTargetInfo, b: TakedownTargetInfo):
+        if a.enemy_turrets_nearby != b.enemy_turrets_nearby:
+            return a.enemy_turrets_nearby > b.enemy_turrets_nearby
+        if a.has_transporter != b.has_transporter:
+            return a.has_transporter < b.has_transporter
+        return a.dist_enemy_core < b.dist_enemy_core
+
+
+# ============================================================
 # TileInfo
 # ============================================================
 
@@ -25594,6 +26942,91 @@ class TreeNode:
 
 # total flow/harvester is set to 12 (LCM of 1,2,3,4)
 # bottleneck of a route is 4 harvesters = 4 * 12 = 48 pressure
+
+
+# ============================================================
+# TurretTakedown
+# ============================================================
+
+class TurretTakedown:
+    cand: list[TakedownTargetInfo] # adjacent candidate build positions
+
+
+    @classmethod
+    def get_best_hijack_position(cls) -> Position | None:
+        if not cls.cand:
+            return None
+
+        best = cls.cand[0]
+        for c in cls.cand[1:]:
+            if TakedownTargetInfo.is_better_than(c, best):
+                best = c
+
+        if best.enemy_turrets_nearby == 0:
+            return None
+
+        if not VisionTracker.me_is_canonical_ally(best.position):
+            return None
+
+        return best.position
+
+
+    @classmethod
+    def fill(cls):
+        cls.cand = []
+        tile_info = Map.tile_info
+
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            if not ti.harvester_adjacent: 
+                continue
+
+            if ti.has_building:
+                if not ti.is_building_ally:
+                    continue
+                if ti.entity_type != EntityType.ROAD:
+                    # We can build on top of allied transporters if we really need to
+                    if not ti.entity_type in Constants.TRANSPORTERS_SET:
+                        continue
+
+            info = TakedownTargetInfo()
+            cls.cand.append(info)
+            info.position = pos
+            info.dist_enemy_core = Util.dist_sq(pos, Symmetry.enemy_core_pos)
+            info.has_transporter = (ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET)
+            info.enemy_turrets_nearby = 0
+
+
+            nti = tile_info[x ][y -1]
+            if nti is not None and nti.has_turret and not nti.is_building_ally:
+                info.enemy_turrets_nearby += 1
+
+            nti = tile_info[x +1][y -1]
+            if nti is not None and nti.has_turret and not nti.is_building_ally:
+                info.enemy_turrets_nearby += 1
+
+            nti = tile_info[x +1][y ]
+            if nti is not None and nti.has_turret and not nti.is_building_ally:
+                info.enemy_turrets_nearby += 1
+
+            nti = tile_info[x +1][y +1]
+            if nti is not None and nti.has_turret and not nti.is_building_ally:
+                info.enemy_turrets_nearby += 1
+
+            nti = tile_info[x ][y +1]
+            if nti is not None and nti.has_turret and not nti.is_building_ally:
+                info.enemy_turrets_nearby += 1
+
+            nti = tile_info[x -1][y +1]
+            if nti is not None and nti.has_turret and not nti.is_building_ally:
+                info.enemy_turrets_nearby += 1
+
+            nti = tile_info[x -1][y ]
+            if nti is not None and nti.has_turret and not nti.is_building_ally:
+                info.enemy_turrets_nearby += 1
+
+            nti = tile_info[x -1][y -1]
+            if nti is not None and nti.has_turret and not nti.is_building_ally:
+                info.enemy_turrets_nearby += 1
 
 
 # ============================================================
@@ -25863,6 +27296,10 @@ class Builder(Unit):
         
 
         
+        TurretTakedown.fill()
+        
+
+        
         HarvesterAdjacent.fill()
         
 
@@ -25906,6 +27343,11 @@ class Builder(Unit):
 
         if RouteToCore.is_active:
             return ('Route',)
+
+        takedownpos = TurretTakedown.get_best_hijack_position()
+        if takedownpos is not None:
+            Debug.dot(takedownpos, Color.PURPLE)
+            return 'BuildGunner', takedownpos, None
 
         hpos = HarvesterAdjacent.get_best_hijack_position()
         if hpos is not None:
@@ -25983,6 +27425,33 @@ class Core(Unit):
     def run_turn(cls):
         if SpawnManager.should_spawn() or SpawnManager.should_spawn_emergency():
             SpawnManager.spawn()
+
+    @classmethod
+    def end_turn(cls):
+        Unit.end_turn()
+
+
+# ============================================================
+# Gunner
+# ============================================================
+
+class Gunner(Unit):
+    @classmethod
+    def init(cls):
+        Unit.init()
+        DarkForest.init()
+
+    @classmethod
+    def start_turn(cls):
+        Unit.start_turn()
+        DarkForest.fcompute()
+        DarkForest.debug_kind()
+
+        GunnerSupervisor.fill()
+
+    @classmethod
+    def run_turn(cls):
+        GunnerSupervisor.try_fire()
 
     @classmethod
     def end_turn(cls):
