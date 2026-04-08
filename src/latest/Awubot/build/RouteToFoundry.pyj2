@@ -45,12 +45,12 @@ class RouteToFoundry:
         target_set = {foundry_encoded}
 
         # Try conveyor-only first (max_iter=0).
-        _, first = BfsBureau.find_bridge_route(ore_pos, target_set, max_iter=0)
+        _, first = BfsBureau.find_bridge_route(ore_pos, target_set, max_iter=0, purify = True)
         if first is not None:
             return True
 
         # Fall back to bridge BFS with a capped iteration budget.
-        _, first = BfsBureau.find_bridge_route(ore_pos, target_set, max_iter=200)
+        _, first = BfsBureau.find_bridge_route(ore_pos, target_set, max_iter=200, purify = True)
         return first is not None
 
     @classmethod
@@ -106,12 +106,14 @@ class RouteToFoundry:
             cls.from_pos,
             target_set,
             max_iter=0,
+            purify = True
         )
         # Phase 2: allow bridges if conveyors can't reach.
         if first_target is None:
             bridge_dist, first_target = BfsBureau.find_bridge_route(
                 cls.from_pos,
                 target_set,
+                purify = True
             )
 
         {{ D.show('bridge_dist') }}

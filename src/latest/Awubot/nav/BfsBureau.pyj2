@@ -171,7 +171,7 @@ class BfsBureau:
     # works. but slow
 # ---===
     @classmethod
-    def find_bridge_route(cls, start: Position, sink_set: set[int], max_iter: int = 1000):
+    def find_bridge_route(cls, start: Position, sink_set: set[int], max_iter: int = 1000, purify: bool = False):
         {% set main_bridge_offsets = [
             (3,0),(-3,0),(0,3),(0,-3),
             (2,2),(2,-2),(-2,-2),(-2,2),
@@ -191,14 +191,27 @@ class BfsBureau:
         si = {{ encode_pos('sx', 'sy') }}
         dist[si] = 0
 
-        # sink nodes are destinations, not transit — make them visible to BFS
-        # we return immediately on first hit, so they're never traversed through
         for s in sink_set:
-            if dist[s] == {{ INF1 }}:  # redundant check?
+            if dist[s] == {{ INF1 }}:
                 dist[s] = {{ INF }}
 
         q = deque()
         _qa = q.append
+
+        if purify:
+            _ti = Map.tile_info
+            def _ore_adj(ni):
+                _nx = ni // {{ PH }} - {{ PAD }}
+                _ny = ni % {{ PH }} - {{ PAD }}
+                return (
+                    ((_t := _ti[_nx - 1][_ny]) is not None and _t.env == Environment.ORE_TITANIUM) or
+                    ((_t := _ti[_nx + 1][_ny]) is not None and _t.env == Environment.ORE_TITANIUM) or
+                    ((_t := _ti[_nx][_ny - 1]) is not None and _t.env == Environment.ORE_TITANIUM) or
+                    ((_t := _ti[_nx][_ny + 1]) is not None and _t.env == Environment.ORE_TITANIUM)
+                )
+        else:
+            def _ore_adj(ni):
+                return False
 
         {% set CONVEYOR_DEPTH = 4 %}
 
@@ -206,19 +219,17 @@ class BfsBureau:
         conv_reached = []
         _cra = conv_reached.append
 
-        # First cardinal step: first_hop = that adjacent tile
         conv_front = []
         _cfa = conv_front.append
         {% for dx, dy in [(1,0),(-1,0),(0,1),(0,-1)] %}
         ni = si + {{ dx * PH + dy }}
-        if dist[ni] == {{ INF }}:
+        if dist[ni] == {{ INF }} and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = -1
             first_hop[ni] = (sx {{ sign0(dx) }}, sy {{ sign0(dy) }})
             _cfa(ni)
             _cra(ni)
         {% endfor %}
 
-        # Steps 2–4: propagate first_hop from parent
         {% for _ in range(CONVEYOR_DEPTH - 1) %}
         conv_next = []
         _cna = conv_next.append
@@ -226,7 +237,7 @@ class BfsBureau:
             _fh = first_hop[cidx]
             {% for dx, dy in [(1,0),(-1,0),(0,1),(0,-1)] %}
             ni = cidx + {{ dx * PH + dy }}
-            if dist[ni] == {{ INF }}:
+            if dist[ni] == {{ INF }} and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = -1
                 first_hop[ni] = _fh
                 _cna(ni)
@@ -247,7 +258,7 @@ class BfsBureau:
         # ── Phase 3: bridge seeds for tiles conveyors couldn't reach ──
         {% for dx, dy in seed_bridge_offsets %}
         ni = si + {{ dx * PH + dy }}
-        if dist[ni] == {{ INF }}:
+        if dist[ni] == {{ INF }} and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = 1
             first_hop[ni] = (sx {{ sign0(dx) }}, sy {{ sign0(dy) }})
             if ni in sink_set:
@@ -265,7 +276,7 @@ class BfsBureau:
 
             {% for dx, dy in main_bridge_offsets %}
             ni = idx + {{ dx * PH + dy }}
-            if dist[ni] == {{ INF }}:
+            if dist[ni] == {{ INF }} and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = d
                 first_hop[ni] = fh
                 if ni in sink_set:

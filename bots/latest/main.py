@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-08 10:59:51 (local)
+# latest,  @ 2026-04-08 11:21:17 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -307,7 +307,7 @@ class BfsBureau:
     # works. but slow
 
     @classmethod
-    def find_bridge_route(cls, start: Position, sink_set: set[int], max_iter: int = 1000):
+    def find_bridge_route(cls, start: Position, sink_set: set[int], max_iter: int = 1000, purify: bool = False):
 
 
         dist = cls.dist_bridge[:]
@@ -317,73 +317,84 @@ class BfsBureau:
         si = (((sx) + 3) * 56 + ((sy) + 3))
         dist[si] = 0
 
-        # sink nodes are destinations, not transit — make them visible to BFS
-        # we return immediately on first hit, so they're never traversed through
         for s in sink_set:
-            if dist[s] == 1000001:  # redundant check?
+            if dist[s] == 1000001:
                 dist[s] = 1000000
 
         q = deque()
         _qa = q.append
+
+        if purify:
+            _ti = Map.tile_info
+            def _ore_adj(ni):
+                _nx = ni // 56 - 3
+                _ny = ni % 56 - 3
+                return (
+                    ((_t := _ti[_nx - 1][_ny]) is not None and _t.env == Environment.ORE_TITANIUM) or
+                    ((_t := _ti[_nx + 1][_ny]) is not None and _t.env == Environment.ORE_TITANIUM) or
+                    ((_t := _ti[_nx][_ny - 1]) is not None and _t.env == Environment.ORE_TITANIUM) or
+                    ((_t := _ti[_nx][_ny + 1]) is not None and _t.env == Environment.ORE_TITANIUM)
+                )
+        else:
+            def _ore_adj(ni):
+                return False
 
 
         # ── Phase 1: conveyor mini-BFS (≤4 cardinal steps from start) ──
         conv_reached = []
         _cra = conv_reached.append
 
-        # First cardinal step: first_hop = that adjacent tile
         conv_front = []
         _cfa = conv_front.append
         ni = si + 56
-        if dist[ni] == 1000000:
+        if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = -1
             first_hop[ni] = (sx +1, sy )
             _cfa(ni)
             _cra(ni)
         ni = si + -56
-        if dist[ni] == 1000000:
+        if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = -1
             first_hop[ni] = (sx -1, sy )
             _cfa(ni)
             _cra(ni)
         ni = si + 1
-        if dist[ni] == 1000000:
+        if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = -1
             first_hop[ni] = (sx , sy +1)
             _cfa(ni)
             _cra(ni)
         ni = si + -1
-        if dist[ni] == 1000000:
+        if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = -1
             first_hop[ni] = (sx , sy -1)
             _cfa(ni)
             _cra(ni)
 
-        # Steps 2–4: propagate first_hop from parent
         conv_next = []
         _cna = conv_next.append
         for cidx in conv_front:
             _fh = first_hop[cidx]
             ni = cidx + 56
-            if dist[ni] == 1000000:
+            if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = -1
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
             ni = cidx + -56
-            if dist[ni] == 1000000:
+            if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = -1
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
             ni = cidx + 1
-            if dist[ni] == 1000000:
+            if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = -1
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
             ni = cidx + -1
-            if dist[ni] == 1000000:
+            if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = -1
                 first_hop[ni] = _fh
                 _cna(ni)
@@ -394,25 +405,25 @@ class BfsBureau:
         for cidx in conv_front:
             _fh = first_hop[cidx]
             ni = cidx + 56
-            if dist[ni] == 1000000:
+            if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = -1
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
             ni = cidx + -56
-            if dist[ni] == 1000000:
+            if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = -1
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
             ni = cidx + 1
-            if dist[ni] == 1000000:
+            if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = -1
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
             ni = cidx + -1
-            if dist[ni] == 1000000:
+            if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = -1
                 first_hop[ni] = _fh
                 _cna(ni)
@@ -423,25 +434,25 @@ class BfsBureau:
         for cidx in conv_front:
             _fh = first_hop[cidx]
             ni = cidx + 56
-            if dist[ni] == 1000000:
+            if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = -1
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
             ni = cidx + -56
-            if dist[ni] == 1000000:
+            if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = -1
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
             ni = cidx + 1
-            if dist[ni] == 1000000:
+            if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = -1
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
             ni = cidx + -1
-            if dist[ni] == 1000000:
+            if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = -1
                 first_hop[ni] = _fh
                 _cna(ni)
@@ -459,112 +470,112 @@ class BfsBureau:
 
         # ── Phase 3: bridge seeds for tiles conveyors couldn't reach ──
         ni = si + 168
-        if dist[ni] == 1000000:
+        if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = 1
             first_hop[ni] = (sx +3, sy )
             if ni in sink_set:
                 return 1, first_hop[ni]
             _qa(ni)
         ni = si + -168
-        if dist[ni] == 1000000:
+        if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = 1
             first_hop[ni] = (sx -3, sy )
             if ni in sink_set:
                 return 1, first_hop[ni]
             _qa(ni)
         ni = si + 3
-        if dist[ni] == 1000000:
+        if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = 1
             first_hop[ni] = (sx , sy +3)
             if ni in sink_set:
                 return 1, first_hop[ni]
             _qa(ni)
         ni = si + -3
-        if dist[ni] == 1000000:
+        if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = 1
             first_hop[ni] = (sx , sy -3)
             if ni in sink_set:
                 return 1, first_hop[ni]
             _qa(ni)
         ni = si + 114
-        if dist[ni] == 1000000:
+        if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = 1
             first_hop[ni] = (sx +2, sy +2)
             if ni in sink_set:
                 return 1, first_hop[ni]
             _qa(ni)
         ni = si + 110
-        if dist[ni] == 1000000:
+        if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = 1
             first_hop[ni] = (sx +2, sy -2)
             if ni in sink_set:
                 return 1, first_hop[ni]
             _qa(ni)
         ni = si + -114
-        if dist[ni] == 1000000:
+        if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = 1
             first_hop[ni] = (sx -2, sy -2)
             if ni in sink_set:
                 return 1, first_hop[ni]
             _qa(ni)
         ni = si + -110
-        if dist[ni] == 1000000:
+        if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = 1
             first_hop[ni] = (sx -2, sy +2)
             if ni in sink_set:
                 return 1, first_hop[ni]
             _qa(ni)
         ni = si + 58
-        if dist[ni] == 1000000:
+        if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = 1
             first_hop[ni] = (sx +1, sy +2)
             if ni in sink_set:
                 return 1, first_hop[ni]
             _qa(ni)
         ni = si + 113
-        if dist[ni] == 1000000:
+        if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = 1
             first_hop[ni] = (sx +2, sy +1)
             if ni in sink_set:
                 return 1, first_hop[ni]
             _qa(ni)
         ni = si + 111
-        if dist[ni] == 1000000:
+        if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = 1
             first_hop[ni] = (sx +2, sy -1)
             if ni in sink_set:
                 return 1, first_hop[ni]
             _qa(ni)
         ni = si + 54
-        if dist[ni] == 1000000:
+        if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = 1
             first_hop[ni] = (sx +1, sy -2)
             if ni in sink_set:
                 return 1, first_hop[ni]
             _qa(ni)
         ni = si + -58
-        if dist[ni] == 1000000:
+        if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = 1
             first_hop[ni] = (sx -1, sy -2)
             if ni in sink_set:
                 return 1, first_hop[ni]
             _qa(ni)
         ni = si + -113
-        if dist[ni] == 1000000:
+        if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = 1
             first_hop[ni] = (sx -2, sy -1)
             if ni in sink_set:
                 return 1, first_hop[ni]
             _qa(ni)
         ni = si + -111
-        if dist[ni] == 1000000:
+        if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = 1
             first_hop[ni] = (sx -2, sy +1)
             if ni in sink_set:
                 return 1, first_hop[ni]
             _qa(ni)
         ni = si + -54
-        if dist[ni] == 1000000:
+        if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
             dist[ni] = 1
             first_hop[ni] = (sx -1, sy +2)
             if ni in sink_set:
@@ -580,56 +591,56 @@ class BfsBureau:
             fh = first_hop[idx]
 
             ni = idx + 168
-            if dist[ni] == 1000000:
+            if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = d
                 first_hop[ni] = fh
                 if ni in sink_set:
                     return d, fh
                 _qa(ni)
             ni = idx + -168
-            if dist[ni] == 1000000:
+            if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = d
                 first_hop[ni] = fh
                 if ni in sink_set:
                     return d, fh
                 _qa(ni)
             ni = idx + 3
-            if dist[ni] == 1000000:
+            if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = d
                 first_hop[ni] = fh
                 if ni in sink_set:
                     return d, fh
                 _qa(ni)
             ni = idx + -3
-            if dist[ni] == 1000000:
+            if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = d
                 first_hop[ni] = fh
                 if ni in sink_set:
                     return d, fh
                 _qa(ni)
             ni = idx + 114
-            if dist[ni] == 1000000:
+            if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = d
                 first_hop[ni] = fh
                 if ni in sink_set:
                     return d, fh
                 _qa(ni)
             ni = idx + 110
-            if dist[ni] == 1000000:
+            if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = d
                 first_hop[ni] = fh
                 if ni in sink_set:
                     return d, fh
                 _qa(ni)
             ni = idx + -114
-            if dist[ni] == 1000000:
+            if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = d
                 first_hop[ni] = fh
                 if ni in sink_set:
                     return d, fh
                 _qa(ni)
             ni = idx + -110
-            if dist[ni] == 1000000:
+            if dist[ni] == 1000000 and (ni in sink_set or not _ore_adj(ni)):
                 dist[ni] = d
                 first_hop[ni] = fh
                 if ni in sink_set:
@@ -25255,12 +25266,12 @@ class RouteToFoundry:
         target_set = {foundry_encoded}
 
         # Try conveyor-only first (max_iter=0).
-        _, first = BfsBureau.find_bridge_route(ore_pos, target_set, max_iter=0)
+        _, first = BfsBureau.find_bridge_route(ore_pos, target_set, max_iter=0, purify = True)
         if first is not None:
             return True
 
         # Fall back to bridge BFS with a capped iteration budget.
-        _, first = BfsBureau.find_bridge_route(ore_pos, target_set, max_iter=200)
+        _, first = BfsBureau.find_bridge_route(ore_pos, target_set, max_iter=200, purify = True)
         return first is not None
 
     @classmethod
@@ -25316,12 +25327,14 @@ class RouteToFoundry:
             cls.from_pos,
             target_set,
             max_iter=0,
+            purify = True
         )
         # Phase 2: allow bridges if conveyors can't reach.
         if first_target is None:
             bridge_dist, first_target = BfsBureau.find_bridge_route(
                 cls.from_pos,
                 target_set,
+                purify = True
             )
 
         
