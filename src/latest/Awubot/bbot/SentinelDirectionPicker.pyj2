@@ -69,7 +69,7 @@ class SentinelDirectionPicker:
         {% set i = directions.index(dir) %}
         ti = tile_info[sx + {{ dx }}][sy + {{ dy }}]
         if ti is not None:
-            if ti.entity_type == EntityType.HARVESTER or ti.target == spos:
+            if (ti.entity_type == EntityType.HARVESTER and ti.env == Environment.ORE_TITANIUM) or ti.target == spos:
                 has_feeder[{{ i }}] = True
                 nadj_feeders += 1
         {% endfor %}

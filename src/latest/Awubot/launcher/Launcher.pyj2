@@ -30,7 +30,7 @@ class Launcher({{ super() }}):
     def start_turn(cls):
         {{ super() }}.start_turn()
         DarkForest.fcompute()
-        DarkForest.debug_kind()
+        {# /* DarkForest.debug_kind() */ #}
 
         LauncherSupervisor.fill()
 

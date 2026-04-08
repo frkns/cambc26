@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-07 17:58:27 (local)
+# latest,  @ 2026-04-07 19:47:13 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -2061,8 +2061,6 @@ class BreachBuild:
 # ============================================================
 
 class BuildManager:
-    reserve_ti: int = 100  # scale this
-    reserve_ax: int = 0
 
     @staticmethod
     def scale(cost: int) -> int:
@@ -2125,17 +2123,10 @@ class BuildManager:
     @staticmethod
     def can_afford_builder_bot() -> bool:
         ti_cost, ax_cost = Globals.ct.get_builder_bot_cost()
-        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
-    @classmethod
-    def reserve_check_builder_bot(cls) -> bool:
-        ti_cost, ax_cost = Globals.ct.get_builder_bot_cost()
-        if (MarketMaker.ti - ti_cost) < cls.reserve_ti * MarketMaker.scale_ratio:
-            return False
-        if (MarketMaker.ax - ax_cost) < cls.reserve_ax * MarketMaker.scale_ratio:
-            Debug.log('ax branch triggered')
-            return False
-        return True
+        ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
 
     @staticmethod
@@ -2163,17 +2154,10 @@ class BuildManager:
     @staticmethod
     def can_afford_gunner() -> bool:
         ti_cost, ax_cost = Globals.ct.get_gunner_cost()
-        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
-    @classmethod
-    def reserve_check_gunner(cls) -> bool:
-        ti_cost, ax_cost = Globals.ct.get_gunner_cost()
-        if (MarketMaker.ti - ti_cost) < cls.reserve_ti * MarketMaker.scale_ratio:
-            return False
-        if (MarketMaker.ax - ax_cost) < cls.reserve_ax * MarketMaker.scale_ratio:
-            Debug.log('ax branch triggered')
-            return False
-        return True
+        ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
 
     @staticmethod
@@ -2201,17 +2185,10 @@ class BuildManager:
     @staticmethod
     def can_afford_sentinel() -> bool:
         ti_cost, ax_cost = Globals.ct.get_sentinel_cost()
-        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
-    @classmethod
-    def reserve_check_sentinel(cls) -> bool:
-        ti_cost, ax_cost = Globals.ct.get_sentinel_cost()
-        if (MarketMaker.ti - ti_cost) < cls.reserve_ti * MarketMaker.scale_ratio:
-            return False
-        if (MarketMaker.ax - ax_cost) < cls.reserve_ax * MarketMaker.scale_ratio:
-            Debug.log('ax branch triggered')
-            return False
-        return True
+        ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
 
     @staticmethod
@@ -2239,17 +2216,10 @@ class BuildManager:
     @staticmethod
     def can_afford_breach() -> bool:
         ti_cost, ax_cost = Globals.ct.get_breach_cost()
-        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
-    @classmethod
-    def reserve_check_breach(cls) -> bool:
-        ti_cost, ax_cost = Globals.ct.get_breach_cost()
-        if (MarketMaker.ti - ti_cost) < cls.reserve_ti * MarketMaker.scale_ratio:
-            return False
-        if (MarketMaker.ax - ax_cost) < cls.reserve_ax * MarketMaker.scale_ratio:
-            Debug.log('ax branch triggered')
-            return False
-        return True
+        ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
 
     @staticmethod
@@ -2277,17 +2247,10 @@ class BuildManager:
     @staticmethod
     def can_afford_launcher() -> bool:
         ti_cost, ax_cost = Globals.ct.get_launcher_cost()
-        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
-    @classmethod
-    def reserve_check_launcher(cls) -> bool:
-        ti_cost, ax_cost = Globals.ct.get_launcher_cost()
-        if (MarketMaker.ti - ti_cost) < cls.reserve_ti * MarketMaker.scale_ratio:
-            return False
-        if (MarketMaker.ax - ax_cost) < cls.reserve_ax * MarketMaker.scale_ratio:
-            Debug.log('ax branch triggered')
-            return False
-        return True
+        ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
 
     @staticmethod
@@ -2315,17 +2278,10 @@ class BuildManager:
     @staticmethod
     def can_afford_conveyor() -> bool:
         ti_cost, ax_cost = Globals.ct.get_conveyor_cost()
-        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
-    @classmethod
-    def reserve_check_conveyor(cls) -> bool:
-        ti_cost, ax_cost = Globals.ct.get_conveyor_cost()
-        if (MarketMaker.ti - ti_cost) < cls.reserve_ti * MarketMaker.scale_ratio:
-            return False
-        if (MarketMaker.ax - ax_cost) < cls.reserve_ax * MarketMaker.scale_ratio:
-            Debug.log('ax branch triggered')
-            return False
-        return True
+        ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
 
     @staticmethod
@@ -2353,17 +2309,10 @@ class BuildManager:
     @staticmethod
     def can_afford_splitter() -> bool:
         ti_cost, ax_cost = Globals.ct.get_splitter_cost()
-        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
-    @classmethod
-    def reserve_check_splitter(cls) -> bool:
-        ti_cost, ax_cost = Globals.ct.get_splitter_cost()
-        if (MarketMaker.ti - ti_cost) < cls.reserve_ti * MarketMaker.scale_ratio:
-            return False
-        if (MarketMaker.ax - ax_cost) < cls.reserve_ax * MarketMaker.scale_ratio:
-            Debug.log('ax branch triggered')
-            return False
-        return True
+        ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
 
     @staticmethod
@@ -2391,17 +2340,10 @@ class BuildManager:
     @staticmethod
     def can_afford_armoured_conveyor() -> bool:
         ti_cost, ax_cost = Globals.ct.get_armoured_conveyor_cost()
-        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
-    @classmethod
-    def reserve_check_armoured_conveyor(cls) -> bool:
-        ti_cost, ax_cost = Globals.ct.get_armoured_conveyor_cost()
-        if (MarketMaker.ti - ti_cost) < cls.reserve_ti * MarketMaker.scale_ratio:
-            return False
-        if (MarketMaker.ax - ax_cost) < cls.reserve_ax * MarketMaker.scale_ratio:
-            Debug.log('ax branch triggered')
-            return False
-        return True
+        ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
 
     @staticmethod
@@ -2429,17 +2371,10 @@ class BuildManager:
     @staticmethod
     def can_afford_bridge() -> bool:
         ti_cost, ax_cost = Globals.ct.get_bridge_cost()
-        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
-    @classmethod
-    def reserve_check_bridge(cls) -> bool:
-        ti_cost, ax_cost = Globals.ct.get_bridge_cost()
-        if (MarketMaker.ti - ti_cost) < cls.reserve_ti * MarketMaker.scale_ratio:
-            return False
-        if (MarketMaker.ax - ax_cost) < cls.reserve_ax * MarketMaker.scale_ratio:
-            Debug.log('ax branch triggered')
-            return False
-        return True
+        ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
 
     @staticmethod
@@ -2467,17 +2402,10 @@ class BuildManager:
     @staticmethod
     def can_afford_harvester() -> bool:
         ti_cost, ax_cost = Globals.ct.get_harvester_cost()
-        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
-    @classmethod
-    def reserve_check_harvester(cls) -> bool:
-        ti_cost, ax_cost = Globals.ct.get_harvester_cost()
-        if (MarketMaker.ti - ti_cost) < cls.reserve_ti * MarketMaker.scale_ratio:
-            return False
-        if (MarketMaker.ax - ax_cost) < cls.reserve_ax * MarketMaker.scale_ratio:
-            Debug.log('ax branch triggered')
-            return False
-        return True
+        ti_cost += int(100 * MarketMaker.scale_ratio)
+
+        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
 
     @staticmethod
@@ -2505,17 +2433,10 @@ class BuildManager:
     @staticmethod
     def can_afford_foundry() -> bool:
         ti_cost, ax_cost = Globals.ct.get_foundry_cost()
-        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
-    @classmethod
-    def reserve_check_foundry(cls) -> bool:
-        ti_cost, ax_cost = Globals.ct.get_foundry_cost()
-        if (MarketMaker.ti - ti_cost) < cls.reserve_ti * MarketMaker.scale_ratio:
-            return False
-        if (MarketMaker.ax - ax_cost) < cls.reserve_ax * MarketMaker.scale_ratio:
-            Debug.log('ax branch triggered')
-            return False
-        return True
+        ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
 
     @staticmethod
@@ -2543,17 +2464,10 @@ class BuildManager:
     @staticmethod
     def can_afford_road() -> bool:
         ti_cost, ax_cost = Globals.ct.get_road_cost()
-        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
-    @classmethod
-    def reserve_check_road(cls) -> bool:
-        ti_cost, ax_cost = Globals.ct.get_road_cost()
-        if (MarketMaker.ti - ti_cost) < cls.reserve_ti * MarketMaker.scale_ratio:
-            return False
-        if (MarketMaker.ax - ax_cost) < cls.reserve_ax * MarketMaker.scale_ratio:
-            Debug.log('ax branch triggered')
-            return False
-        return True
+        ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
 
     @staticmethod
@@ -2581,17 +2495,10 @@ class BuildManager:
     @staticmethod
     def can_afford_barrier() -> bool:
         ti_cost, ax_cost = Globals.ct.get_barrier_cost()
-        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
-    @classmethod
-    def reserve_check_barrier(cls) -> bool:
-        ti_cost, ax_cost = Globals.ct.get_barrier_cost()
-        if (MarketMaker.ti - ti_cost) < cls.reserve_ti * MarketMaker.scale_ratio:
-            return False
-        if (MarketMaker.ax - ax_cost) < cls.reserve_ax * MarketMaker.scale_ratio:
-            Debug.log('ax branch triggered')
-            return False
-        return True
+        ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
 
 # ============================================================
@@ -21080,22 +20987,22 @@ class GunnerDirectionPicker:
 
         ti = tile_info[sx + 0][sy + -1]
         if ti is not None:
-            if ti.entity_type == EntityType.HARVESTER or ti.target == spos:
+            if (ti.entity_type == EntityType.HARVESTER and ti.env == Environment.ORE_TITANIUM) or ti.target == spos:
                 has_feeder[0] = True
                 nadj_feeders += 1
         ti = tile_info[sx + 1][sy + 0]
         if ti is not None:
-            if ti.entity_type == EntityType.HARVESTER or ti.target == spos:
+            if (ti.entity_type == EntityType.HARVESTER and ti.env == Environment.ORE_TITANIUM) or ti.target == spos:
                 has_feeder[2] = True
                 nadj_feeders += 1
         ti = tile_info[sx + 0][sy + 1]
         if ti is not None:
-            if ti.entity_type == EntityType.HARVESTER or ti.target == spos:
+            if (ti.entity_type == EntityType.HARVESTER and ti.env == Environment.ORE_TITANIUM) or ti.target == spos:
                 has_feeder[4] = True
                 nadj_feeders += 1
         ti = tile_info[sx + -1][sy + 0]
         if ti is not None:
-            if ti.entity_type == EntityType.HARVESTER or ti.target == spos:
+            if (ti.entity_type == EntityType.HARVESTER and ti.env == Environment.ORE_TITANIUM) or ti.target == spos:
                 has_feeder[6] = True
                 nadj_feeders += 1
 
@@ -21690,14 +21597,18 @@ class GunnerSupervisor:
         print(f'attempt fire @ {pos}')
         Debug.line(pos, Color.TEAL)
         
+        ct = Globals.ct
         dirToPos = Globals.my_pos.direction_to(pos)
+
+        if not ct.can_fire_from(Globals.my_pos, dirToPos, EntityType.GUNNER, pos):
+            return
         
-        if dirToPos != Globals.ct.get_direction(): # Rotate if the target isn't in our current direction
-            if Globals.ct.can_rotate(dirToPos):
-                Globals.ct.rotate(dirToPos)
+        if dirToPos != ct.get_direction(): # Rotate if the target isn't in our current direction
+            if ct.can_rotate(dirToPos):
+                ct.rotate(dirToPos)
         else:
-            if Globals.ct.can_fire(pos):
-                Globals.ct.fire(pos)
+            if ct.can_fire(pos):
+                ct.fire(pos)
 
 
     @classmethod
@@ -21727,6 +21638,10 @@ class GunnerSupervisor:
         return best.position
 
 
+
+
+
+
     @classmethod
     def fill(cls):
         ct = Globals.ct
@@ -21736,545 +21651,624 @@ class GunnerSupervisor:
         
         current_dir = ct.get_direction()
 
-        x, y = my_pos.x , my_pos.y -1
-        ti = tile_info[x][y]
-        
+        has_feeder = [False] * 8
+        nadj_feeders = 0
+
+        mx, my = my_pos.x, my_pos.y
+
+        ti = tile_info[mx ][my -1]
         if ti is not None:
-            pos = Position(x, y)
-            idx = (((x) + 3) * 56 + ((y) + 3))
-            
-            info = GunnerTargetInfo()
-            info.position = pos
-            info.has_bot = False
-            info.has_turret = False
-            info.has_building = False
-            info.has_launcher = False
-            info.can_shoot_me = False
-            info.iscore = cls.importance_score[ti.entity_type]
-            info.entity_type = ti.entity_type
-            info.is_road = ti.entity_type == EntityType.ROAD
-            info.current_dir = current_dir == Direction.NORTH
-            info.rand_key = random.random()
-            info.ally_connected = DarkForest.node_kind[idx] in \
-                (1, 3)
-
-            info.is_harvester_feeding_ally = False
-            info.harvester_adjacent = ti.harvester_adjacent
-
-            if ti.entity_type == EntityType.HARVESTER:
-                nidx = idx -1
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx +1
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx -56
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx +56
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
-
-            if ti.has_building and not ti.is_building_ally:
-                info.has_building = True
-                info.building_hp = ti.building_hp
-                if ti.has_turret:
-                    info.has_turret = True
-                    info.can_shoot_me = ct.can_fire_from(
-                        pos, 
-                        ti.turret_direction, 
-                        ti.entity_type,
-                        Globals.my_pos
-                    )
-
-                elif info.entity_type == EntityType.LAUNCHER:
-                    info.has_launcher = True
-
-            cls.targets.append(info)
-            
-        x, y = my_pos.x +1, my_pos.y -1
-        ti = tile_info[x][y]
-        
+            if (ti.entity_type == EntityType.HARVESTER and ti.env == Environment.ORE_TITANIUM) or ti.target == my_pos:
+                has_feeder[0] = True
+                nadj_feeders += 1
+        ti = tile_info[mx +1][my ]
         if ti is not None:
-            pos = Position(x, y)
-            idx = (((x) + 3) * 56 + ((y) + 3))
-            
-            info = GunnerTargetInfo()
-            info.position = pos
-            info.has_bot = False
-            info.has_turret = False
-            info.has_building = False
-            info.has_launcher = False
-            info.can_shoot_me = False
-            info.iscore = cls.importance_score[ti.entity_type]
-            info.entity_type = ti.entity_type
-            info.is_road = ti.entity_type == EntityType.ROAD
-            info.current_dir = current_dir == Direction.NORTHEAST
-            info.rand_key = random.random()
-            info.ally_connected = DarkForest.node_kind[idx] in \
-                (1, 3)
-
-            info.is_harvester_feeding_ally = False
-            info.harvester_adjacent = ti.harvester_adjacent
-
-            if ti.entity_type == EntityType.HARVESTER:
-                nidx = idx -1
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx +1
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx -56
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx +56
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
-
-            if ti.has_building and not ti.is_building_ally:
-                info.has_building = True
-                info.building_hp = ti.building_hp
-                if ti.has_turret:
-                    info.has_turret = True
-                    info.can_shoot_me = ct.can_fire_from(
-                        pos, 
-                        ti.turret_direction, 
-                        ti.entity_type,
-                        Globals.my_pos
-                    )
-
-                elif info.entity_type == EntityType.LAUNCHER:
-                    info.has_launcher = True
-
-            cls.targets.append(info)
-            
-        x, y = my_pos.x +1, my_pos.y 
-        ti = tile_info[x][y]
-        
+            if (ti.entity_type == EntityType.HARVESTER and ti.env == Environment.ORE_TITANIUM) or ti.target == my_pos:
+                has_feeder[2] = True
+                nadj_feeders += 1
+        ti = tile_info[mx ][my +1]
         if ti is not None:
-            pos = Position(x, y)
-            idx = (((x) + 3) * 56 + ((y) + 3))
-            
-            info = GunnerTargetInfo()
-            info.position = pos
-            info.has_bot = False
-            info.has_turret = False
-            info.has_building = False
-            info.has_launcher = False
-            info.can_shoot_me = False
-            info.iscore = cls.importance_score[ti.entity_type]
-            info.entity_type = ti.entity_type
-            info.is_road = ti.entity_type == EntityType.ROAD
-            info.current_dir = current_dir == Direction.EAST
-            info.rand_key = random.random()
-            info.ally_connected = DarkForest.node_kind[idx] in \
-                (1, 3)
-
-            info.is_harvester_feeding_ally = False
-            info.harvester_adjacent = ti.harvester_adjacent
-
-            if ti.entity_type == EntityType.HARVESTER:
-                nidx = idx -1
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx +1
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx -56
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx +56
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
-
-            if ti.has_building and not ti.is_building_ally:
-                info.has_building = True
-                info.building_hp = ti.building_hp
-                if ti.has_turret:
-                    info.has_turret = True
-                    info.can_shoot_me = ct.can_fire_from(
-                        pos, 
-                        ti.turret_direction, 
-                        ti.entity_type,
-                        Globals.my_pos
-                    )
-
-                elif info.entity_type == EntityType.LAUNCHER:
-                    info.has_launcher = True
-
-            cls.targets.append(info)
-            
-        x, y = my_pos.x +1, my_pos.y +1
-        ti = tile_info[x][y]
-        
+            if (ti.entity_type == EntityType.HARVESTER and ti.env == Environment.ORE_TITANIUM) or ti.target == my_pos:
+                has_feeder[4] = True
+                nadj_feeders += 1
+        ti = tile_info[mx -1][my ]
         if ti is not None:
-            pos = Position(x, y)
-            idx = (((x) + 3) * 56 + ((y) + 3))
+            if (ti.entity_type == EntityType.HARVESTER and ti.env == Environment.ORE_TITANIUM) or ti.target == my_pos:
+                has_feeder[6] = True
+                nadj_feeders += 1
+
+
+
+        skip = nadj_feeders == 1 and has_feeder[0] and current_dir == Direction.NORTH
+
+        if not skip:
+            for pos in ct.get_attackable_tiles_from(my_pos, Direction.NORTH, EntityType.GUNNER):
+                if not ct.can_fire_from(my_pos, Direction.NORTH, EntityType.GUNNER, pos):
+                    continue
+
+                x, y = pos.x, pos.y
+                ti = tile_info[x][y]
+                
+                if ti is None:
+                    continue
+                if not ti.has_building:
+                    continue
+                if ti.is_building_ally:
+                    continue
+
+
+                idx = (((x) + 3) * 56 + ((y) + 3))
+                
+                info = GunnerTargetInfo()
+                info.position = pos
+                info.has_bot = False
+                info.has_turret = False
+                info.has_building = False
+                info.has_launcher = False
+                info.can_shoot_me = False
+                info.iscore = cls.importance_score[ti.entity_type]
+                info.entity_type = ti.entity_type
+                info.is_road = ti.entity_type == EntityType.ROAD
+                info.current_dir = current_dir == Direction.NORTH
+                info.rand_key = random.random()
+                info.ally_connected = DarkForest.node_kind[idx] in \
+                    (1, 3)
+
+                info.is_harvester_feeding_ally = False
+                info.harvester_adjacent = ti.harvester_adjacent
+
+                if ti.entity_type == EntityType.HARVESTER:
+                    nidx = idx -1
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx +1
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx -56
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx +56
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+
+                if ti.has_bot and not ti.is_bot_ally:
+                    info.has_bot = True
+                    info.bot_hp = ti.bot_hp
+
+                if ti.has_building and not ti.is_building_ally:
+                    info.has_building = True
+                    info.building_hp = ti.building_hp
+                    if ti.has_turret:
+                        info.has_turret = True
+                        info.can_shoot_me = ct.can_fire_from(
+                            pos, 
+                            ti.turret_direction, 
+                            ti.entity_type,
+                            Globals.my_pos
+                        )
+
+                    elif info.entity_type == EntityType.LAUNCHER:
+                        info.has_launcher = True
+
+                cls.targets.append(info)
             
-            info = GunnerTargetInfo()
-            info.position = pos
-            info.has_bot = False
-            info.has_turret = False
-            info.has_building = False
-            info.has_launcher = False
-            info.can_shoot_me = False
-            info.iscore = cls.importance_score[ti.entity_type]
-            info.entity_type = ti.entity_type
-            info.is_road = ti.entity_type == EntityType.ROAD
-            info.current_dir = current_dir == Direction.SOUTHEAST
-            info.rand_key = random.random()
-            info.ally_connected = DarkForest.node_kind[idx] in \
-                (1, 3)
 
-            info.is_harvester_feeding_ally = False
-            info.harvester_adjacent = ti.harvester_adjacent
+        skip = nadj_feeders == 1 and has_feeder[1] and current_dir == Direction.NORTHEAST
 
-            if ti.entity_type == EntityType.HARVESTER:
-                nidx = idx -1
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx +1
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx -56
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx +56
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
+        if not skip:
+            for pos in ct.get_attackable_tiles_from(my_pos, Direction.NORTHEAST, EntityType.GUNNER):
+                if not ct.can_fire_from(my_pos, Direction.NORTHEAST, EntityType.GUNNER, pos):
+                    continue
 
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
+                x, y = pos.x, pos.y
+                ti = tile_info[x][y]
+                
+                if ti is None:
+                    continue
+                if not ti.has_building:
+                    continue
+                if ti.is_building_ally:
+                    continue
 
-            if ti.has_building and not ti.is_building_ally:
-                info.has_building = True
-                info.building_hp = ti.building_hp
-                if ti.has_turret:
-                    info.has_turret = True
-                    info.can_shoot_me = ct.can_fire_from(
-                        pos, 
-                        ti.turret_direction, 
-                        ti.entity_type,
-                        Globals.my_pos
-                    )
 
-                elif info.entity_type == EntityType.LAUNCHER:
-                    info.has_launcher = True
+                idx = (((x) + 3) * 56 + ((y) + 3))
+                
+                info = GunnerTargetInfo()
+                info.position = pos
+                info.has_bot = False
+                info.has_turret = False
+                info.has_building = False
+                info.has_launcher = False
+                info.can_shoot_me = False
+                info.iscore = cls.importance_score[ti.entity_type]
+                info.entity_type = ti.entity_type
+                info.is_road = ti.entity_type == EntityType.ROAD
+                info.current_dir = current_dir == Direction.NORTHEAST
+                info.rand_key = random.random()
+                info.ally_connected = DarkForest.node_kind[idx] in \
+                    (1, 3)
 
-            cls.targets.append(info)
+                info.is_harvester_feeding_ally = False
+                info.harvester_adjacent = ti.harvester_adjacent
+
+                if ti.entity_type == EntityType.HARVESTER:
+                    nidx = idx -1
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx +1
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx -56
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx +56
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+
+                if ti.has_bot and not ti.is_bot_ally:
+                    info.has_bot = True
+                    info.bot_hp = ti.bot_hp
+
+                if ti.has_building and not ti.is_building_ally:
+                    info.has_building = True
+                    info.building_hp = ti.building_hp
+                    if ti.has_turret:
+                        info.has_turret = True
+                        info.can_shoot_me = ct.can_fire_from(
+                            pos, 
+                            ti.turret_direction, 
+                            ti.entity_type,
+                            Globals.my_pos
+                        )
+
+                    elif info.entity_type == EntityType.LAUNCHER:
+                        info.has_launcher = True
+
+                cls.targets.append(info)
             
-        x, y = my_pos.x , my_pos.y +1
-        ti = tile_info[x][y]
-        
-        if ti is not None:
-            pos = Position(x, y)
-            idx = (((x) + 3) * 56 + ((y) + 3))
+
+        skip = nadj_feeders == 1 and has_feeder[2] and current_dir == Direction.EAST
+
+        if not skip:
+            for pos in ct.get_attackable_tiles_from(my_pos, Direction.EAST, EntityType.GUNNER):
+                if not ct.can_fire_from(my_pos, Direction.EAST, EntityType.GUNNER, pos):
+                    continue
+
+                x, y = pos.x, pos.y
+                ti = tile_info[x][y]
+                
+                if ti is None:
+                    continue
+                if not ti.has_building:
+                    continue
+                if ti.is_building_ally:
+                    continue
+
+
+                idx = (((x) + 3) * 56 + ((y) + 3))
+                
+                info = GunnerTargetInfo()
+                info.position = pos
+                info.has_bot = False
+                info.has_turret = False
+                info.has_building = False
+                info.has_launcher = False
+                info.can_shoot_me = False
+                info.iscore = cls.importance_score[ti.entity_type]
+                info.entity_type = ti.entity_type
+                info.is_road = ti.entity_type == EntityType.ROAD
+                info.current_dir = current_dir == Direction.EAST
+                info.rand_key = random.random()
+                info.ally_connected = DarkForest.node_kind[idx] in \
+                    (1, 3)
+
+                info.is_harvester_feeding_ally = False
+                info.harvester_adjacent = ti.harvester_adjacent
+
+                if ti.entity_type == EntityType.HARVESTER:
+                    nidx = idx -1
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx +1
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx -56
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx +56
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+
+                if ti.has_bot and not ti.is_bot_ally:
+                    info.has_bot = True
+                    info.bot_hp = ti.bot_hp
+
+                if ti.has_building and not ti.is_building_ally:
+                    info.has_building = True
+                    info.building_hp = ti.building_hp
+                    if ti.has_turret:
+                        info.has_turret = True
+                        info.can_shoot_me = ct.can_fire_from(
+                            pos, 
+                            ti.turret_direction, 
+                            ti.entity_type,
+                            Globals.my_pos
+                        )
+
+                    elif info.entity_type == EntityType.LAUNCHER:
+                        info.has_launcher = True
+
+                cls.targets.append(info)
             
-            info = GunnerTargetInfo()
-            info.position = pos
-            info.has_bot = False
-            info.has_turret = False
-            info.has_building = False
-            info.has_launcher = False
-            info.can_shoot_me = False
-            info.iscore = cls.importance_score[ti.entity_type]
-            info.entity_type = ti.entity_type
-            info.is_road = ti.entity_type == EntityType.ROAD
-            info.current_dir = current_dir == Direction.SOUTH
-            info.rand_key = random.random()
-            info.ally_connected = DarkForest.node_kind[idx] in \
-                (1, 3)
 
-            info.is_harvester_feeding_ally = False
-            info.harvester_adjacent = ti.harvester_adjacent
+        skip = nadj_feeders == 1 and has_feeder[3] and current_dir == Direction.SOUTHEAST
 
-            if ti.entity_type == EntityType.HARVESTER:
-                nidx = idx -1
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx +1
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx -56
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx +56
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
+        if not skip:
+            for pos in ct.get_attackable_tiles_from(my_pos, Direction.SOUTHEAST, EntityType.GUNNER):
+                if not ct.can_fire_from(my_pos, Direction.SOUTHEAST, EntityType.GUNNER, pos):
+                    continue
 
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
+                x, y = pos.x, pos.y
+                ti = tile_info[x][y]
+                
+                if ti is None:
+                    continue
+                if not ti.has_building:
+                    continue
+                if ti.is_building_ally:
+                    continue
 
-            if ti.has_building and not ti.is_building_ally:
-                info.has_building = True
-                info.building_hp = ti.building_hp
-                if ti.has_turret:
-                    info.has_turret = True
-                    info.can_shoot_me = ct.can_fire_from(
-                        pos, 
-                        ti.turret_direction, 
-                        ti.entity_type,
-                        Globals.my_pos
-                    )
 
-                elif info.entity_type == EntityType.LAUNCHER:
-                    info.has_launcher = True
+                idx = (((x) + 3) * 56 + ((y) + 3))
+                
+                info = GunnerTargetInfo()
+                info.position = pos
+                info.has_bot = False
+                info.has_turret = False
+                info.has_building = False
+                info.has_launcher = False
+                info.can_shoot_me = False
+                info.iscore = cls.importance_score[ti.entity_type]
+                info.entity_type = ti.entity_type
+                info.is_road = ti.entity_type == EntityType.ROAD
+                info.current_dir = current_dir == Direction.SOUTHEAST
+                info.rand_key = random.random()
+                info.ally_connected = DarkForest.node_kind[idx] in \
+                    (1, 3)
 
-            cls.targets.append(info)
+                info.is_harvester_feeding_ally = False
+                info.harvester_adjacent = ti.harvester_adjacent
+
+                if ti.entity_type == EntityType.HARVESTER:
+                    nidx = idx -1
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx +1
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx -56
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx +56
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+
+                if ti.has_bot and not ti.is_bot_ally:
+                    info.has_bot = True
+                    info.bot_hp = ti.bot_hp
+
+                if ti.has_building and not ti.is_building_ally:
+                    info.has_building = True
+                    info.building_hp = ti.building_hp
+                    if ti.has_turret:
+                        info.has_turret = True
+                        info.can_shoot_me = ct.can_fire_from(
+                            pos, 
+                            ti.turret_direction, 
+                            ti.entity_type,
+                            Globals.my_pos
+                        )
+
+                    elif info.entity_type == EntityType.LAUNCHER:
+                        info.has_launcher = True
+
+                cls.targets.append(info)
             
-        x, y = my_pos.x -1, my_pos.y +1
-        ti = tile_info[x][y]
-        
-        if ti is not None:
-            pos = Position(x, y)
-            idx = (((x) + 3) * 56 + ((y) + 3))
+
+        skip = nadj_feeders == 1 and has_feeder[4] and current_dir == Direction.SOUTH
+
+        if not skip:
+            for pos in ct.get_attackable_tiles_from(my_pos, Direction.SOUTH, EntityType.GUNNER):
+                if not ct.can_fire_from(my_pos, Direction.SOUTH, EntityType.GUNNER, pos):
+                    continue
+
+                x, y = pos.x, pos.y
+                ti = tile_info[x][y]
+                
+                if ti is None:
+                    continue
+                if not ti.has_building:
+                    continue
+                if ti.is_building_ally:
+                    continue
+
+
+                idx = (((x) + 3) * 56 + ((y) + 3))
+                
+                info = GunnerTargetInfo()
+                info.position = pos
+                info.has_bot = False
+                info.has_turret = False
+                info.has_building = False
+                info.has_launcher = False
+                info.can_shoot_me = False
+                info.iscore = cls.importance_score[ti.entity_type]
+                info.entity_type = ti.entity_type
+                info.is_road = ti.entity_type == EntityType.ROAD
+                info.current_dir = current_dir == Direction.SOUTH
+                info.rand_key = random.random()
+                info.ally_connected = DarkForest.node_kind[idx] in \
+                    (1, 3)
+
+                info.is_harvester_feeding_ally = False
+                info.harvester_adjacent = ti.harvester_adjacent
+
+                if ti.entity_type == EntityType.HARVESTER:
+                    nidx = idx -1
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx +1
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx -56
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx +56
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+
+                if ti.has_bot and not ti.is_bot_ally:
+                    info.has_bot = True
+                    info.bot_hp = ti.bot_hp
+
+                if ti.has_building and not ti.is_building_ally:
+                    info.has_building = True
+                    info.building_hp = ti.building_hp
+                    if ti.has_turret:
+                        info.has_turret = True
+                        info.can_shoot_me = ct.can_fire_from(
+                            pos, 
+                            ti.turret_direction, 
+                            ti.entity_type,
+                            Globals.my_pos
+                        )
+
+                    elif info.entity_type == EntityType.LAUNCHER:
+                        info.has_launcher = True
+
+                cls.targets.append(info)
             
-            info = GunnerTargetInfo()
-            info.position = pos
-            info.has_bot = False
-            info.has_turret = False
-            info.has_building = False
-            info.has_launcher = False
-            info.can_shoot_me = False
-            info.iscore = cls.importance_score[ti.entity_type]
-            info.entity_type = ti.entity_type
-            info.is_road = ti.entity_type == EntityType.ROAD
-            info.current_dir = current_dir == Direction.SOUTHWEST
-            info.rand_key = random.random()
-            info.ally_connected = DarkForest.node_kind[idx] in \
-                (1, 3)
 
-            info.is_harvester_feeding_ally = False
-            info.harvester_adjacent = ti.harvester_adjacent
+        skip = nadj_feeders == 1 and has_feeder[5] and current_dir == Direction.SOUTHWEST
 
-            if ti.entity_type == EntityType.HARVESTER:
-                nidx = idx -1
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx +1
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx -56
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx +56
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
+        if not skip:
+            for pos in ct.get_attackable_tiles_from(my_pos, Direction.SOUTHWEST, EntityType.GUNNER):
+                if not ct.can_fire_from(my_pos, Direction.SOUTHWEST, EntityType.GUNNER, pos):
+                    continue
 
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
+                x, y = pos.x, pos.y
+                ti = tile_info[x][y]
+                
+                if ti is None:
+                    continue
+                if not ti.has_building:
+                    continue
+                if ti.is_building_ally:
+                    continue
 
-            if ti.has_building and not ti.is_building_ally:
-                info.has_building = True
-                info.building_hp = ti.building_hp
-                if ti.has_turret:
-                    info.has_turret = True
-                    info.can_shoot_me = ct.can_fire_from(
-                        pos, 
-                        ti.turret_direction, 
-                        ti.entity_type,
-                        Globals.my_pos
-                    )
 
-                elif info.entity_type == EntityType.LAUNCHER:
-                    info.has_launcher = True
+                idx = (((x) + 3) * 56 + ((y) + 3))
+                
+                info = GunnerTargetInfo()
+                info.position = pos
+                info.has_bot = False
+                info.has_turret = False
+                info.has_building = False
+                info.has_launcher = False
+                info.can_shoot_me = False
+                info.iscore = cls.importance_score[ti.entity_type]
+                info.entity_type = ti.entity_type
+                info.is_road = ti.entity_type == EntityType.ROAD
+                info.current_dir = current_dir == Direction.SOUTHWEST
+                info.rand_key = random.random()
+                info.ally_connected = DarkForest.node_kind[idx] in \
+                    (1, 3)
 
-            cls.targets.append(info)
+                info.is_harvester_feeding_ally = False
+                info.harvester_adjacent = ti.harvester_adjacent
+
+                if ti.entity_type == EntityType.HARVESTER:
+                    nidx = idx -1
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx +1
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx -56
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx +56
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+
+                if ti.has_bot and not ti.is_bot_ally:
+                    info.has_bot = True
+                    info.bot_hp = ti.bot_hp
+
+                if ti.has_building and not ti.is_building_ally:
+                    info.has_building = True
+                    info.building_hp = ti.building_hp
+                    if ti.has_turret:
+                        info.has_turret = True
+                        info.can_shoot_me = ct.can_fire_from(
+                            pos, 
+                            ti.turret_direction, 
+                            ti.entity_type,
+                            Globals.my_pos
+                        )
+
+                    elif info.entity_type == EntityType.LAUNCHER:
+                        info.has_launcher = True
+
+                cls.targets.append(info)
             
-        x, y = my_pos.x -1, my_pos.y 
-        ti = tile_info[x][y]
-        
-        if ti is not None:
-            pos = Position(x, y)
-            idx = (((x) + 3) * 56 + ((y) + 3))
+
+        skip = nadj_feeders == 1 and has_feeder[6] and current_dir == Direction.WEST
+
+        if not skip:
+            for pos in ct.get_attackable_tiles_from(my_pos, Direction.WEST, EntityType.GUNNER):
+                if not ct.can_fire_from(my_pos, Direction.WEST, EntityType.GUNNER, pos):
+                    continue
+
+                x, y = pos.x, pos.y
+                ti = tile_info[x][y]
+                
+                if ti is None:
+                    continue
+                if not ti.has_building:
+                    continue
+                if ti.is_building_ally:
+                    continue
+
+
+                idx = (((x) + 3) * 56 + ((y) + 3))
+                
+                info = GunnerTargetInfo()
+                info.position = pos
+                info.has_bot = False
+                info.has_turret = False
+                info.has_building = False
+                info.has_launcher = False
+                info.can_shoot_me = False
+                info.iscore = cls.importance_score[ti.entity_type]
+                info.entity_type = ti.entity_type
+                info.is_road = ti.entity_type == EntityType.ROAD
+                info.current_dir = current_dir == Direction.WEST
+                info.rand_key = random.random()
+                info.ally_connected = DarkForest.node_kind[idx] in \
+                    (1, 3)
+
+                info.is_harvester_feeding_ally = False
+                info.harvester_adjacent = ti.harvester_adjacent
+
+                if ti.entity_type == EntityType.HARVESTER:
+                    nidx = idx -1
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx +1
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx -56
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx +56
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+
+                if ti.has_bot and not ti.is_bot_ally:
+                    info.has_bot = True
+                    info.bot_hp = ti.bot_hp
+
+                if ti.has_building and not ti.is_building_ally:
+                    info.has_building = True
+                    info.building_hp = ti.building_hp
+                    if ti.has_turret:
+                        info.has_turret = True
+                        info.can_shoot_me = ct.can_fire_from(
+                            pos, 
+                            ti.turret_direction, 
+                            ti.entity_type,
+                            Globals.my_pos
+                        )
+
+                    elif info.entity_type == EntityType.LAUNCHER:
+                        info.has_launcher = True
+
+                cls.targets.append(info)
             
-            info = GunnerTargetInfo()
-            info.position = pos
-            info.has_bot = False
-            info.has_turret = False
-            info.has_building = False
-            info.has_launcher = False
-            info.can_shoot_me = False
-            info.iscore = cls.importance_score[ti.entity_type]
-            info.entity_type = ti.entity_type
-            info.is_road = ti.entity_type == EntityType.ROAD
-            info.current_dir = current_dir == Direction.WEST
-            info.rand_key = random.random()
-            info.ally_connected = DarkForest.node_kind[idx] in \
-                (1, 3)
 
-            info.is_harvester_feeding_ally = False
-            info.harvester_adjacent = ti.harvester_adjacent
+        skip = nadj_feeders == 1 and has_feeder[7] and current_dir == Direction.NORTHWEST
 
-            if ti.entity_type == EntityType.HARVESTER:
-                nidx = idx -1
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx +1
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx -56
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx +56
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
+        if not skip:
+            for pos in ct.get_attackable_tiles_from(my_pos, Direction.NORTHWEST, EntityType.GUNNER):
+                if not ct.can_fire_from(my_pos, Direction.NORTHWEST, EntityType.GUNNER, pos):
+                    continue
 
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
+                x, y = pos.x, pos.y
+                ti = tile_info[x][y]
+                
+                if ti is None:
+                    continue
+                if not ti.has_building:
+                    continue
+                if ti.is_building_ally:
+                    continue
 
-            if ti.has_building and not ti.is_building_ally:
-                info.has_building = True
-                info.building_hp = ti.building_hp
-                if ti.has_turret:
-                    info.has_turret = True
-                    info.can_shoot_me = ct.can_fire_from(
-                        pos, 
-                        ti.turret_direction, 
-                        ti.entity_type,
-                        Globals.my_pos
-                    )
 
-                elif info.entity_type == EntityType.LAUNCHER:
-                    info.has_launcher = True
+                idx = (((x) + 3) * 56 + ((y) + 3))
+                
+                info = GunnerTargetInfo()
+                info.position = pos
+                info.has_bot = False
+                info.has_turret = False
+                info.has_building = False
+                info.has_launcher = False
+                info.can_shoot_me = False
+                info.iscore = cls.importance_score[ti.entity_type]
+                info.entity_type = ti.entity_type
+                info.is_road = ti.entity_type == EntityType.ROAD
+                info.current_dir = current_dir == Direction.NORTHWEST
+                info.rand_key = random.random()
+                info.ally_connected = DarkForest.node_kind[idx] in \
+                    (1, 3)
 
-            cls.targets.append(info)
-            
-        x, y = my_pos.x -1, my_pos.y -1
-        ti = tile_info[x][y]
-        
-        if ti is not None:
-            pos = Position(x, y)
-            idx = (((x) + 3) * 56 + ((y) + 3))
-            
-            info = GunnerTargetInfo()
-            info.position = pos
-            info.has_bot = False
-            info.has_turret = False
-            info.has_building = False
-            info.has_launcher = False
-            info.can_shoot_me = False
-            info.iscore = cls.importance_score[ti.entity_type]
-            info.entity_type = ti.entity_type
-            info.is_road = ti.entity_type == EntityType.ROAD
-            info.current_dir = current_dir == Direction.NORTHWEST
-            info.rand_key = random.random()
-            info.ally_connected = DarkForest.node_kind[idx] in \
-                (1, 3)
+                info.is_harvester_feeding_ally = False
+                info.harvester_adjacent = ti.harvester_adjacent
 
-            info.is_harvester_feeding_ally = False
-            info.harvester_adjacent = ti.harvester_adjacent
+                if ti.entity_type == EntityType.HARVESTER:
+                    nidx = idx -1
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx +1
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx -56
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
+                    nidx = idx +56
+                    if DarkForest.node_kind[nidx] in (1, 3):
+                        info.is_harvester_feeding_ally = True
 
-            if ti.entity_type == EntityType.HARVESTER:
-                nidx = idx -1
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx +1
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx -56
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx +56
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
+                if ti.has_bot and not ti.is_bot_ally:
+                    info.has_bot = True
+                    info.bot_hp = ti.bot_hp
 
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
+                if ti.has_building and not ti.is_building_ally:
+                    info.has_building = True
+                    info.building_hp = ti.building_hp
+                    if ti.has_turret:
+                        info.has_turret = True
+                        info.can_shoot_me = ct.can_fire_from(
+                            pos, 
+                            ti.turret_direction, 
+                            ti.entity_type,
+                            Globals.my_pos
+                        )
 
-            if ti.has_building and not ti.is_building_ally:
-                info.has_building = True
-                info.building_hp = ti.building_hp
-                if ti.has_turret:
-                    info.has_turret = True
-                    info.can_shoot_me = ct.can_fire_from(
-                        pos, 
-                        ti.turret_direction, 
-                        ti.entity_type,
-                        Globals.my_pos
-                    )
+                    elif info.entity_type == EntityType.LAUNCHER:
+                        info.has_launcher = True
 
-                elif info.entity_type == EntityType.LAUNCHER:
-                    info.has_launcher = True
-
-            cls.targets.append(info)
-            
-        x, y = my_pos.x , my_pos.y 
-        ti = tile_info[x][y]
-        
-        if ti is not None:
-            pos = Position(x, y)
-            idx = (((x) + 3) * 56 + ((y) + 3))
-            
-            info = GunnerTargetInfo()
-            info.position = pos
-            info.has_bot = False
-            info.has_turret = False
-            info.has_building = False
-            info.has_launcher = False
-            info.can_shoot_me = False
-            info.iscore = cls.importance_score[ti.entity_type]
-            info.entity_type = ti.entity_type
-            info.is_road = ti.entity_type == EntityType.ROAD
-            info.current_dir = current_dir == Direction.CENTRE
-            info.rand_key = random.random()
-            info.ally_connected = DarkForest.node_kind[idx] in \
-                (1, 3)
-
-            info.is_harvester_feeding_ally = False
-            info.harvester_adjacent = ti.harvester_adjacent
-
-            if ti.entity_type == EntityType.HARVESTER:
-                nidx = idx -1
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx +1
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx -56
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-                nidx = idx +56
-                if DarkForest.node_kind[nidx] in (1, 3):
-                    info.is_harvester_feeding_ally = True
-
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
-
-            if ti.has_building and not ti.is_building_ally:
-                info.has_building = True
-                info.building_hp = ti.building_hp
-                if ti.has_turret:
-                    info.has_turret = True
-                    info.can_shoot_me = ct.can_fire_from(
-                        pos, 
-                        ti.turret_direction, 
-                        ti.entity_type,
-                        Globals.my_pos
-                    )
-
-                elif info.entity_type == EntityType.LAUNCHER:
-                    info.has_launcher = True
-
-            cls.targets.append(info)
+                cls.targets.append(info)
 
 
 # ============================================================
@@ -22808,6 +22802,8 @@ class HealTargetInfo:
     bot_hp: int
     is_transporter: bool
     has_enemy_bot: bool
+    bfs_dist: int
+    entity_type: EntityType
 
     @staticmethod
     def is_better_than(a: HealTargetInfo, b: HealTargetInfo) -> bool:
@@ -22837,6 +22833,9 @@ class HealTargetInfo:
         if a.bot_hp != b.bot_hp:
             return a.bot_hp < b.bot_hp
 
+        if a.bfs_dist != b.bfs_dist:
+            return a.bfs_dist < b.bfs_dist
+
         return False
 
 
@@ -22862,6 +22861,13 @@ class HealTargeter:
         if best.building_heal + best.bot_heal < 4:
             return None
 
+        # if far away from core and not critical and core hp is high, do other stuff
+        core_ti = Map.tile_info[Unit.core_pos.x][Unit.core_pos.y]
+        if best.entity_type == EntityType.CORE:
+            cond = best.building_hp < 500 - best.bfs_dist * (core_ti.allied_bots_adjacent + 1) * 4
+            if not cond:
+                return None
+
 
         return best.position
 
@@ -22882,6 +22888,8 @@ class HealTargeter:
             info.bot_hp = 1000000
             info.is_transporter = (ti.entity_type is not None and ti.entity_type in Constants.TRANSPORTERS_SET)
             info.has_enemy_bot = False
+            info.bfs_dist = BfsBureau.bfs20_dist[(((pos.x) + 3) * 56 + ((pos.y) + 3))]
+            info.entity_type = ti.entity_type
 
             if ti.has_building and ti.is_building_ally:
                 info.building_heal = min(
@@ -25426,22 +25434,22 @@ class SentinelDirectionPicker:
 
         ti = tile_info[sx + 0][sy + -1]
         if ti is not None:
-            if ti.entity_type == EntityType.HARVESTER or ti.target == spos:
+            if (ti.entity_type == EntityType.HARVESTER and ti.env == Environment.ORE_TITANIUM) or ti.target == spos:
                 has_feeder[0] = True
                 nadj_feeders += 1
         ti = tile_info[sx + 1][sy + 0]
         if ti is not None:
-            if ti.entity_type == EntityType.HARVESTER or ti.target == spos:
+            if (ti.entity_type == EntityType.HARVESTER and ti.env == Environment.ORE_TITANIUM) or ti.target == spos:
                 has_feeder[2] = True
                 nadj_feeders += 1
         ti = tile_info[sx + 0][sy + 1]
         if ti is not None:
-            if ti.entity_type == EntityType.HARVESTER or ti.target == spos:
+            if (ti.entity_type == EntityType.HARVESTER and ti.env == Environment.ORE_TITANIUM) or ti.target == spos:
                 has_feeder[4] = True
                 nadj_feeders += 1
         ti = tile_info[sx + -1][sy + 0]
         if ti is not None:
-            if ti.entity_type == EntityType.HARVESTER or ti.target == spos:
+            if (ti.entity_type == EntityType.HARVESTER and ti.env == Environment.ORE_TITANIUM) or ti.target == spos:
                 has_feeder[6] = True
                 nadj_feeders += 1
 
@@ -27245,12 +27253,15 @@ class SpawnManager:
 class StalkTargeter:
     @classmethod
     def get_best_target(cls) -> Position | None:
+        
+
         if not Map.harvester_set:
             return None
 
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
-            if ti.has_bot and not ti.is_bot_ally and ti.allied_bots_adjacent < 2:
-                return Position(x, y)
+            if ti.has_bot and not ti.is_bot_ally and VisionTracker.me_is_canonical_ally(pos):
+                
+                return pos
 
 
 # ============================================================
@@ -28474,7 +28485,6 @@ class Gunner(Unit):
     def start_turn(cls):
         Unit.start_turn()
         DarkForest.fcompute()
-        DarkForest.debug_kind()
 
         GunnerSupervisor.fill()
 
@@ -28501,7 +28511,6 @@ class Launcher(Unit):
     def start_turn(cls):
         Unit.start_turn()
         DarkForest.fcompute()
-        DarkForest.debug_kind()
 
         LauncherSupervisor.fill()
 
@@ -28528,7 +28537,6 @@ class Sentinel(Unit):
     def start_turn(cls):
         Unit.start_turn()
         DarkForest.fcompute()
-        DarkForest.debug_kind()
 
         SentinelSupervisor.fill()
 
