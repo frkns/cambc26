@@ -131,7 +131,12 @@ class RouteToBreach:
 
         if ti.has_building:
             if not ti.is_building_ally:
-                return True
+                newTarg = cls._pick_target()
+                if newTarg is None:
+                    return True
+                else:
+                    cls._breach_target = newTarg
+                    return False
             if ti.entity_type in Constants.TURRET_SET:
                 return True
             """
@@ -141,7 +146,20 @@ class RouteToBreach:
                 if ti.entity_type != EntityType.ROAD:
                     return True
             """
-            
+        x, y = {{decode_pos('cls._breach_target') | join(', ')}}
+        ti = Map.tile_info[x][y]
+        if ti is None:
+            return False
+        if ti.has_building:
+            if not ti.is_building_ally:
+                newTarg = cls._pick_target()
+                if newTarg is None:
+                    return True
+                else:
+                    cls._breach_target = newTarg
+                    return False
+            if ti.entity_type in Constants.TURRET_SET:
+                return True
         return False
 
     @classmethod

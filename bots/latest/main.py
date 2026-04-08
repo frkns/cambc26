@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-07 19:47:13 (local)
+# latest,  @ 2026-04-07 19:58:27 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -2024,8 +2024,8 @@ class BreachBuild:
                 and Globals.ct.can_destroy(pos) \
                 and Globals.ct.get_action_cooldown() == 0:
             Globals.ct.destroy(pos)
-        elif ti.has_building and ti.entity_type != EntityType.SENTINEL:
-            if (Globals.ct.get_global_resources()[0] > Globals.ct.get_sentinel_cost()[0]) \
+        elif ti.has_building and ti.entity_type != EntityType.GUNNER:
+            if (Globals.ct.get_global_resources()[0] > Globals.ct.get_gunner_cost()[0]) \
                 and Globals.ct.can_destroy(pos) \
                 and Globals.ct.get_action_cooldown() == 0:
                 Globals.ct.destroy(pos)
@@ -2042,8 +2042,8 @@ class BreachBuild:
 
             RouteToBreach._breach_target = None
             return True
-        if Globals.ct.can_build_sentinel(pos, dirToBuild):
-            Globals.ct.build_sentinel(pos, dirToBuild)
+        if Globals.ct.can_build_gunner(pos, dirToBuild):
+            Globals.ct.build_gunner(pos, dirToBuild)
             encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
             return True
         return False
@@ -25020,7 +25020,12 @@ class RouteToBreach:
 
         if ti.has_building:
             if not ti.is_building_ally:
-                return True
+                newTarg = cls._pick_target()
+                if newTarg is None:
+                    return True
+                else:
+                    cls._breach_target = newTarg
+                    return False
             if ti.entity_type in Constants.TURRET_SET:
                 return True
             """
@@ -25030,7 +25035,20 @@ class RouteToBreach:
                 if ti.entity_type != EntityType.ROAD:
                     return True
             """
-            
+        x, y = ((cls._breach_target) // 56 - 3), ((cls._breach_target) % 56 - 3)
+        ti = Map.tile_info[x][y]
+        if ti is None:
+            return False
+        if ti.has_building:
+            if not ti.is_building_ally:
+                newTarg = cls._pick_target()
+                if newTarg is None:
+                    return True
+                else:
+                    cls._breach_target = newTarg
+                    return False
+            if ti.entity_type in Constants.TURRET_SET:
+                return True
         return False
 
     @classmethod

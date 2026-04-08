@@ -37,8 +37,8 @@ class BreachBuild:
                 and Globals.ct.can_destroy(pos) \
                 and Globals.ct.get_action_cooldown() == 0:
             Globals.ct.destroy(pos)
-        elif ti.has_building and ti.entity_type != EntityType.SENTINEL:
-            if (Globals.ct.get_global_resources()[0] > Globals.ct.get_sentinel_cost()[0]) \
+        elif ti.has_building and ti.entity_type != EntityType.GUNNER:
+            if (Globals.ct.get_global_resources()[0] > Globals.ct.get_gunner_cost()[0]) \
                 and Globals.ct.can_destroy(pos) \
                 and Globals.ct.get_action_cooldown() == 0:
                 Globals.ct.destroy(pos)
@@ -55,8 +55,8 @@ class BreachBuild:
 
             RouteToBreach._breach_target = None
             return True
-        if Globals.ct.can_build_sentinel(pos, dirToBuild):
-            Globals.ct.build_sentinel(pos, dirToBuild)
+        if Globals.ct.can_build_gunner(pos, dirToBuild):
+            Globals.ct.build_gunner(pos, dirToBuild)
             encoded = {{ encode_pos('pos.x', 'pos.y') }}
             return True
         return False
