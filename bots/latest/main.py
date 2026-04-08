@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-08 11:21:17 (local)
+# latest,  @ 2026-04-08 11:28:14 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -28503,9 +28503,10 @@ class Builder(Unit):
     def determine_state(cls):
         my_pos = Globals.my_pos
 
+        """
         if RouteToBreach.is_active:
             return ('RouteBreach',)
-
+        """
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
 
@@ -28530,9 +28531,11 @@ class Builder(Unit):
         healpos = HealTargeter.get_best_target()
         if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
+        """
         breach_target = BreachBuild._pick_target()
         if breach_target is not None:
             return 'BreachBuild', breach_target
+        """
         foundry_target = FoundryBuild._pick_target()
         if foundry_target is not None:
             return 'FoundryBuild', foundry_target
