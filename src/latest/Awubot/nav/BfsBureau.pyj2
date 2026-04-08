@@ -110,7 +110,7 @@ class BfsBureau:
 
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             if ti.has_bot:
-                now_weight[idx] = {{ INF }}
+                now_weight[idx] += 10
 # ===---
 
     # incremental

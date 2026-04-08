@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-07 22:52:54 (local)
+# latest,  @ 2026-04-07 23:59:01 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -226,7 +226,7 @@ class BfsBureau:
 
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             if ti.has_bot:
-                now_weight[idx] = 1000000
+                now_weight[idx] += 10
 
 
     # incremental
@@ -20631,6 +20631,9 @@ class Entrypoint:
 
     @classmethod
     def run(cls, ct: Controller):
+
+        # because engine is bugged
+
         Globals.ct = ct  # in case not fixed...
         if cls.needs_init:
             cls.init(ct)
@@ -22247,6 +22250,11 @@ class GunnerTargetInfo:
         if a.has_turret and b.has_turret:
             if a.can_shoot_me and (not b.can_shoot_me): return True
             if (not a.can_shoot_me) and b.can_shoot_me: return False
+
+            a_is_gunner = a.entity_type == EntityType.GUNNER
+            b_is_gunner = b.entity_type == EntityType.GUNNER
+            if a_is_gunner and (not b_is_gunner): return True
+            if (not a_is_gunner) and b_is_gunner: return False
 
         # if there is a bot on top of the tile, nothing underneath gets hit
         if a.has_bot and (not b.has_bot): return True
@@ -26764,6 +26772,11 @@ class SentinelTargetInfo:
             if a.can_shoot_me and (not b.can_shoot_me): return True
             if (not a.can_shoot_me) and b.can_shoot_me: return False
 
+            a_is_gunner = a.entity_type == EntityType.GUNNER
+            b_is_gunner = b.entity_type == EntityType.GUNNER
+            if a_is_gunner and (not b_is_gunner): return True
+            if (not a_is_gunner) and b_is_gunner: return False
+
         # if there is a bot on top of the tile, nothing underneath gets hit
         if a.has_bot and (not b.has_bot): return True
         if (not a.has_bot) and b.has_bot: return False
@@ -26971,15 +26984,79 @@ class SitterTargetInfo:
 # ============================================================
 
 class SpawnManager:
+    nearest_dangerous_enemy: Position | None
+
+    # persistent
     num_spawned: int = 0
+
+
+    @classmethod
+    def fill(cls):
+        my_pos = Globals.my_pos
+        dist = 1000000
+        enemy = None
+
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            ti: TileInfo
+
+            if not ti.entity_type in Constants.ATTACKABLE_TRANSPORTERS_SET:
+                continue
+            if not (ti.has_bot and not ti.is_bot_ally):
+                continue
+            if ti.allied_bots_adjacent > 0:
+                continue
+
+            if enemy is None or (d := my_pos.distance_squared(pos)) < dist:
+                dist = d
+                enemy = pos
+
+        cls.nearest_dangerous_enemy = enemy
+
+
+
 
     @classmethod
     def spawn(cls):
         # rework this
-        pos = Globals.my_pos.add(random.choice(Constants.DIRECTIONS))
+        my_pos = Globals.my_pos
+
+        pos = my_pos.add(Direction.CENTRE)
         if Globals.ct.can_spawn(pos):
             Globals.ct.spawn_builder(pos)
             cls.num_spawned += 1
+        pos = my_pos.add(Direction.NORTHWEST)
+        if Globals.ct.can_spawn(pos):
+            Globals.ct.spawn_builder(pos)
+            cls.num_spawned += 1
+        pos = my_pos.add(Direction.WEST)
+        if Globals.ct.can_spawn(pos):
+            Globals.ct.spawn_builder(pos)
+            cls.num_spawned += 1
+        pos = my_pos.add(Direction.SOUTHWEST)
+        if Globals.ct.can_spawn(pos):
+            Globals.ct.spawn_builder(pos)
+            cls.num_spawned += 1
+        pos = my_pos.add(Direction.SOUTH)
+        if Globals.ct.can_spawn(pos):
+            Globals.ct.spawn_builder(pos)
+            cls.num_spawned += 1
+        pos = my_pos.add(Direction.SOUTHEAST)
+        if Globals.ct.can_spawn(pos):
+            Globals.ct.spawn_builder(pos)
+            cls.num_spawned += 1
+        pos = my_pos.add(Direction.EAST)
+        if Globals.ct.can_spawn(pos):
+            Globals.ct.spawn_builder(pos)
+            cls.num_spawned += 1
+        pos = my_pos.add(Direction.NORTHEAST)
+        if Globals.ct.can_spawn(pos):
+            Globals.ct.spawn_builder(pos)
+            cls.num_spawned += 1
+        pos = my_pos.add(Direction.NORTH)
+        if Globals.ct.can_spawn(pos):
+            Globals.ct.spawn_builder(pos)
+            cls.num_spawned += 1
+
 
     @classmethod
     def should_spawn(cls):
@@ -27000,6 +27077,9 @@ class SpawnManager:
 
     @classmethod
     def should_spawn_emergency(cls):
+        if cls.nearest_dangerous_enemy is not None:
+            return True
+        
         lost_short = CoreHistory.hp_delta(1) < 0 
         lost_long = CoreHistory.hp_delta(10) < 0 
         low_hp = Globals.ct.get_hp() < 450
@@ -27027,7 +27107,7 @@ class StalkTargeter:
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             if ti.has_bot and not ti.is_bot_ally \
                     and VisionTracker.me_is_canonical_ally(pos) \
-                    and bfs20_dist[idx] < 100:  # reachable
+                    and bfs20_dist[idx] < 1000000:  # reachable
                 
                 return pos
 
@@ -28075,6 +28155,8 @@ class Builder(Unit):
 
     @classmethod
     def determine_state(cls):
+        my_pos = Globals.my_pos
+
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
 
@@ -28125,18 +28207,25 @@ class Builder(Unit):
         if apos is not None:
             return 'AttackTransporter', apos
 
+        ax_target = OreExecutive.get_axionite_target()
+        ti_target = OreExecutive.get_titanium_target()
+        stalk_target = StalkTargeter.get_best_target()
 
-        axTarg = OreExecutive.get_axionite_target()
-        if axTarg is not None:
-            return 'BuildHarvesterAx', axTarg
+        dist_stalk = 1000000 if stalk_target is None else my_pos.distance_squared(stalk_target)
+        dist_ti = 1000000 if ti_target is None else my_pos.distance_squared(ti_target)
+        dist_ax = 1000000 if ax_target is None else my_pos.distance_squared(ax_target)
 
-        bhpos = OreExecutive.get_titanium_target()
-        if bhpos is not None:
-            return 'BuildHarvester', bhpos
+        if dist_stalk < dist_ti and dist_stalk < dist_ax:
+            return 'MoveTo', stalk_target, 'Stalk'
 
-        stalkTarget = StalkTargeter.get_best_target()
-        if stalkTarget is not None:
-            return 'MoveTo', stalkTarget, 'Stalk'
+        if ax_target is not None:
+            return 'BuildHarvesterAx', ax_target
+
+        if ti_target is not None:
+            return 'BuildHarvester', ti_target
+
+        if stalk_target is not None:
+            return 'MoveTo', stalk_target, 'Stalk'
 
         rushTarget = RushTargeter.get_best_target()
         if rushTarget is not None:
@@ -28163,11 +28252,16 @@ class Core(Unit):
     def start_turn(cls):
         Unit.start_turn()
         CoreHistory.fill()
+        SpawnManager.fill()
         print(f'est income: {MarketMaker.est_income}')
 
     @classmethod
     def run_turn(cls):
-        if BurnManager.should_burn_emergency():
+        # if BurnManager.should_burn_emergency():
+        #     BurnManager.burn()
+
+        # I think this is cleaner
+        if SpawnManager.should_spawn_emergency():
             BurnManager.burn()
         
         if SpawnManager.should_spawn() or SpawnManager.should_spawn_emergency():

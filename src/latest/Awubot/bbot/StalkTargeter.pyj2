@@ -31,7 +31,7 @@ class StalkTargeter:
             {# /* if ti.has_bot and not ti.is_bot_ally and ti.allied_bots_adjacent < 2: */ #}
             if ti.has_bot and not ti.is_bot_ally \
                     and VisionTracker.me_is_canonical_ally(pos) \
-                    and bfs20_dist[idx] < 100:  # reachable
+                    and bfs20_dist[idx] < {{ INF }}:  # reachable
                 {{ P.end('StalkTargeter.get_best_target') }}
                 return pos
 
