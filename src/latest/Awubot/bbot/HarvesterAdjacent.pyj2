@@ -24,13 +24,19 @@ class AdjacentInfo:
     enemy_hadj: int  # enemy harvesters adjacent
     ally_hadj: int   # ally  "          "
     dist_enemy_core: int
+    bfs_dist: int
 
     @staticmethod
     def is_better_than(a: AdjacentInfo, b: AdjacentInfo):
+        if a.bfs_dist >= {{ INF }}: return False
+        if b.bfs_dist >= {{ INF }}: return True
+
         if a.enemy_hadj != b.enemy_hadj:
             return a.enemy_hadj > b.enemy_hadj
         if a.ally_hadj != b.ally_hadj:
             return a.ally_hadj > b.ally_hadj
+        if a.bfs_dist != b.bfs_dist:
+            return a.bfs_dist < b.bfs_dist
         return a.dist_enemy_core < b.dist_enemy_core
 
 
@@ -82,6 +88,7 @@ class HarvesterAdjacent:
             info.has_ally_road = ti.entity_type == EntityType.ROAD
             info.enemy_hadj = 0
             info.ally_hadj = 0
+            info.bfs_dist = BfsBureau.bfs20_dist[idx]
 
             {% for dir in cardinal_directions %}
             {% set dx, dy = dir.delta() %}

@@ -47,4 +47,5 @@ class Core({{ super() }}):
         {% if LOCAL %}
         if Globals.round > {{ ROUND_LIMIT }}:
             Globals.ct.resign()
+            raise Exception
         {% endif %}
