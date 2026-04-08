@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-07 12:47:58 (local)
+# latest,  @ 2026-04-08 19:04:10 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -2474,13 +2474,13 @@ class BurnManager:
         if not BuildManager.can_afford_builder_bot():
             ct = Globals.ct
             ti, ax = ct.get_global_resources()
-            if ax > 1:
-                builderCost = Globals.ct.get_builder_bot_cost()[0]
-                
-                tiNeeded = builderCost - ti
-                axNeeded = max(0, math.ceil(tiNeeded/4))
-                
-                ct.convert(min(axNeeded, ax - 1))
+            
+            builderCost = Globals.ct.get_builder_bot_cost()[0]
+            
+            tiNeeded = builderCost - ti
+            axNeeded = max(0, math.ceil(tiNeeded/4))
+            
+            ct.convert(min(axNeeded, ax - 1))
             
     
     @classmethod
@@ -27593,9 +27593,7 @@ class TurretTakedown:
                 if not ti.is_building_ally:
                     continue
                 if ti.entity_type != EntityType.ROAD:
-                    # We can build on top of allied transporters if we really need to
-                    if not ti.entity_type in Constants.TRANSPORTERS_SET:
-                        continue
+                    continue
                     
             # Some teams will leave their bots on turret spots to stop builders
             if ti.has_bot and not ti.is_bot_ally:
