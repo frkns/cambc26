@@ -55,6 +55,11 @@ class GunnerTargetInfo:
             if a.can_shoot_me and (not b.can_shoot_me): return True
             if (not a.can_shoot_me) and b.can_shoot_me: return False
 
+            a_is_gunner = a.entity_type == EntityType.GUNNER
+            b_is_gunner = b.entity_type == EntityType.GUNNER
+            if a_is_gunner and (not b_is_gunner): return True
+            if (not a_is_gunner) and b_is_gunner: return False
+
         # if there is a bot on top of the tile, nothing underneath gets hit
         if a.has_bot and (not b.has_bot): return True
         if (not a.has_bot) and b.has_bot: return False

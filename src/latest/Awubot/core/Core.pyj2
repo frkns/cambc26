@@ -30,11 +30,16 @@ class Core({{ super() }}):
     def start_turn(cls):
         {{ super() }}.start_turn()
         CoreHistory.fill()
+        SpawnManager.fill()
         print(f'est income: {MarketMaker.est_income}')
 
     @classmethod
     def run_turn(cls):
-        if BurnManager.should_burn_emergency():
+        # if BurnManager.should_burn_emergency():
+        #     BurnManager.burn()
+
+        # I think this is cleaner
+        if SpawnManager.should_spawn_emergency():
             BurnManager.burn()
         
         if SpawnManager.should_spawn() or SpawnManager.should_spawn_emergency():

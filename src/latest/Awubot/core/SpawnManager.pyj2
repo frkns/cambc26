@@ -18,15 +18,49 @@ from Generated import *
 
 
 class SpawnManager:
+    nearest_dangerous_enemy: Position | None
+
+    # persistent
     num_spawned: int = 0
+
+
+    @classmethod
+    def fill(cls):
+        my_pos = Globals.my_pos
+        dist = {{ INF }}
+        enemy = None
+
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            ti: TileInfo
+
+            if not ti.entity_type in Constants.ATTACKABLE_TRANSPORTERS_SET:
+                continue
+            if not (ti.has_bot and not ti.is_bot_ally):
+                continue
+            if ti.allied_bots_adjacent > 0:
+                continue
+
+            if enemy is None or (d := my_pos.distance_squared(pos)) < dist:
+                dist = d
+                enemy = pos
+
+        cls.nearest_dangerous_enemy = enemy
+
+
+
 
     @classmethod
     def spawn(cls):
         # rework this
-        pos = Globals.my_pos.add(random.choice(Constants.DIRECTIONS))
+        my_pos = Globals.my_pos
+
+        {% for dir in directions|reverse %}
+        pos = my_pos.add({{ dir }})
         if Globals.ct.can_spawn(pos):
             Globals.ct.spawn_builder(pos)
             cls.num_spawned += 1
+        {% endfor %}
+
 
     @classmethod
     def should_spawn(cls):
@@ -47,6 +81,9 @@ class SpawnManager:
 
     @classmethod
     def should_spawn_emergency(cls):
+        if cls.nearest_dangerous_enemy is not None:
+            return True
+        
         lost_short = CoreHistory.hp_delta(1) < 0 
         lost_long = CoreHistory.hp_delta(10) < 0 
         low_hp = Globals.ct.get_hp() < 450
@@ -55,6 +92,10 @@ class SpawnManager:
             return True
 
         return False
+
+
+
+
 
 
 

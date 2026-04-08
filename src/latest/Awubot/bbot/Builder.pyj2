@@ -114,6 +114,8 @@ class Builder({{ super() }}):
 
     @classmethod
     def determine_state(cls):
+        my_pos = Globals.my_pos
+
         if RouteToBreach.is_active:
             return ('RouteBreach',)
 
@@ -169,18 +171,25 @@ class Builder({{ super() }}):
         if apos is not None:
             return 'AttackTransporter', apos
 
+        ax_target = OreExecutive.get_axionite_target()
+        ti_target = OreExecutive.get_titanium_target()
+        stalk_target = StalkTargeter.get_best_target()
 
-        axTarg = OreExecutive.get_axionite_target()
-        if axTarg is not None:
-            return 'BuildHarvesterAx', axTarg
+        dist_stalk = {{ INF }} if stalk_target is None else my_pos.distance_squared(stalk_target)
+        dist_ti = {{ INF }} if ti_target is None else my_pos.distance_squared(ti_target)
+        dist_ax = {{ INF }} if ax_target is None else my_pos.distance_squared(ax_target)
 
-        bhpos = OreExecutive.get_titanium_target()
-        if bhpos is not None:
-            return 'BuildHarvester', bhpos
+        if dist_stalk < dist_ti and dist_stalk < dist_ax:
+            return 'MoveTo', stalk_target, 'Stalk'
 
-        stalkTarget = StalkTargeter.get_best_target()
-        if stalkTarget is not None:
-            return 'MoveTo', stalkTarget, 'Stalk'
+        if ax_target is not None:
+            return 'BuildHarvesterAx', ax_target
+
+        if ti_target is not None:
+            return 'BuildHarvester', ti_target
+
+        if stalk_target is not None:
+            return 'MoveTo', stalk_target, 'Stalk'
 
         rushTarget = RushTargeter.get_best_target()
         if rushTarget is not None:
