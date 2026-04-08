@@ -24,13 +24,12 @@ class RouteToCore:
 
     @classmethod
     def set_pos(cls, pos: Position):
-        {# /* if (pos.x, pos.y) in Unit.core_pos_list: */ #}
-        if {{ encode_pos('pos.x', 'pos.y') }} in DarkForest.sink_set:
+        if {{ encode_pos('pos.x', 'pos.y') }} in DarkForest.core_sink_set:  # was sink_set
             cls.is_active = False
             return
-
         cls.is_active = True
         cls.from_pos = pos
+
 
     @classmethod
     def try_build_route(cls):
@@ -44,7 +43,7 @@ class RouteToCore:
         if first_target is None:
             bridge_dist, first_target = BfsBureau.find_bridge_route(
                 cls.from_pos,
-                DarkForest.sink_set,
+                DarkForest.core_sink_set,  # was sink_set
             )
 
         {{ D.show('bridge_dist') }}

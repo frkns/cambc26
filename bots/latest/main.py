@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-08 09:28:26 (local)
+# latest,  @ 2026-04-08 10:59:51 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -2839,6 +2839,8 @@ class DarkForest:
     node_kind: list[int]   # propagated kind per node (top-down)
     sink_set: set[int]
     leaf_set: set[int]   # titanium leaf nodes — valid foundry sites
+    core_sink_set: set[int] = set()  # sink_set filtered to ALLY_CORE only
+
 
     @classmethod
     def init(cls):
@@ -2850,6 +2852,14 @@ class DarkForest:
         if Globals.my_type in (EntityType.SENTINEL, EntityType.GUNNER):
             cls.register_sink((((Globals.my_pos.x) + 3) * 56 + ((Globals.my_pos.y) + 3)),
                               3)
+
+    @classmethod
+    def compute_core_sink_set(cls):
+        """Call this immediately after fcompute(). No changes to fcompute needed."""
+        cls.core_sink_set = {
+            u for u in cls.sink_set
+            if cls.node_kind[u] == 1 or u in Unit.core_pos_set
+        }
 
     @classmethod
     def register_enemy_core(cls):
@@ -20566,6 +20576,7 @@ class DarkForest:
             if nk[u] == 1 and u not in core_pos_set:
                 _ti_leaves.add(u)
         cls.leaf_set = _ti_leaves
+        cls.compute_core_sink_set()
 
 
 # ============================================================
@@ -25124,12 +25135,12 @@ class RouteToCore:
 
     @classmethod
     def set_pos(cls, pos: Position):
-        if (((pos.x) + 3) * 56 + ((pos.y) + 3)) in DarkForest.sink_set:
+        if (((pos.x) + 3) * 56 + ((pos.y) + 3)) in DarkForest.core_sink_set:  # was sink_set
             cls.is_active = False
             return
-
         cls.is_active = True
         cls.from_pos = pos
+
 
     @classmethod
     def try_build_route(cls):
@@ -25143,7 +25154,7 @@ class RouteToCore:
         if first_target is None:
             bridge_dist, first_target = BfsBureau.find_bridge_route(
                 cls.from_pos,
-                DarkForest.sink_set,
+                DarkForest.core_sink_set,  # was sink_set
             )
 
         
