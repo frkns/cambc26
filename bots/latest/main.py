@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-08 12:09:51 (local)
+# latest,  @ 2026-04-08 19:04:10 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -28103,9 +28103,7 @@ class TurretTakedown:
                 if not ti.is_building_ally:
                     continue
                 if ti.entity_type != EntityType.ROAD:
-                    # We can build on top of allied transporters if we really need to
-                    if not ti.entity_type in Constants.TRANSPORTERS_SET:
-                        continue
+                    continue
                     
             # Some teams will leave their bots on turret spots to stop builders
             if ti.has_bot and not ti.is_bot_ally:
