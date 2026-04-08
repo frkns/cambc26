@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-08 11:28:14 (local)
+# latest,  @ 2026-04-08 12:01:27 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -25287,10 +25287,30 @@ class RouteToFoundry:
         if not candidates:
             return None
 
+        nodes = DarkForest.nodes
+        bad_sinks = set()
+        
+        # Identify sinks that already have a foundry planned or built
+        for p in cls.planned_foundry_positions:
+            curr = p
+            while nodes[curr] is not None and nodes[curr].up is not None:
+                curr = nodes[curr].up
+            if nodes[curr] is not None:
+                bad_sinks.add(curr)
+
         sx, sy = cls.from_pos.x, cls.from_pos.y
         best: int | None = None
         best_d = 1000000
         for c in candidates:
+            # Trace the candidate up to its sink
+            curr = c
+            while nodes[curr] is not None and nodes[curr].up is not None:
+                curr = nodes[curr].up
+            
+            # Avoid picking targets if the sink it is in already has a foundry
+            if nodes[curr] is not None and curr in bad_sinks:
+                continue
+
             cx = c // 56 - 3
             cy = c % 56 - 3
             ti = Map.tile_info[cx][cy]
@@ -25298,11 +25318,14 @@ class RouteToFoundry:
                 continue
             if ti is not None and ti.entity_type == EntityType.BRIDGE:
                 continue # do not consider bridges.
+            
             d = abs(cx - sx) + abs(cy - sy)
             if d < best_d:
                 best_d = d
                 best = c
+                
         return best
+
     @classmethod
     def set_pos(cls, pos: Position):
         encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
