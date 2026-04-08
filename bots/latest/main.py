@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-07 19:58:27 (local)
+# latest,  @ 2026-04-07 20:26:49 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -23,13 +23,19 @@ class AdjacentInfo:
     enemy_hadj: int  # enemy harvesters adjacent
     ally_hadj: int   # ally  "          "
     dist_enemy_core: int
+    bfs_dist: int
 
     @staticmethod
     def is_better_than(a: AdjacentInfo, b: AdjacentInfo):
+        if a.bfs_dist >= 1000000: return False
+        if b.bfs_dist >= 1000000: return True
+
         if a.enemy_hadj != b.enemy_hadj:
             return a.enemy_hadj > b.enemy_hadj
         if a.ally_hadj != b.ally_hadj:
             return a.ally_hadj > b.ally_hadj
+        if a.bfs_dist != b.bfs_dist:
+            return a.bfs_dist < b.bfs_dist
         return a.dist_enemy_core < b.dist_enemy_core
 
 
@@ -2403,7 +2409,7 @@ class BuildManager:
     def can_afford_harvester() -> bool:
         ti_cost, ax_cost = Globals.ct.get_harvester_cost()
 
-        ti_cost += int(100 * MarketMaker.scale_ratio)
+        ti_cost += int(10 * MarketMaker.scale_ratio)
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -22395,6 +22401,7 @@ class HarvesterAdjacent:
             info.has_ally_road = ti.entity_type == EntityType.ROAD
             info.enemy_hadj = 0
             info.ally_hadj = 0
+            info.bfs_dist = BfsBureau.bfs20_dist[idx]
 
 
             nti = tile_info[x ][y -1]
@@ -27276,8 +27283,12 @@ class StalkTargeter:
         if not Map.harvester_set:
             return None
 
+        bfs20_dist = BfsBureau.bfs20_dist
+
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
-            if ti.has_bot and not ti.is_bot_ally and VisionTracker.me_is_canonical_ally(pos):
+            if ti.has_bot and not ti.is_bot_ally \
+                    and VisionTracker.me_is_canonical_ally(pos) \
+                    and bfs20_dist[idx] < 100:  # reachable
                 
                 return pos
 
@@ -28425,7 +28436,8 @@ class Builder(Unit):
             tpos = trans.target
 
             if Util.dist_sq(tpos, Symmetry.enemy_core_pos) \
-                    < Util.dist_sq(tpos, Unit.core_pos):
+                    < Util.dist_sq(tpos, Unit.core_pos) \
+                    and BfsBureau.bfs20_dist[(((tpos.x) + 3) * 56 + ((tpos.y) + 3))] < 100:
                 return 'BuildTurret', tpos, None if trans.is_bridge else trans.target.direction_to(tpos)
 
             if tpos not in RouteToCore.killed:

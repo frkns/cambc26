@@ -157,7 +157,8 @@ class Builder({{ super() }}):
             tpos = trans.target
 
             if Util.dist_sq(tpos, Symmetry.enemy_core_pos) \
-                    < Util.dist_sq(tpos, Unit.core_pos):
+                    < Util.dist_sq(tpos, Unit.core_pos) \
+                    and BfsBureau.bfs20_dist[{{ encode_pos('tpos.x', 'tpos.y') }}] < 100:
                 return 'BuildTurret', tpos, None if trans.is_bridge else trans.target.direction_to(tpos)
 
             if tpos not in RouteToCore.killed:

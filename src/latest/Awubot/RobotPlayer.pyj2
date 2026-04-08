@@ -71,4 +71,5 @@ class Player:
 
             {% if LOCAL %}
             ct.resign()
+            raise Exception
             {% endif %}

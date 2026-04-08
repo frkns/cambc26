@@ -140,7 +140,7 @@ for t in ladder:
     team_ids.append(search_results[0]["team_id"])
     print(f"    rank={t['rank']} id={search_results[0]['team_id']}")
 
-print(f"\nReady. Running matches against {len(teams)} teams every 8 minutes.\n")
+print(f"\nReady. Running matches against {len(teams)} teams every X minutes.\n")
 
 # -------------------------
 # MAIN LOOP
