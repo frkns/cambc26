@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-07 17:24:56 (local)
+# latest,  @ 2026-04-07 17:58:27 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -2020,10 +2020,16 @@ class BreachBuild:
             return False
 
         Pathfinder.move_to(pos, ban_target_pos=True)
-        if Globals.ct.get_global_resources()[0] > Globals.ct.get_breach_cost()[0] \
+        if (Globals.ct.get_global_resources()[0] > Globals.ct.get_breach_cost()[0] and Globals.ct.get_global_resources()[1] > Globals.ct.get_breach_cost()[1]) \
                 and Globals.ct.can_destroy(pos) \
                 and Globals.ct.get_action_cooldown() == 0:
             Globals.ct.destroy(pos)
+        elif ti.has_building and ti.entity_type != EntityType.SENTINEL:
+            if (Globals.ct.get_global_resources()[0] > Globals.ct.get_sentinel_cost()[0]) \
+                and Globals.ct.can_destroy(pos) \
+                and Globals.ct.get_action_cooldown() == 0:
+                Globals.ct.destroy(pos)
+        
         dirToBuild = pos.direction_to(Symmetry.enemy_core_pos )
         if Globals.ct.can_build_breach(pos, dirToBuild):
             Globals.ct.build_breach(pos, dirToBuild)
@@ -2035,6 +2041,10 @@ class BreachBuild:
             DarkForest.register_sink(encoded, 3)
 
             RouteToBreach._breach_target = None
+            return True
+        if Globals.ct.can_build_sentinel(pos, dirToBuild):
+            Globals.ct.build_sentinel(pos, dirToBuild)
+            encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
             return True
         return False
 
