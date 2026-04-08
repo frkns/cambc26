@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-08 19:10:43 (local)
+# latest,  @ 2026-04-08 19:44:38 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -27230,6 +27230,12 @@ class SitterTakedown:
             
             if not ti.has_bot:
                 continue
+            
+            if ti.has_building:
+                if not ti.is_building_ally:
+                    continue
+                if ti.entity_type != EntityType.ROAD:
+                    continue
 
             info = SitterTargetInfo()
             cls.cand.append(info)
@@ -28103,7 +28109,9 @@ class TurretTakedown:
                 if not ti.is_building_ally:
                     continue
                 if ti.entity_type != EntityType.ROAD:
-                    continue
+                    # We can build on top of allied transporters if we really need to
+                    if not ti.entity_type in Constants.TRANSPORTERS_SET:
+                        continue
                     
             # Some teams will leave their bots on turret spots to stop builders
             if ti.has_bot and not ti.is_bot_ally:
