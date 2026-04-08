@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-07 17:24:56 (local)
+# latest,  @ 2026-04-07 14:08:19 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -52,78 +52,6 @@ class Attacker:
         if not VisionTracker.me_is_canonical_ally(trans.position):
             return None
         return trans.position
-
-
-    @classmethod
-    def compute_readiness(cls):
-        allies_ready = 0
-        lst: tuple[int, int] = []
-
-        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
-            if (ti.has_bot and ti.is_bot_ally) \
-                    and (ti.has_building and not ti.is_building_ally) \
-                    and (ti.entity_type in Constants.ATTACKABLE_TRANSPORTERS_SET):
-                allies_ready += 1
-                lst.append((x, y))
-
-        enemies_ready_set: set[int] = set()  # hashed pos
-        tile_info = Map.tile_info
-
-        for x, y in lst:
-
-            nti = tile_info[(x )][(y -1)]
-            if nti is not None and nti.has_bot and not nti.is_bot_ally:
-                enemies_ready_set.add(((x ) << 6) | (y -1))
-
-            nti = tile_info[(x +1)][(y -1)]
-            if nti is not None and nti.has_bot and not nti.is_bot_ally:
-                enemies_ready_set.add(((x +1) << 6) | (y -1))
-
-            nti = tile_info[(x +1)][(y )]
-            if nti is not None and nti.has_bot and not nti.is_bot_ally:
-                enemies_ready_set.add(((x +1) << 6) | (y ))
-
-            nti = tile_info[(x +1)][(y +1)]
-            if nti is not None and nti.has_bot and not nti.is_bot_ally:
-                enemies_ready_set.add(((x +1) << 6) | (y +1))
-
-            nti = tile_info[(x )][(y +1)]
-            if nti is not None and nti.has_bot and not nti.is_bot_ally:
-                enemies_ready_set.add(((x ) << 6) | (y +1))
-
-            nti = tile_info[(x -1)][(y +1)]
-            if nti is not None and nti.has_bot and not nti.is_bot_ally:
-                enemies_ready_set.add(((x -1) << 6) | (y +1))
-
-            nti = tile_info[(x -1)][(y )]
-            if nti is not None and nti.has_bot and not nti.is_bot_ally:
-                enemies_ready_set.add(((x -1) << 6) | (y ))
-
-            nti = tile_info[(x -1)][(y -1)]
-            if nti is not None and nti.has_bot and not nti.is_bot_ally:
-                enemies_ready_set.add(((x -1) << 6) | (y -1))
-
-        return allies_ready, len(enemies_ready_set)
-
-
-    @classmethod
-    def should_fire(cls, pos):
-        ti = Map.tile_info[pos.x][pos.y]
-
-        # assume caller passes in enemy transporter position
-
-        hp = ti.building_hp
-        max_hp = Constants.MAX_HP_MAP[ti.entity_type]
-
-        if 2 * hp <= max_hp:
-            return True
-
-        allies_ready, enemies_ready = cls.compute_readiness()
-
-        if allies_ready > 2 * enemies_ready:
-            return True
-
-        return False
 
 
 # ============================================================
@@ -218,10 +146,6 @@ class BfsBureau:
         expanded = (wide | (wide >> stride) | (wide << stride)) & cls.board_mask
         cls.now_passable_int &= ~expanded
 
-        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
-            if ti.has_bot:
-                now_weight[idx] = 1000000
-
 
     # incremental
                         
@@ -256,6 +180,7 @@ class BfsBureau:
         cls.weight[idx + -56] += 1000000
         cls.weight[idx + -57] += 1000000
 
+        Debug.dot(Position(x, y), Color.YELLOW)
 
     @classmethod
     def remove_enemy_launcher(cls, idx):
@@ -296,6 +221,7 @@ class BfsBureau:
         if cls.weight[i] < 1:
             cls.weight[i] = 1
 
+        Debug.dot(Position(x, y), Color.GREEN)
 
 
     # works. but slow
@@ -965,7 +891,7 @@ class BfsBureau:
             return 1000000, None
 
         # ── Phase 2: bitmask BFS from Dijkstra frontier ──
-        
+        Profiler.start()
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = (cls.now_passable_int | _tm) & cls.board_mask
@@ -2001,52 +1927,6 @@ class BotInfo(NamedTuple):
 
 
 # ============================================================
-# BreachBuild
-# ============================================================
-
-class BreachBuild:
-    @classmethod
-    def build_breach(cls, pos):
-        print("Trying to build breach at", pos)
-        print("Breach cost:", Globals.ct.get_breach_cost()[0])
-        ti = Map.tile_info[pos.x][pos.y]
-        if ti.has_building and not ti.is_building_ally:
-            print("Can't build breach at", pos, "because of enemy building")
-            RouteToBreach._breach_target = None
-            return False
-        if ti.has_building and ti.is_building_ally and ti.entity_type == EntityType.BREACH:
-            print("Already have breach at", pos)
-            RouteToBreach._breach_target = None
-            return False
-
-        Pathfinder.move_to(pos, ban_target_pos=True)
-        if Globals.ct.get_global_resources()[0] > Globals.ct.get_breach_cost()[0] \
-                and Globals.ct.can_destroy(pos) \
-                and Globals.ct.get_action_cooldown() == 0:
-            Globals.ct.destroy(pos)
-        dirToBuild = pos.direction_to(Symmetry.enemy_core_pos )
-        if Globals.ct.can_build_breach(pos, dirToBuild):
-            Globals.ct.build_breach(pos, dirToBuild)
-            print("OMGGGGGG I ACTUALLY BUILT THE BREACH AT", pos,file = sys.stderr)
-
-            encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
-
-            # Register the new breach as a sink so fcompute updates the tree.
-            DarkForest.register_sink(encoded, 3)
-
-            RouteToBreach._breach_target = None
-            return True
-        return False
-
-    @classmethod
-    def _pick_target(cls):
-        if RouteToBreach._breach_target is None:
-            return None
-        t = ((RouteToBreach._breach_target) // 56 - 3), ((RouteToBreach._breach_target) % 56 - 3)
-        return Position(t[0], t[1])
-
-
-# ============================================================
 # BuildManager
 # ============================================================
 
@@ -2600,7 +2480,7 @@ class BurnManager:
             tiNeeded = builderCost - ti
             axNeeded = max(0, math.ceil(tiNeeded/4))
             
-            if axNeeded > ax and axNeeded > 0 and ax > 1:
+            if axNeeded > ax and axNeeded > 0:
                 ct.convert(min(axNeeded, ax - 1))
             
     
@@ -2735,12 +2615,6 @@ class Constants:
         EntityType.BRIDGE,
         EntityType.SPLITTER,
     }
-    ATTACKABLE_TRANSPORTERS_SET: set[EntityType] = {
-        EntityType.CONVEYOR,  # sans the ARMOURED_CONVEYOR
-        EntityType.BRIDGE,
-        EntityType.SPLITTER,
-    }
-
     PASSABLE_SET: set[EntityType] = {
         EntityType.ROAD,
         EntityType.CONVEYOR,
@@ -2749,14 +2623,7 @@ class Constants:
         EntityType.SPLITTER,
     }
 
-    TURRET_SET: set[EntityType] = {
-        EntityType.SENTINEL,
-        EntityType.GUNNER,
-        EntityType.LAUNCHER,
-        EntityType.BREACH,
-    }
-
-    AXIONITE_START: int = 20 # Start producing axionite at this round
+    AXIONITE_START: int = 150 # Start producing axionite at this round
 
     MAX_HP_MAP: dict[EntityType, int] = {
         EntityType.BUILDER_BOT: 40,
@@ -20768,9 +20635,6 @@ class Entrypoint:
             case EntityType.LAUNCHER:
                 Launcher.init()
                 cls.me = Launcher
-            case EntityType.BREACH:
-                Breach.init()
-                cls.me = Breach
 
     @classmethod
     def run(cls, ct: Controller):
@@ -20966,10 +20830,6 @@ class FoundryBuild:
             DarkForest.register_sink(encoded, 3)
 
             RouteToFoundry._foundry_target = None
-
-            cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
-            if cand is not None:
-                RouteToBreach.set_pos(cand.position) # begin breach routing
             return True
         return False
 
@@ -21727,11 +21587,11 @@ class GunnerSupervisor:
         current_dir = ct.get_direction()
 
         x, y = my_pos.x , my_pos.y -1
-        ti = tile_info[x][y]
+        pos = Position(x, y)
         
-        if ti is not None:
-            pos = Position(x, y)
+        if Util.on_the_map(pos):
             idx = (((x) + 3) * 56 + ((y) + 3))
+            ti = tile_info[x][y]
             
             info = GunnerTargetInfo()
             info.position = pos
@@ -21787,11 +21647,11 @@ class GunnerSupervisor:
             cls.targets.append(info)
             
         x, y = my_pos.x +1, my_pos.y -1
-        ti = tile_info[x][y]
+        pos = Position(x, y)
         
-        if ti is not None:
-            pos = Position(x, y)
+        if Util.on_the_map(pos):
             idx = (((x) + 3) * 56 + ((y) + 3))
+            ti = tile_info[x][y]
             
             info = GunnerTargetInfo()
             info.position = pos
@@ -21847,11 +21707,11 @@ class GunnerSupervisor:
             cls.targets.append(info)
             
         x, y = my_pos.x +1, my_pos.y 
-        ti = tile_info[x][y]
+        pos = Position(x, y)
         
-        if ti is not None:
-            pos = Position(x, y)
+        if Util.on_the_map(pos):
             idx = (((x) + 3) * 56 + ((y) + 3))
+            ti = tile_info[x][y]
             
             info = GunnerTargetInfo()
             info.position = pos
@@ -21907,11 +21767,11 @@ class GunnerSupervisor:
             cls.targets.append(info)
             
         x, y = my_pos.x +1, my_pos.y +1
-        ti = tile_info[x][y]
+        pos = Position(x, y)
         
-        if ti is not None:
-            pos = Position(x, y)
+        if Util.on_the_map(pos):
             idx = (((x) + 3) * 56 + ((y) + 3))
+            ti = tile_info[x][y]
             
             info = GunnerTargetInfo()
             info.position = pos
@@ -21967,11 +21827,11 @@ class GunnerSupervisor:
             cls.targets.append(info)
             
         x, y = my_pos.x , my_pos.y +1
-        ti = tile_info[x][y]
+        pos = Position(x, y)
         
-        if ti is not None:
-            pos = Position(x, y)
+        if Util.on_the_map(pos):
             idx = (((x) + 3) * 56 + ((y) + 3))
+            ti = tile_info[x][y]
             
             info = GunnerTargetInfo()
             info.position = pos
@@ -22027,11 +21887,11 @@ class GunnerSupervisor:
             cls.targets.append(info)
             
         x, y = my_pos.x -1, my_pos.y +1
-        ti = tile_info[x][y]
+        pos = Position(x, y)
         
-        if ti is not None:
-            pos = Position(x, y)
+        if Util.on_the_map(pos):
             idx = (((x) + 3) * 56 + ((y) + 3))
+            ti = tile_info[x][y]
             
             info = GunnerTargetInfo()
             info.position = pos
@@ -22087,11 +21947,11 @@ class GunnerSupervisor:
             cls.targets.append(info)
             
         x, y = my_pos.x -1, my_pos.y 
-        ti = tile_info[x][y]
+        pos = Position(x, y)
         
-        if ti is not None:
-            pos = Position(x, y)
+        if Util.on_the_map(pos):
             idx = (((x) + 3) * 56 + ((y) + 3))
+            ti = tile_info[x][y]
             
             info = GunnerTargetInfo()
             info.position = pos
@@ -22147,11 +22007,11 @@ class GunnerSupervisor:
             cls.targets.append(info)
             
         x, y = my_pos.x -1, my_pos.y -1
-        ti = tile_info[x][y]
+        pos = Position(x, y)
         
-        if ti is not None:
-            pos = Position(x, y)
+        if Util.on_the_map(pos):
             idx = (((x) + 3) * 56 + ((y) + 3))
+            ti = tile_info[x][y]
             
             info = GunnerTargetInfo()
             info.position = pos
@@ -22207,11 +22067,11 @@ class GunnerSupervisor:
             cls.targets.append(info)
             
         x, y = my_pos.x , my_pos.y 
-        ti = tile_info[x][y]
+        pos = Position(x, y)
         
-        if ti is not None:
-            pos = Position(x, y)
+        if Util.on_the_map(pos):
             idx = (((x) + 3) * 56 + ((y) + 3))
+            ti = tile_info[x][y]
             
             info = GunnerTargetInfo()
             info.position = pos
@@ -22394,28 +22254,32 @@ class HarvesterAdjacent:
 
 
             nti = tile_info[x ][y -1]
-            if nti is not None and nti.has_building and nti.entity_type == EntityType.HARVESTER:
+            if nti is not None and nti.has_building and nti.entity_type == EntityType.HARVESTER \
+                    and nti.env == Environment.ORE_TITANIUM: # don't consider ax ore to build stuff on
                 if nti.is_building_ally:
                     info.ally_hadj += 1
                 else:
                     info.enemy_hadj += 1
 
             nti = tile_info[x +1][y ]
-            if nti is not None and nti.has_building and nti.entity_type == EntityType.HARVESTER:
+            if nti is not None and nti.has_building and nti.entity_type == EntityType.HARVESTER \
+                    and nti.env == Environment.ORE_TITANIUM: # don't consider ax ore to build stuff on
                 if nti.is_building_ally:
                     info.ally_hadj += 1
                 else:
                     info.enemy_hadj += 1
 
             nti = tile_info[x ][y +1]
-            if nti is not None and nti.has_building and nti.entity_type == EntityType.HARVESTER:
+            if nti is not None and nti.has_building and nti.entity_type == EntityType.HARVESTER \
+                    and nti.env == Environment.ORE_TITANIUM: # don't consider ax ore to build stuff on
                 if nti.is_building_ally:
                     info.ally_hadj += 1
                 else:
                     info.enemy_hadj += 1
 
             nti = tile_info[x -1][y ]
-            if nti is not None and nti.has_building and nti.entity_type == EntityType.HARVESTER:
+            if nti is not None and nti.has_building and nti.entity_type == EntityType.HARVESTER \
+                    and nti.env == Environment.ORE_TITANIUM: # don't consider ax ore to build stuff on
                 if nti.is_building_ally:
                     info.ally_hadj += 1
                 else:
@@ -22852,6 +22716,7 @@ class HealTargeter:
         if best.building_heal + best.bot_heal < 4:
             return None
 
+        print(f'HealTargeter {best.position=} {best.building_heal=} {best.building_hp=}')
 
         return best.position
 
@@ -22965,157 +22830,166 @@ class LauncherSupervisor:
         my_pos = Globals.my_pos
         
         x, y = my_pos.x , my_pos.y -1
+        pos = Position(x, y)
+        idx = (((x) + 3) * 56 + ((y) + 3))
         ti = tile_info[x][y]
         
-        if ti is not None:
-            info = LauncherTargetInfo()
-            info.position = Position(x, y)
-            info.has_bot = False
-            info.rand_key = random.random()
+        info = LauncherTargetInfo()
+        info.position = pos
+        info.has_bot = False
+        info.rand_key = random.random()
 
-            info.harvester_adjacent = ti.harvester_adjacent
+        info.harvester_adjacent = ti.harvester_adjacent
 
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
+        if ti.has_bot and not ti.is_bot_ally:
+            info.has_bot = True
+            info.bot_hp = ti.bot_hp
 
-            cls.targets.append(info)
+        cls.targets.append(info)
             
         x, y = my_pos.x +1, my_pos.y -1
+        pos = Position(x, y)
+        idx = (((x) + 3) * 56 + ((y) + 3))
         ti = tile_info[x][y]
         
-        if ti is not None:
-            info = LauncherTargetInfo()
-            info.position = Position(x, y)
-            info.has_bot = False
-            info.rand_key = random.random()
+        info = LauncherTargetInfo()
+        info.position = pos
+        info.has_bot = False
+        info.rand_key = random.random()
 
-            info.harvester_adjacent = ti.harvester_adjacent
+        info.harvester_adjacent = ti.harvester_adjacent
 
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
+        if ti.has_bot and not ti.is_bot_ally:
+            info.has_bot = True
+            info.bot_hp = ti.bot_hp
 
-            cls.targets.append(info)
+        cls.targets.append(info)
             
         x, y = my_pos.x +1, my_pos.y 
+        pos = Position(x, y)
+        idx = (((x) + 3) * 56 + ((y) + 3))
         ti = tile_info[x][y]
         
-        if ti is not None:
-            info = LauncherTargetInfo()
-            info.position = Position(x, y)
-            info.has_bot = False
-            info.rand_key = random.random()
+        info = LauncherTargetInfo()
+        info.position = pos
+        info.has_bot = False
+        info.rand_key = random.random()
 
-            info.harvester_adjacent = ti.harvester_adjacent
+        info.harvester_adjacent = ti.harvester_adjacent
 
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
+        if ti.has_bot and not ti.is_bot_ally:
+            info.has_bot = True
+            info.bot_hp = ti.bot_hp
 
-            cls.targets.append(info)
+        cls.targets.append(info)
             
         x, y = my_pos.x +1, my_pos.y +1
+        pos = Position(x, y)
+        idx = (((x) + 3) * 56 + ((y) + 3))
         ti = tile_info[x][y]
         
-        if ti is not None:
-            info = LauncherTargetInfo()
-            info.position = Position(x, y)
-            info.has_bot = False
-            info.rand_key = random.random()
+        info = LauncherTargetInfo()
+        info.position = pos
+        info.has_bot = False
+        info.rand_key = random.random()
 
-            info.harvester_adjacent = ti.harvester_adjacent
+        info.harvester_adjacent = ti.harvester_adjacent
 
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
+        if ti.has_bot and not ti.is_bot_ally:
+            info.has_bot = True
+            info.bot_hp = ti.bot_hp
 
-            cls.targets.append(info)
+        cls.targets.append(info)
             
         x, y = my_pos.x , my_pos.y +1
+        pos = Position(x, y)
+        idx = (((x) + 3) * 56 + ((y) + 3))
         ti = tile_info[x][y]
         
-        if ti is not None:
-            info = LauncherTargetInfo()
-            info.position = Position(x, y)
-            info.has_bot = False
-            info.rand_key = random.random()
+        info = LauncherTargetInfo()
+        info.position = pos
+        info.has_bot = False
+        info.rand_key = random.random()
 
-            info.harvester_adjacent = ti.harvester_adjacent
+        info.harvester_adjacent = ti.harvester_adjacent
 
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
+        if ti.has_bot and not ti.is_bot_ally:
+            info.has_bot = True
+            info.bot_hp = ti.bot_hp
 
-            cls.targets.append(info)
+        cls.targets.append(info)
             
         x, y = my_pos.x -1, my_pos.y +1
+        pos = Position(x, y)
+        idx = (((x) + 3) * 56 + ((y) + 3))
         ti = tile_info[x][y]
         
-        if ti is not None:
-            info = LauncherTargetInfo()
-            info.position = Position(x, y)
-            info.has_bot = False
-            info.rand_key = random.random()
+        info = LauncherTargetInfo()
+        info.position = pos
+        info.has_bot = False
+        info.rand_key = random.random()
 
-            info.harvester_adjacent = ti.harvester_adjacent
+        info.harvester_adjacent = ti.harvester_adjacent
 
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
+        if ti.has_bot and not ti.is_bot_ally:
+            info.has_bot = True
+            info.bot_hp = ti.bot_hp
 
-            cls.targets.append(info)
+        cls.targets.append(info)
             
         x, y = my_pos.x -1, my_pos.y 
+        pos = Position(x, y)
+        idx = (((x) + 3) * 56 + ((y) + 3))
         ti = tile_info[x][y]
         
-        if ti is not None:
-            info = LauncherTargetInfo()
-            info.position = Position(x, y)
-            info.has_bot = False
-            info.rand_key = random.random()
+        info = LauncherTargetInfo()
+        info.position = pos
+        info.has_bot = False
+        info.rand_key = random.random()
 
-            info.harvester_adjacent = ti.harvester_adjacent
+        info.harvester_adjacent = ti.harvester_adjacent
 
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
+        if ti.has_bot and not ti.is_bot_ally:
+            info.has_bot = True
+            info.bot_hp = ti.bot_hp
 
-            cls.targets.append(info)
+        cls.targets.append(info)
             
         x, y = my_pos.x -1, my_pos.y -1
+        pos = Position(x, y)
+        idx = (((x) + 3) * 56 + ((y) + 3))
         ti = tile_info[x][y]
         
-        if ti is not None:
-            info = LauncherTargetInfo()
-            info.position = Position(x, y)
-            info.has_bot = False
-            info.rand_key = random.random()
+        info = LauncherTargetInfo()
+        info.position = pos
+        info.has_bot = False
+        info.rand_key = random.random()
 
-            info.harvester_adjacent = ti.harvester_adjacent
+        info.harvester_adjacent = ti.harvester_adjacent
 
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
+        if ti.has_bot and not ti.is_bot_ally:
+            info.has_bot = True
+            info.bot_hp = ti.bot_hp
 
-            cls.targets.append(info)
+        cls.targets.append(info)
             
         x, y = my_pos.x , my_pos.y 
+        pos = Position(x, y)
+        idx = (((x) + 3) * 56 + ((y) + 3))
         ti = tile_info[x][y]
         
-        if ti is not None:
-            info = LauncherTargetInfo()
-            info.position = Position(x, y)
-            info.has_bot = False
-            info.rand_key = random.random()
+        info = LauncherTargetInfo()
+        info.position = pos
+        info.has_bot = False
+        info.rand_key = random.random()
 
-            info.harvester_adjacent = ti.harvester_adjacent
+        info.harvester_adjacent = ti.harvester_adjacent
 
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
+        if ti.has_bot and not ti.is_bot_ally:
+            info.has_bot = True
+            info.bot_hp = ti.bot_hp
 
-            cls.targets.append(info)
+        cls.targets.append(info)
 
 
 # ============================================================
@@ -23356,10 +23230,10 @@ class Map:
 
         for pos, x, y, idx, ti in cls.proc_nearby_tiles:
             ti.harvester_adjacent = \
-                ((nti := tile_info[x-1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x+1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x][y-1]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x][y+1]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM)
+                ((nti := tile_info[x-1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
+                ((nti := tile_info[x+1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
+                ((nti := tile_info[x][y-1]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
+                ((nti := tile_info[x][y+1]) is not None and nti.has_building and nti.entity_type == HARVESTER)
                 
             ti.allied_bots_adjacent = \
                 ((nti := tile_info[x-1][y]) is not None and nti.has_bot and nti.is_bot_ally) + \
@@ -23532,10 +23406,10 @@ class Map:
 
         for pos, x, y, idx, ti in cls.proc_nearby_tiles:
             ti.harvester_adjacent = \
-                ((nti := tile_info[x-1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x+1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x][y-1]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x][y+1]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM)
+                ((nti := tile_info[x-1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
+                ((nti := tile_info[x+1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
+                ((nti := tile_info[x][y-1]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
+                ((nti := tile_info[x][y+1]) is not None and nti.has_building and nti.entity_type == HARVESTER)
                 
             ti.allied_bots_adjacent = \
                 ((nti := tile_info[x-1][y]) is not None and nti.has_bot and nti.is_bot_ally) + \
@@ -23708,10 +23582,10 @@ class Map:
 
         for pos, x, y, idx, ti in cls.proc_nearby_tiles:
             ti.harvester_adjacent = \
-                ((nti := tile_info[x-1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x+1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x][y-1]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x][y+1]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM)
+                ((nti := tile_info[x-1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
+                ((nti := tile_info[x+1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
+                ((nti := tile_info[x][y-1]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
+                ((nti := tile_info[x][y+1]) is not None and nti.has_building and nti.entity_type == HARVESTER)
                 
             ti.allied_bots_adjacent = \
                 ((nti := tile_info[x-1][y]) is not None and nti.has_bot and nti.is_bot_ally) + \
@@ -23866,10 +23740,10 @@ class Map:
 
         for pos, x, y, idx, ti in cls.proc_nearby_tiles:
             ti.harvester_adjacent = \
-                ((nti := tile_info[x-1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x+1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x][y-1]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x][y+1]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM)
+                ((nti := tile_info[x-1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
+                ((nti := tile_info[x+1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
+                ((nti := tile_info[x][y-1]) is not None and nti.has_building and nti.entity_type == HARVESTER) or \
+                ((nti := tile_info[x][y+1]) is not None and nti.has_building and nti.entity_type == HARVESTER)
                 
             ti.allied_bots_adjacent = \
                 ((nti := tile_info[x-1][y]) is not None and nti.has_bot and nti.is_bot_ally) + \
@@ -24285,9 +24159,9 @@ class MarketMaker:
 
     @staticmethod
     def harvester_cost(apos: Position) -> int:
-        
+        Profiler.start()
         bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.sink_set)
-        
+        Profiler.end("""BfsBureau.find_bridge_route""")
         h_cost, _ = Globals.ct.get_harvester_cost()
         b_cost, _ = Globals.ct.get_bridge_cost()
         return h_cost + b_cost * bridges
@@ -24307,7 +24181,7 @@ class MarketMaker:
             return False
 
         pbt = MarketMaker.harvester_payback(apos)
-        
+        print(f"""{pbt=}""")
 
         if int(pbt * 1.5 + 100) < Util.get_rounds_left():
             return True
@@ -24707,11 +24581,11 @@ class Pathfinder:
         Debug.line(target)
         my_pos = Globals.my_pos
 
-        
+        Profiler.start()
         dist, dir = BfsBureau.find_route(Globals.my_pos, target, ban_target_pos)
-        
+        Profiler.end("""BfsBureau.find_route""")
 
-        if dir is None or dist >= 1000000:
+        if dir is None:
             cls.given_up = True
         else:
             if MoveManager.can_move(dir):
@@ -24791,6 +24665,8 @@ class Player:
             err = traceback.format_exc()
             Debug.tee(err)
             Debug.tee(f'(I am a {Globals.my_type})')
+
+            ct.resign()
 
 
 # ============================================================
@@ -24885,180 +24761,6 @@ class Profiler:
 
 
 # ============================================================
-# RouteToBreach
-# ============================================================
-
-class RouteToBreach:
-    is_active: bool = False
-    from_pos: Position
-    killed: set[Position] = set()
-
-    # Positions that have been claimed (or built) as breach sites.
-    # Class-level so all bots in this process see the same table.
-    planned_breach_positions: set[int] = set()
-
-    # The specific titanium leaf this bot is routing toward.
-    # None until a target is claimed in try_build_route.
-    _breach_target: int | None = None
-
-    @classmethod
-    def _pick_target(cls) -> int | None:
-        if not Symmetry.is_sym_known:
-            return None
-        enemy_core = Symmetry.enemy_core_pos
-        print("Yo so the enemy core is at", enemy_core)
-
-        vision_r = int(GameConstants.BREACH_ATTACK_RADIUS_SQ ** 0.5) + 1
-
-        # ── Step 1: pick best attack/sentinel landing position ────────────────
-        attack_pos = None
-        best_attack_dist = float('inf')
-        currLoc = Globals.my_pos
-        for dx in range(-vision_r, vision_r + 1):
-            for dy in range(-vision_r, vision_r + 1):
-                if dx * dx + dy * dy > GameConstants.BREACH_ATTACK_RADIUS_SQ:
-                    continue
-                candidate = Position(enemy_core.x + dx, enemy_core.y + dy)
-                tile = Map.tile_info[candidate.x][candidate.y]
-                if tile is None:
-                    continue
-                if tile.has_building and (not tile.is_building_ally):
-                    continue
-                if tile.has_building and tile.entity_type in Constants.TURRET_SET:
-                    continue
-                d = currLoc.distance_squared(candidate)
-                if d < best_attack_dist:
-                    best_attack_dist = d
-                    attack_pos = candidate
-
-        if attack_pos is None:
-            print("[RouteToBreach] No valid attack position within breach attack of enemy core")
-            return None
-        print("CLEARLY the best attack position is", attack_pos)
-        return (((attack_pos.x) + 3) * 56 + ((attack_pos.y) + 3))
-        
-
-    @classmethod
-    def set_pos(cls, pos: Position):
-        encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
-
-        # Arrived at the breach site — deactivate so the caller can build.
-        # Keep the entry in planned_breach_positions: the breach is here now.
-        if cls._breach_target is not None and encoded == cls._breach_target:
-            cls.is_active = False
-            return
-
-        cls.is_active = True
-        cls.from_pos = pos
-
-    @classmethod
-    def try_build_route(cls):
-        assert cls.is_active
-
-        target_set = {cls._breach_target}
-
-        # Phase 1: conveyor-only attempt (max_iter=0 skips bridge BFS).
-        bridge_dist, first_target = BfsBureau.find_bridge_route(
-            cls.from_pos,
-            target_set,
-            max_iter=0,
-        )
-        # Phase 2: allow bridges if conveyors can't reach.
-        if first_target is None:
-            bridge_dist, first_target = BfsBureau.find_bridge_route(
-                cls.from_pos,
-                target_set,
-            )
-
-        
-
-        if first_target is None:
-            Debug.tee("RouteToBreach: first_target is None, giving up")
-            cls.give_up()
-            StateMoveTo.run(Explore.get_target())
-            return
-
-        target = Position(*first_target)
-        Debug.diline(cls.from_pos, target, Color.GREEN)
-
-        if cls.from_pos.distance_squared(target) == 1:
-            if BuildManager.can_dbuild_conveyor(cls.from_pos):
-                BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
-                cls.set_pos(target)
-        elif BuildManager.can_dbuild_bridge(cls.from_pos):
-            BuildManager.dbuild_bridge(cls.from_pos, target)
-            cls.set_pos(target)
-
-    @classmethod
-    def move_to_next(cls):
-        Pathfinder.move_to(cls.from_pos, ban_target_pos=True)
-
-    @classmethod
-    def should_give_up(cls):
-        x, y = cls.from_pos
-        ti = Map.tile_info[x][y]
-        if ti is None:
-            return False
-
-        if ti.has_building:
-            if not ti.is_building_ally:
-                return True
-            if ti.entity_type in Constants.TURRET_SET:
-                return True
-            """
-            if cls._breach_target != (((x) + 3) * 56 + ((y) + 3)):
-                if ti.entity_type in Constants.TRANSPORTERS_SET:
-                    return True
-                if ti.entity_type != EntityType.ROAD:
-                    return True
-            """
-            
-        return False
-
-    @classmethod
-    def give_up(cls):
-        cls.is_active = False
-        # Release the claim so another bot (or a retry) can use this leaf.
-        if cls._breach_target is not None:
-            cls.planned_breach_positions.discard(cls._breach_target)
-            cls._breach_target = None
-        cls.killed.add(cls.from_pos)
-        Debug.diamond(Color.PURPLE)
-
-    @classmethod
-    def try_claim_target(cls):
-        # Claim a target on first call (or if we lost one).
-        if cls._breach_target is None:
-            cls._breach_target = cls._pick_target()
-            if cls._breach_target is None:
-                Debug.tee("RouteToBreach: no possible breach targets, giving up")
-                cls.give_up()
-                StateMoveTo.run(Explore.get_target())
-                return
-            cls.planned_breach_positions.add(cls._breach_target)
-
-    @classmethod
-    def do_routing(cls):
-        cls.try_claim_target()
-        if cls._breach_target is None:
-            RouteToBreach.is_active = False
-            return
-        print("Aiming at breach:",((cls._breach_target) // 56 - 3), ((cls._breach_target) % 56 - 3))
-        if cls.should_give_up():
-            cls.give_up()
-            StateMoveTo.run(Explore.get_target())
-            return
-
-        dsq = Globals.my_pos.distance_squared(cls.from_pos)
-        if Globals.ct.get_action_cooldown() == 0 \
-                and (dsq == 1 or dsq == 2):
-            cls.try_build_route()
-            cls.move_to_next()
-        else:
-            cls.move_to_next()
-
-
-# ============================================================
 # RouteToCore
 # ============================================================
 
@@ -25091,7 +24793,7 @@ class RouteToCore:
                 DarkForest.sink_set,
             )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("first_target is None: giving up")
@@ -25258,7 +24960,7 @@ class RouteToFoundry:
                 target_set,
             )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("RouteToFoundry: first_target is None, giving up")
@@ -25325,11 +25027,8 @@ class RouteToFoundry:
 
     @classmethod
     def do_routing(cls):
-        cls.try_claim_target()
-        if cls._foundry_target is None:
-            RouteToFoundry.is_active = False
-            return
         print("Aiming at foundry:",((cls._foundry_target) // 56 - 3), ((cls._foundry_target) % 56 - 3))
+        cls.try_claim_target()
         if cls.should_give_up():
             cls.give_up()
             StateMoveTo.run(Explore.get_target())
@@ -27048,6 +26747,7 @@ class ShieldTargeter:
         if not best.harvester_adjacent:
             return None
 
+        print(f'ShieldTargetInfo {best.position=} {best.harvester_adjacent=}')
 
         return best.position
 
@@ -27252,21 +26952,9 @@ class StateAttackTransporter:
     def run(cls, pos):
         Pathfinder.move_to(pos)
 
-        if Globals.my_pos != pos:
-            return
-
-        if Globals.ct.can_fire(pos) and Attacker.should_fire(pos):
-            Globals.ct.fire(pos)
-
-
-# ============================================================
-# StateBreachBuild
-# ============================================================
-
-class StateBreachBuild:
-    @classmethod
-    def run(cls, pos):
-        BreachBuild.build_breach(pos)
+        if Globals.my_pos == pos:
+            if Globals.ct.can_fire(pos):
+                Globals.ct.fire(pos)
 
 
 # ============================================================
@@ -27363,6 +27051,7 @@ class StateFoundryBuild:
 class StateMoveTo:
     @classmethod
     def run(cls, pos, tag='_'):
+        print(f'{tag=}')
         Pathfinder.move_to(pos)
 
 
@@ -27374,16 +27063,6 @@ class StateRoute:
     @classmethod
     def run(cls):
         RouteToCore.do_routing()
-
-
-# ============================================================
-# StateRouteBreach
-# ============================================================
-
-class StateRouteBreach:
-    @classmethod
-    def run(cls):
-        RouteToBreach.do_routing()
 
 
 # ============================================================
@@ -27491,9 +27170,9 @@ class Symmetry:
         cls.predict_enemy_core()
         DarkForest.register_enemy_core()
 
-        
+        Profiler.start()
         Map.sync_tile_infos()
-        
+        Profiler.end_now("""Map.sync_tile_infos""")
 
 
 
@@ -27784,7 +27463,7 @@ class TileInfo:
     round: int
 
     easily_passable: bool  # (allied core)/road/conveyor/bridge/splitter, maybe deprecated?
-    harvester_adjacent: bool  # specifically titanium harvester_adjacent, don't care about ax
+    harvester_adjacent: bool
 
     has_building: bool  # non-marker building
     building_hp: int
@@ -28050,9 +27729,9 @@ class Unit:
         Globals.start_tick()
         MarketMaker.refresh()
 
-        
+        Profiler.start()
         Map.fill_tile_info()
-        
+        Profiler.end("""Map.fill_tile_info""")
 
     @classmethod
     def run_turn(cls):
@@ -28061,7 +27740,7 @@ class Unit:
     @classmethod
     def end_turn(cls):
 
-        if Globals.round == 1999:
+        if Globals.round == 667:
             Profiler.report()
         print(f'scale ratio {MarketMaker.scale_ratio:.2f}')
 
@@ -28190,11 +27869,11 @@ class VisionTracker:
 
     @classmethod
     def canonical_ally(cls, from_pos: Position) -> BotInfo:
-        
+        Profiler.start()
         ret = min(cls.allies, key=
             lambda x: (Util.linf(from_pos, x.position) << 16) + x.id
         )
-        
+        Profiler.end("""canonical_ally""")
         return ret
 
 
@@ -28218,43 +27897,6 @@ class VisionTracker:
 
 
 # ============================================================
-# Breach
-# ============================================================
-
-class Breach(Unit):
-    @classmethod
-    def init(cls):
-        Unit.init()
-        DarkForest.init()
-
-    @classmethod
-    def start_turn(cls):
-        Unit.start_turn()
-        DarkForest.fcompute()
-        DarkForest.debug_kind()
-
-    @classmethod
-    def run_turn(cls):
-        myDir = Globals.ct.get_direction()
-        myPos = Globals.my_pos
-        newPos =myPos.add(myDir).add(myDir).add(myDir)
-        print("Yo my pos is", Globals.my_pos, "and I'm facing", myDir)
-        print("Imma try to fire at", newPos)
-        if Globals.ct.can_fire(newPos):
-            Globals.ct.fire(newPos)
-            print("Yo we fire!", file=sys.stderr)
-        newPos = myPos.add(myDir).add(myDir)
-        print("Imma try to fire at", newPos)
-        if Globals.ct.can_fire(newPos):
-            Globals.ct.fire(newPos)
-            print("Yo we fire!", file=sys.stderr)
-
-    @classmethod
-    def end_turn(cls):
-        Unit.end_turn()
-
-
-# ============================================================
 # Builder
 # ============================================================
 
@@ -28273,49 +27915,50 @@ class Builder(Unit):
     def start_turn(cls):
         Unit.start_turn()
 
-        
+        Profiler.start()
         BfsBureau.update()
-        
+        Profiler.end("""BfsBureau.update""")
 
         Symmetry.run_sym_check()
 
-        
+        Profiler.start()
         DarkForest.fcompute()
-        
+        Profiler.end("""DarkForest.fcompute""")
 
 
-        
+        Profiler.start()
         BfsBureau.bfs20()
-        
+        Profiler.end("""BfsBureau.bfs20""")
 
-        
+        Profiler.start()
         OreExecutive.fill()
-        
+        Profiler.end("""OreExecutive.fill""")
 
-        
+        Profiler.start()
         VisionTracker.fill()
-        
+        Profiler.end("""VisionTracker.fill""")
 
-        
+        Profiler.start()
         TurretTakedown.fill()
-        
+        Profiler.end("""TurretTakedown.fill""")
 
-        
+        Profiler.start()
         SitterTakedown.fill()
-        
+        Profiler.end("""SitterTakedown.fill""")
 
-        
+        Profiler.start()
         HarvesterAdjacent.fill()
-        
+        Profiler.end("""HarvesterAdjacent.fill""")
 
-        
+        Profiler.start()
         HealTargeter.fill()
-        
+        Profiler.end("""HealTargeter.fill""")
 
-        
+        Profiler.start()
         ShieldTargeter.fill()
-        
+        Profiler.end("""ShieldTargeter.fill""")
 
+        Symmetry.debug()
 
 
 
@@ -28323,6 +27966,7 @@ class Builder(Unit):
     def run_turn(cls):
         cls.state, *args = cls.determine_state()
 
+        print(f'running: {cls.state}  @', *args, sep=' ')
 
         globals()[f'State{cls.state}'].run(*args)
 
@@ -28331,21 +27975,18 @@ class Builder(Unit):
     def end_turn(cls):
         Unit.end_turn()
 
-        
+        Profiler.start()
         HealExecutor.execute_heal_attempt()
-        
+        Profiler.end("""HealExecutor.execute_heal_attempt""")
 
-        
+        Profiler.start()
         Marker.attempt_mark()
-        
+        Profiler.end("""Marker.attempt_mark""")
 
 
 
     @classmethod
     def determine_state(cls):
-        if RouteToBreach.is_active:
-            return ('RouteBreach',)
-
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
 
@@ -28370,9 +28011,6 @@ class Builder(Unit):
         healpos = HealTargeter.get_best_target()
         if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
-        breach_target = BreachBuild._pick_target()
-        if breach_target is not None:
-            return 'BreachBuild', breach_target
         foundry_target = FoundryBuild._pick_target()
         if foundry_target is not None:
             return 'FoundryBuild', foundry_target
@@ -28448,6 +28086,9 @@ class Core(Unit):
     @classmethod
     def end_turn(cls):
         Unit.end_turn()
+
+        if Globals.round > 666:
+            Globals.ct.resign()
 
 
 # ============================================================

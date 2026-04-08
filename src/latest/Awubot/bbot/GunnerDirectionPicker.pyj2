@@ -28,7 +28,7 @@ class GunnerDirectionInfo:
     def is_better_than(a: GunnerDirectionInfo, b: GunnerDirectionInfo) -> bool:
         if a.banned: return False
         if b.banned: return True
-        
+
         if a.enemy_building_hp != b.enemy_building_hp:
             return a.enemy_building_hp > b.enemy_building_hp
 
@@ -127,7 +127,7 @@ class GunnerDirectionPicker:
         {% endfor %}
         {% endfor %}
 
-        
+
 
 
 

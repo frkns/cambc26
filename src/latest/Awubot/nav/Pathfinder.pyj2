@@ -41,7 +41,7 @@ class Pathfinder:
         dist, dir = BfsBureau.find_route(Globals.my_pos, target, ban_target_pos)
         {{ P.end('BfsBureau.find_route') }}
 
-        if dir is None:
+        if dir is None or dist >= {{ INF }}:
             cls.given_up = True
         else:
             if MoveManager.can_move(dir):
