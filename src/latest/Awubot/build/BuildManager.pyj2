@@ -18,8 +18,10 @@ from Generated import *
 
 
 class BuildManager:
-    reserve_ti: int = 100  # scale this
-    reserve_ax: int = 0
+    {% set ti_reserve_map = {
+        EntityType.HARVESTER: 100,
+    } %}
+    {% set ti_reserve_default = 10 %}
 
     @staticmethod
     def scale(cost: int) -> int:
@@ -87,17 +89,13 @@ class BuildManager:
     @staticmethod
     def can_afford_{{ st }}() -> bool:
         ti_cost, ax_cost = Globals.ct.get_{{ st }}_cost()
-        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
-    @classmethod
-    def reserve_check_{{ st }}(cls) -> bool:
-        ti_cost, ax_cost = Globals.ct.get_{{ st }}_cost()
-        if (MarketMaker.ti - ti_cost) < cls.reserve_ti * MarketMaker.scale_ratio:
-            return False
-        if (MarketMaker.ax - ax_cost) < cls.reserve_ax * MarketMaker.scale_ratio:
-            Debug.log('ax branch triggered')
-            return False
-        return True
+        {% set req = ti_reserve_map.get(etype, ti_reserve_default) %}
+        {% if req > 0 %}
+        ti_cost += int({{ req }} * MarketMaker.scale_ratio)
+        {% endif %}
+
+        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
     {% endif %}
     {% endfor %}

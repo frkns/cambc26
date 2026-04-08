@@ -20,14 +20,18 @@ from Generated import *
 class StalkTargeter:
     @classmethod
     def get_best_target(cls) -> Position | None:
+        {{ P.start() }}
+
         if not Map.harvester_set:
             return None
 
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             {# /* if ti.has_bot and not ti.is_bot_ally and ti.allied_bots_adjacent < 2: */ #}
             if ti.has_bot and not ti.is_bot_ally and VisionTracker.me_is_canonical_ally(pos):
+                {{ P.end('StalkTargeter.get_best_target') }}
                 return pos
 
+        {{ P.end('StalkTargeter.get_best_target') }}
 
 
 

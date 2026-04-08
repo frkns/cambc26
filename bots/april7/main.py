@@ -20535,6 +20535,7 @@ class Debug:
 
     @staticmethod
     def dot(pos: Position, color: tuple = Color.WHITE):
+        return
         Globals.ct.draw_indicator_dot(pos, *color)
 
     @staticmethod
