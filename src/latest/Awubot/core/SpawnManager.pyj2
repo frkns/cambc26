@@ -40,7 +40,10 @@ class SpawnManager:
             if ti.allied_bots_adjacent > 0:
                 continue
 
-            if enemy is None or (d := my_pos.distance_squared(pos)) < dist:
+            # Calculate the distance first
+            d = my_pos.distance_squared(pos)
+
+            if enemy is None or d < dist:
                 dist = d
                 enemy = pos
 

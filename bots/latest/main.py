@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-08 11:28:14 (local)
+# latest,  @ 2026-04-08 11:36:26 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -27295,7 +27295,10 @@ class SpawnManager:
             if ti.allied_bots_adjacent > 0:
                 continue
 
-            if enemy is None or (d := my_pos.distance_squared(pos)) < dist:
+            # Calculate the distance first
+            d = my_pos.distance_squared(pos)
+
+            if enemy is None or d < dist:
                 dist = d
                 enemy = pos
 
