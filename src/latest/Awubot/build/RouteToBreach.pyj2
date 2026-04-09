@@ -86,18 +86,10 @@ class RouteToBreach:
 
         target_set = {cls._breach_target}
 
-        # Phase 1: conveyor-only attempt (max_iter=0 skips bridge BFS).
         bridge_dist, first_target = BfsBureau.find_bridge_route(
             cls.from_pos,
             target_set,
-            max_iter=0,
         )
-        # Phase 2: allow bridges if conveyors can't reach.
-        if first_target is None:
-            bridge_dist, first_target = BfsBureau.find_bridge_route(
-                cls.from_pos,
-                target_set,
-            )
 
         {{ D.show('bridge_dist') }}
 

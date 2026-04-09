@@ -36,17 +36,17 @@ class Builder({{ super() }}):
         {{ super() }}.start_turn()
 
         {{ P.start() }}
+        DarkForest.fcompute()
+        {{ P.end('DarkForest.fcompute') }}
+
+        {{ P.start() }}
         BfsBureau.update()
         {{ P.end('BfsBureau.update') }}
 
         Symmetry.run_sym_check()
 
-        {{ P.start() }}
-        DarkForest.fcompute()
-        {{ P.end('DarkForest.fcompute') }}
-
         {# /* DarkForest.debug_pressure() */ #}
-        {# /* DarkForest.debug_kind() */ #}
+        DarkForest.debug_kind()
 
         {{ P.start() }}
         BfsBureau.bfs20()

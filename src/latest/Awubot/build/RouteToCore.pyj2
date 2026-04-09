@@ -35,11 +35,13 @@ class RouteToCore:
     def try_build_route(cls):
         assert cls.is_active
 
+        # short search to core in case it's close
         bridge_dist, first_target = BfsBureau.find_bridge_route(
             cls.from_pos,
             Unit.core_pos_set,
             max_iter=0,
         )
+        # otherwise allow all sinks
         if first_target is None:
             bridge_dist, first_target = BfsBureau.find_bridge_route(
                 cls.from_pos,
