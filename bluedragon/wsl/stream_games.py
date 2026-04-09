@@ -8,7 +8,11 @@ import warnings
 warnings.filterwarnings("ignore", category=SyntaxWarning)
 
 TEAM = "something else"
-OUTPUT_FILE = "ModifiedGames.csv"
+# TEAM = "Blue Dragon"  # spy on other teams
+
+OUTPUT_FILE = f"Games_{TEAM.replace(' ', '_')}.csv"
+
+print(f"Looking up {TEAM} games...")
 
 def run_cmd(command, env):
     wide_env = env.copy()
