@@ -32,3 +32,58 @@ class Attacker:
         if not VisionTracker.me_is_canonical_ally(trans.position):
             return None
         return trans.position
+
+
+    @classmethod
+    def compute_readiness(cls):
+        allies_ready = 0
+        lst: tuple[int, int] = []
+
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            if (ti.has_bot and ti.is_bot_ally) \
+                    and (ti.has_building and not ti.is_building_ally) \
+                    and (ti.entity_type in Constants.ATTACKABLE_TRANSPORTERS_SET):
+                allies_ready += 1
+                lst.append((x, y))
+
+        enemies_ready_set: set[int] = set()  # hashed pos
+        tile_info = Map.tile_info
+
+        for x, y in lst:
+            {% for dir in directions[:8] %}
+            {% set dx, dy = dir.delta() %}
+            {% set nx %}(x {{ sign0(dx) }}){% endset %}
+            {% set ny %}(y {{ sign0(dy) }}){% endset %}
+
+            nti = tile_info[{{ nx }}][{{ ny }}]
+            if nti is not None and nti.has_bot and not nti.is_bot_ally:
+                enemies_ready_set.add(({{ nx }} << 6) | {{ ny }})
+            {% endfor %}
+
+        return allies_ready, len(enemies_ready_set)
+
+
+    @classmethod
+    def should_fire(cls, pos):
+        ti = Map.tile_info[pos.x][pos.y]
+
+        # assume caller passes in enemy transporter position
+        {% if LOCAL %}
+        assert not ti.is_building_ally
+        {% endif %}
+
+        hp = ti.building_hp
+        max_hp = Constants.MAX_HP_MAP[ti.entity_type]
+
+        if 2 * hp <= max_hp:
+            return True
+
+        allies_ready, enemies_ready = cls.compute_readiness()
+
+        if allies_ready > 2 * enemies_ready:
+            return True
+
+        return False
+
+
+

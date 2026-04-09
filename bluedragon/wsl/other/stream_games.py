@@ -7,7 +7,7 @@ import csv
 import warnings
 warnings.filterwarnings("ignore", category=SyntaxWarning)
 
-TEAM = "something else"
+TEAM = "Blue Dragon"
 OUTPUT_FILE = "ModifiedGames.csv"
 
 def run_cmd(command, env):

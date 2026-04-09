@@ -25,6 +25,8 @@ class HealTargetInfo:
     bot_hp: int
     is_transporter: bool
     has_enemy_bot: bool
+    bfs_dist: int
+    entity_type: EntityType
 
     @staticmethod
     def is_better_than(a: HealTargetInfo, b: HealTargetInfo) -> bool:
@@ -32,7 +34,7 @@ class HealTargetInfo:
             return a.building_heal > b.building_heal
 
         # Make sure at least one building is healable
-        if a.building_heal > 0:
+        if a.building_heal > 0 and b.building_heal > 0:
             if a.is_transporter != b.is_transporter:
                 if a.is_transporter:
                     return True
@@ -54,6 +56,9 @@ class HealTargetInfo:
         if a.bot_hp != b.bot_hp:
             return a.bot_hp < b.bot_hp
 
+        if a.bfs_dist != b.bfs_dist:
+            return a.bfs_dist < b.bfs_dist
+
         return False
 
 
@@ -74,6 +79,13 @@ class HealTargeter:
 
         if best.building_heal + best.bot_heal < {{ GameConstants.HEAL_AMOUNT }}:
             return None
+
+        # if far away from core and not critical and core hp is high, do other stuff
+        core_ti = Map.tile_info[Unit.core_pos.x][Unit.core_pos.y]
+        if best.entity_type == EntityType.CORE:
+            cond = best.building_hp < 500 - best.bfs_dist * (core_ti.allied_bots_adjacent) * 4
+            if not cond:
+                return None
 
         {% if LOCAL %}
         print(f'HealTargeter {best.position=} {best.building_heal=} {best.building_hp=}')
@@ -98,6 +110,8 @@ class HealTargeter:
             info.bot_hp = {{ INF }}
             info.is_transporter = (ti.entity_type is not None and ti.entity_type in Constants.TRANSPORTERS_SET)
             info.has_enemy_bot = False
+            info.bfs_dist = BfsBureau.bfs20_dist[idx]
+            info.entity_type = ti.entity_type
 
             if ti.has_building and ti.is_building_ally:
                 info.building_heal = min(

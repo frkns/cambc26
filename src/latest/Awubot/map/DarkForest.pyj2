@@ -38,6 +38,8 @@ class DarkForest:
     node_kind: list[int]   # propagated kind per node (top-down)
     sink_set: set[int]
     leaf_set: set[int]   # titanium leaf nodes — valid foundry sites
+    core_sink_set: set[int] = set()  # sink_set filtered to ALLY_CORE only
+
 
     @classmethod
     def init(cls):
@@ -49,6 +51,14 @@ class DarkForest:
         if Globals.my_type in (EntityType.SENTINEL, EntityType.GUNNER):
             cls.register_sink({{ encode_pos('Globals.my_pos.x', 'Globals.my_pos.y') }},
                               {{ Kind.ALLY_CONSUMER }})
+
+    @classmethod
+    def compute_core_sink_set(cls):
+        """Call this immediately after fcompute(). No changes to fcompute needed."""
+        cls.core_sink_set = {
+            u for u in cls.sink_set
+            if cls.node_kind[u] == {{ Kind.ALLY_CORE }} or u in Unit.core_pos_set
+        }
 
     @classmethod
     def register_enemy_core(cls):
@@ -271,4 +281,5 @@ class DarkForest:
             if nk[u] == {{ Kind.ALLY_CORE }} and u not in core_pos_set:
                 _ti_leaves.add(u)
         cls.leaf_set = _ti_leaves
+        cls.compute_core_sink_set()
 # ===---

@@ -51,6 +51,12 @@ class Constants:
         EntityType.BRIDGE,
         EntityType.SPLITTER,
     }
+    ATTACKABLE_TRANSPORTERS_SET: set[EntityType] = {
+        EntityType.CONVEYOR,  # sans the ARMOURED_CONVEYOR
+        EntityType.BRIDGE,
+        EntityType.SPLITTER,
+    }
+
     PASSABLE_SET: set[EntityType] = {
         EntityType.ROAD,
         EntityType.CONVEYOR,
@@ -59,7 +65,14 @@ class Constants:
         EntityType.SPLITTER,
     }
 
-    AXIONITE_START: int = 150 # Start producing axionite at this round
+    TURRET_SET: set[EntityType] = {
+        EntityType.SENTINEL,
+        EntityType.GUNNER,
+        EntityType.LAUNCHER,
+        EntityType.BREACH,
+    }
+
+    AXIONITE_START: int = 20 # Start producing axionite at this round
 
     MAX_HP_MAP: dict[EntityType, int] = {
         {% for etype in EntityType %}

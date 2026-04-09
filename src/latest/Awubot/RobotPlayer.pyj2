@@ -42,9 +42,20 @@ class Entrypoint:
             case EntityType.LAUNCHER:
                 Launcher.init()
                 cls.me = Launcher
+            case EntityType.BREACH:
+                Breach.init()
+                cls.me = Breach
 
     @classmethod
     def run(cls, ct: Controller):
+
+        # because engine is bugged
+        {% if LOCAL %}
+        if ct.get_current_round() > {{ ROUND_LIMIT }}: 
+            ct.self_destruct()
+            return  
+        {% endif %}
+
         Globals.ct = ct  # in case not fixed...
         if cls.needs_init:
             cls.init(ct)
@@ -68,4 +79,5 @@ class Player:
 
             {% if LOCAL %}
             ct.resign()
+            raise Exception
             {% endif %}

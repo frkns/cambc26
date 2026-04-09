@@ -20,9 +20,22 @@ from Generated import *
 class StalkTargeter:
     @classmethod
     def get_best_target(cls) -> Position | None:
+        {{ P.start() }}
+
         if not Map.harvester_set:
             return None
 
+        bfs20_dist = BfsBureau.bfs20_dist
+
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
-            if ti.has_bot and not ti.is_bot_ally and ti.allied_bots_adjacent < 2:
-                return Position(x, y)
+            {# /* if ti.has_bot and not ti.is_bot_ally and ti.allied_bots_adjacent < 2: */ #}
+            if ti.has_bot and not ti.is_bot_ally \
+                    and VisionTracker.me_is_canonical_ally(pos) \
+                    and bfs20_dist[idx] < {{ INF }}:  # reachable
+                {{ P.end('StalkTargeter.get_best_target') }}
+                return pos
+
+        {{ P.end('StalkTargeter.get_best_target') }}
+
+
+
