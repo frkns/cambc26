@@ -1,0 +1,53 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+
+
+{% macro super() %}Unit{% endmacro %}
+
+
+class Breach({{ super() }}):
+    @classmethod
+    def init(cls):
+        {{ super() }}.init()
+        DarkForest.init()
+
+    @classmethod
+    def start_turn(cls):
+        {{ super() }}.start_turn()
+        DarkForest.fcompute()
+        DarkForest.debug_kind()
+
+    @classmethod
+    def run_turn(cls):
+        myDir = Globals.ct.get_direction()
+        myPos = Globals.my_pos
+        newPos =myPos.add(myDir).add(myDir).add(myDir)
+        print("Yo my pos is", Globals.my_pos, "and I'm facing", myDir)
+        print("Imma try to fire at", newPos)
+        if Globals.ct.can_fire(newPos):
+            Globals.ct.fire(newPos)
+            print("Yo we fire!", file=sys.stderr)
+        newPos = myPos.add(myDir).add(myDir)
+        print("Imma try to fire at", newPos)
+        if Globals.ct.can_fire(newPos):
+            Globals.ct.fire(newPos)
+            print("Yo we fire!", file=sys.stderr)
+
+    @classmethod
+    def end_turn(cls):
+        {{ super() }}.end_turn()

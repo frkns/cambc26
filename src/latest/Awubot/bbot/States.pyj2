@@ -52,10 +52,20 @@ class StateFoundryBuild:
     def run(cls, pos):
         FoundryBuild.build_foundry(pos)
 
+class StateBreachBuild:
+    @classmethod
+    def run(cls, pos):
+        BreachBuild.build_breach(pos)
+
 class StateRouteFoundry:
     @classmethod
     def run(cls):
         RouteToFoundry.do_routing()
+        
+class StateRouteBreach:
+    @classmethod
+    def run(cls):
+        RouteToBreach.do_routing()
 
 
 class StateMoveTo:
@@ -89,12 +99,16 @@ class StateBuildGunner:
 class StateBuildLauncherAround:
     @classmethod
     def run(cls, pos):
-        pos = pos.add(pos.direction_to(Globals.my_pos))
+        posToMe = pos.direction_to(Globals.my_pos)
         
-        Pathfinder.move_to(pos, ban_target_pos=True)
+        Pathfinder.move_to(pos.add(posToMe), ban_target_pos=True)
+        
+        for dir in (posToMe, posToMe.rotate_left(), posToMe.rotate_right()):
+            launcherPos = pos.add(dir)
 
-        if BuildManager.can_dbuild_launcher(pos):            
-            BuildManager.dbuild_launcher(pos)
+            if BuildManager.can_dbuild_launcher(launcherPos):            
+                BuildManager.dbuild_launcher(launcherPos)
+                return
 
 class StateBuildBarrier:
     @classmethod

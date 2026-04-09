@@ -71,6 +71,12 @@ class SitterTakedown:
             
             if not ti.has_bot:
                 continue
+            
+            if ti.has_building:
+                if not ti.is_building_ally:
+                    continue
+                if ti.entity_type != EntityType.ROAD:
+                    continue
 
             info = SitterTargetInfo()
             cls.cand.append(info)

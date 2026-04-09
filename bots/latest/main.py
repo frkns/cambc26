@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-07 23:59:01 (local)
+# latest,  @ 2026-04-09 00:22:34 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -117,6 +117,7 @@ class Attacker:
         ti = Map.tile_info[pos.x][pos.y]
 
         # assume caller passes in enemy transporter position
+        assert not ti.is_building_ally
 
         hp = ti.building_hp
         max_hp = Constants.MAX_HP_MAP[ti.entity_type]
@@ -139,7 +140,6 @@ class Attacker:
 class BfsBureau:
     weight: list[int]
     now_weight: list[int]  # copied from weight every turn
-    dist_bridge: list[int]
 
     # bitmask
     board_mask: int
@@ -148,22 +148,24 @@ class BfsBureau:
     enemy_launcher: int = 0
     STRIDE: int
 
+    passable_bridge: list[bool] = [False] * 3136
+
+    weight: list[int] = [1000000] * 3136
+    ti_ore_adj: list[bool] = [False] * 3136
+
     @classmethod
     def init(cls):
         W, H = Map.W, Map.H
 
-        dist = [1000001] * 3136
-        weight = [1000000] * 3136
+        passable_bridge = cls.passable_bridge
+        weight = cls.weight
 
-        row_inf = [1000000] * H
+        row_true = [True] * H
         row_1 = [1] * H
         for x in range(W):
             base = (x + 3) * 56 + 3
-            dist[base:base + H] = row_inf
+            passable_bridge[base:base + H] = row_true
             weight[base:base + H] = row_1
-
-        cls.dist_bridge = dist
-        cls.weight = weight
 
         S = H + 1
         cls.STRIDE = S
@@ -181,6 +183,7 @@ class BfsBureau:
         tile_info = Map.tile_info
         weight = cls.weight
         stride = cls.STRIDE
+        passable_bridge = cls.passable_bridge
         ct = Globals.ct
 
 
@@ -211,9 +214,9 @@ class BfsBureau:
                         etype == EntityType.ROAD or etype == EntityType.CORE))
                 )
             ):
-                cls.dist_bridge[idx] = 1000000
+                passable_bridge[idx] = True
             else:
-                cls.dist_bridge[idx] = 1000001
+                passable_bridge[idx] = False
 
         cls.now_weight = weight.copy()
         now_weight = cls.now_weight
@@ -224,9 +227,17 @@ class BfsBureau:
         expanded = (wide | (wide >> stride) | (wide << stride)) & cls.board_mask
         cls.now_passable_int &= ~expanded
 
+        ti_ore_adj = cls.ti_ore_adj
+
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             if ti.has_bot:
                 now_weight[idx] += 10
+
+            if ti.env == Environment.ORE_TITANIUM:
+                ti_ore_adj[idx -1] = True
+                ti_ore_adj[idx +1] = True
+                ti_ore_adj[idx -56] = True
+                ti_ore_adj[idx +56] = True
 
 
     # incremental
@@ -234,16 +245,13 @@ class BfsBureau:
     @classmethod
     def add_enemy_sentinel(cls, pos, ti):
         for pos in Globals.ct.get_attackable_tiles_from(pos, ti.turret_direction, ti.entity_type):
-            cls.weight[(((pos.x) + 3) * 56 + ((pos.y) + 3))] += 2
+            cls.weight[(((pos.x) + 3) * 56 + ((pos.y) + 3))] += 3
 
     @classmethod
-    def remove_enemy_sentinel(cls, pos, ti):
-        if ti.turret_direction is None or ti.entity_type != EntityType.SENTINEL:
-            # For some reason, turret info is sometimes None after a gunner defeats an enemy turret
-            return
-        for pos in Globals.ct.get_attackable_tiles_from(pos, ti.turret_direction, ti.entity_type):
+    def remove_enemy_sentinel(cls, pos, turret_dir):
+        for pos in Globals.ct.get_attackable_tiles_from(pos, turret_dir, EntityType.SENTINEL):
             i = (((pos.x) + 3) * 56 + ((pos.y) + 3))
-            cls.weight[i] -= 2
+            cls.weight[i] -= 3
             if cls.weight[i] < 1:
                 cls.weight[i] = 1
 
@@ -262,6 +270,7 @@ class BfsBureau:
         cls.weight[idx + -56] += 1000000
         cls.weight[idx + -57] += 1000000
 
+        Debug.dot(Position(x, y), Color.YELLOW)
 
     @classmethod
     def remove_enemy_launcher(cls, idx):
@@ -302,26 +311,28 @@ class BfsBureau:
         if cls.weight[i] < 1:
             cls.weight[i] = 1
 
+        Debug.dot(Position(x, y), Color.GREEN)
 
 
-    # works. but slow
+
 
     @classmethod
-    def find_bridge_route(cls, start: Position, sink_set: set[int], max_iter: int = 1000):
+    def find_bridge_route_avoid_ti_adj(
+            cls, start: Position, sink_set: set[int], max_iter: int = 1000
+        ):
 
 
-        dist = cls.dist_bridge[:]
+        passable = cls.passable_bridge
+        visited = [False] * 3136
         first_hop = [None] * 3136
+        dist = [0] * 3136
+
+        ti_ore_adj = cls.ti_ore_adj
+
 
         sx, sy = start.x, start.y
         si = (((sx) + 3) * 56 + ((sy) + 3))
-        dist[si] = 0
-
-        # sink nodes are destinations, not transit — make them visible to BFS
-        # we return immediately on first hit, so they're never traversed through
-        for s in sink_set:
-            if dist[s] == 1000001:  # redundant check?
-                dist[s] = 1000000
+        visited[si] = True
 
         q = deque()
         _qa = q.append
@@ -331,30 +342,53 @@ class BfsBureau:
         conv_reached = []
         _cra = conv_reached.append
 
-        # First cardinal step: first_hop = that adjacent tile
         conv_front = []
         _cfa = conv_front.append
         ni = si + 56
-        if dist[ni] == 1000000:
-            dist[ni] = -1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+            visited[ni] = True
             first_hop[ni] = (sx +1, sy )
             _cfa(ni)
             _cra(ni)
         ni = si + -56
-        if dist[ni] == 1000000:
-            dist[ni] = -1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+            visited[ni] = True
             first_hop[ni] = (sx -1, sy )
             _cfa(ni)
             _cra(ni)
         ni = si + 1
-        if dist[ni] == 1000000:
-            dist[ni] = -1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+            visited[ni] = True
             first_hop[ni] = (sx , sy +1)
             _cfa(ni)
             _cra(ni)
         ni = si + -1
-        if dist[ni] == 1000000:
-            dist[ni] = -1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+            visited[ni] = True
             first_hop[ni] = (sx , sy -1)
             _cfa(ni)
             _cra(ni)
@@ -365,26 +399,50 @@ class BfsBureau:
         for cidx in conv_front:
             _fh = first_hop[cidx]
             ni = cidx + 56
-            if dist[ni] == 1000000:
-                dist[ni] = -1
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+                visited[ni] = True
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
             ni = cidx + -56
-            if dist[ni] == 1000000:
-                dist[ni] = -1
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+                visited[ni] = True
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
             ni = cidx + 1
-            if dist[ni] == 1000000:
-                dist[ni] = -1
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+                visited[ni] = True
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
             ni = cidx + -1
-            if dist[ni] == 1000000:
-                dist[ni] = -1
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+                visited[ni] = True
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
@@ -394,26 +452,50 @@ class BfsBureau:
         for cidx in conv_front:
             _fh = first_hop[cidx]
             ni = cidx + 56
-            if dist[ni] == 1000000:
-                dist[ni] = -1
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+                visited[ni] = True
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
             ni = cidx + -56
-            if dist[ni] == 1000000:
-                dist[ni] = -1
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+                visited[ni] = True
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
             ni = cidx + 1
-            if dist[ni] == 1000000:
-                dist[ni] = -1
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+                visited[ni] = True
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
             ni = cidx + -1
-            if dist[ni] == 1000000:
-                dist[ni] = -1
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+                visited[ni] = True
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
@@ -423,156 +505,289 @@ class BfsBureau:
         for cidx in conv_front:
             _fh = first_hop[cidx]
             ni = cidx + 56
-            if dist[ni] == 1000000:
-                dist[ni] = -1
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+                visited[ni] = True
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
             ni = cidx + -56
-            if dist[ni] == 1000000:
-                dist[ni] = -1
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+                visited[ni] = True
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
             ni = cidx + 1
-            if dist[ni] == 1000000:
-                dist[ni] = -1
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+                visited[ni] = True
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
             ni = cidx + -1
-            if dist[ni] == 1000000:
-                dist[ni] = -1
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+                visited[ni] = True
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
         conv_front = conv_next
 
         # ── Phase 2: seed conveyors first (priority over bridges) ──
-
         for cidx in conv_reached:
-            if dist[cidx] == -1:
-                dist[cidx] = 1
-                if cidx in sink_set:
-                    return 1, first_hop[cidx]
-                _qa(cidx)
+            if cidx in sink_set:
+                return 1, first_hop[cidx]
+            _qa(cidx)
+            dist[cidx] = 1
 
         # ── Phase 3: bridge seeds for tiles conveyors couldn't reach ──
         ni = si + 168
-        if dist[ni] == 1000000:
-            dist[ni] = 1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+            visited[ni] = True
             first_hop[ni] = (sx +3, sy )
             if ni in sink_set:
                 return 1, first_hop[ni]
+            dist[ni] = 1
             _qa(ni)
         ni = si + -168
-        if dist[ni] == 1000000:
-            dist[ni] = 1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+            visited[ni] = True
             first_hop[ni] = (sx -3, sy )
             if ni in sink_set:
                 return 1, first_hop[ni]
+            dist[ni] = 1
             _qa(ni)
         ni = si + 3
-        if dist[ni] == 1000000:
-            dist[ni] = 1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+            visited[ni] = True
             first_hop[ni] = (sx , sy +3)
             if ni in sink_set:
                 return 1, first_hop[ni]
+            dist[ni] = 1
             _qa(ni)
         ni = si + -3
-        if dist[ni] == 1000000:
-            dist[ni] = 1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+            visited[ni] = True
             first_hop[ni] = (sx , sy -3)
             if ni in sink_set:
                 return 1, first_hop[ni]
+            dist[ni] = 1
             _qa(ni)
         ni = si + 114
-        if dist[ni] == 1000000:
-            dist[ni] = 1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+            visited[ni] = True
             first_hop[ni] = (sx +2, sy +2)
             if ni in sink_set:
                 return 1, first_hop[ni]
+            dist[ni] = 1
             _qa(ni)
         ni = si + 110
-        if dist[ni] == 1000000:
-            dist[ni] = 1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+            visited[ni] = True
             first_hop[ni] = (sx +2, sy -2)
             if ni in sink_set:
                 return 1, first_hop[ni]
+            dist[ni] = 1
             _qa(ni)
         ni = si + -114
-        if dist[ni] == 1000000:
-            dist[ni] = 1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+            visited[ni] = True
             first_hop[ni] = (sx -2, sy -2)
             if ni in sink_set:
                 return 1, first_hop[ni]
+            dist[ni] = 1
             _qa(ni)
         ni = si + -110
-        if dist[ni] == 1000000:
-            dist[ni] = 1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+            visited[ni] = True
             first_hop[ni] = (sx -2, sy +2)
             if ni in sink_set:
                 return 1, first_hop[ni]
+            dist[ni] = 1
             _qa(ni)
         ni = si + 58
-        if dist[ni] == 1000000:
-            dist[ni] = 1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+            visited[ni] = True
             first_hop[ni] = (sx +1, sy +2)
             if ni in sink_set:
                 return 1, first_hop[ni]
+            dist[ni] = 1
             _qa(ni)
         ni = si + 113
-        if dist[ni] == 1000000:
-            dist[ni] = 1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+            visited[ni] = True
             first_hop[ni] = (sx +2, sy +1)
             if ni in sink_set:
                 return 1, first_hop[ni]
+            dist[ni] = 1
             _qa(ni)
         ni = si + 111
-        if dist[ni] == 1000000:
-            dist[ni] = 1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+            visited[ni] = True
             first_hop[ni] = (sx +2, sy -1)
             if ni in sink_set:
                 return 1, first_hop[ni]
+            dist[ni] = 1
             _qa(ni)
         ni = si + 54
-        if dist[ni] == 1000000:
-            dist[ni] = 1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+            visited[ni] = True
             first_hop[ni] = (sx +1, sy -2)
             if ni in sink_set:
                 return 1, first_hop[ni]
+            dist[ni] = 1
             _qa(ni)
         ni = si + -58
-        if dist[ni] == 1000000:
-            dist[ni] = 1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+            visited[ni] = True
             first_hop[ni] = (sx -1, sy -2)
             if ni in sink_set:
                 return 1, first_hop[ni]
+            dist[ni] = 1
             _qa(ni)
         ni = si + -113
-        if dist[ni] == 1000000:
-            dist[ni] = 1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+            visited[ni] = True
             first_hop[ni] = (sx -2, sy -1)
             if ni in sink_set:
                 return 1, first_hop[ni]
+            dist[ni] = 1
             _qa(ni)
         ni = si + -111
-        if dist[ni] == 1000000:
-            dist[ni] = 1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+            visited[ni] = True
             first_hop[ni] = (sx -2, sy +1)
             if ni in sink_set:
                 return 1, first_hop[ni]
+            dist[ni] = 1
             _qa(ni)
         ni = si + -54
-        if dist[ni] == 1000000:
-            dist[ni] = 1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+            visited[ni] = True
             first_hop[ni] = (sx -1, sy +2)
             if ni in sink_set:
                 return 1, first_hop[ni]
+            dist[ni] = 1
             _qa(ni)
 
         # ── Phase 4: main bridge BFS ──
-
         it = 0
         while q and (it := it + 1) <= max_iter:
             idx = q.popleft()
@@ -580,56 +795,665 @@ class BfsBureau:
             fh = first_hop[idx]
 
             ni = idx + 168
-            if dist[ni] == 1000000:
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+                visited[ni] = True
                 dist[ni] = d
                 first_hop[ni] = fh
                 if ni in sink_set:
                     return d, fh
                 _qa(ni)
             ni = idx + -168
-            if dist[ni] == 1000000:
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+                visited[ni] = True
                 dist[ni] = d
                 first_hop[ni] = fh
                 if ni in sink_set:
                     return d, fh
                 _qa(ni)
             ni = idx + 3
-            if dist[ni] == 1000000:
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+                visited[ni] = True
                 dist[ni] = d
                 first_hop[ni] = fh
                 if ni in sink_set:
                     return d, fh
                 _qa(ni)
             ni = idx + -3
-            if dist[ni] == 1000000:
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+                visited[ni] = True
                 dist[ni] = d
                 first_hop[ni] = fh
                 if ni in sink_set:
                     return d, fh
                 _qa(ni)
             ni = idx + 114
-            if dist[ni] == 1000000:
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+                visited[ni] = True
                 dist[ni] = d
                 first_hop[ni] = fh
                 if ni in sink_set:
                     return d, fh
                 _qa(ni)
             ni = idx + 110
-            if dist[ni] == 1000000:
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+                visited[ni] = True
                 dist[ni] = d
                 first_hop[ni] = fh
                 if ni in sink_set:
                     return d, fh
                 _qa(ni)
             ni = idx + -114
-            if dist[ni] == 1000000:
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+                visited[ni] = True
                 dist[ni] = d
                 first_hop[ni] = fh
                 if ni in sink_set:
                     return d, fh
                 _qa(ni)
             ni = idx + -110
-            if dist[ni] == 1000000:
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+                and not ti_ore_adj[ni]
+            ))
+        ):
+                visited[ni] = True
+                dist[ni] = d
+                first_hop[ni] = fh
+                if ni in sink_set:
+                    return d, fh
+                _qa(ni)
+
+        return 1000000, None
+
+
+    @classmethod
+    def find_bridge_route(
+            cls, start: Position, sink_set: set[int], max_iter: int = 1000
+        ):
+
+
+        passable = cls.passable_bridge
+        visited = [False] * 3136
+        first_hop = [None] * 3136
+        dist = [0] * 3136
+
+
+
+        sx, sy = start.x, start.y
+        si = (((sx) + 3) * 56 + ((sy) + 3))
+        visited[si] = True
+
+        q = deque()
+        _qa = q.append
+
+
+        # ── Phase 1: conveyor mini-BFS (≤4 cardinal steps from start) ──
+        conv_reached = []
+        _cra = conv_reached.append
+
+        conv_front = []
+        _cfa = conv_front.append
+        ni = si + 56
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+            visited[ni] = True
+            first_hop[ni] = (sx +1, sy )
+            _cfa(ni)
+            _cra(ni)
+        ni = si + -56
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+            visited[ni] = True
+            first_hop[ni] = (sx -1, sy )
+            _cfa(ni)
+            _cra(ni)
+        ni = si + 1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+            visited[ni] = True
+            first_hop[ni] = (sx , sy +1)
+            _cfa(ni)
+            _cra(ni)
+        ni = si + -1
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+            visited[ni] = True
+            first_hop[ni] = (sx , sy -1)
+            _cfa(ni)
+            _cra(ni)
+
+        # Steps 2–4: propagate first_hop from parent
+        conv_next = []
+        _cna = conv_next.append
+        for cidx in conv_front:
+            _fh = first_hop[cidx]
+            ni = cidx + 56
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+                visited[ni] = True
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+            ni = cidx + -56
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+                visited[ni] = True
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+            ni = cidx + 1
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+                visited[ni] = True
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+            ni = cidx + -1
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+                visited[ni] = True
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+        conv_front = conv_next
+        conv_next = []
+        _cna = conv_next.append
+        for cidx in conv_front:
+            _fh = first_hop[cidx]
+            ni = cidx + 56
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+                visited[ni] = True
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+            ni = cidx + -56
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+                visited[ni] = True
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+            ni = cidx + 1
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+                visited[ni] = True
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+            ni = cidx + -1
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+                visited[ni] = True
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+        conv_front = conv_next
+        conv_next = []
+        _cna = conv_next.append
+        for cidx in conv_front:
+            _fh = first_hop[cidx]
+            ni = cidx + 56
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+                visited[ni] = True
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+            ni = cidx + -56
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+                visited[ni] = True
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+            ni = cidx + 1
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+                visited[ni] = True
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+            ni = cidx + -1
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+                visited[ni] = True
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+        conv_front = conv_next
+
+        # ── Phase 2: seed conveyors first (priority over bridges) ──
+        for cidx in conv_reached:
+            if cidx in sink_set:
+                return 1, first_hop[cidx]
+            _qa(cidx)
+            dist[cidx] = 1
+
+        # ── Phase 3: bridge seeds for tiles conveyors couldn't reach ──
+        ni = si + 168
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+            visited[ni] = True
+            first_hop[ni] = (sx +3, sy )
+            if ni in sink_set:
+                return 1, first_hop[ni]
+            dist[ni] = 1
+            _qa(ni)
+        ni = si + -168
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+            visited[ni] = True
+            first_hop[ni] = (sx -3, sy )
+            if ni in sink_set:
+                return 1, first_hop[ni]
+            dist[ni] = 1
+            _qa(ni)
+        ni = si + 3
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+            visited[ni] = True
+            first_hop[ni] = (sx , sy +3)
+            if ni in sink_set:
+                return 1, first_hop[ni]
+            dist[ni] = 1
+            _qa(ni)
+        ni = si + -3
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+            visited[ni] = True
+            first_hop[ni] = (sx , sy -3)
+            if ni in sink_set:
+                return 1, first_hop[ni]
+            dist[ni] = 1
+            _qa(ni)
+        ni = si + 114
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+            visited[ni] = True
+            first_hop[ni] = (sx +2, sy +2)
+            if ni in sink_set:
+                return 1, first_hop[ni]
+            dist[ni] = 1
+            _qa(ni)
+        ni = si + 110
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+            visited[ni] = True
+            first_hop[ni] = (sx +2, sy -2)
+            if ni in sink_set:
+                return 1, first_hop[ni]
+            dist[ni] = 1
+            _qa(ni)
+        ni = si + -114
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+            visited[ni] = True
+            first_hop[ni] = (sx -2, sy -2)
+            if ni in sink_set:
+                return 1, first_hop[ni]
+            dist[ni] = 1
+            _qa(ni)
+        ni = si + -110
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+            visited[ni] = True
+            first_hop[ni] = (sx -2, sy +2)
+            if ni in sink_set:
+                return 1, first_hop[ni]
+            dist[ni] = 1
+            _qa(ni)
+        ni = si + 58
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+            visited[ni] = True
+            first_hop[ni] = (sx +1, sy +2)
+            if ni in sink_set:
+                return 1, first_hop[ni]
+            dist[ni] = 1
+            _qa(ni)
+        ni = si + 113
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+            visited[ni] = True
+            first_hop[ni] = (sx +2, sy +1)
+            if ni in sink_set:
+                return 1, first_hop[ni]
+            dist[ni] = 1
+            _qa(ni)
+        ni = si + 111
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+            visited[ni] = True
+            first_hop[ni] = (sx +2, sy -1)
+            if ni in sink_set:
+                return 1, first_hop[ni]
+            dist[ni] = 1
+            _qa(ni)
+        ni = si + 54
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+            visited[ni] = True
+            first_hop[ni] = (sx +1, sy -2)
+            if ni in sink_set:
+                return 1, first_hop[ni]
+            dist[ni] = 1
+            _qa(ni)
+        ni = si + -58
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+            visited[ni] = True
+            first_hop[ni] = (sx -1, sy -2)
+            if ni in sink_set:
+                return 1, first_hop[ni]
+            dist[ni] = 1
+            _qa(ni)
+        ni = si + -113
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+            visited[ni] = True
+            first_hop[ni] = (sx -2, sy -1)
+            if ni in sink_set:
+                return 1, first_hop[ni]
+            dist[ni] = 1
+            _qa(ni)
+        ni = si + -111
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+            visited[ni] = True
+            first_hop[ni] = (sx -2, sy +1)
+            if ni in sink_set:
+                return 1, first_hop[ni]
+            dist[ni] = 1
+            _qa(ni)
+        ni = si + -54
+        if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+            visited[ni] = True
+            first_hop[ni] = (sx -1, sy +2)
+            if ni in sink_set:
+                return 1, first_hop[ni]
+            dist[ni] = 1
+            _qa(ni)
+
+        # ── Phase 4: main bridge BFS ──
+        it = 0
+        while q and (it := it + 1) <= max_iter:
+            idx = q.popleft()
+            d = dist[idx] + 1
+            fh = first_hop[idx]
+
+            ni = idx + 168
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+                visited[ni] = True
+                dist[ni] = d
+                first_hop[ni] = fh
+                if ni in sink_set:
+                    return d, fh
+                _qa(ni)
+            ni = idx + -168
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+                visited[ni] = True
+                dist[ni] = d
+                first_hop[ni] = fh
+                if ni in sink_set:
+                    return d, fh
+                _qa(ni)
+            ni = idx + 3
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+                visited[ni] = True
+                dist[ni] = d
+                first_hop[ni] = fh
+                if ni in sink_set:
+                    return d, fh
+                _qa(ni)
+            ni = idx + -3
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+                visited[ni] = True
+                dist[ni] = d
+                first_hop[ni] = fh
+                if ni in sink_set:
+                    return d, fh
+                _qa(ni)
+            ni = idx + 114
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+                visited[ni] = True
+                dist[ni] = d
+                first_hop[ni] = fh
+                if ni in sink_set:
+                    return d, fh
+                _qa(ni)
+            ni = idx + 110
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+                visited[ni] = True
+                dist[ni] = d
+                first_hop[ni] = fh
+                if ni in sink_set:
+                    return d, fh
+                _qa(ni)
+            ni = idx + -114
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+                visited[ni] = True
+                dist[ni] = d
+                first_hop[ni] = fh
+                if ni in sink_set:
+                    return d, fh
+                _qa(ni)
+            ni = idx + -110
+            if (
+            not visited[ni] and
+            (ni in sink_set or (
+                passable[ni]
+            ))
+        ):
+                visited[ni] = True
                 dist[ni] = d
                 first_hop[ni] = fh
                 if ni in sink_set:
@@ -971,7 +1795,7 @@ class BfsBureau:
             return 1000000, None
 
         # ── Phase 2: bitmask BFS from Dijkstra frontier ──
-        
+        Profiler.start()
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = (cls.now_passable_int | _tm) & cls.board_mask
@@ -1976,9 +2800,11 @@ class BfsBureau:
                 Debug.dot(Position(tile_x, tile_y), Color.BLACK)
 
 
+
     @classmethod
     def get_bfs20_dist(cls, pos: Position):
         return cls.bfs20_dist[(((pos.x) + 3) * 56 + ((pos.y) + 3))]
+
 
     @classmethod
     def debug_enemy_launcher_zone(cls):
@@ -2004,6 +2830,62 @@ class BfsBureau:
 class BotInfo(NamedTuple):
     position: Position
     id: int
+
+
+# ============================================================
+# BreachBuild
+# ============================================================
+
+class BreachBuild:
+    @classmethod
+    def build_breach(cls, pos):
+        print("Trying to build breach at", pos)
+        print("Breach cost:", Globals.ct.get_breach_cost()[0])
+        ti = Map.tile_info[pos.x][pos.y]
+        if ti.has_building and not ti.is_building_ally:
+            print("Can't build breach at", pos, "because of enemy building")
+            RouteToBreach._breach_target = None
+            return False
+        if ti.has_building and ti.is_building_ally and ti.entity_type == EntityType.BREACH:
+            print("Already have breach at", pos)
+            RouteToBreach._breach_target = None
+            return False
+
+        Pathfinder.move_to(pos, ban_target_pos=True)
+        if (Globals.ct.get_global_resources()[0] > Globals.ct.get_breach_cost()[0] and Globals.ct.get_global_resources()[1] > Globals.ct.get_breach_cost()[1]) \
+                and Globals.ct.can_destroy(pos) \
+                and Globals.ct.get_action_cooldown() == 0:
+            Globals.ct.destroy(pos)
+        elif ti.has_building and ti.entity_type != EntityType.GUNNER:
+            if (Globals.ct.get_global_resources()[0] > Globals.ct.get_gunner_cost()[0]) \
+                and Globals.ct.can_destroy(pos) \
+                and Globals.ct.get_action_cooldown() == 0:
+                Globals.ct.destroy(pos)
+        
+        dirToBuild = pos.direction_to(Symmetry.enemy_core_pos )
+        if Globals.ct.can_build_breach(pos, dirToBuild):
+            Globals.ct.build_breach(pos, dirToBuild)
+            print("OMGGGGGG I ACTUALLY BUILT THE BREACH AT", pos,file = sys.stderr)
+
+            encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
+
+            # Register the new breach as a sink so fcompute updates the tree.
+            DarkForest.register_sink(encoded, 3)
+
+            RouteToBreach._breach_target = None
+            return True
+        if Globals.ct.can_build_gunner(pos, dirToBuild):
+            Globals.ct.build_gunner(pos, dirToBuild)
+            encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
+            return True
+        return False
+
+    @classmethod
+    def _pick_target(cls):
+        if RouteToBreach._breach_target is None:
+            return None
+        t = ((RouteToBreach._breach_target) // 56 - 3), ((RouteToBreach._breach_target) % 56 - 3)
+        return Position(t[0], t[1])
 
 
 # ============================================================
@@ -2061,6 +2943,7 @@ class BuildManager:
     @staticmethod
     def can_dbuild_builder_bot(pos) -> bool:
         return (
+            Globals.ct.get_unit_count() <= 50 and
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             BuildManager.can_afford_builder_bot()
@@ -2075,6 +2958,8 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_builder_bot_cost()
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -2092,6 +2977,7 @@ class BuildManager:
     @staticmethod
     def can_dbuild_gunner(pos) -> bool:
         return (
+            Globals.ct.get_unit_count() <= 50 and
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             BuildManager.can_afford_gunner()
@@ -2106,6 +2992,8 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_gunner_cost()
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -2123,6 +3011,7 @@ class BuildManager:
     @staticmethod
     def can_dbuild_sentinel(pos) -> bool:
         return (
+            Globals.ct.get_unit_count() <= 50 and
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             BuildManager.can_afford_sentinel()
@@ -2137,6 +3026,8 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_sentinel_cost()
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -2154,6 +3045,7 @@ class BuildManager:
     @staticmethod
     def can_dbuild_breach(pos) -> bool:
         return (
+            Globals.ct.get_unit_count() <= 50 and
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             BuildManager.can_afford_breach()
@@ -2168,6 +3060,8 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_breach_cost()
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -2185,6 +3079,7 @@ class BuildManager:
     @staticmethod
     def can_dbuild_launcher(pos) -> bool:
         return (
+            Globals.ct.get_unit_count() <= 50 and
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             BuildManager.can_afford_launcher()
@@ -2199,6 +3094,8 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_launcher_cost()
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -2216,6 +3113,7 @@ class BuildManager:
     @staticmethod
     def can_dbuild_conveyor(pos) -> bool:
         return (
+            Globals.ct.get_unit_count() <= 50 and
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             BuildManager.can_afford_conveyor()
@@ -2230,6 +3128,8 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_conveyor_cost()
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -2247,6 +3147,7 @@ class BuildManager:
     @staticmethod
     def can_dbuild_splitter(pos) -> bool:
         return (
+            Globals.ct.get_unit_count() <= 50 and
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             BuildManager.can_afford_splitter()
@@ -2261,6 +3162,8 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_splitter_cost()
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -2278,6 +3181,7 @@ class BuildManager:
     @staticmethod
     def can_dbuild_armoured_conveyor(pos) -> bool:
         return (
+            Globals.ct.get_unit_count() <= 50 and
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             BuildManager.can_afford_armoured_conveyor()
@@ -2292,6 +3196,8 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_armoured_conveyor_cost()
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -2309,6 +3215,7 @@ class BuildManager:
     @staticmethod
     def can_dbuild_bridge(pos) -> bool:
         return (
+            Globals.ct.get_unit_count() <= 50 and
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             BuildManager.can_afford_bridge()
@@ -2323,6 +3230,8 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_bridge_cost()
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -2340,6 +3249,7 @@ class BuildManager:
     @staticmethod
     def can_dbuild_harvester(pos) -> bool:
         return (
+            Globals.ct.get_unit_count() <= 50 and
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             BuildManager.can_afford_harvester()
@@ -2354,6 +3264,8 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_harvester_cost()
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -2371,6 +3283,7 @@ class BuildManager:
     @staticmethod
     def can_dbuild_foundry(pos) -> bool:
         return (
+            Globals.ct.get_unit_count() <= 50 and
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             BuildManager.can_afford_foundry()
@@ -2385,6 +3298,8 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_foundry_cost()
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -2402,6 +3317,7 @@ class BuildManager:
     @staticmethod
     def can_dbuild_road(pos) -> bool:
         return (
+            Globals.ct.get_unit_count() <= 50 and
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             BuildManager.can_afford_road()
@@ -2416,6 +3332,8 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_road_cost()
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -2433,6 +3351,7 @@ class BuildManager:
     @staticmethod
     def can_dbuild_barrier(pos) -> bool:
         return (
+            Globals.ct.get_unit_count() <= 50 and
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             BuildManager.can_afford_barrier()
@@ -2447,6 +3366,8 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_barrier_cost()
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
+
+        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -2616,7 +3537,14 @@ class Constants:
         EntityType.SPLITTER,
     }
 
-    AXIONITE_START: int = 150 # Start producing axionite at this round
+    TURRET_SET: set[EntityType] = {
+        EntityType.SENTINEL,
+        EntityType.GUNNER,
+        EntityType.LAUNCHER,
+        EntityType.BREACH,
+    }
+
+    AXIONITE_START: int = 20 # Start producing axionite at this round
 
     MAX_HP_MAP: dict[EntityType, int] = {
         EntityType.BUILDER_BOT: 40,
@@ -2776,6 +3704,8 @@ class DarkForest:
     node_kind: list[int]   # propagated kind per node (top-down)
     sink_set: set[int]
     leaf_set: set[int]   # titanium leaf nodes — valid foundry sites
+    core_sink_set: set[int] = set()  # sink_set filtered to ALLY_CORE only
+
 
     @classmethod
     def init(cls):
@@ -2787,6 +3717,14 @@ class DarkForest:
         if Globals.my_type in (EntityType.SENTINEL, EntityType.GUNNER):
             cls.register_sink((((Globals.my_pos.x) + 3) * 56 + ((Globals.my_pos.y) + 3)),
                               3)
+
+    @classmethod
+    def compute_core_sink_set(cls):
+        """Call this immediately after fcompute(). No changes to fcompute needed."""
+        cls.core_sink_set = {
+            u for u in cls.sink_set
+            if cls.node_kind[u] == 1 or u in Unit.core_pos_set
+        }
 
     @classmethod
     def register_enemy_core(cls):
@@ -20503,6 +21441,7 @@ class DarkForest:
             if nk[u] == 1 and u not in core_pos_set:
                 _ti_leaves.add(u)
         cls.leaf_set = _ti_leaves
+        cls.compute_core_sink_set()
 
 
 # ============================================================
@@ -20628,11 +21567,17 @@ class Entrypoint:
             case EntityType.LAUNCHER:
                 Launcher.init()
                 cls.me = Launcher
+            case EntityType.BREACH:
+                Breach.init()
+                cls.me = Breach
 
     @classmethod
     def run(cls, ct: Controller):
 
         # because engine is bugged
+        if ct.get_current_round() > 666: 
+            ct.self_destruct()
+            return  
 
         Globals.ct = ct  # in case not fixed...
         if cls.needs_init:
@@ -20826,6 +21771,10 @@ class FoundryBuild:
             DarkForest.register_sink(encoded, 3)
 
             RouteToFoundry._foundry_target = None
+
+            cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
+            if cand is not None:
+                RouteToBreach.set_pos(cand.position) # begin breach routing
             return True
         return False
 
@@ -22813,6 +23762,7 @@ class HealTargeter:
             if not cond:
                 return None
 
+        print(f'HealTargeter {best.position=} {best.building_heal=} {best.building_hp=}')
 
         return best.position
 
@@ -23128,6 +24078,8 @@ class Map:
     num_allies: int
     num_enemies: int
     harvester_set: set[int] = set()
+    ti_harvester_set: set[int] = set()
+    ax_harvester_set: set[int] = set()
 
     # cleared every turn
     new_syms: list[Position] = []
@@ -23183,6 +24135,7 @@ class Map:
                 ti = TileInfo()
                 tile_info[x][y] = ti
                 ti.has_building = False
+                ti.has_turret = False
                 ti.entity_type = None
 
             cls.proc_nearby_tiles.append(
@@ -23194,6 +24147,8 @@ class Map:
             tile_env: Environment = ct.get_tile_env(pos)
             old_etype = ti.entity_type
             old_is_building_ally = ti.has_building and ti.is_building_ally
+            if ti.has_turret:
+                old_turret_direction = ti.turret_direction
 
             ox, oy = maxX - x, y
 
@@ -23293,7 +24248,7 @@ class Map:
             # remove check
             if is_fresh_enemy_tower:
                 if old_etype == EntityType.SENTINEL:
-                    BfsBureau.remove_enemy_sentinel(pos, ti)
+                    BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
                 elif old_etype == EntityType.LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
 
@@ -23308,8 +24263,16 @@ class Map:
             # maybe check ti/ax?
             if etype == EntityType.HARVESTER:
                 cls.harvester_set.add(pos_idx)
+                if tile_env == Environment.ORE_TITANIUM:
+                    cls.ti_harvester_set.add(pos_idx)
+                else:
+                    cls.ax_harvester_set.add(pos_idx)
             else:
                 cls.harvester_set.discard(pos_idx)
+                if tile_env == Environment.ORE_TITANIUM:
+                    cls.ti_harvester_set.discard(pos_idx)
+                else:
+                    cls.ax_harvester_set.discard(pos_idx)
 
             if etype == EntityType.MARKER and ti.is_building_ally:
                 Comms.handle_message(ct.get_marker_value(building_id))
@@ -23360,6 +24323,7 @@ class Map:
                 ti = TileInfo()
                 tile_info[x][y] = ti
                 ti.has_building = False
+                ti.has_turret = False
                 ti.entity_type = None
 
             cls.proc_nearby_tiles.append(
@@ -23371,6 +24335,8 @@ class Map:
             tile_env: Environment = ct.get_tile_env(pos)
             old_etype = ti.entity_type
             old_is_building_ally = ti.has_building and ti.is_building_ally
+            if ti.has_turret:
+                old_turret_direction = ti.turret_direction
 
             ox, oy = x, maxY - y 
 
@@ -23470,7 +24436,7 @@ class Map:
             # remove check
             if is_fresh_enemy_tower:
                 if old_etype == EntityType.SENTINEL:
-                    BfsBureau.remove_enemy_sentinel(pos, ti)
+                    BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
                 elif old_etype == EntityType.LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
 
@@ -23485,8 +24451,16 @@ class Map:
             # maybe check ti/ax?
             if etype == EntityType.HARVESTER:
                 cls.harvester_set.add(pos_idx)
+                if tile_env == Environment.ORE_TITANIUM:
+                    cls.ti_harvester_set.add(pos_idx)
+                else:
+                    cls.ax_harvester_set.add(pos_idx)
             else:
                 cls.harvester_set.discard(pos_idx)
+                if tile_env == Environment.ORE_TITANIUM:
+                    cls.ti_harvester_set.discard(pos_idx)
+                else:
+                    cls.ax_harvester_set.discard(pos_idx)
 
             if etype == EntityType.MARKER and ti.is_building_ally:
                 Comms.handle_message(ct.get_marker_value(building_id))
@@ -23537,6 +24511,7 @@ class Map:
                 ti = TileInfo()
                 tile_info[x][y] = ti
                 ti.has_building = False
+                ti.has_turret = False
                 ti.entity_type = None
 
             cls.proc_nearby_tiles.append(
@@ -23548,6 +24523,8 @@ class Map:
             tile_env: Environment = ct.get_tile_env(pos)
             old_etype = ti.entity_type
             old_is_building_ally = ti.has_building and ti.is_building_ally
+            if ti.has_turret:
+                old_turret_direction = ti.turret_direction
 
             ox, oy = maxX - x, maxY - y 
 
@@ -23647,7 +24624,7 @@ class Map:
             # remove check
             if is_fresh_enemy_tower:
                 if old_etype == EntityType.SENTINEL:
-                    BfsBureau.remove_enemy_sentinel(pos, ti)
+                    BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
                 elif old_etype == EntityType.LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
 
@@ -23662,8 +24639,16 @@ class Map:
             # maybe check ti/ax?
             if etype == EntityType.HARVESTER:
                 cls.harvester_set.add(pos_idx)
+                if tile_env == Environment.ORE_TITANIUM:
+                    cls.ti_harvester_set.add(pos_idx)
+                else:
+                    cls.ax_harvester_set.add(pos_idx)
             else:
                 cls.harvester_set.discard(pos_idx)
+                if tile_env == Environment.ORE_TITANIUM:
+                    cls.ti_harvester_set.discard(pos_idx)
+                else:
+                    cls.ax_harvester_set.discard(pos_idx)
 
             if etype == EntityType.MARKER and ti.is_building_ally:
                 Comms.handle_message(ct.get_marker_value(building_id))
@@ -23711,6 +24696,7 @@ class Map:
                 ti = TileInfo()
                 tile_info[x][y] = ti
                 ti.has_building = False
+                ti.has_turret = False
                 ti.entity_type = None
 
             cls.proc_nearby_tiles.append(
@@ -23722,6 +24708,8 @@ class Map:
             tile_env: Environment = ct.get_tile_env(pos)
             old_etype = ti.entity_type
             old_is_building_ally = ti.has_building and ti.is_building_ally
+            if ti.has_turret:
+                old_turret_direction = ti.turret_direction
 
 
 
@@ -23806,7 +24794,7 @@ class Map:
             # remove check
             if is_fresh_enemy_tower:
                 if old_etype == EntityType.SENTINEL:
-                    BfsBureau.remove_enemy_sentinel(pos, ti)
+                    BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
                 elif old_etype == EntityType.LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
 
@@ -23821,8 +24809,16 @@ class Map:
             # maybe check ti/ax?
             if etype == EntityType.HARVESTER:
                 cls.harvester_set.add(pos_idx)
+                if tile_env == Environment.ORE_TITANIUM:
+                    cls.ti_harvester_set.add(pos_idx)
+                else:
+                    cls.ax_harvester_set.add(pos_idx)
             else:
                 cls.harvester_set.discard(pos_idx)
+                if tile_env == Environment.ORE_TITANIUM:
+                    cls.ti_harvester_set.discard(pos_idx)
+                else:
+                    cls.ax_harvester_set.discard(pos_idx)
 
             if etype == EntityType.MARKER and ti.is_building_ally:
                 Comms.handle_message(ct.get_marker_value(building_id))
@@ -24252,9 +25248,9 @@ class MarketMaker:
 
     @staticmethod
     def harvester_cost(apos: Position) -> int:
-        
+        Profiler.start()
         bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.sink_set)
-        
+        Profiler.end("""BfsBureau.find_bridge_route""")
         h_cost, _ = Globals.ct.get_harvester_cost()
         b_cost, _ = Globals.ct.get_bridge_cost()
         return h_cost + b_cost * bridges
@@ -24274,7 +25270,7 @@ class MarketMaker:
             return False
 
         pbt = MarketMaker.harvester_payback(apos)
-        
+        print(f"""{pbt=}""")
 
         if int(pbt * 1.5 + 100) < Util.get_rounds_left():
             return True
@@ -24674,9 +25670,9 @@ class Pathfinder:
         Debug.line(target)
         my_pos = Globals.my_pos
 
-        
+        Profiler.start()
         dist, dir = BfsBureau.find_route(Globals.my_pos, target, ban_target_pos)
-        
+        Profiler.end("""BfsBureau.find_route""")
 
         if dir is None or dist >= 1000000:
             cls.given_up = True
@@ -24758,6 +25754,9 @@ class Player:
             err = traceback.format_exc()
             Debug.tee(err)
             Debug.tee(f'(I am a {Globals.my_type})')
+
+            ct.resign()
+            raise Exception
 
 
 # ============================================================
@@ -24852,17 +25851,66 @@ class Profiler:
 
 
 # ============================================================
-# RouteToCore
+# RouteToBreach
 # ============================================================
 
-class RouteToCore:
+class RouteToBreach:
     is_active: bool = False
     from_pos: Position
     killed: set[Position] = set()
 
+    # Positions that have been claimed (or built) as breach sites.
+    # Class-level so all bots in this process see the same table.
+    planned_breach_positions: set[int] = set()
+
+    # The specific titanium leaf this bot is routing toward.
+    # None until a target is claimed in try_build_route.
+    _breach_target: int | None = None
+
+    @classmethod
+    def _pick_target(cls) -> int | None:
+        if not Symmetry.is_sym_known:
+            return None
+        enemy_core = Symmetry.enemy_core_pos
+        print("Yo so the enemy core is at", enemy_core)
+
+        vision_r = int(GameConstants.BREACH_ATTACK_RADIUS_SQ ** 0.5) + 1
+
+        # ── Step 1: pick best attack/sentinel landing position ────────────────
+        attack_pos = None
+        best_attack_dist = float('inf')
+        currLoc = Globals.my_pos
+        for dx in range(-vision_r, vision_r + 1):
+            for dy in range(-vision_r, vision_r + 1):
+                if dx * dx + dy * dy > GameConstants.BREACH_ATTACK_RADIUS_SQ:
+                    continue
+                candidate = Position(enemy_core.x + dx, enemy_core.y + dy)
+                tile = Map.tile_info[candidate.x][candidate.y]
+                if tile is None:
+                    continue
+                if tile.has_building and (not tile.is_building_ally):
+                    continue
+                if tile.has_building and tile.entity_type in Constants.TURRET_SET:
+                    continue
+                d = currLoc.distance_squared(candidate)
+                if d < best_attack_dist:
+                    best_attack_dist = d
+                    attack_pos = candidate
+
+        if attack_pos is None:
+            print("[RouteToBreach] No valid attack position within breach attack of enemy core")
+            return None
+        print("CLEARLY the best attack position is", attack_pos)
+        return (((attack_pos.x) + 3) * 56 + ((attack_pos.y) + 3))
+        
+
     @classmethod
     def set_pos(cls, pos: Position):
-        if (((pos.x) + 3) * 56 + ((pos.y) + 3)) in DarkForest.sink_set:
+        encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
+
+        # Arrived at the breach site — deactivate so the caller can build.
+        # Keep the entry in planned_breach_positions: the breach is here now.
+        if cls._breach_target is not None and encoded == cls._breach_target:
             cls.is_active = False
             return
 
@@ -24873,18 +25921,155 @@ class RouteToCore:
     def try_build_route(cls):
         assert cls.is_active
 
+        target_set = {cls._breach_target}
+
+        bridge_dist, first_target = BfsBureau.find_bridge_route(
+            cls.from_pos,
+            target_set,
+        )
+
+        print(f"""{bridge_dist=}""")
+
+        if first_target is None:
+            Debug.tee("RouteToBreach: first_target is None, giving up")
+            cls.give_up()
+            StateMoveTo.run(Explore.get_target())
+            return
+
+        target = Position(*first_target)
+        Debug.diline(cls.from_pos, target, Color.GREEN)
+
+        if cls.from_pos.distance_squared(target) == 1:
+            if BuildManager.can_dbuild_conveyor(cls.from_pos):
+                BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
+                cls.set_pos(target)
+        elif BuildManager.can_dbuild_bridge(cls.from_pos):
+            BuildManager.dbuild_bridge(cls.from_pos, target)
+            cls.set_pos(target)
+
+    @classmethod
+    def move_to_next(cls):
+        Pathfinder.move_to(cls.from_pos, ban_target_pos=True)
+
+    @classmethod
+    def should_give_up(cls):
+        x, y = cls.from_pos
+        ti = Map.tile_info[x][y]
+        if ti is None:
+            return False
+
+        if ti.has_building:
+            if not ti.is_building_ally:
+                newTarg = cls._pick_target()
+                if newTarg is None:
+                    return True
+                else:
+                    cls._breach_target = newTarg
+                    return False
+            if ti.entity_type in Constants.TURRET_SET:
+                return True
+            """
+            if cls._breach_target != (((x) + 3) * 56 + ((y) + 3)):
+                if ti.entity_type in Constants.TRANSPORTERS_SET:
+                    return True
+                if ti.entity_type != EntityType.ROAD:
+                    return True
+            """
+        x, y = ((cls._breach_target) // 56 - 3), ((cls._breach_target) % 56 - 3)
+        ti = Map.tile_info[x][y]
+        if ti is None:
+            return False
+        if ti.has_building:
+            if not ti.is_building_ally:
+                newTarg = cls._pick_target()
+                if newTarg is None:
+                    return True
+                else:
+                    cls._breach_target = newTarg
+                    return False
+            if ti.entity_type in Constants.TURRET_SET:
+                return True
+        return False
+
+    @classmethod
+    def give_up(cls):
+        cls.is_active = False
+        # Release the claim so another bot (or a retry) can use this leaf.
+        if cls._breach_target is not None:
+            cls.planned_breach_positions.discard(cls._breach_target)
+            cls._breach_target = None
+        cls.killed.add(cls.from_pos)
+        Debug.diamond(Color.PURPLE)
+
+    @classmethod
+    def try_claim_target(cls):
+        # Claim a target on first call (or if we lost one).
+        if cls._breach_target is None:
+            cls._breach_target = cls._pick_target()
+            if cls._breach_target is None:
+                Debug.tee("RouteToBreach: no possible breach targets, giving up")
+                cls.give_up()
+                StateMoveTo.run(Explore.get_target())
+                return
+            cls.planned_breach_positions.add(cls._breach_target)
+
+    @classmethod
+    def do_routing(cls):
+        cls.try_claim_target()
+        if cls._breach_target is None:
+            RouteToBreach.is_active = False
+            return
+        print("Aiming at breach:",((cls._breach_target) // 56 - 3), ((cls._breach_target) % 56 - 3))
+        if cls.should_give_up():
+            cls.give_up()
+            StateMoveTo.run(Explore.get_target())
+            return
+
+        dsq = Globals.my_pos.distance_squared(cls.from_pos)
+        if Globals.ct.get_action_cooldown() == 0 \
+                and (dsq == 1 or dsq == 2):
+            cls.try_build_route()
+            cls.move_to_next()
+        else:
+            cls.move_to_next()
+
+
+# ============================================================
+# RouteToCore
+# ============================================================
+
+class RouteToCore:
+    is_active: bool = False
+    from_pos: Position
+    killed: set[Position] = set()
+
+    @classmethod
+    def set_pos(cls, pos: Position):
+        if (((pos.x) + 3) * 56 + ((pos.y) + 3)) in DarkForest.core_sink_set:  # was sink_set
+            cls.is_active = False
+            return
+        cls.is_active = True
+        cls.from_pos = pos
+
+
+    @classmethod
+    def try_build_route(cls):
+        assert cls.is_active
+
+        # short search to core in case it's close
         bridge_dist, first_target = BfsBureau.find_bridge_route(
             cls.from_pos,
             Unit.core_pos_set,
             max_iter=0,
         )
+        # otherwise allow all sinks
         if first_target is None:
             bridge_dist, first_target = BfsBureau.find_bridge_route(
                 cls.from_pos,
-                DarkForest.sink_set,
+                DarkForest.core_sink_set,  # was sink_set
             )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("first_target is None: giving up")
@@ -24975,19 +26160,13 @@ class RouteToFoundry:
 
         Returns False if BfsBureau finds no path, so the caller can reject
         this (ore, foundry) pairing before any routing work begins.
-
-        Intentionally uses a small max_iter so it fails fast on clearly
-        disconnected positions rather than spending the full BFS budget.
         """
         target_set = {foundry_encoded}
 
-        # Try conveyor-only first (max_iter=0).
-        _, first = BfsBureau.find_bridge_route(ore_pos, target_set, max_iter=0)
+        _, first = BfsBureau.find_bridge_route_avoid_ti_adj(ore_pos, target_set)
         if first is not None:
             return True
 
-        # Fall back to bridge BFS with a capped iteration budget.
-        _, first = BfsBureau.find_bridge_route(ore_pos, target_set, max_iter=200)
         return first is not None
 
     @classmethod
@@ -25003,10 +26182,30 @@ class RouteToFoundry:
         if not candidates:
             return None
 
+        nodes = DarkForest.nodes
+        bad_sinks = set()
+        
+        # Identify sinks that already have a foundry planned or built
+        for p in cls.planned_foundry_positions:
+            curr = p
+            while nodes[curr] is not None and nodes[curr].up is not None:
+                curr = nodes[curr].up
+            if nodes[curr] is not None:
+                bad_sinks.add(curr)
+
         sx, sy = cls.from_pos.x, cls.from_pos.y
         best: int | None = None
         best_d = 1000000
         for c in candidates:
+            # Trace the candidate up to its sink
+            curr = c
+            while nodes[curr] is not None and nodes[curr].up is not None:
+                curr = nodes[curr].up
+            
+            # Avoid picking targets if the sink it is in already has a foundry
+            if nodes[curr] is not None and curr in bad_sinks:
+                continue
+
             cx = c // 56 - 3
             cy = c % 56 - 3
             ti = Map.tile_info[cx][cy]
@@ -25014,11 +26213,14 @@ class RouteToFoundry:
                 continue
             if ti is not None and ti.entity_type == EntityType.BRIDGE:
                 continue # do not consider bridges.
+            
             d = abs(cx - sx) + abs(cy - sy)
             if d < best_d:
                 best_d = d
                 best = c
+                
         return best
+
     @classmethod
     def set_pos(cls, pos: Position):
         encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
@@ -25038,20 +26240,12 @@ class RouteToFoundry:
 
         target_set = {cls._foundry_target}
 
-        # Phase 1: conveyor-only attempt (max_iter=0 skips bridge BFS).
-        bridge_dist, first_target = BfsBureau.find_bridge_route(
+        bridge_dist, first_target = BfsBureau.find_bridge_route_avoid_ti_adj(
             cls.from_pos,
             target_set,
-            max_iter=0,
         )
-        # Phase 2: allow bridges if conveyors can't reach.
-        if first_target is None:
-            bridge_dist, first_target = BfsBureau.find_bridge_route(
-                cls.from_pos,
-                target_set,
-            )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("RouteToFoundry: first_target is None, giving up")
@@ -25118,8 +26312,11 @@ class RouteToFoundry:
 
     @classmethod
     def do_routing(cls):
-        print("Aiming at foundry:",((cls._foundry_target) // 56 - 3), ((cls._foundry_target) % 56 - 3))
         cls.try_claim_target()
+        if cls._foundry_target is None:
+            RouteToFoundry.is_active = False
+            return
+        print("Aiming at foundry:",((cls._foundry_target) // 56 - 3), ((cls._foundry_target) % 56 - 3))
         if cls.should_give_up():
             cls.give_up()
             StateMoveTo.run(Explore.get_target())
@@ -26843,6 +28040,7 @@ class ShieldTargeter:
         if not best.harvester_adjacent:
             return None
 
+        print(f'ShieldTargetInfo {best.position=} {best.harvester_adjacent=}')
 
         return best.position
 
@@ -26918,6 +28116,12 @@ class SitterTakedown:
             
             if not ti.has_bot:
                 continue
+            
+            if ti.has_building:
+                if not ti.is_building_ally:
+                    continue
+                if ti.entity_type != EntityType.ROAD:
+                    continue
 
             info = SitterTargetInfo()
             cls.cand.append(info)
@@ -27006,7 +28210,10 @@ class SpawnManager:
             if ti.allied_bots_adjacent > 0:
                 continue
 
-            if enemy is None or (d := my_pos.distance_squared(pos)) < dist:
+            # Calculate the distance first
+            d = my_pos.distance_squared(pos)
+
+            if enemy is None or d < dist:
                 dist = d
                 enemy = pos
 
@@ -27097,7 +28304,7 @@ class SpawnManager:
 class StalkTargeter:
     @classmethod
     def get_best_target(cls) -> Position | None:
-        
+        Profiler.start()
 
         if not Map.harvester_set:
             return None
@@ -27108,8 +28315,10 @@ class StalkTargeter:
             if ti.has_bot and not ti.is_bot_ally \
                     and VisionTracker.me_is_canonical_ally(pos) \
                     and bfs20_dist[idx] < 1000000:  # reachable
-                
+                Profiler.end("""StalkTargeter.get_best_target""")
                 return pos
+
+        Profiler.end("""StalkTargeter.get_best_target""")
 
 
 # ============================================================
@@ -27126,6 +28335,16 @@ class StateAttackTransporter:
 
         if Globals.ct.can_fire(pos) and Attacker.should_fire(pos):
             Globals.ct.fire(pos)
+
+
+# ============================================================
+# StateBreachBuild
+# ============================================================
+
+class StateBreachBuild:
+    @classmethod
+    def run(cls, pos):
+        BreachBuild.build_breach(pos)
 
 
 # ============================================================
@@ -27183,12 +28402,16 @@ class StateBuildHarvesterAx:
 class StateBuildLauncherAround:
     @classmethod
     def run(cls, pos):
-        pos = pos.add(pos.direction_to(Globals.my_pos))
+        posToMe = pos.direction_to(Globals.my_pos)
         
-        Pathfinder.move_to(pos, ban_target_pos=True)
+        Pathfinder.move_to(pos.add(posToMe), ban_target_pos=True)
+        
+        for dir in (posToMe, posToMe.rotate_left(), posToMe.rotate_right()):
+            launcherPos = pos.add(dir)
 
-        if BuildManager.can_dbuild_launcher(pos):            
-            BuildManager.dbuild_launcher(pos)
+            if BuildManager.can_dbuild_launcher(launcherPos):            
+                BuildManager.dbuild_launcher(launcherPos)
+                return
 
 
 # ============================================================
@@ -27222,6 +28445,7 @@ class StateFoundryBuild:
 class StateMoveTo:
     @classmethod
     def run(cls, pos, tag='_'):
+        print(f'{tag=}')
         Pathfinder.move_to(pos)
 
 
@@ -27233,6 +28457,16 @@ class StateRoute:
     @classmethod
     def run(cls):
         RouteToCore.do_routing()
+
+
+# ============================================================
+# StateRouteBreach
+# ============================================================
+
+class StateRouteBreach:
+    @classmethod
+    def run(cls):
+        RouteToBreach.do_routing()
 
 
 # ============================================================
@@ -27340,9 +28574,9 @@ class Symmetry:
         cls.predict_enemy_core()
         DarkForest.register_enemy_core()
 
-        
+        Profiler.start()
         Map.sync_tile_infos()
-        
+        Profiler.end_now("""Map.sync_tile_infos""")
 
 
 
@@ -27899,9 +29133,9 @@ class Unit:
         Globals.start_tick()
         MarketMaker.refresh()
 
-        
+        Profiler.start()
         Map.fill_tile_info()
-        
+        Profiler.end("""Map.fill_tile_info""")
 
     @classmethod
     def run_turn(cls):
@@ -27910,7 +29144,7 @@ class Unit:
     @classmethod
     def end_turn(cls):
 
-        if Globals.round == 1999:
+        if Globals.round == 667:
             Profiler.report()
         print(f'scale ratio {MarketMaker.scale_ratio:.2f}')
 
@@ -28039,11 +29273,11 @@ class VisionTracker:
 
     @classmethod
     def canonical_ally(cls, from_pos: Position) -> BotInfo:
-        
+        Profiler.start()
         ret = min(cls.allies, key=
             lambda x: (Util.linf(from_pos, x.position) << 16) + x.id
         )
-        
+        Profiler.end("""canonical_ally""")
         return ret
 
 
@@ -28067,6 +29301,43 @@ class VisionTracker:
 
 
 # ============================================================
+# Breach
+# ============================================================
+
+class Breach(Unit):
+    @classmethod
+    def init(cls):
+        Unit.init()
+        DarkForest.init()
+
+    @classmethod
+    def start_turn(cls):
+        Unit.start_turn()
+        DarkForest.fcompute()
+        DarkForest.debug_kind()
+
+    @classmethod
+    def run_turn(cls):
+        myDir = Globals.ct.get_direction()
+        myPos = Globals.my_pos
+        newPos =myPos.add(myDir).add(myDir).add(myDir)
+        print("Yo my pos is", Globals.my_pos, "and I'm facing", myDir)
+        print("Imma try to fire at", newPos)
+        if Globals.ct.can_fire(newPos):
+            Globals.ct.fire(newPos)
+            print("Yo we fire!", file=sys.stderr)
+        newPos = myPos.add(myDir).add(myDir)
+        print("Imma try to fire at", newPos)
+        if Globals.ct.can_fire(newPos):
+            Globals.ct.fire(newPos)
+            print("Yo we fire!", file=sys.stderr)
+
+    @classmethod
+    def end_turn(cls):
+        Unit.end_turn()
+
+
+# ============================================================
 # Builder
 # ============================================================
 
@@ -28085,49 +29356,51 @@ class Builder(Unit):
     def start_turn(cls):
         Unit.start_turn()
 
-        
+        Profiler.start()
+        DarkForest.fcompute()
+        Profiler.end("""DarkForest.fcompute""")
+
+        Profiler.start()
         BfsBureau.update()
-        
+        Profiler.end("""BfsBureau.update""")
 
         Symmetry.run_sym_check()
 
-        
-        DarkForest.fcompute()
-        
+        DarkForest.debug_kind()
 
-
-        
+        Profiler.start()
         BfsBureau.bfs20()
-        
+        Profiler.end("""BfsBureau.bfs20""")
 
-        
+        Profiler.start()
         OreExecutive.fill()
-        
+        Profiler.end("""OreExecutive.fill""")
 
-        
+        Profiler.start()
         VisionTracker.fill()
-        
+        Profiler.end("""VisionTracker.fill""")
 
-        
+        Profiler.start()
         TurretTakedown.fill()
-        
+        Profiler.end("""TurretTakedown.fill""")
 
-        
+        Profiler.start()
         SitterTakedown.fill()
-        
+        Profiler.end("""SitterTakedown.fill""")
 
-        
+        Profiler.start()
         HarvesterAdjacent.fill()
-        
+        Profiler.end("""HarvesterAdjacent.fill""")
 
-        
+        Profiler.start()
         HealTargeter.fill()
-        
+        Profiler.end("""HealTargeter.fill""")
 
-        
+        Profiler.start()
         ShieldTargeter.fill()
-        
+        Profiler.end("""ShieldTargeter.fill""")
 
+        Symmetry.debug()
 
 
 
@@ -28135,6 +29408,7 @@ class Builder(Unit):
     def run_turn(cls):
         cls.state, *args = cls.determine_state()
 
+        print(f'running: {cls.state}  @', *args, sep=' ')
 
         globals()[f'State{cls.state}'].run(*args)
 
@@ -28143,13 +29417,13 @@ class Builder(Unit):
     def end_turn(cls):
         Unit.end_turn()
 
-        
+        Profiler.start()
         HealExecutor.execute_heal_attempt()
-        
+        Profiler.end("""HealExecutor.execute_heal_attempt""")
 
-        
+        Profiler.start()
         Marker.attempt_mark()
-        
+        Profiler.end("""Marker.attempt_mark""")
 
 
 
@@ -28157,6 +29431,10 @@ class Builder(Unit):
     def determine_state(cls):
         my_pos = Globals.my_pos
 
+        """
+        if RouteToBreach.is_active:
+            return ('RouteBreach',)
+        """
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
 
@@ -28181,7 +29459,11 @@ class Builder(Unit):
         healpos = HealTargeter.get_best_target()
         if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
-
+        """
+        breach_target = BreachBuild._pick_target()
+        if breach_target is not None:
+            return 'BreachBuild', breach_target
+        """
         foundry_target = FoundryBuild._pick_target()
         if foundry_target is not None:
             return 'FoundryBuild', foundry_target
@@ -28270,6 +29552,10 @@ class Core(Unit):
     @classmethod
     def end_turn(cls):
         Unit.end_turn()
+
+        if Globals.round > 666:
+            Globals.ct.resign()
+            raise Exception
 
 
 # ============================================================

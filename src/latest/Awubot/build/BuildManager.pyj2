@@ -77,6 +77,7 @@ class BuildManager:
     @staticmethod
     def can_dbuild_{{ st }}(pos) -> bool:
         return (
+            Globals.ct.get_unit_count() <= {{ GameConstants.MAX_TEAM_UNITS }} and
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             BuildManager.can_afford_{{ st }}()
@@ -93,6 +94,10 @@ class BuildManager:
         {% set req = ti_reserve_map.get(etype, ti_reserve_default) %}
         {% if req > 0 %}
         ti_cost += int({{ req }} * MarketMaker.scale_ratio)
+
+        {% if LOCAL %}
+        assert int({{ req }} * MarketMaker.scale_ratio) >= 0
+        {% endif %}
         {% endif %}
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost

@@ -22,7 +22,6 @@ from Generated import *
 class BfsBureau:
     weight: list[int]
     now_weight: list[int]  # copied from weight every turn
-    dist_bridge: list[int]
 
     # bitmask
     board_mask: int
@@ -31,22 +30,28 @@ class BfsBureau:
     enemy_launcher: int = 0
     STRIDE: int
 
+    {# /* dist_bridge: list[int] = [{{ INF1 }}] * {{ PADDED_GRID_SIZE }} */ #}
+    passable_bridge: list[bool] = [{{ False }}] * {{ PADDED_GRID_SIZE }}
+
+    weight: list[int] = [{{ INF }}] * {{ PADDED_GRID_SIZE }}
+    ti_ore_adj: list[bool] = [False] * {{ PADDED_GRID_SIZE }}
+
     @classmethod
     def init(cls):
         W, H = Map.W, Map.H
 
-        dist = [{{ INF1 }}] * {{ PADDED_GRID_SIZE }}
-        weight = [{{ INF }}] * {{ PADDED_GRID_SIZE }}
+        {# /* dist_bridge = cls.dist_bridge */ #}
+        passable_bridge = cls.passable_bridge
+        weight = cls.weight
 
-        row_inf = [{{ INF }}] * H
+        {# /* row_inf = [{{ INF }}] * H */ #}
+        row_true = [{{ True }}] * H
         row_1 = [{{ 1 }}] * H
         for x in range(W):
             base = (x + {{ PAD }}) * {{ PH }} + {{ PAD }}
-            dist[base:base + H] = row_inf
+            {# /* dist_bridge[base:base + H] = row_inf */ #}
+            passable_bridge[base:base + H] = row_true
             weight[base:base + H] = row_1
-
-        cls.dist_bridge = dist
-        cls.weight = weight
 
         S = H + 1
         cls.STRIDE = S
@@ -64,6 +69,8 @@ class BfsBureau:
         tile_info = Map.tile_info
         weight = cls.weight
         stride = cls.STRIDE
+        {# /* dist_bridge = cls.dist_bridge */ #}
+        passable_bridge = cls.passable_bridge
         ct = Globals.ct
 
         {# /* for pos in chain(Map.nearby_tiles, Map.new_syms): */ #}
@@ -95,9 +102,11 @@ class BfsBureau:
                         etype == EntityType.ROAD or etype == EntityType.CORE))
                 )
             ):
-                cls.dist_bridge[idx] = {{ INF }}
+                {# /* dist_bridge[idx] = {{ INF }} */ #}
+                passable_bridge[idx] = True
             else:
-                cls.dist_bridge[idx] = {{ INF1 }}
+                {# /* dist_bridge[idx] = {{ INF1 }} */ #}
+                passable_bridge[idx] = False
 
         cls.now_weight = weight.copy()
         now_weight = cls.now_weight
@@ -108,26 +117,31 @@ class BfsBureau:
         expanded = (wide | (wide >> stride) | (wide << stride)) & cls.board_mask
         cls.now_passable_int &= ~expanded
 
+        ti_ore_adj = cls.ti_ore_adj
+
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             if ti.has_bot:
                 now_weight[idx] += 10
+
+            if ti.env == Environment.ORE_TITANIUM:
+                {% for off in (-1, 1, -PH, PH) %}
+                ti_ore_adj[idx {{ sign0(off) }}] = True
+                {% endfor %}
 # ===---
 
     # incremental
                         
+    {% set SENTINEL_WEIGHT = 3 %}
     @classmethod
     def add_enemy_sentinel(cls, pos, ti):
         for pos in Globals.ct.get_attackable_tiles_from(pos, ti.turret_direction, ti.entity_type):
-            cls.weight[{{ encode_pos('pos.x', 'pos.y') }}] += 2
+            cls.weight[{{ encode_pos('pos.x', 'pos.y') }}] += {{ SENTINEL_WEIGHT }}
 
     @classmethod
-    def remove_enemy_sentinel(cls, pos, ti):
-        if ti.turret_direction is None or ti.entity_type != EntityType.SENTINEL:
-            # For some reason, turret info is sometimes None after a gunner defeats an enemy turret
-            return
-        for pos in Globals.ct.get_attackable_tiles_from(pos, ti.turret_direction, ti.entity_type):
+    def remove_enemy_sentinel(cls, pos, turret_dir):
+        for pos in Globals.ct.get_attackable_tiles_from(pos, turret_dir, EntityType.SENTINEL):
             i = {{ encode_pos('pos.x', 'pos.y') }}
-            cls.weight[i] -= 2
+            cls.weight[i] -= {{ SENTINEL_WEIGHT }}
             if cls.weight[i] < 1:
                 cls.weight[i] = 1
 
@@ -168,10 +182,13 @@ class BfsBureau:
         {% endif %}
 
 
-    # works. but slow
+
+    {% for avoid_ti_adj in True, False %}
 # ---===
     @classmethod
-    def find_bridge_route(cls, start: Position, sink_set: set[int], max_iter: int = 1000):
+    def find_bridge_route{{ '_avoid_ti_adj' if avoid_ti_adj }}(
+            cls, start: Position, sink_set: set[int], max_iter: int = 1000
+        ):
         {% set main_bridge_offsets = [
             (3,0),(-3,0),(0,3),(0,-3),
             (2,2),(2,-2),(-2,-2),(-2,2),
@@ -184,18 +201,30 @@ class BfsBureau:
             (-1,-2),(-2,-1),(-2,1),(-1,2),
         ] %}
 
-        dist = cls.dist_bridge[:]
+        passable = cls.passable_bridge
+        visited = [False] * {{ PADDED_GRID_SIZE }}
         first_hop = [None] * {{ PADDED_GRID_SIZE }}
+        dist = [0] * {{ PADDED_GRID_SIZE }}
+
+        {% if avoid_ti_adj %}
+        ti_ore_adj = cls.ti_ore_adj
+        {% endif %}
+
+        {% macro can_visit(ni) -%}
+        (
+            not visited[{{ ni }}] and
+            ({{ ni }} in sink_set or (
+                passable[{{ ni }}]
+                {% if avoid_ti_adj %}
+                and not ti_ore_adj[{{ ni }}]
+                {% endif %}
+            ))
+        )
+        {%- endmacro %}
 
         sx, sy = start.x, start.y
         si = {{ encode_pos('sx', 'sy') }}
-        dist[si] = 0
-
-        # sink nodes are destinations, not transit — make them visible to BFS
-        # we return immediately on first hit, so they're never traversed through
-        for s in sink_set:
-            if dist[s] == {{ INF1 }}:  # redundant check?
-                dist[s] = {{ INF }}
+        visited[si] = True
 
         q = deque()
         _qa = q.append
@@ -206,13 +235,12 @@ class BfsBureau:
         conv_reached = []
         _cra = conv_reached.append
 
-        # First cardinal step: first_hop = that adjacent tile
         conv_front = []
         _cfa = conv_front.append
         {% for dx, dy in [(1,0),(-1,0),(0,1),(0,-1)] %}
         ni = si + {{ dx * PH + dy }}
-        if dist[ni] == {{ INF }}:
-            dist[ni] = -1
+        if {{ can_visit('ni') }}:
+            visited[ni] = True
             first_hop[ni] = (sx {{ sign0(dx) }}, sy {{ sign0(dy) }})
             _cfa(ni)
             _cra(ni)
@@ -226,8 +254,8 @@ class BfsBureau:
             _fh = first_hop[cidx]
             {% for dx, dy in [(1,0),(-1,0),(0,1),(0,-1)] %}
             ni = cidx + {{ dx * PH + dy }}
-            if dist[ni] == {{ INF }}:
-                dist[ni] = -1
+            if {{ can_visit('ni') }}:
+                visited[ni] = True
                 first_hop[ni] = _fh
                 _cna(ni)
                 _cra(ni)
@@ -236,27 +264,25 @@ class BfsBureau:
         {% endfor %}
 
         # ── Phase 2: seed conveyors first (priority over bridges) ──
-
         for cidx in conv_reached:
-            if dist[cidx] == -1:
-                dist[cidx] = 1
-                if cidx in sink_set:
-                    return 1, first_hop[cidx]
-                _qa(cidx)
+            if cidx in sink_set:
+                return 1, first_hop[cidx]
+            _qa(cidx)
+            dist[cidx] = 1
 
         # ── Phase 3: bridge seeds for tiles conveyors couldn't reach ──
         {% for dx, dy in seed_bridge_offsets %}
         ni = si + {{ dx * PH + dy }}
-        if dist[ni] == {{ INF }}:
-            dist[ni] = 1
+        if {{ can_visit('ni') }}:
+            visited[ni] = True
             first_hop[ni] = (sx {{ sign0(dx) }}, sy {{ sign0(dy) }})
             if ni in sink_set:
                 return 1, first_hop[ni]
+            dist[ni] = 1
             _qa(ni)
         {% endfor %}
 
         # ── Phase 4: main bridge BFS ──
-
         it = 0
         while q and (it := it + 1) <= max_iter:
             idx = q.popleft()
@@ -265,7 +291,8 @@ class BfsBureau:
 
             {% for dx, dy in main_bridge_offsets %}
             ni = idx + {{ dx * PH + dy }}
-            if dist[ni] == {{ INF }}:
+            if {{ can_visit('ni') }}:
+                visited[ni] = True
                 dist[ni] = d
                 first_hop[ni] = fh
                 if ni in sink_set:
@@ -275,6 +302,7 @@ class BfsBureau:
 
         return {{ INF }}, None
 # ===---
+    {% endfor %}
 
     # outward depth-limited dijkstra + bitmask bfs
     # ---===
@@ -720,10 +748,12 @@ class BfsBureau:
         {% endfor %}
 # ===---
 
+# ---===
     @classmethod
     def get_bfs20_dist(cls, pos: Position):
         return cls.bfs20_dist[{{ encode_pos('pos.x', 'pos.y') }}]
-
+# ===---
+# ---===
     @classmethod
     def debug_enemy_launcher_zone(cls):
         stride = cls.STRIDE
@@ -739,3 +769,4 @@ class BfsBureau:
                 y = lsb.bit_length() - 1
                 Debug.dot(Position(x, y), Color.PINK)
                 col ^= lsb
+# ===---
