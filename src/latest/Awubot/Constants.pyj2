@@ -72,7 +72,7 @@ class Constants:
         EntityType.BREACH,
     }
 
-    AXIONITE_START: int = 20 # Start producing axionite at this round
+    AXIONITE_START: int = 100 # Start producing axionite at this round
 
     MAX_HP_MAP: dict[EntityType, int] = {
         {% for etype in EntityType %}
