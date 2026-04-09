@@ -217,6 +217,7 @@ class BfsBureau:
                 passable[{{ ni }}]
                 {% if avoid_ti_adj %}
                 and not ti_ore_adj[{{ ni }}]
+                and {{ ni }} not in Unit.core_pos_set
                 {% endif %}
             ))
         )

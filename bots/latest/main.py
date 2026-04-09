@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-08 23:59:04 (local)
+# latest,  @ 2026-04-09 12:32:33 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -347,6 +347,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
             visited[ni] = True
@@ -359,6 +360,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
             visited[ni] = True
@@ -371,6 +373,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
             visited[ni] = True
@@ -383,6 +386,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
             visited[ni] = True
@@ -401,6 +405,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
                 visited[ni] = True
@@ -413,6 +418,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
                 visited[ni] = True
@@ -425,6 +431,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
                 visited[ni] = True
@@ -437,6 +444,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
                 visited[ni] = True
@@ -454,6 +462,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
                 visited[ni] = True
@@ -466,6 +475,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
                 visited[ni] = True
@@ -478,6 +488,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
                 visited[ni] = True
@@ -490,6 +501,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
                 visited[ni] = True
@@ -507,6 +519,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
                 visited[ni] = True
@@ -519,6 +532,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
                 visited[ni] = True
@@ -531,6 +545,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
                 visited[ni] = True
@@ -543,6 +558,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
                 visited[ni] = True
@@ -565,6 +581,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
             visited[ni] = True
@@ -579,6 +596,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
             visited[ni] = True
@@ -593,6 +611,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
             visited[ni] = True
@@ -607,6 +626,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
             visited[ni] = True
@@ -621,6 +641,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
             visited[ni] = True
@@ -635,6 +656,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
             visited[ni] = True
@@ -649,6 +671,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
             visited[ni] = True
@@ -663,6 +686,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
             visited[ni] = True
@@ -677,6 +701,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
             visited[ni] = True
@@ -691,6 +716,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
             visited[ni] = True
@@ -705,6 +731,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
             visited[ni] = True
@@ -719,6 +746,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
             visited[ni] = True
@@ -733,6 +761,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
             visited[ni] = True
@@ -747,6 +776,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
             visited[ni] = True
@@ -761,6 +791,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
             visited[ni] = True
@@ -775,6 +806,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
             visited[ni] = True
@@ -797,6 +829,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
                 visited[ni] = True
@@ -811,6 +844,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
                 visited[ni] = True
@@ -825,6 +859,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
                 visited[ni] = True
@@ -839,6 +874,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
                 visited[ni] = True
@@ -853,6 +889,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
                 visited[ni] = True
@@ -867,6 +904,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
                 visited[ni] = True
@@ -881,6 +919,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
                 visited[ni] = True
@@ -895,6 +934,7 @@ class BfsBureau:
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
             ))
         ):
                 visited[ni] = True
