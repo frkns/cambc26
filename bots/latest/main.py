@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-08 19:44:38 (local)
+# latest,  @ 2026-04-08 20:19:06 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -2480,7 +2480,8 @@ class BurnManager:
             tiNeeded = builderCost - ti
             axNeeded = max(0, math.ceil(tiNeeded/4))
             
-            ct.convert(min(axNeeded, ax - 1))
+            if axNeeded > ax and axNeeded > 0 and ax > 1:
+                ct.convert(min(axNeeded, ax - 1))
             
     
     @classmethod
@@ -27013,12 +27014,16 @@ class StateBuildHarvesterAx:
 class StateBuildLauncherAround:
     @classmethod
     def run(cls, pos):
-        pos = pos.add(pos.direction_to(Globals.my_pos))
+        posToMe = pos.direction_to(Globals.my_pos)
         
-        Pathfinder.move_to(pos, ban_target_pos=True)
+        Pathfinder.move_to(pos.add(posToMe), ban_target_pos=True)
+        
+        for dir in (posToMe, posToMe.rotate_left(), posToMe.rotate_right()):
+            launcherPos = pos.add(dir)
 
-        if BuildManager.can_dbuild_launcher(pos):            
-            BuildManager.dbuild_launcher(pos)
+            if BuildManager.can_dbuild_launcher(launcherPos):            
+                BuildManager.dbuild_launcher(launcherPos)
+                return
 
 
 # ============================================================
