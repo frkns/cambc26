@@ -77,7 +77,9 @@ class BuildManager:
     @staticmethod
     def can_dbuild_{{ st }}(pos) -> bool:
         return (
+            {% if etype in units_set %}
             Globals.ct.get_unit_count() < {{ GameConstants.MAX_TEAM_UNITS }} and
+            {% endif %}
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             BuildManager.can_afford_{{ st }}()
