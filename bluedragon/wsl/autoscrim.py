@@ -135,6 +135,8 @@ for t in ladder:
     if not search_results:
         print(f"  WARNING: could not find team ID for '{t['team']}', skipping")
         continue
+    if t["team"] == TEAM:
+        continue
     teams.append(t["team"])
     ranks.append(t["rank"])
     team_ids.append(search_results[0]["team_id"])
@@ -148,14 +150,8 @@ print(f"\nReady. Running matches against {len(teams)} teams every X minutes.\n")
 for i in range(1000):
     print(f"\n--- Iteration {i} ---")
     for rank, team, tid in zip(ranks, teams, team_ids):
-        if team == TEAM:
-            print(f"  Skipping self: {team}, {tid}")
-            continue
-
-        if ((rank < 5  and i % 3 == 0) or
-            (5 <= rank < 10  and i % 3 == 1) or
-            (10 <= rank < 15 and i % 3 == 2)):
-            print(f"  Running unrated vs {team} (rank {rank}, id {tid})")
-            output = run_cmd(["cambc", "match", "unrated", tid], env)
-            print(output)
+        print(f"  Running unrated vs {team} (rank {rank}, id {tid})")
+        output = run_cmd(["cambc", "match", "unrated", tid], env)
+        print(output)
     sleep(60 * 6)
+
