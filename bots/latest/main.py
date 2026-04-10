@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-09 12:34:59 (local)
+# latest,  @ 2026-04-09 20:26:30 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -117,19 +117,21 @@ class Attacker:
         ti = Map.tile_info[pos.x][pos.y]
 
         # assume caller passes in enemy transporter position
+        
+        return True
 
-        hp = ti.building_hp
-        max_hp = Constants.MAX_HP_MAP[ti.entity_type]
+        # hp = ti.building_hp
+        # max_hp = Constants.MAX_HP_MAP[ti.entity_type]
 
-        if 2 * hp <= max_hp:
-            return True
+        # if 2 * hp <= max_hp:
+        #     return True
 
-        allies_ready, enemies_ready = cls.compute_readiness()
+        # allies_ready, enemies_ready = cls.compute_readiness()
 
-        if allies_ready > 2 * enemies_ready:
-            return True
+        # if allies_ready > 2 * enemies_ready:
+        #     return True
 
-        return False
+        # return False
 
 
 # ============================================================
@@ -23298,7 +23300,6 @@ class HarvesterAdjacent:
             cls.cand.append(info)
             info.position = pos
             info.dist_enemy_core = Util.dist_sq(pos, Symmetry.enemy_core_pos)
-            info.has_ally_road = ti.entity_type == EntityType.ROAD
             info.enemy_hadj = 0
             info.ally_hadj = 0
             info.bfs_dist = BfsBureau.bfs20_dist[idx]
