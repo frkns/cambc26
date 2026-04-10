@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-10 11:29:25 (local)
+# latest,  @ 2026-04-10 11:33:18 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -25455,7 +25455,6 @@ class OreExecutive:
 
         if not VisionTracker.me_is_canonical_ally(ret):
             # just kill?
-            cls.state[ret] = 2
             return None
 
         return ret

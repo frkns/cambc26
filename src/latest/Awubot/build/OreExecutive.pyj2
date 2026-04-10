@@ -104,7 +104,7 @@ class OreExecutive:
 
         if not VisionTracker.me_is_canonical_ally(ret):
             # just kill?
-            cls.state[ret] = {{ KILLED }}
+            {# /* cls.state[ret] = {{ KILLED }} */ #}
             return None
 
         return ret
