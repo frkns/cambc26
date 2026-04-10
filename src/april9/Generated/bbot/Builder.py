@@ -12,20 +12,13 @@ import traceback
 from itertools import chain
 from Awubot import *
 from Generated import *
-{% import 'debug/debug.j2' as D %}
-{% import 'debug/profiler.j2' as P %}
-{% from 'map/kind.j2' import Kind %}
 
-
-{% macro super() %}Unit{% endmacro %}
-
-
-class Builder({{ super() }}):
+class Builder(Unit):
     state: str
 
     @classmethod
     def init(cls):
-        {{ super() }}.init()
+        Unit.init()
         Explore.init()
         DarkForest.init()
         cls.state = 'Explore'
@@ -33,56 +26,53 @@ class Builder({{ super() }}):
 
     @classmethod
     def start_turn(cls):
-        {{ super() }}.start_turn()
+        Unit.start_turn()
 
-        {{ P.start() }}
+        Profiler.start()
         DarkForest.fcompute()
-        {{ P.end('DarkForest.fcompute') }}
+        Profiler.end("""DarkForest.fcompute""")
 
-        {{ P.start() }}
+        Profiler.start()
         BfsBureau.update()
-        {{ P.end('BfsBureau.update') }}
+        Profiler.end("""BfsBureau.update""")
 
         Symmetry.run_sym_check()
 
-        {# /* DarkForest.debug_pressure() */ #}
         DarkForest.debug_kind()
 
-        {{ P.start() }}
+        Profiler.start()
         BfsBureau.bfs20()
-        {{ P.end('BfsBureau.bfs20') }}
+        Profiler.end("""BfsBureau.bfs20""")
 
-        {{ P.start() }}
+        Profiler.start()
         OreExecutive.fill()
-        {{ P.end('OreExecutive.fill') }}
+        Profiler.end("""OreExecutive.fill""")
 
-        {{ P.start() }}
+        Profiler.start()
         VisionTracker.fill()
-        {{ P.end('VisionTracker.fill') }}
+        Profiler.end("""VisionTracker.fill""")
 
-        {{ P.start() }}
+        Profiler.start()
         TurretTakedown.fill()
-        {{ P.end('TurretTakedown.fill') }}
+        Profiler.end("""TurretTakedown.fill""")
 
-        {{ P.start() }}
+        Profiler.start()
         SitterTakedown.fill()
-        {{ P.end('SitterTakedown.fill') }}
+        Profiler.end("""SitterTakedown.fill""")
 
-        {{ P.start() }}
+        Profiler.start()
         HarvesterAdjacent.fill()
-        {{ P.end('HarvesterAdjacent.fill') }}
+        Profiler.end("""HarvesterAdjacent.fill""")
 
-        {{ P.start() }}
+        Profiler.start()
         HealTargeter.fill()
-        {{ P.end('HealTargeter.fill') }}
+        Profiler.end("""HealTargeter.fill""")
 
-        {{ P.start() }}
+        Profiler.start()
         ShieldTargeter.fill()
-        {{ P.end('ShieldTargeter.fill') }}
+        Profiler.end("""ShieldTargeter.fill""")
 
-        {% if LOCAL %}
         Symmetry.debug()
-        {% endif %}
 
 
 
@@ -90,26 +80,23 @@ class Builder({{ super() }}):
     def run_turn(cls):
         cls.state, *args = cls.determine_state()
 
-        {% if LOCAL %}
         print(f'running: {cls.state}  @', *args, sep=' ')
-        {% endif %}
 
         globals()[f'State{cls.state}'].run(*args)
 
 
     @classmethod
     def end_turn(cls):
-        {{ super() }}.end_turn()
+        Unit.end_turn()
 
-        {{ P.start() }}
+        Profiler.start()
         HealExecutor.execute_heal_attempt()
-        {{ P.end('HealExecutor.execute_heal_attempt') }}
+        Profiler.end("""HealExecutor.execute_heal_attempt""")
 
-        {{ P.start() }}
+        Profiler.start()
         Marker.attempt_mark()
-        {{ P.end('Marker.attempt_mark') }}
+        Profiler.end("""Marker.attempt_mark""")
 
-        {# /* BfsBureau.debug_enemy_launcher_zone() */ #}
 
 
     @classmethod
@@ -163,7 +150,7 @@ class Builder({{ super() }}):
 
             if Util.dist_sq(tpos, Symmetry.enemy_core_pos) \
                     < Util.dist_sq(tpos, Unit.core_pos) \
-                    and BfsBureau.bfs20_dist[{{ encode_pos('tpos.x', 'tpos.y') }}] < 100:
+                    and BfsBureau.bfs20_dist[(((tpos.x) + 3) * 56 + ((tpos.y) + 3))] < 100:
                 return 'BuildTurret', tpos, None if trans.is_bridge else trans.target.direction_to(tpos)
 
             if tpos not in RouteToCore.killed:
@@ -172,15 +159,15 @@ class Builder({{ super() }}):
 
         apos = Attacker.get_trans_target()
         if apos is not None:
-            return 'Attack', apos
+            return 'AttackTransporter', apos
 
         ax_target = OreExecutive.get_axionite_target()
         ti_target = OreExecutive.get_titanium_target()
         stalk_target = StalkTargeter.get_best_target()
 
-        dist_stalk = {{ INF }} if stalk_target is None else my_pos.distance_squared(stalk_target)
-        dist_ti = {{ INF }} if ti_target is None else my_pos.distance_squared(ti_target)
-        dist_ax = {{ INF }} if ax_target is None else my_pos.distance_squared(ax_target)
+        dist_stalk = 1000000 if stalk_target is None else my_pos.distance_squared(stalk_target)
+        dist_ti = 1000000 if ti_target is None else my_pos.distance_squared(ti_target)
+        dist_ax = 1000000 if ax_target is None else my_pos.distance_squared(ax_target)
 
         if dist_stalk < dist_ti and dist_stalk < dist_ax:
             return 'MoveTo', stalk_target, 'Stalk'
@@ -203,4 +190,3 @@ class Builder({{ super() }}):
             return 'MoveTo', patrolTarget, 'Patrol'
 
         return 'MoveTo', Explore.get_target(), 'Explore'
-

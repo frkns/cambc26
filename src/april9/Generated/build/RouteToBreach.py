@@ -1,0 +1,193 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+
+class RouteToBreach:
+    is_active: bool = False
+    from_pos: Position
+    killed: set[Position] = set()
+
+    # Positions that have been claimed (or built) as breach sites.
+    # Class-level so all bots in this process see the same table.
+    planned_breach_positions: set[int] = set()
+
+    # The specific titanium leaf this bot is routing toward.
+    # None until a target is claimed in try_build_route.
+    _breach_target: int | None = None
+
+    @classmethod
+    def _pick_target(cls) -> int | None:
+        if not Symmetry.is_sym_known:
+            return None
+        enemy_core = Symmetry.enemy_core_pos
+        print("Yo so the enemy core is at", enemy_core)
+
+        vision_r = int(GameConstants.BREACH_ATTACK_RADIUS_SQ ** 0.5) + 1
+
+        # ── Step 1: pick best attack/sentinel landing position ────────────────
+        attack_pos = None
+        best_attack_dist = float('inf')
+        currLoc = Globals.my_pos
+        for dx in range(-vision_r, vision_r + 1):
+            for dy in range(-vision_r, vision_r + 1):
+                if dx * dx + dy * dy > GameConstants.BREACH_ATTACK_RADIUS_SQ:
+                    continue
+                candidate = Position(enemy_core.x + dx, enemy_core.y + dy)
+                tile = Map.tile_info[candidate.x][candidate.y]
+                if tile is None:
+                    continue
+                if tile.has_building and (not tile.is_building_ally):
+                    continue
+                if tile.has_building and tile.entity_type in Constants.TURRET_SET:
+                    continue
+                d = currLoc.distance_squared(candidate)
+                if d < best_attack_dist:
+                    best_attack_dist = d
+                    attack_pos = candidate
+
+        if attack_pos is None:
+            print("[RouteToBreach] No valid attack position within breach attack of enemy core")
+            return None
+        print("CLEARLY the best attack position is", attack_pos)
+        return (((attack_pos.x) + 3) * 56 + ((attack_pos.y) + 3))
+        
+
+    @classmethod
+    def set_pos(cls, pos: Position):
+        encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
+
+        # Arrived at the breach site — deactivate so the caller can build.
+        # Keep the entry in planned_breach_positions: the breach is here now.
+        if cls._breach_target is not None and encoded == cls._breach_target:
+            cls.is_active = False
+            return
+
+        cls.is_active = True
+        cls.from_pos = pos
+
+    @classmethod
+    def try_build_route(cls):
+        assert cls.is_active
+
+        target_set = {cls._breach_target}
+
+        bridge_dist, first_target = BfsBureau.find_bridge_route(
+            cls.from_pos,
+            target_set,
+        )
+
+        print(f"""{bridge_dist=}""")
+
+        if first_target is None:
+            Debug.tee("RouteToBreach: first_target is None, giving up")
+            cls.give_up()
+            StateMoveTo.run(Explore.get_target())
+            return
+
+        target = Position(*first_target)
+        Debug.diline(cls.from_pos, target, Color.GREEN)
+
+        if cls.from_pos.distance_squared(target) == 1:
+            if BuildManager.can_dbuild_conveyor(cls.from_pos):
+                BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
+                cls.set_pos(target)
+        elif BuildManager.can_dbuild_bridge(cls.from_pos):
+            BuildManager.dbuild_bridge(cls.from_pos, target)
+            cls.set_pos(target)
+
+    @classmethod
+    def move_to_next(cls):
+        Pathfinder.move_to(cls.from_pos, ban_target_pos=True)
+
+    @classmethod
+    def should_give_up(cls):
+        x, y = cls.from_pos
+        ti = Map.tile_info[x][y]
+        if ti is None:
+            return False
+
+        if ti.has_building:
+            if not ti.is_building_ally:
+                newTarg = cls._pick_target()
+                if newTarg is None:
+                    return True
+                else:
+                    cls._breach_target = newTarg
+                    return False
+            if ti.entity_type in Constants.TURRET_SET:
+                return True
+            """
+            if cls._breach_target != (((x) + 3) * 56 + ((y) + 3)):
+                if ti.entity_type in Constants.TRANSPORTERS_SET:
+                    return True
+                if ti.entity_type != EntityType.ROAD:
+                    return True
+            """
+        x, y = ((cls._breach_target) // 56 - 3), ((cls._breach_target) % 56 - 3)
+        ti = Map.tile_info[x][y]
+        if ti is None:
+            return False
+        if ti.has_building:
+            if not ti.is_building_ally:
+                newTarg = cls._pick_target()
+                if newTarg is None:
+                    return True
+                else:
+                    cls._breach_target = newTarg
+                    return False
+            if ti.entity_type in Constants.TURRET_SET:
+                return True
+        return False
+
+    @classmethod
+    def give_up(cls):
+        cls.is_active = False
+        # Release the claim so another bot (or a retry) can use this leaf.
+        if cls._breach_target is not None:
+            cls.planned_breach_positions.discard(cls._breach_target)
+            cls._breach_target = None
+        cls.killed.add(cls.from_pos)
+        Debug.diamond(Color.PURPLE)
+
+    @classmethod
+    def try_claim_target(cls):
+        # Claim a target on first call (or if we lost one).
+        if cls._breach_target is None:
+            cls._breach_target = cls._pick_target()
+            if cls._breach_target is None:
+                Debug.tee("RouteToBreach: no possible breach targets, giving up")
+                cls.give_up()
+                StateMoveTo.run(Explore.get_target())
+                return
+            cls.planned_breach_positions.add(cls._breach_target)
+
+    @classmethod
+    def do_routing(cls):
+        cls.try_claim_target()
+        if cls._breach_target is None:
+            RouteToBreach.is_active = False
+            return
+        print("Aiming at breach:",((cls._breach_target) // 56 - 3), ((cls._breach_target) % 56 - 3))
+        if cls.should_give_up():
+            cls.give_up()
+            StateMoveTo.run(Explore.get_target())
+            return
+
+        dsq = Globals.my_pos.distance_squared(cls.from_pos)
+        if Globals.ct.get_action_cooldown() == 0 \
+                and (dsq == 1 or dsq == 2):
+            cls.try_build_route()
+            cls.move_to_next()
+        else:
+            cls.move_to_next()

@@ -30,7 +30,7 @@ class StateBuildHarvesterAx:
         {# /* Debug.line(pos, Color.YELLOW) */ #}
 
 
-class StateAttack:
+class StateAttackTransporter:
     @classmethod
     def run(cls, pos):
         Pathfinder.move_to(pos)

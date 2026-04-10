@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-09 17:51:02 (local)
+# april9,  @ 2026-04-09 16:44:49 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -66,14 +66,9 @@ class Attacker:
         lst: tuple[int, int] = []
 
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
-
-
-            if (ti.has_bot and ti.is_bot_ally) and (ti.has_building and not ti.is_building_ally) and \
-                    ((
-                ti.entity_type in Constants.ATTACKABLE_TRANSPORTERS_SET
-            ) or (
-                ti.harvester_adjacent and ti.entity_type in Constants.PASSABLE_ATTACKABLE_SET
-            )):
+            if (ti.has_bot and ti.is_bot_ally) \
+                    and (ti.has_building and not ti.is_building_ally) \
+                    and (ti.entity_type in Constants.ATTACKABLE_TRANSPORTERS_SET):
                 allies_ready += 1
                 lst.append((x, y))
 
@@ -119,9 +114,7 @@ class Attacker:
 
     @classmethod
     def should_fire(cls, pos):
-        x, y = pos.x, pos.y
-        tile_info = Map.tile_info
-        ti = tile_info[x][y]
+        ti = Map.tile_info[pos.x][pos.y]
 
         # assume caller passes in enemy transporter position
         assert not ti.is_building_ally
@@ -135,21 +128,6 @@ class Attacker:
         allies_ready, enemies_ready = cls.compute_readiness()
 
         if allies_ready > 2 * enemies_ready:
-            return True
-
-
-        enemy_bots_adjacent = \
-                ((nti := tile_info[x][y]) is not None and nti.has_bot and not nti.is_bot_ally) + \
-                ((nti := tile_info[x-1][y]) is not None and nti.has_bot and not nti.is_bot_ally) + \
-                ((nti := tile_info[x+1][y]) is not None and nti.has_bot and not nti.is_bot_ally) + \
-                ((nti := tile_info[x][y-1]) is not None and nti.has_bot and not nti.is_bot_ally) + \
-                ((nti := tile_info[x][y+1]) is not None and nti.has_bot and not nti.is_bot_ally) + \
-                ((nti := tile_info[x-1][y-1]) is not None and nti.has_bot and not nti.is_bot_ally) + \
-                ((nti := tile_info[x+1][y-1]) is not None and nti.has_bot and not nti.is_bot_ally) + \
-                ((nti := tile_info[x-1][y+1]) is not None and nti.has_bot and not nti.is_bot_ally) + \
-                ((nti := tile_info[x+1][y+1]) is not None and nti.has_bot and not nti.is_bot_ally)
-
-        if enemy_bots_adjacent == 0:
             return True
 
         return False
@@ -28376,10 +28354,10 @@ class StalkTargeter:
 
 
 # ============================================================
-# StateAttack
+# StateAttackTransporter
 # ============================================================
 
-class StateAttack:
+class StateAttackTransporter:
     @classmethod
     def run(cls, pos):
         Pathfinder.move_to(pos)
@@ -29541,7 +29519,7 @@ class Builder(Unit):
 
         apos = Attacker.get_trans_target()
         if apos is not None:
-            return 'Attack', apos
+            return 'AttackTransporter', apos
 
         ax_target = OreExecutive.get_axionite_target()
         ti_target = OreExecutive.get_titanium_target()

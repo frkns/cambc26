@@ -12,25 +12,19 @@ import traceback
 from itertools import chain
 from Awubot import *
 from Generated import *
-{% import 'debug/debug.j2' as D %}
-{% import 'debug/profiler.j2' as P %}
-{% from 'map/kind.j2' import Kind %}
-
 
 class StateBuildHarvester:
     @classmethod
     def run(cls, pos):
         OreExecutive.go_build_harvester(pos)
-        {# /* Debug.line(pos, Color.YELLOW) */ #}
 
 class StateBuildHarvesterAx:
     @classmethod
     def run(cls, pos):
         OreExecutive.go_build_ax_harvester(pos)
-        {# /* Debug.line(pos, Color.YELLOW) */ #}
 
 
-class StateAttack:
+class StateAttackTransporter:
     @classmethod
     def run(cls, pos):
         Pathfinder.move_to(pos)
@@ -71,9 +65,7 @@ class StateRouteBreach:
 class StateMoveTo:
     @classmethod
     def run(cls, pos, tag='_'):
-        {% if LOCAL %}
         print(f'{tag=}')
-        {% endif %}
         Pathfinder.move_to(pos)
 
 

@@ -172,7 +172,7 @@ class Builder({{ super() }}):
 
         apos = Attacker.get_trans_target()
         if apos is not None:
-            return 'Attack', apos
+            return 'AttackTransporter', apos
 
         ax_target = OreExecutive.get_axionite_target()
         ti_target = OreExecutive.get_titanium_target()
