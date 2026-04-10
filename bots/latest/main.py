@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-09 21:06:13 (local)
+# latest,  @ 2026-04-09 18:24:43 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -25980,6 +25980,8 @@ class RouteToBreach:
         ti = Map.tile_info[x][y]
         if ti is None:
             return False
+        if Pathfinder.given_up:
+            return True
 
         if ti.has_building:
             if not ti.is_building_ally:
@@ -26124,6 +26126,8 @@ class RouteToCore:
         ti = Map.tile_info[x][y]
         if ti is None:
             return False
+        if Pathfinder.given_up:
+            return True
 
         if ti.has_building:
             if not ti.is_building_ally:
@@ -26297,6 +26301,8 @@ class RouteToFoundry:
         ti = Map.tile_info[x][y]
         if ti is None:
             return False
+        if Pathfinder.given_up:
+            return True
 
         if ti.has_building:
             if not ti.is_building_ally:
