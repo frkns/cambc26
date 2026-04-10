@@ -71,19 +71,21 @@ class Attacker:
         {% if LOCAL %}
         assert not ti.is_building_ally
         {% endif %}
+        
+        return True
 
-        hp = ti.building_hp
-        max_hp = Constants.MAX_HP_MAP[ti.entity_type]
+        # hp = ti.building_hp
+        # max_hp = Constants.MAX_HP_MAP[ti.entity_type]
 
-        if 2 * hp <= max_hp:
-            return True
+        # if 2 * hp <= max_hp:
+        #     return True
 
-        allies_ready, enemies_ready = cls.compute_readiness()
+        # allies_ready, enemies_ready = cls.compute_readiness()
 
-        if allies_ready > 2 * enemies_ready:
-            return True
+        # if allies_ready > 2 * enemies_ready:
+        #     return True
 
-        return False
+        # return False
 
 
 
