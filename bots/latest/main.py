@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-09 22:30:27 (local)
+# latest,  @ 2026-04-09 23:06:42 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -25881,6 +25881,7 @@ class RouteToBreach:
     is_active: bool = False
     from_pos: Position
     killed: set[Position] = set()
+    prevRoute = []
 
     # Positions that have been claimed (or built) as breach sites.
     # Class-level so all bots in this process see the same table.
@@ -25930,17 +25931,20 @@ class RouteToBreach:
         
 
     @classmethod
-    def set_pos(cls, pos: Position):
+    def set_pos(cls, pos: Position, fullReset = True):
         encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
 
         # Arrived at the breach site — deactivate so the caller can build.
         # Keep the entry in planned_breach_positions: the breach is here now.
         if cls._breach_target is not None and encoded == cls._breach_target:
             cls.is_active = False
+            cls.prevRoute.clear()
             return
 
         cls.is_active = True
         cls.from_pos = pos
+        if fullReset:
+            cls.prevRoute.clear()
 
     @classmethod
     def try_build_route(cls):
@@ -25957,8 +25961,8 @@ class RouteToBreach:
 
         if first_target is None:
             Debug.tee("RouteToBreach: first_target is None, giving up")
-            cls.give_up()
-            StateMoveTo.run(Explore.get_target())
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target())
             return
 
         target = Position(*first_target)
@@ -25967,10 +25971,12 @@ class RouteToBreach:
         if cls.from_pos.distance_squared(target) == 1:
             if BuildManager.can_dbuild_conveyor(cls.from_pos):
                 BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
-                cls.set_pos(target)
+                cls.prevRoute.append(cls.from_pos)
+                cls.set_pos(target,False)
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
-            cls.set_pos(target)
+            cls.prevRoute.append(cls.from_pos)
+            cls.set_pos(target,False)
 
     @classmethod
     def move_to_next(cls):
@@ -26028,21 +26034,27 @@ class RouteToBreach:
 
     @classmethod
     def give_up(cls):
-        cls.is_active = False
-        # Release the claim so another bot (or a retry) can use this leaf.
-        if cls._breach_target is not None:
-            cls.planned_breach_positions.discard(cls._breach_target)
-            cls._breach_target = None
-        cls.killed.add(cls.from_pos)
-        Debug.diamond(Color.PURPLE)
+        if len(cls.prevRoute) == 0: # cooked:
+            cls.is_active = False
+            # Release the claim so another bot (or a retry) can use this leaf.
+            if cls._breach_target is not None:
+                cls.planned_breach_positions.discard(cls._breach_target)
+                cls._breach_target = None
+            cls.killed.add(cls.from_pos)
+            Debug.diamond(Color.PURPLE)
+            return True
+        else:
+            cls.from_pos = cls.prevRoute[-1]
+            cls.prevRoute.pop()
+            return False
 
     @classmethod
     def try_claim_target(cls):
         cls._breach_target = cls._pick_target()
         if cls._breach_target is None:
             Debug.tee("RouteToBreach: no possible breach targets, giving up")
-            cls.give_up()
-            StateMoveTo.run(Explore.get_target())
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target())
             return
         cls.planned_breach_positions.add(cls._breach_target)
 
@@ -26055,8 +26067,8 @@ class RouteToBreach:
             return
         print("Aiming at breach:",((cls._breach_target) // 56 - 3), ((cls._breach_target) % 56 - 3))
         if cls.should_give_up():
-            cls.give_up()
-            StateMoveTo.run(Explore.get_target())
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target())
             return
 
         dsq = Globals.my_pos.distance_squared(cls.from_pos)
@@ -26076,14 +26088,18 @@ class RouteToCore:
     is_active: bool = False
     from_pos: Position
     killed: set[Position] = set()
+    prevRoute = []
 
     @classmethod
-    def set_pos(cls, pos: Position):
+    def set_pos(cls, pos: Position, fullReset = True):
         if (((pos.x) + 3) * 56 + ((pos.y) + 3)) in DarkForest.core_sink_set:  # was sink_set
             cls.is_active = False
+            cls.prevRoute.clear()
             return
         cls.is_active = True
         cls.from_pos = pos
+        if fullReset:
+            cls.prevRoute.clear()
 
 
     @classmethod
@@ -26107,8 +26123,8 @@ class RouteToCore:
 
         if first_target is None:
             Debug.tee("first_target is None: giving up")
-            cls.give_up()
-            StateMoveTo.run(Explore.get_target()) # new
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target()) # new
             return
 
         target = Position(*first_target)
@@ -26120,10 +26136,12 @@ class RouteToCore:
                     BuildManager.dbuild_armoured_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
                 else:
                     BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
-                cls.set_pos(target)
+                cls.prevRoute.append(cls.from_pos)
+                cls.set_pos(target,False)
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
-            cls.set_pos(target)
+            cls.prevRoute.append(cls.from_pos)
+            cls.set_pos(target,False)
 
     @classmethod
     def move_to_next(cls):
@@ -26150,16 +26168,22 @@ class RouteToCore:
 
     @classmethod
     def give_up(cls):
-        cls.is_active = False
-        cls.killed.add(cls.from_pos)
-        Debug.diamond(Color.PURPLE)
+        if len(cls.prevRoute) == 0: # cooked:
+            cls.is_active = False
+            cls.killed.add(cls.from_pos)
+            Debug.diamond(Color.PURPLE)
+            return True
+        else:
+            cls.from_pos = cls.prevRoute[-1]
+            cls.prevRoute.pop()
+            return False
 
 
     @classmethod
     def do_routing(cls):
         if cls.should_give_up():
-            cls.give_up()
-            StateMoveTo.run(Explore.get_target()) # new
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target()) # new
             return
 
         dsq = Globals.my_pos.distance_squared(cls.from_pos)
@@ -26179,6 +26203,7 @@ class RouteToFoundry:
     is_active: bool = False
     from_pos: Position
     killed: set[Position] = set()
+    prevRoute = []
 
     # Positions that have been claimed (or built) as foundry sites.
     # Class-level so all bots in this process see the same table.
@@ -26258,17 +26283,20 @@ class RouteToFoundry:
         return best
 
     @classmethod
-    def set_pos(cls, pos: Position):
+    def set_pos(cls, pos: Position, fullReset = True):
         encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
 
         # Arrived at the foundry site — deactivate so the caller can build.
         # Keep the entry in planned_foundry_positions: the foundry is here now.
         if cls._foundry_target is not None and encoded == cls._foundry_target:
             cls.is_active = False
+            cls.prevRoute.clear()
             return
 
         cls.is_active = True
         cls.from_pos = pos
+        if fullReset:
+            cls.prevRoute.clear()
 
     @classmethod
     def try_build_route(cls):
@@ -26285,8 +26313,8 @@ class RouteToFoundry:
 
         if first_target is None:
             Debug.tee("RouteToFoundry: first_target is None, giving up")
-            cls.give_up()
-            StateMoveTo.run(Explore.get_target())
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target())
             return
 
         target = Position(*first_target)
@@ -26295,10 +26323,12 @@ class RouteToFoundry:
         if cls.from_pos.distance_squared(target) == 1:
             if BuildManager.can_dbuild_conveyor(cls.from_pos):
                 BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
-                cls.set_pos(target)
+                cls.prevRoute.append(cls.from_pos)
+                cls.set_pos(target,False)
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
-            cls.set_pos(target)
+            cls.prevRoute.append(cls.from_pos)
+            cls.set_pos(target,False)
 
     @classmethod
     def move_to_next(cls):
@@ -26328,13 +26358,19 @@ class RouteToFoundry:
 
     @classmethod
     def give_up(cls):
-        cls.is_active = False
-        # Release the claim so another bot (or a retry) can use this leaf.
-        if cls._foundry_target is not None:
-            cls.planned_foundry_positions.discard(cls._foundry_target)
-            cls._foundry_target = None
-        cls.killed.add(cls.from_pos)
-        Debug.diamond(Color.PURPLE)
+        if len(cls.prevRoute) == 0:
+            cls.is_active = False
+            # Release the claim so another bot (or a retry) can use this leaf.
+            if cls._foundry_target is not None:
+                cls.planned_foundry_positions.discard(cls._foundry_target)
+                cls._foundry_target = None
+            cls.killed.add(cls.from_pos)
+            Debug.diamond(Color.PURPLE)
+            return True
+        else:
+            cls.from_pos = cls.prevRoute[-1]
+            cls.prevRoute.pop()
+            return False
 
     @classmethod
     def try_claim_target(cls):
@@ -26343,8 +26379,8 @@ class RouteToFoundry:
             cls._foundry_target = cls._pick_target()
             if cls._foundry_target is None:
                 Debug.tee("RouteToFoundry: no unclaimed titanium leaf available")
-                cls.give_up()
-                StateMoveTo.run(Explore.get_target())
+                if cls.give_up():
+                    StateMoveTo.run(Explore.get_target())
                 return
             cls.planned_foundry_positions.add(cls._foundry_target)
 
@@ -26356,8 +26392,8 @@ class RouteToFoundry:
             return
         print("Aiming at foundry:",((cls._foundry_target) // 56 - 3), ((cls._foundry_target) % 56 - 3))
         if cls.should_give_up():
-            cls.give_up()
-            StateMoveTo.run(Explore.get_target())
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target())
             return
 
         dsq = Globals.my_pos.distance_squared(cls.from_pos)
@@ -29456,10 +29492,10 @@ class Builder(Unit):
     def determine_state(cls):
         my_pos = Globals.my_pos
 
-        
+        """
         if RouteToBreach.is_active:
             return ('RouteBreach',)
-        
+        """
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
 
@@ -29485,10 +29521,11 @@ class Builder(Unit):
         if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
         
+        """
         breach_target = BreachBuild._pick_target()
         if breach_target is not None:
             return 'BreachBuild', breach_target
-        
+        """
         foundry_target = FoundryBuild._pick_target()
         if foundry_target is not None:
             return 'FoundryBuild', foundry_target
