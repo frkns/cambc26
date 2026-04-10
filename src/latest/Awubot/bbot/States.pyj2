@@ -110,10 +110,10 @@ class StateBuildLauncherAround:
                 BuildManager.dbuild_launcher(launcherPos)
                 return
 
-class StateBuildBarrier:
+class StateBuildShield:
     @classmethod
     def run(cls, pos, banned_dir: Direction | None):
         Pathfinder.move_to(pos, ban_target_pos=True)
 
-        if BuildManager.can_dbuild_barrier(pos):
-            BuildManager.dbuild_barrier(pos)
+        if BuildManager.can_dbuild_road(pos):
+            BuildManager.dbuild_road(pos)
