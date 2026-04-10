@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-10 11:19:56 (local)
+# latest,  @ 2026-04-10 12:39:58 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -25544,7 +25544,7 @@ class OreExecutive:
                 continue
             
             if ti.has_building and not ti.is_building_ally:
-                heapq.heappop(cls.ti_queue)
+                heapq.heappop(cls.ax_queue)
                 cls.state[pos] = 3
                 continue
 

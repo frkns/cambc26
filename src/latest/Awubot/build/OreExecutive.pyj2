@@ -134,7 +134,7 @@ class OreExecutive:
                 continue
             
             if ti.has_building and not ti.is_building_ally:
-                heapq.heappop(cls.ti_queue)
+                heapq.heappop(cls.ax_queue)
                 cls.state[pos] = {{ HAS_HARVESTER }}
                 continue
 
