@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-09 12:34:59 (local)
+# latest,  @ 2026-04-09 16:56:43 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -29542,12 +29542,15 @@ class Core(Unit):
 
     @classmethod
     def run_turn(cls):
-        # if BurnManager.should_burn_emergency():
-        #     BurnManager.burn()
+        if BurnManager.should_burn_emergency(): 
+            BurnManager.burn()
 
+        # Emergyspawn tries to build a bot the moment it sees an enemy, which is pretty inefficient in most scenarios. 
+        """
         # I think this is cleaner
         if SpawnManager.should_spawn_emergency():
             BurnManager.burn()
+        """
         
         if SpawnManager.should_spawn() or SpawnManager.should_spawn_emergency():
             SpawnManager.spawn()
