@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-10 11:08:37 (local)
+# latest,  @ 2026-04-10 11:19:56 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -72,7 +72,7 @@ class Attacker:
                     ((
                 ti.entity_type in Constants.ATTACKABLE_TRANSPORTERS_SET
             ) or (
-                ti.harvester_adjacent and ti.entity_type in Constants.PASSABLE_ATTACKABLE_SET
+                ti.harvester_adjacent and ti.entity_type in Constants.ATTACKABLE_TRANSPORTERS_SET
             )):
                 allies_ready += 1
                 lst.append((x, y))
@@ -26216,14 +26216,14 @@ class RouteToCore:
             cls.from_pos,
             Unit.core_pos_set,
             max_iter=0,
-            avoid_pos = cls.pathFindingKill | RouteToCore.pathFindingKill #| RouteToBreach.pathFindingKill
+            avoid_pos = cls.pathFindingKill
         )
         # otherwise allow all sinks
         if first_target is None:
             bridge_dist, first_target = BfsBureau.find_bridge_route(
                 cls.from_pos,
                 DarkForest.core_sink_set,  # was sink_set
-                avoid_pos = cls.pathFindingKill | RouteToFoundry.pathFindingKill #| RouteToBreach.pathFindingKill
+                avoid_pos = cls.pathFindingKill
             )
 
         
@@ -26317,7 +26317,6 @@ class RouteToFoundry:
     is_active: bool = False
     from_pos: Position
     killed: set[Position] = set()
-    pathFindingKill: set[int] = set()
     prevRoute = []
     backTracking = False
 
@@ -26343,7 +26342,7 @@ class RouteToFoundry:
         _, first = BfsBureau.find_bridge_route_avoid_ti_adj(
             ore_pos, 
             target_set, 
-            avoid_pos = cls.pathFindingKill | RouteToCore.pathFindingKill #| RouteToBreach.pathFindingKill
+            avoid_pos = RouteToCore.pathFindingKill 
         )
         if first is not None:
             return True
@@ -26431,7 +26430,7 @@ class RouteToFoundry:
         bridge_dist, first_target = BfsBureau.find_bridge_route_avoid_ti_adj(
             cls.from_pos,
             target_set,
-            avoid_pos = cls.pathFindingKill | RouteToCore.pathFindingKill #| RouteToBreach.pathFindingKill
+            avoid_pos = RouteToCore.pathFindingKill 
         )
 
         
@@ -26490,14 +26489,14 @@ class RouteToFoundry:
                 cls._foundry_target = None
             cls.killed.add(cls.from_pos)
             if Pathfinder.given_up:
-                cls.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
+                RouteToCore.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
             Debug.diamond(Color.PURPLE)
             print("RouteToFoundry: giving up from", cls.from_pos)
             return True
         else:
             cls.killed.add(cls.from_pos)
             if Pathfinder.given_up:
-                cls.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
+                RouteToCore.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
             cls.from_pos = cls.prevRoute.pop()
             print("RouteToFoundry: backtracking to", cls.from_pos)
             cls.backTracking = True

@@ -21,7 +21,6 @@ class RouteToFoundry:
     is_active: bool = False
     from_pos: Position
     killed: set[Position] = set()
-    pathFindingKill: set[int] = set()
     prevRoute = []
     backTracking = False
 
@@ -47,7 +46,7 @@ class RouteToFoundry:
         _, first = BfsBureau.find_bridge_route_avoid_ti_adj(
             ore_pos, 
             target_set, 
-            avoid_pos = cls.pathFindingKill | RouteToCore.pathFindingKill #| RouteToBreach.pathFindingKill
+            avoid_pos = RouteToCore.pathFindingKill 
         )
         if first is not None:
             return True
@@ -135,7 +134,7 @@ class RouteToFoundry:
         bridge_dist, first_target = BfsBureau.find_bridge_route_avoid_ti_adj(
             cls.from_pos,
             target_set,
-            avoid_pos = cls.pathFindingKill | RouteToCore.pathFindingKill #| RouteToBreach.pathFindingKill
+            avoid_pos = RouteToCore.pathFindingKill 
         )
 
         {{ D.show('bridge_dist') }}
@@ -194,14 +193,14 @@ class RouteToFoundry:
                 cls._foundry_target = None
             cls.killed.add(cls.from_pos)
             if Pathfinder.given_up:
-                cls.pathFindingKill.add({{ encode_pos('cls.from_pos.x', 'cls.from_pos.y') }})
+                RouteToCore.pathFindingKill.add({{ encode_pos('cls.from_pos.x', 'cls.from_pos.y') }})
             Debug.diamond(Color.PURPLE)
             print("RouteToFoundry: giving up from", cls.from_pos)
             return True
         else:
             cls.killed.add(cls.from_pos)
             if Pathfinder.given_up:
-                cls.pathFindingKill.add({{ encode_pos('cls.from_pos.x', 'cls.from_pos.y') }})
+                RouteToCore.pathFindingKill.add({{ encode_pos('cls.from_pos.x', 'cls.from_pos.y') }})
             cls.from_pos = cls.prevRoute.pop()
             print("RouteToFoundry: backtracking to", cls.from_pos)
             cls.backTracking = True
