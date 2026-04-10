@@ -35,12 +35,15 @@ class Core({{ super() }}):
 
     @classmethod
     def run_turn(cls):
-        # if BurnManager.should_burn_emergency():
-        #     BurnManager.burn()
+        if BurnManager.should_burn_emergency(): 
+            BurnManager.burn()
 
+        # Emergyspawn tries to build a bot the moment it sees an enemy, which is pretty inefficient in most scenarios. 
+        """
         # I think this is cleaner
         if SpawnManager.should_spawn_emergency():
             BurnManager.burn()
+        """
         
         if SpawnManager.should_spawn() or SpawnManager.should_spawn_emergency():
             SpawnManager.spawn()

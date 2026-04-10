@@ -84,7 +84,7 @@ class Attacker:
         {% if LOCAL %}
         assert not ti.is_building_ally
         {% endif %}
-
+        
         hp = ti.building_hp
         max_hp = Constants.MAX_HP_MAP[ti.entity_type]
 
@@ -95,7 +95,6 @@ class Attacker:
 
         if allies_ready > 2 * enemies_ready:
             return True
-
 
         enemy_bots_adjacent = \
                 ((nti := tile_info[x][y]) is not None and nti.has_bot and not nti.is_bot_ally) + \
@@ -112,6 +111,3 @@ class Attacker:
             return True
 
         return False
-
-
-

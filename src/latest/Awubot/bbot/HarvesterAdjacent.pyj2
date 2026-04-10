@@ -85,7 +85,6 @@ class HarvesterAdjacent:
             cls.cand.append(info)
             info.position = pos
             info.dist_enemy_core = Util.dist_sq(pos, Symmetry.enemy_core_pos)
-            info.has_ally_road = ti.entity_type == EntityType.ROAD
             info.enemy_hadj = 0
             info.ally_hadj = 0
             info.bfs_dist = BfsBureau.bfs20_dist[idx]
