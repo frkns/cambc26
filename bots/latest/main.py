@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-09 18:24:43 (local)
+# latest,  @ 2026-04-09 21:31:02 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -28088,10 +28088,7 @@ class ShieldTargeter:
                 continue
 
             if ti.has_building:
-                if not ti.is_building_ally:
-                    continue
-                elif ti.entity_type != EntityType.ROAD:
-                    continue
+                continue
 
             if ti.has_bot:
                 continue
@@ -28374,19 +28371,6 @@ class StateBreachBuild:
 
 
 # ============================================================
-# StateBuildBarrier
-# ============================================================
-
-class StateBuildBarrier:
-    @classmethod
-    def run(cls, pos, banned_dir: Direction | None):
-        Pathfinder.move_to(pos, ban_target_pos=True)
-
-        if BuildManager.can_dbuild_barrier(pos):
-            BuildManager.dbuild_barrier(pos)
-
-
-# ============================================================
 # StateBuildGunner
 # ============================================================
 
@@ -28438,6 +28422,19 @@ class StateBuildLauncherAround:
             if BuildManager.can_dbuild_launcher(launcherPos):            
                 BuildManager.dbuild_launcher(launcherPos)
                 return
+
+
+# ============================================================
+# StateBuildShield
+# ============================================================
+
+class StateBuildShield:
+    @classmethod
+    def run(cls, pos, banned_dir: Direction | None):
+        Pathfinder.move_to(pos, ban_target_pos=True)
+
+        if BuildManager.can_dbuild_road(pos):
+            BuildManager.dbuild_road(pos)
 
 
 # ============================================================
@@ -29491,9 +29488,9 @@ class Builder(Unit):
         if foundry_target is not None:
             return 'FoundryBuild', foundry_target
 
-        # shieldpos = ShieldTargeter.get_best_target()
-        # if shieldpos is not None:
-        #     return 'BuildBarrier', shieldpos, None
+        shieldpos = ShieldTargeter.get_best_target()
+        if shieldpos is not None:
+            return 'BuildShield', shieldpos, None
 
         trans: TransporterInfo = ConnectManager.get_connect_target_info()
         if trans is not None:
