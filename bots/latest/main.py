@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-09 23:06:42 (local)
+# latest,  @ 2026-04-10 11:04:18 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -317,7 +317,7 @@ class BfsBureau:
 
     @classmethod
     def find_bridge_route_avoid_ti_adj(
-            cls, start: Position, sink_set: set[int], max_iter: int = 1000
+            cls, start: Position, sink_set: set[int], max_iter: int = 1000, avoid_pos: set[int] = set()
         ):
 
 
@@ -346,6 +346,7 @@ class BfsBureau:
         ni = si + 56
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -359,6 +360,7 @@ class BfsBureau:
         ni = si + -56
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -372,6 +374,7 @@ class BfsBureau:
         ni = si + 1
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -385,6 +388,7 @@ class BfsBureau:
         ni = si + -1
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -404,6 +408,7 @@ class BfsBureau:
             ni = cidx + 56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -417,6 +422,7 @@ class BfsBureau:
             ni = cidx + -56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -430,6 +436,7 @@ class BfsBureau:
             ni = cidx + 1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -443,6 +450,7 @@ class BfsBureau:
             ni = cidx + -1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -461,6 +469,7 @@ class BfsBureau:
             ni = cidx + 56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -474,6 +483,7 @@ class BfsBureau:
             ni = cidx + -56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -487,6 +497,7 @@ class BfsBureau:
             ni = cidx + 1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -500,6 +511,7 @@ class BfsBureau:
             ni = cidx + -1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -518,6 +530,7 @@ class BfsBureau:
             ni = cidx + 56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -531,6 +544,7 @@ class BfsBureau:
             ni = cidx + -56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -544,6 +558,7 @@ class BfsBureau:
             ni = cidx + 1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -557,6 +572,7 @@ class BfsBureau:
             ni = cidx + -1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -580,6 +596,7 @@ class BfsBureau:
         ni = si + 168
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -595,6 +612,7 @@ class BfsBureau:
         ni = si + -168
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -610,6 +628,7 @@ class BfsBureau:
         ni = si + 3
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -625,6 +644,7 @@ class BfsBureau:
         ni = si + -3
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -640,6 +660,7 @@ class BfsBureau:
         ni = si + 114
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -655,6 +676,7 @@ class BfsBureau:
         ni = si + 110
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -670,6 +692,7 @@ class BfsBureau:
         ni = si + -114
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -685,6 +708,7 @@ class BfsBureau:
         ni = si + -110
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -700,6 +724,7 @@ class BfsBureau:
         ni = si + 58
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -715,6 +740,7 @@ class BfsBureau:
         ni = si + 113
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -730,6 +756,7 @@ class BfsBureau:
         ni = si + 111
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -745,6 +772,7 @@ class BfsBureau:
         ni = si + 54
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -760,6 +788,7 @@ class BfsBureau:
         ni = si + -58
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -775,6 +804,7 @@ class BfsBureau:
         ni = si + -113
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -790,6 +820,7 @@ class BfsBureau:
         ni = si + -111
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -805,6 +836,7 @@ class BfsBureau:
         ni = si + -54
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -828,6 +860,7 @@ class BfsBureau:
             ni = idx + 168
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -843,6 +876,7 @@ class BfsBureau:
             ni = idx + -168
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -858,6 +892,7 @@ class BfsBureau:
             ni = idx + 3
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -873,6 +908,7 @@ class BfsBureau:
             ni = idx + -3
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -888,6 +924,7 @@ class BfsBureau:
             ni = idx + 114
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -903,6 +940,7 @@ class BfsBureau:
             ni = idx + 110
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -918,6 +956,7 @@ class BfsBureau:
             ni = idx + -114
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -933,6 +972,7 @@ class BfsBureau:
             ni = idx + -110
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -951,7 +991,7 @@ class BfsBureau:
 
     @classmethod
     def find_bridge_route(
-            cls, start: Position, sink_set: set[int], max_iter: int = 1000
+            cls, start: Position, sink_set: set[int], max_iter: int = 1000, avoid_pos: set[int] = set()
         ):
 
 
@@ -979,6 +1019,7 @@ class BfsBureau:
         ni = si + 56
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -990,6 +1031,7 @@ class BfsBureau:
         ni = si + -56
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1001,6 +1043,7 @@ class BfsBureau:
         ni = si + 1
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1012,6 +1055,7 @@ class BfsBureau:
         ni = si + -1
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1029,6 +1073,7 @@ class BfsBureau:
             ni = cidx + 56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1040,6 +1085,7 @@ class BfsBureau:
             ni = cidx + -56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1051,6 +1097,7 @@ class BfsBureau:
             ni = cidx + 1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1062,6 +1109,7 @@ class BfsBureau:
             ni = cidx + -1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1078,6 +1126,7 @@ class BfsBureau:
             ni = cidx + 56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1089,6 +1138,7 @@ class BfsBureau:
             ni = cidx + -56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1100,6 +1150,7 @@ class BfsBureau:
             ni = cidx + 1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1111,6 +1162,7 @@ class BfsBureau:
             ni = cidx + -1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1127,6 +1179,7 @@ class BfsBureau:
             ni = cidx + 56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1138,6 +1191,7 @@ class BfsBureau:
             ni = cidx + -56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1149,6 +1203,7 @@ class BfsBureau:
             ni = cidx + 1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1160,6 +1215,7 @@ class BfsBureau:
             ni = cidx + -1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1181,6 +1237,7 @@ class BfsBureau:
         ni = si + 168
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1194,6 +1251,7 @@ class BfsBureau:
         ni = si + -168
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1207,6 +1265,7 @@ class BfsBureau:
         ni = si + 3
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1220,6 +1279,7 @@ class BfsBureau:
         ni = si + -3
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1233,6 +1293,7 @@ class BfsBureau:
         ni = si + 114
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1246,6 +1307,7 @@ class BfsBureau:
         ni = si + 110
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1259,6 +1321,7 @@ class BfsBureau:
         ni = si + -114
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1272,6 +1335,7 @@ class BfsBureau:
         ni = si + -110
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1285,6 +1349,7 @@ class BfsBureau:
         ni = si + 58
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1298,6 +1363,7 @@ class BfsBureau:
         ni = si + 113
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1311,6 +1377,7 @@ class BfsBureau:
         ni = si + 111
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1324,6 +1391,7 @@ class BfsBureau:
         ni = si + 54
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1337,6 +1405,7 @@ class BfsBureau:
         ni = si + -58
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1350,6 +1419,7 @@ class BfsBureau:
         ni = si + -113
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1363,6 +1433,7 @@ class BfsBureau:
         ni = si + -111
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1376,6 +1447,7 @@ class BfsBureau:
         ni = si + -54
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1397,6 +1469,7 @@ class BfsBureau:
             ni = idx + 168
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1410,6 +1483,7 @@ class BfsBureau:
             ni = idx + -168
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1423,6 +1497,7 @@ class BfsBureau:
             ni = idx + 3
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1436,6 +1511,7 @@ class BfsBureau:
             ni = idx + -3
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1449,6 +1525,7 @@ class BfsBureau:
             ni = idx + 114
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1462,6 +1539,7 @@ class BfsBureau:
             ni = idx + 110
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1475,6 +1553,7 @@ class BfsBureau:
             ni = idx + -114
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1488,6 +1567,7 @@ class BfsBureau:
             ni = idx + -110
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -26089,6 +26169,8 @@ class RouteToCore:
     from_pos: Position
     killed: set[Position] = set()
     prevRoute = []
+    backTracking = False
+    pathFindingKill: set[int] = set()
 
     @classmethod
     def set_pos(cls, pos: Position, fullReset = True):
@@ -26096,10 +26178,15 @@ class RouteToCore:
             cls.is_active = False
             cls.prevRoute.clear()
             return
-        cls.is_active = True
-        cls.from_pos = pos
+
         if fullReset:
             cls.prevRoute.clear()
+            cls.backTracking = False 
+        else:
+            cls.prevRoute.append(cls.from_pos)
+            cls.backTracking = False # Added here to clear backtracking once we resume forward progress
+        cls.is_active = True
+        cls.from_pos = pos
 
 
     @classmethod
@@ -26111,12 +26198,14 @@ class RouteToCore:
             cls.from_pos,
             Unit.core_pos_set,
             max_iter=0,
+            avoid_pos = cls.pathFindingKill | RouteToCore.pathFindingKill #| RouteToBreach.pathFindingKill
         )
         # otherwise allow all sinks
         if first_target is None:
             bridge_dist, first_target = BfsBureau.find_bridge_route(
                 cls.from_pos,
                 DarkForest.core_sink_set,  # was sink_set
+                avoid_pos = cls.pathFindingKill | RouteToFoundry.pathFindingKill #| RouteToBreach.pathFindingKill
             )
 
         
@@ -26136,11 +26225,9 @@ class RouteToCore:
                     BuildManager.dbuild_armoured_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
                 else:
                     BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
-                cls.prevRoute.append(cls.from_pos)
                 cls.set_pos(target,False)
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
-            cls.prevRoute.append(cls.from_pos)
             cls.set_pos(target,False)
 
     @classmethod
@@ -26153,16 +26240,17 @@ class RouteToCore:
         ti = Map.tile_info[x][y]
         if ti is None:
             return False
-        if Pathfinder.given_up:
+        if not cls.backTracking and Pathfinder.given_up:
             return True
 
         if ti.has_building:
             if not ti.is_building_ally:
                 return True
-            if ti.entity_type in Constants.TRANSPORTERS_SET:
-                return True
-            if ti.entity_type != EntityType.ROAD:  # redundant
-                return True
+            if not cls.backTracking:
+                if ti.entity_type in Constants.TRANSPORTERS_SET:
+                    return True
+                if ti.entity_type != EntityType.ROAD:  # redundant
+                    return True
         return False
 
 
@@ -26172,15 +26260,23 @@ class RouteToCore:
             cls.is_active = False
             cls.killed.add(cls.from_pos)
             Debug.diamond(Color.PURPLE)
+            print("RouteToCore: giving up, no previous route to backtrack to")
+            if Pathfinder.given_up:
+                cls.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
             return True
         else:
-            cls.from_pos = cls.prevRoute[-1]
-            cls.prevRoute.pop()
+            cls.killed.add(cls.from_pos)
+            if Pathfinder.given_up:
+                cls.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
+            cls.from_pos = cls.prevRoute.pop()
+            print("RouteToCore: backtracking to", cls.from_pos)
+            cls.backTracking = True
             return False
 
 
     @classmethod
     def do_routing(cls):
+        print("RouteToCore: doing routing from", cls.from_pos)
         if cls.should_give_up():
             if cls.give_up():
                 StateMoveTo.run(Explore.get_target()) # new
@@ -26203,7 +26299,9 @@ class RouteToFoundry:
     is_active: bool = False
     from_pos: Position
     killed: set[Position] = set()
+    pathFindingKill: set[int] = set()
     prevRoute = []
+    backTracking = False
 
     # Positions that have been claimed (or built) as foundry sites.
     # Class-level so all bots in this process see the same table.
@@ -26224,7 +26322,11 @@ class RouteToFoundry:
         """
         target_set = {foundry_encoded}
 
-        _, first = BfsBureau.find_bridge_route_avoid_ti_adj(ore_pos, target_set)
+        _, first = BfsBureau.find_bridge_route_avoid_ti_adj(
+            ore_pos, 
+            target_set, 
+            avoid_pos = cls.pathFindingKill | RouteToCore.pathFindingKill #| RouteToBreach.pathFindingKill
+        )
         if first is not None:
             return True
 
@@ -26293,10 +26395,14 @@ class RouteToFoundry:
             cls.prevRoute.clear()
             return
 
-        cls.is_active = True
-        cls.from_pos = pos
         if fullReset:
             cls.prevRoute.clear()
+            cls.backTracking = False 
+        else:
+            cls.prevRoute.append(cls.from_pos)
+            cls.backTracking = False # Added here to clear backtracking once we resume forward progress
+        cls.is_active = True
+        cls.from_pos = pos
 
     @classmethod
     def try_build_route(cls):
@@ -26307,6 +26413,7 @@ class RouteToFoundry:
         bridge_dist, first_target = BfsBureau.find_bridge_route_avoid_ti_adj(
             cls.from_pos,
             target_set,
+            avoid_pos = cls.pathFindingKill | RouteToCore.pathFindingKill #| RouteToBreach.pathFindingKill
         )
 
         
@@ -26323,11 +26430,9 @@ class RouteToFoundry:
         if cls.from_pos.distance_squared(target) == 1:
             if BuildManager.can_dbuild_conveyor(cls.from_pos):
                 BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
-                cls.prevRoute.append(cls.from_pos)
                 cls.set_pos(target,False)
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
-            cls.prevRoute.append(cls.from_pos)
             cls.set_pos(target,False)
 
     @classmethod
@@ -26340,7 +26445,7 @@ class RouteToFoundry:
         ti = Map.tile_info[x][y]
         if ti is None:
             return False
-        if Pathfinder.given_up:
+        if not cls.backTracking and Pathfinder.given_up:
             return True
 
         if ti.has_building:
@@ -26348,11 +26453,12 @@ class RouteToFoundry:
                 return True
             if ti.entity_type == EntityType.BRIDGE: #just avoid building foundry on top of a bridge, since that would be sad (too much logic an thinking required)
                     return True
-            if cls._foundry_target != (((x) + 3) * 56 + ((y) + 3)):
-                if ti.entity_type in Constants.TRANSPORTERS_SET:
-                    return True
-                if ti.entity_type != EntityType.ROAD:
-                    return True
+            if not cls.backTracking:
+                if cls._foundry_target != (((x) + 3) * 56 + ((y) + 3)):
+                    if ti.entity_type in Constants.TRANSPORTERS_SET:
+                        return True
+                    if ti.entity_type != EntityType.ROAD:
+                        return True
             
         return False
 
@@ -26365,11 +26471,18 @@ class RouteToFoundry:
                 cls.planned_foundry_positions.discard(cls._foundry_target)
                 cls._foundry_target = None
             cls.killed.add(cls.from_pos)
+            if Pathfinder.given_up:
+                cls.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
             Debug.diamond(Color.PURPLE)
+            print("RouteToFoundry: giving up from", cls.from_pos)
             return True
         else:
-            cls.from_pos = cls.prevRoute[-1]
-            cls.prevRoute.pop()
+            cls.killed.add(cls.from_pos)
+            if Pathfinder.given_up:
+                cls.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
+            cls.from_pos = cls.prevRoute.pop()
+            print("RouteToFoundry: backtracking to", cls.from_pos)
+            cls.backTracking = True
             return False
 
     @classmethod
