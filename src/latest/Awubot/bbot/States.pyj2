@@ -79,7 +79,7 @@ class StateMoveTo:
 
 class StateBuildTurret:
     @classmethod
-    def run(cls, pos, banned_dir: Direction | None):
+    def run(cls, pos, banned_dir: Direction | None = None):
         Pathfinder.move_to(pos, ban_target_pos=True)
 
         if BuildManager.can_dbuild_sentinel(pos):

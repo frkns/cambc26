@@ -18,6 +18,9 @@ from Generated import *
 
 
 class HealExecutor:
+    last_healed: Candidate | None = None
+    last_healed_round: int = -1
+        
     class Candidate:
         position: Position
         is_accessible: bool
@@ -25,6 +28,7 @@ class HealExecutor:
         building_hp: int
         bot_heal: int
         bot_hp: int
+        is_turret: bool
 
     cand: list[Candidate | None] = [None] * 9
 
@@ -49,6 +53,7 @@ class HealExecutor:
             cand.bot_heal = 0
             cand.building_hp = {{ INF }}
             cand.bot_hp = {{ INF }}
+            cand.is_turret = False
 
             ti = Map.tile_info[nx][ny]
 
@@ -58,6 +63,7 @@ class HealExecutor:
                     Constants.MAX_HP_MAP[ti.entity_type] - ti.building_hp
                 )
                 cand.building_hp = ti.building_hp
+                cand.is_turret = ti.has_turret
 
             {% if dir == Direction.CENTRE %}
             cand.bot_heal = min(
@@ -89,6 +95,9 @@ class HealExecutor:
         if a.building_hp != b.building_hp:
             return a.building_hp < b.building_hp
 
+        if a.is_turret and (not b.is_turret): return True
+        if (not a.is_turret) and b.is_turret: return False
+
         if a.bot_heal != b.bot_heal:
             return a.bot_heal > b.bot_heal
 
@@ -119,6 +128,8 @@ class HealExecutor:
 
         Debug.line(best.position, Color.LIME)
         Globals.ct.heal(best.position)
+        cls.last_healed_round = Globals.round
+        cls.last_healed = best
     
         
 

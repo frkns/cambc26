@@ -19,11 +19,18 @@ from Generated import *
 
 class Attacker:
     @classmethod
+    def get_target(cls) -> Position | None:
+        t = cls.get_road_target()
+        if t is not None: 
+            return t
+        return cls.get_trans_target()
+
+    @classmethod
     def get_trans_target(cls) -> Position | None:
         trans: TransporterInfo = VisionTracker.get_best_trans_atk_target()
         if trans is None:
             return None
-        if not trans.reachable: 
+        if not trans.bfs_dist < 10: 
             return None
         if trans.flowing_into_ally:
             return None
@@ -33,6 +40,17 @@ class Attacker:
             return None
         return trans.position
 
+
+    @classmethod
+    def get_road_target(cls) -> Position | None:
+        road: TransporterInfo = VisionTracker.get_best_road_atk_target()
+        if road is None:
+            return None
+        if not road.bfs_dist < 10: 
+            return None
+        if not VisionTracker.me_is_canonical_ally(road.position):
+            return None
+        return road.position
 
     @classmethod
     def compute_readiness(cls):
@@ -80,7 +98,7 @@ class Attacker:
         tile_info = Map.tile_info
         ti = tile_info[x][y]
 
-        # assume caller passes in enemy transporter position
+        # assume caller passes in position with enemy building
         {% if LOCAL %}
         assert not ti.is_building_ally
         {% endif %}

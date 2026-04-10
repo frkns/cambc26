@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-10 12:48:25 (local)
+# latest,  @ 2026-04-10 17:10:39 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -45,11 +45,18 @@ class AdjacentInfo:
 
 class Attacker:
     @classmethod
+    def get_target(cls) -> Position | None:
+        t = cls.get_road_target()
+        if t is not None: 
+            return t
+        return cls.get_trans_target()
+
+    @classmethod
     def get_trans_target(cls) -> Position | None:
         trans: TransporterInfo = VisionTracker.get_best_trans_atk_target()
         if trans is None:
             return None
-        if not trans.reachable: 
+        if not trans.bfs_dist < 10: 
             return None
         if trans.flowing_into_ally:
             return None
@@ -59,6 +66,17 @@ class Attacker:
             return None
         return trans.position
 
+
+    @classmethod
+    def get_road_target(cls) -> Position | None:
+        road: TransporterInfo = VisionTracker.get_best_road_atk_target()
+        if road is None:
+            return None
+        if not road.bfs_dist < 10: 
+            return None
+        if not VisionTracker.me_is_canonical_ally(road.position):
+            return None
+        return road.position
 
     @classmethod
     def compute_readiness(cls):
@@ -123,7 +141,7 @@ class Attacker:
         tile_info = Map.tile_info
         ti = tile_info[x][y]
 
-        # assume caller passes in enemy transporter position
+        # assume caller passes in position with enemy building
         assert not ti.is_building_ally
         
         hp = ti.building_hp
@@ -252,7 +270,7 @@ class BfsBureau:
 
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             if ti.has_bot:
-                now_weight[idx] += 10
+                now_weight[idx] += 100
 
             if ti.env == Environment.ORE_TITANIUM:
                 ti_ore_adj[idx -1] = True
@@ -339,7 +357,7 @@ class BfsBureau:
 
     @classmethod
     def find_bridge_route_avoid_ti_adj(
-            cls, start: Position, sink_set: set[int], max_iter: int = 1000
+            cls, start: Position, sink_set: set[int], max_iter: int = 1000, avoid_pos: set[int] = set()
         ):
 
 
@@ -368,6 +386,7 @@ class BfsBureau:
         ni = si + 56
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -381,6 +400,7 @@ class BfsBureau:
         ni = si + -56
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -394,6 +414,7 @@ class BfsBureau:
         ni = si + 1
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -407,6 +428,7 @@ class BfsBureau:
         ni = si + -1
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -426,6 +448,7 @@ class BfsBureau:
             ni = cidx + 56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -439,6 +462,7 @@ class BfsBureau:
             ni = cidx + -56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -452,6 +476,7 @@ class BfsBureau:
             ni = cidx + 1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -465,6 +490,7 @@ class BfsBureau:
             ni = cidx + -1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -483,6 +509,7 @@ class BfsBureau:
             ni = cidx + 56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -496,6 +523,7 @@ class BfsBureau:
             ni = cidx + -56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -509,6 +537,7 @@ class BfsBureau:
             ni = cidx + 1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -522,6 +551,7 @@ class BfsBureau:
             ni = cidx + -1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -540,6 +570,7 @@ class BfsBureau:
             ni = cidx + 56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -553,6 +584,7 @@ class BfsBureau:
             ni = cidx + -56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -566,6 +598,7 @@ class BfsBureau:
             ni = cidx + 1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -579,6 +612,7 @@ class BfsBureau:
             ni = cidx + -1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -602,6 +636,7 @@ class BfsBureau:
         ni = si + 168
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -617,6 +652,7 @@ class BfsBureau:
         ni = si + -168
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -632,6 +668,7 @@ class BfsBureau:
         ni = si + 3
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -647,6 +684,7 @@ class BfsBureau:
         ni = si + -3
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -662,6 +700,7 @@ class BfsBureau:
         ni = si + 114
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -677,6 +716,7 @@ class BfsBureau:
         ni = si + 110
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -692,6 +732,7 @@ class BfsBureau:
         ni = si + -114
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -707,6 +748,7 @@ class BfsBureau:
         ni = si + -110
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -722,6 +764,7 @@ class BfsBureau:
         ni = si + 58
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -737,6 +780,7 @@ class BfsBureau:
         ni = si + 113
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -752,6 +796,7 @@ class BfsBureau:
         ni = si + 111
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -767,6 +812,7 @@ class BfsBureau:
         ni = si + 54
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -782,6 +828,7 @@ class BfsBureau:
         ni = si + -58
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -797,6 +844,7 @@ class BfsBureau:
         ni = si + -113
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -812,6 +860,7 @@ class BfsBureau:
         ni = si + -111
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -827,6 +876,7 @@ class BfsBureau:
         ni = si + -54
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -850,6 +900,7 @@ class BfsBureau:
             ni = idx + 168
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -865,6 +916,7 @@ class BfsBureau:
             ni = idx + -168
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -880,6 +932,7 @@ class BfsBureau:
             ni = idx + 3
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -895,6 +948,7 @@ class BfsBureau:
             ni = idx + -3
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -910,6 +964,7 @@ class BfsBureau:
             ni = idx + 114
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -925,6 +980,7 @@ class BfsBureau:
             ni = idx + 110
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -940,6 +996,7 @@ class BfsBureau:
             ni = idx + -114
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -955,6 +1012,7 @@ class BfsBureau:
             ni = idx + -110
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -973,7 +1031,7 @@ class BfsBureau:
 
     @classmethod
     def find_bridge_route(
-            cls, start: Position, sink_set: set[int], max_iter: int = 1000
+            cls, start: Position, sink_set: set[int], max_iter: int = 1000, avoid_pos: set[int] = set()
         ):
 
 
@@ -1001,6 +1059,7 @@ class BfsBureau:
         ni = si + 56
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1012,6 +1071,7 @@ class BfsBureau:
         ni = si + -56
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1023,6 +1083,7 @@ class BfsBureau:
         ni = si + 1
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1034,6 +1095,7 @@ class BfsBureau:
         ni = si + -1
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1051,6 +1113,7 @@ class BfsBureau:
             ni = cidx + 56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1062,6 +1125,7 @@ class BfsBureau:
             ni = cidx + -56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1073,6 +1137,7 @@ class BfsBureau:
             ni = cidx + 1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1084,6 +1149,7 @@ class BfsBureau:
             ni = cidx + -1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1100,6 +1166,7 @@ class BfsBureau:
             ni = cidx + 56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1111,6 +1178,7 @@ class BfsBureau:
             ni = cidx + -56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1122,6 +1190,7 @@ class BfsBureau:
             ni = cidx + 1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1133,6 +1202,7 @@ class BfsBureau:
             ni = cidx + -1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1149,6 +1219,7 @@ class BfsBureau:
             ni = cidx + 56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1160,6 +1231,7 @@ class BfsBureau:
             ni = cidx + -56
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1171,6 +1243,7 @@ class BfsBureau:
             ni = cidx + 1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1182,6 +1255,7 @@ class BfsBureau:
             ni = cidx + -1
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1203,6 +1277,7 @@ class BfsBureau:
         ni = si + 168
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1216,6 +1291,7 @@ class BfsBureau:
         ni = si + -168
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1229,6 +1305,7 @@ class BfsBureau:
         ni = si + 3
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1242,6 +1319,7 @@ class BfsBureau:
         ni = si + -3
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1255,6 +1333,7 @@ class BfsBureau:
         ni = si + 114
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1268,6 +1347,7 @@ class BfsBureau:
         ni = si + 110
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1281,6 +1361,7 @@ class BfsBureau:
         ni = si + -114
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1294,6 +1375,7 @@ class BfsBureau:
         ni = si + -110
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1307,6 +1389,7 @@ class BfsBureau:
         ni = si + 58
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1320,6 +1403,7 @@ class BfsBureau:
         ni = si + 113
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1333,6 +1417,7 @@ class BfsBureau:
         ni = si + 111
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1346,6 +1431,7 @@ class BfsBureau:
         ni = si + 54
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1359,6 +1445,7 @@ class BfsBureau:
         ni = si + -58
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1372,6 +1459,7 @@ class BfsBureau:
         ni = si + -113
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1385,6 +1473,7 @@ class BfsBureau:
         ni = si + -111
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1398,6 +1487,7 @@ class BfsBureau:
         ni = si + -54
         if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1419,6 +1509,7 @@ class BfsBureau:
             ni = idx + 168
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1432,6 +1523,7 @@ class BfsBureau:
             ni = idx + -168
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1445,6 +1537,7 @@ class BfsBureau:
             ni = idx + 3
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1458,6 +1551,7 @@ class BfsBureau:
             ni = idx + -3
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1471,6 +1565,7 @@ class BfsBureau:
             ni = idx + 114
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1484,6 +1579,7 @@ class BfsBureau:
             ni = idx + 110
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1497,6 +1593,7 @@ class BfsBureau:
             ni = idx + -114
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1510,6 +1607,7 @@ class BfsBureau:
             ni = idx + -110
             if (
             not visited[ni] and
+            ni not in avoid_pos and
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -23384,6 +23482,9 @@ class HarvesterAdjacent:
 # ============================================================
 
 class HealExecutor:
+    last_healed: Candidate | None = None
+    last_healed_round: int = -1
+        
     class Candidate:
         position: Position
         is_accessible: bool
@@ -23391,6 +23492,7 @@ class HealExecutor:
         building_hp: int
         bot_heal: int
         bot_hp: int
+        is_turret: bool
 
     cand: list[Candidate | None] = [None] * 9
 
@@ -23413,6 +23515,7 @@ class HealExecutor:
             cand.bot_heal = 0
             cand.building_hp = 1000000
             cand.bot_hp = 1000000
+            cand.is_turret = False
 
             ti = Map.tile_info[nx][ny]
 
@@ -23422,6 +23525,7 @@ class HealExecutor:
                     Constants.MAX_HP_MAP[ti.entity_type] - ti.building_hp
                 )
                 cand.building_hp = ti.building_hp
+                cand.is_turret = ti.has_turret
 
             if ti.has_bot and ti.is_bot_ally:
                 cand.bot_heal = min(
@@ -23445,6 +23549,7 @@ class HealExecutor:
             cand.bot_heal = 0
             cand.building_hp = 1000000
             cand.bot_hp = 1000000
+            cand.is_turret = False
 
             ti = Map.tile_info[nx][ny]
 
@@ -23454,6 +23559,7 @@ class HealExecutor:
                     Constants.MAX_HP_MAP[ti.entity_type] - ti.building_hp
                 )
                 cand.building_hp = ti.building_hp
+                cand.is_turret = ti.has_turret
 
             if ti.has_bot and ti.is_bot_ally:
                 cand.bot_heal = min(
@@ -23477,6 +23583,7 @@ class HealExecutor:
             cand.bot_heal = 0
             cand.building_hp = 1000000
             cand.bot_hp = 1000000
+            cand.is_turret = False
 
             ti = Map.tile_info[nx][ny]
 
@@ -23486,6 +23593,7 @@ class HealExecutor:
                     Constants.MAX_HP_MAP[ti.entity_type] - ti.building_hp
                 )
                 cand.building_hp = ti.building_hp
+                cand.is_turret = ti.has_turret
 
             if ti.has_bot and ti.is_bot_ally:
                 cand.bot_heal = min(
@@ -23509,6 +23617,7 @@ class HealExecutor:
             cand.bot_heal = 0
             cand.building_hp = 1000000
             cand.bot_hp = 1000000
+            cand.is_turret = False
 
             ti = Map.tile_info[nx][ny]
 
@@ -23518,6 +23627,7 @@ class HealExecutor:
                     Constants.MAX_HP_MAP[ti.entity_type] - ti.building_hp
                 )
                 cand.building_hp = ti.building_hp
+                cand.is_turret = ti.has_turret
 
             if ti.has_bot and ti.is_bot_ally:
                 cand.bot_heal = min(
@@ -23541,6 +23651,7 @@ class HealExecutor:
             cand.bot_heal = 0
             cand.building_hp = 1000000
             cand.bot_hp = 1000000
+            cand.is_turret = False
 
             ti = Map.tile_info[nx][ny]
 
@@ -23550,6 +23661,7 @@ class HealExecutor:
                     Constants.MAX_HP_MAP[ti.entity_type] - ti.building_hp
                 )
                 cand.building_hp = ti.building_hp
+                cand.is_turret = ti.has_turret
 
             if ti.has_bot and ti.is_bot_ally:
                 cand.bot_heal = min(
@@ -23573,6 +23685,7 @@ class HealExecutor:
             cand.bot_heal = 0
             cand.building_hp = 1000000
             cand.bot_hp = 1000000
+            cand.is_turret = False
 
             ti = Map.tile_info[nx][ny]
 
@@ -23582,6 +23695,7 @@ class HealExecutor:
                     Constants.MAX_HP_MAP[ti.entity_type] - ti.building_hp
                 )
                 cand.building_hp = ti.building_hp
+                cand.is_turret = ti.has_turret
 
             if ti.has_bot and ti.is_bot_ally:
                 cand.bot_heal = min(
@@ -23605,6 +23719,7 @@ class HealExecutor:
             cand.bot_heal = 0
             cand.building_hp = 1000000
             cand.bot_hp = 1000000
+            cand.is_turret = False
 
             ti = Map.tile_info[nx][ny]
 
@@ -23614,6 +23729,7 @@ class HealExecutor:
                     Constants.MAX_HP_MAP[ti.entity_type] - ti.building_hp
                 )
                 cand.building_hp = ti.building_hp
+                cand.is_turret = ti.has_turret
 
             if ti.has_bot and ti.is_bot_ally:
                 cand.bot_heal = min(
@@ -23637,6 +23753,7 @@ class HealExecutor:
             cand.bot_heal = 0
             cand.building_hp = 1000000
             cand.bot_hp = 1000000
+            cand.is_turret = False
 
             ti = Map.tile_info[nx][ny]
 
@@ -23646,6 +23763,7 @@ class HealExecutor:
                     Constants.MAX_HP_MAP[ti.entity_type] - ti.building_hp
                 )
                 cand.building_hp = ti.building_hp
+                cand.is_turret = ti.has_turret
 
             if ti.has_bot and ti.is_bot_ally:
                 cand.bot_heal = min(
@@ -23669,6 +23787,7 @@ class HealExecutor:
             cand.bot_heal = 0
             cand.building_hp = 1000000
             cand.bot_hp = 1000000
+            cand.is_turret = False
 
             ti = Map.tile_info[nx][ny]
 
@@ -23678,6 +23797,7 @@ class HealExecutor:
                     Constants.MAX_HP_MAP[ti.entity_type] - ti.building_hp
                 )
                 cand.building_hp = ti.building_hp
+                cand.is_turret = ti.has_turret
 
             cand.bot_heal = min(
                 4,
@@ -23698,6 +23818,9 @@ class HealExecutor:
 
         if a.building_hp != b.building_hp:
             return a.building_hp < b.building_hp
+
+        if a.is_turret and (not b.is_turret): return True
+        if (not a.is_turret) and b.is_turret: return False
 
         if a.bot_heal != b.bot_heal:
             return a.bot_heal > b.bot_heal
@@ -23741,6 +23864,8 @@ class HealExecutor:
 
         Debug.line(best.position, Color.LIME)
         Globals.ct.heal(best.position)
+        cls.last_healed_round = Globals.round
+        cls.last_healed = best
 
 
 # ============================================================
@@ -23780,14 +23905,14 @@ class HealTargetInfo:
         if a.building_hp != b.building_hp:
             return a.building_hp < b.building_hp
 
+        if a.bfs_dist != b.bfs_dist:
+            return a.bfs_dist < b.bfs_dist
+
         if a.bot_heal != b.bot_heal:
             return a.bot_heal > b.bot_heal
 
         if a.bot_hp != b.bot_hp:
             return a.bot_hp < b.bot_hp
-
-        if a.bfs_dist != b.bfs_dist:
-            return a.bfs_dist < b.bfs_dist
 
         return False
 
@@ -25491,7 +25616,7 @@ class OreExecutive:
                 continue
             
             if ti.has_building and not ti.is_building_ally:
-                heapq.heappop(cls.ti_queue)
+                heapq.heappop(cls.ax_queue)
                 cls.state[pos] = 3
                 continue
 
@@ -25922,6 +26047,21 @@ class Profiler:
 
 
 # ============================================================
+# RoadInfo
+# ============================================================
+
+class RoadInfo:
+    position: Position
+    hp: int
+    bfs_dist: int
+
+    def is_better_road_atk_target_than(a: RoadInfo, b: RoadInfo) -> bool:
+        if a.bfs_dist != b.bfs_dist:
+            return a.bfs_dist < b.bfs_dist
+        return a.hp < b.hp
+
+
+# ============================================================
 # RouteToBreach
 # ============================================================
 
@@ -26137,6 +26277,8 @@ class RouteToCore:
     from_pos: Position
     killed: set[Position] = set()
     prevRoute = []
+    backTracking = False
+    pathFindingKill: set[int] = set()
 
     @classmethod
     def set_pos(cls, pos: Position, fullReset = True):
@@ -26144,10 +26286,15 @@ class RouteToCore:
             cls.is_active = False
             cls.prevRoute.clear()
             return
-        cls.is_active = True
-        cls.from_pos = pos
+
         if fullReset:
             cls.prevRoute.clear()
+            cls.backTracking = False 
+        else:
+            cls.prevRoute.append(cls.from_pos)
+            cls.backTracking = False # Added here to clear backtracking once we resume forward progress
+        cls.is_active = True
+        cls.from_pos = pos
 
 
     @classmethod
@@ -26159,12 +26306,14 @@ class RouteToCore:
             cls.from_pos,
             Unit.core_pos_set,
             max_iter=0,
+            avoid_pos = cls.pathFindingKill | RouteToCore.pathFindingKill #| RouteToBreach.pathFindingKill
         )
         # otherwise allow all sinks
         if first_target is None:
             bridge_dist, first_target = BfsBureau.find_bridge_route(
                 cls.from_pos,
                 DarkForest.core_sink_set,  # was sink_set
+                avoid_pos = cls.pathFindingKill | RouteToFoundry.pathFindingKill #| RouteToBreach.pathFindingKill
             )
 
         print(f"""{bridge_dist=}""")
@@ -26184,11 +26333,9 @@ class RouteToCore:
                     BuildManager.dbuild_armoured_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
                 else:
                     BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
-                cls.prevRoute.append(cls.from_pos)
                 cls.set_pos(target,False)
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
-            cls.prevRoute.append(cls.from_pos)
             cls.set_pos(target,False)
 
     @classmethod
@@ -26201,16 +26348,17 @@ class RouteToCore:
         ti = Map.tile_info[x][y]
         if ti is None:
             return False
-        if Pathfinder.given_up:
+        if not cls.backTracking and Pathfinder.given_up:
             return True
 
         if ti.has_building:
             if not ti.is_building_ally:
                 return True
-            if ti.entity_type in Constants.TRANSPORTERS_SET:
-                return True
-            if ti.entity_type != EntityType.ROAD:  # redundant
-                return True
+            if not cls.backTracking:
+                if ti.entity_type in Constants.TRANSPORTERS_SET:
+                    return True
+                if ti.entity_type != EntityType.ROAD:  # redundant
+                    return True
         return False
 
 
@@ -26220,15 +26368,23 @@ class RouteToCore:
             cls.is_active = False
             cls.killed.add(cls.from_pos)
             Debug.diamond(Color.PURPLE)
+            print("RouteToCore: giving up, no previous route to backtrack to")
+            if Pathfinder.given_up:
+                cls.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
             return True
         else:
-            cls.from_pos = cls.prevRoute[-1]
-            cls.prevRoute.pop()
+            cls.killed.add(cls.from_pos)
+            if Pathfinder.given_up:
+                cls.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
+            cls.from_pos = cls.prevRoute.pop()
+            print("RouteToCore: backtracking to", cls.from_pos)
+            cls.backTracking = True
             return False
 
 
     @classmethod
     def do_routing(cls):
+        print("RouteToCore: doing routing from", cls.from_pos)
         if cls.should_give_up():
             if cls.give_up():
                 StateMoveTo.run(Explore.get_target()) # new
@@ -26251,7 +26407,9 @@ class RouteToFoundry:
     is_active: bool = False
     from_pos: Position
     killed: set[Position] = set()
+    pathFindingKill: set[int] = set()
     prevRoute = []
+    backTracking = False
 
     # Positions that have been claimed (or built) as foundry sites.
     # Class-level so all bots in this process see the same table.
@@ -26272,7 +26430,11 @@ class RouteToFoundry:
         """
         target_set = {foundry_encoded}
 
-        _, first = BfsBureau.find_bridge_route_avoid_ti_adj(ore_pos, target_set)
+        _, first = BfsBureau.find_bridge_route_avoid_ti_adj(
+            ore_pos, 
+            target_set, 
+            avoid_pos = cls.pathFindingKill | RouteToCore.pathFindingKill #| RouteToBreach.pathFindingKill
+        )
         if first is not None:
             return True
 
@@ -26341,10 +26503,14 @@ class RouteToFoundry:
             cls.prevRoute.clear()
             return
 
-        cls.is_active = True
-        cls.from_pos = pos
         if fullReset:
             cls.prevRoute.clear()
+            cls.backTracking = False 
+        else:
+            cls.prevRoute.append(cls.from_pos)
+            cls.backTracking = False # Added here to clear backtracking once we resume forward progress
+        cls.is_active = True
+        cls.from_pos = pos
 
     @classmethod
     def try_build_route(cls):
@@ -26355,6 +26521,7 @@ class RouteToFoundry:
         bridge_dist, first_target = BfsBureau.find_bridge_route_avoid_ti_adj(
             cls.from_pos,
             target_set,
+            avoid_pos = cls.pathFindingKill | RouteToCore.pathFindingKill #| RouteToBreach.pathFindingKill
         )
 
         print(f"""{bridge_dist=}""")
@@ -26371,11 +26538,9 @@ class RouteToFoundry:
         if cls.from_pos.distance_squared(target) == 1:
             if BuildManager.can_dbuild_conveyor(cls.from_pos):
                 BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
-                cls.prevRoute.append(cls.from_pos)
                 cls.set_pos(target,False)
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
-            cls.prevRoute.append(cls.from_pos)
             cls.set_pos(target,False)
 
     @classmethod
@@ -26388,7 +26553,7 @@ class RouteToFoundry:
         ti = Map.tile_info[x][y]
         if ti is None:
             return False
-        if Pathfinder.given_up:
+        if not cls.backTracking and Pathfinder.given_up:
             return True
 
         if ti.has_building:
@@ -26396,11 +26561,12 @@ class RouteToFoundry:
                 return True
             if ti.entity_type == EntityType.BRIDGE: #just avoid building foundry on top of a bridge, since that would be sad (too much logic an thinking required)
                     return True
-            if cls._foundry_target != (((x) + 3) * 56 + ((y) + 3)):
-                if ti.entity_type in Constants.TRANSPORTERS_SET:
-                    return True
-                if ti.entity_type != EntityType.ROAD:
-                    return True
+            if not cls.backTracking:
+                if cls._foundry_target != (((x) + 3) * 56 + ((y) + 3)):
+                    if ti.entity_type in Constants.TRANSPORTERS_SET:
+                        return True
+                    if ti.entity_type != EntityType.ROAD:
+                        return True
             
         return False
 
@@ -26413,11 +26579,18 @@ class RouteToFoundry:
                 cls.planned_foundry_positions.discard(cls._foundry_target)
                 cls._foundry_target = None
             cls.killed.add(cls.from_pos)
+            if Pathfinder.given_up:
+                cls.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
             Debug.diamond(Color.PURPLE)
+            print("RouteToFoundry: giving up from", cls.from_pos)
             return True
         else:
-            cls.from_pos = cls.prevRoute[-1]
-            cls.prevRoute.pop()
+            cls.killed.add(cls.from_pos)
+            if Pathfinder.given_up:
+                cls.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
+            cls.from_pos = cls.prevRoute.pop()
+            print("RouteToFoundry: backtracking to", cls.from_pos)
+            cls.backTracking = True
             return False
 
     @classmethod
@@ -28539,7 +28712,7 @@ class StateBuildShield:
 
 class StateBuildTurret:
     @classmethod
-    def run(cls, pos, banned_dir: Direction | None):
+    def run(cls, pos, banned_dir: Direction | None = None):
         Pathfinder.move_to(pos, ban_target_pos=True)
 
         if BuildManager.can_dbuild_sentinel(pos):
@@ -29014,11 +29187,10 @@ class TransporterInfo:
     ti: TileInfo
     position: Position
     target: Position
-    reachable: bool
+    easily_reachable: bool
     bfs_dist: int
     bfs_dist_target: int
     flow: int
-    is_bridge: bool
     entity_type: EntityType
     harvester_adjacent: bool
     is_ally: bool
@@ -29030,8 +29202,8 @@ class TransporterInfo:
         if a.flowing_into_ally: return False
         if b.flowing_into_ally: return True
 
-        if not a.reachable: return False
-        if not b.reachable: return True
+        if not a.easily_reachable: return False
+        if not b.easily_reachable: return True
 
         if a.ti.has_bot and (not b.ti.has_bot): return False
         if (not a.ti.has_bot) and b.ti.has_bot: return True
@@ -29039,19 +29211,19 @@ class TransporterInfo:
         if a.harvester_adjacent and (not b.harvester_adjacent): return True
         if (not a.harvester_adjacent) and b.harvester_adjacent: return False
 
+        if a.ti.building_hp != b.ti.building_hp:
+            return a.ti.building_hp < b.ti.building_hp
+
         if a.flow != b.flow:
             return a.flow > b.flow
-
-        if a.is_bridge and (not b.is_bridge): return True
-        if (not a.is_bridge) and b.is_bridge: return False
 
         return a.bfs_dist < b.bfs_dist
 
 
     @staticmethod
     def is_better_connect_than(a: TransporterInfo, b: TransporterInfo) -> bool:
-        a_reach = a.reachable and a.easily_buildable
-        b_reach = b.reachable and b.easily_buildable
+        a_reach = a.easily_reachable and a.easily_buildable
+        b_reach = b.easily_reachable and b.easily_buildable
         if a_reach and (not b_reach): return True
         if (not a_reach) and b_reach: return False
 
@@ -29336,6 +29508,7 @@ class Util:
 # ============================================================
 
 class VisionTracker:
+    enemy_roads_harvester: list[RoadInfo]  # roads adjacent to ti harvester
     enemy_transporters: list[TransporterInfo]
     disconnected_roots: list[TransporterInfo]
     allies: list[BotInfo]
@@ -29344,6 +29517,7 @@ class VisionTracker:
     @classmethod
     def fill(cls):
         cls.enemy_transporters = []
+        cls.enemy_roads_harvester = []
         cls.disconnected_roots = []
         cls.allies = [BotInfo(Globals.my_pos, Globals.my_id)]
 
@@ -29354,15 +29528,22 @@ class VisionTracker:
             if ti.has_bot and ti.is_bot_ally:
                 cls.allies.append(BotInfo(pos, ti.bot_id))
 
+            if ti.harvester_adjacent and ti.entity_type == EntityType.ROAD and not ti.is_building_ally:
+                info = RoadInfo()
+                info.position = pos
+                info.hp = ti.building_hp
+                info.bfs_dist = BfsBureau.bfs20_dist[idx]
+                cls.enemy_roads_harvester.append(info)
+
+
             if ti.target is not None:
                 trans = TransporterInfo()
                 trans.ti = ti
                 trans.position = pos
                 trans.target = ti.target
-                trans.reachable = BfsBureau.bfs20_dist[idx] < 1000000
+                trans.easily_reachable = BfsBureau.bfs20_dist[idx] < 20
                 trans.bfs_dist = BfsBureau.bfs20_dist[idx]
                 trans.flow = DarkForest.flow[idx]
-                trans.is_bridge = ti.entity_type == EntityType.BRIDGE
                 trans.entity_type = ti.entity_type
                 trans.harvester_adjacent = ti.harvester_adjacent
                 trans.is_ally = ti.is_building_ally
@@ -29416,7 +29597,21 @@ class VisionTracker:
         for cand in enemy_transporters[1:]:
             if TransporterInfo.is_better_trans_atk_target_than(cand, best):
                 best = cand
-        return best  # no checks..?
+        return best 
+
+
+    @classmethod
+    def get_best_road_atk_target(cls) -> RoadInfo | None:
+        roads = cls.enemy_roads_harvester
+        if not roads:
+            return None
+
+        best: RoadInfo = roads[0]
+
+        for cand in roads[1:]:
+            if RoadInfo.is_better_road_atk_target_than(cand, best):
+                best = cand
+        return best 
 
 
 # ============================================================
@@ -29545,6 +29740,7 @@ class Builder(Unit):
     @classmethod
     def determine_state(cls):
         my_pos = Globals.my_pos
+        healpos = HealTargeter.get_best_target()
 
         """
         if RouteToBreach.is_active:
@@ -29561,20 +29757,28 @@ class Builder(Unit):
             Debug.dot(takedownpos, Color.PURPLE)
             return 'BuildGunner', takedownpos, None
             
-        sitterpos = SitterTakedown.get_best_hijack_position()
-        if sitterpos is not None:
-            Debug.dot(sitterpos, Color.PURPLE)
-            return 'BuildLauncherAround', sitterpos
 
         hpos = HarvesterAdjacent.get_best_hijack_position()
         if hpos is not None:
             Debug.dot(hpos, Color.PURPLE)
             return 'BuildTurret', hpos, None
 
-        healpos = HealTargeter.get_best_target()
         if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
-        
+
+        shieldpos = ShieldTargeter.get_best_target()
+        if shieldpos is not None:
+            return 'BuildShield', shieldpos, None
+
+        if (
+             HealExecutor.last_healed is not None 
+             and HealExecutor.last_healed.is_turret
+             and (Globals.round - HealExecutor.last_healed_round) <= 5
+        ):
+            if healpos is not None:
+                return 'MoveTo', healpos, '[lrh: move to heal]'
+            return 'MoveTo', HealExecutor.last_healed.position, '[lrh: wait for heal]'
+
         """
         breach_target = BreachBuild._pick_target()
         if breach_target is not None:
@@ -29584,9 +29788,6 @@ class Builder(Unit):
         if foundry_target is not None:
             return 'FoundryBuild', foundry_target
 
-        shieldpos = ShieldTargeter.get_best_target()
-        if shieldpos is not None:
-            return 'BuildShield', shieldpos, None
 
         trans: TransporterInfo = ConnectManager.get_connect_target_info()
         if trans is not None:
@@ -29595,13 +29796,13 @@ class Builder(Unit):
             if Util.dist_sq(tpos, Symmetry.enemy_core_pos) \
                     < Util.dist_sq(tpos, Unit.core_pos) \
                     and BfsBureau.bfs20_dist[(((tpos.x) + 3) * 56 + ((tpos.y) + 3))] < 100:
-                return 'BuildTurret', tpos, None if trans.is_bridge else trans.target.direction_to(tpos)
+                return 'BuildTurret', tpos 
 
             if tpos not in RouteToCore.killed:
                 RouteToCore.set_pos(tpos)
                 return 'MoveTo', tpos, 'InitRoute'
 
-        apos = Attacker.get_trans_target()
+        apos = Attacker.get_target()
         if apos is not None:
             return 'Attack', apos
 

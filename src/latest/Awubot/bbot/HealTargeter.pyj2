@@ -50,14 +50,14 @@ class HealTargetInfo:
         if a.building_hp != b.building_hp:
             return a.building_hp < b.building_hp
 
+        if a.bfs_dist != b.bfs_dist:
+            return a.bfs_dist < b.bfs_dist
+
         if a.bot_heal != b.bot_heal:
             return a.bot_heal > b.bot_heal
 
         if a.bot_hp != b.bot_hp:
             return a.bot_hp < b.bot_hp
-
-        if a.bfs_dist != b.bfs_dist:
-            return a.bfs_dist < b.bfs_dist
 
         return False
 
