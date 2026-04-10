@@ -48,7 +48,7 @@ class Attacker:
 
             {% set cond2 -%}
             (
-                ti.harvester_adjacent and ti.entity_type in Constants.PASSABLE_ATTACKABLE_SET
+                ti.harvester_adjacent and ti.entity_type in Constants.PASSABLE_ATTACKABLE_SET  # fix
             )
             {%- endset %}
 

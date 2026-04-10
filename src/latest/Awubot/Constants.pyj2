@@ -65,6 +65,13 @@ class Constants:
         EntityType.SPLITTER,
     }
 
+    PASSABLE_ATTACKABLE_SET: set[EntityType] = {
+        EntityType.ROAD,
+        EntityType.CONVEYOR,
+        EntityType.BRIDGE,
+        EntityType.SPLITTER,
+    }
+
     TURRET_SET: set[EntityType] = {
         EntityType.SENTINEL,
         EntityType.GUNNER,
