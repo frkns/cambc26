@@ -51,6 +51,8 @@ class RouteToBreach:
                 tile = Map.tile_info[candidate.x][candidate.y]
                 if tile is None:
                     continue
+                if tile.env in [Environment.WALL]:
+                    continue
                 if tile.has_building and (not tile.is_building_ally):
                     continue
                 if tile.has_building and tile.entity_type in Constants.TURRET_SET:
@@ -86,7 +88,7 @@ class RouteToBreach:
 
         target_set = {cls._breach_target}
 
-        bridge_dist, first_target = BfsBureau.find_bridge_route(
+        bridge_dist, first_target = BfsBureau.find_bridge_route_avoid_ti_adj(
             cls.from_pos,
             target_set,
         )
@@ -122,6 +124,14 @@ class RouteToBreach:
             return False
         if Pathfinder.given_up:
             return True
+
+        if ti.env in [Environment.WALL]:
+            newTarg = cls._pick_target()
+            if newTarg is None:
+                return True
+            else:
+                cls._breach_target = newTarg
+                return False
 
         if ti.has_building:
             if not ti.is_building_ally:
@@ -168,19 +178,18 @@ class RouteToBreach:
 
     @classmethod
     def try_claim_target(cls):
-        # Claim a target on first call (or if we lost one).
+        cls._breach_target = cls._pick_target()
         if cls._breach_target is None:
-            cls._breach_target = cls._pick_target()
-            if cls._breach_target is None:
-                Debug.tee("RouteToBreach: no possible breach targets, giving up")
-                cls.give_up()
-                StateMoveTo.run(Explore.get_target())
-                return
-            cls.planned_breach_positions.add(cls._breach_target)
+            Debug.tee("RouteToBreach: no possible breach targets, giving up")
+            cls.give_up()
+            StateMoveTo.run(Explore.get_target())
+            return
+        cls.planned_breach_positions.add(cls._breach_target)
 
     @classmethod
     def do_routing(cls):
         cls.try_claim_target()
+        
         if cls._breach_target is None:
             RouteToBreach.is_active = False
             return

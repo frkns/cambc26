@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-09 18:22:06 (local)
+# latest,  @ 2026-04-09 18:52:25 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -25897,6 +25897,8 @@ class RouteToBreach:
                 tile = Map.tile_info[candidate.x][candidate.y]
                 if tile is None:
                     continue
+                if tile.env in [Environment.WALL]:
+                    continue
                 if tile.has_building and (not tile.is_building_ally):
                     continue
                 if tile.has_building and tile.entity_type in Constants.TURRET_SET:
@@ -25932,7 +25934,7 @@ class RouteToBreach:
 
         target_set = {cls._breach_target}
 
-        bridge_dist, first_target = BfsBureau.find_bridge_route(
+        bridge_dist, first_target = BfsBureau.find_bridge_route_avoid_ti_adj(
             cls.from_pos,
             target_set,
         )
@@ -25968,6 +25970,14 @@ class RouteToBreach:
             return False
         if Pathfinder.given_up:
             return True
+
+        if ti.env in [Environment.WALL]:
+            newTarg = cls._pick_target()
+            if newTarg is None:
+                return True
+            else:
+                cls._breach_target = newTarg
+                return False
 
         if ti.has_building:
             if not ti.is_building_ally:
@@ -26014,19 +26024,18 @@ class RouteToBreach:
 
     @classmethod
     def try_claim_target(cls):
-        # Claim a target on first call (or if we lost one).
+        cls._breach_target = cls._pick_target()
         if cls._breach_target is None:
-            cls._breach_target = cls._pick_target()
-            if cls._breach_target is None:
-                Debug.tee("RouteToBreach: no possible breach targets, giving up")
-                cls.give_up()
-                StateMoveTo.run(Explore.get_target())
-                return
-            cls.planned_breach_positions.add(cls._breach_target)
+            Debug.tee("RouteToBreach: no possible breach targets, giving up")
+            cls.give_up()
+            StateMoveTo.run(Explore.get_target())
+            return
+        cls.planned_breach_positions.add(cls._breach_target)
 
     @classmethod
     def do_routing(cls):
         cls.try_claim_target()
+        
         if cls._breach_target is None:
             RouteToBreach.is_active = False
             return
@@ -29332,13 +29341,9 @@ class Breach(Unit):
         myDir = Globals.ct.get_direction()
         myPos = Globals.my_pos
         newPos =myPos.add(myDir).add(myDir).add(myDir)
-        print("Yo my pos is", Globals.my_pos, "and I'm facing", myDir)
-        print("Imma try to fire at", newPos)
         if Globals.ct.can_fire(newPos):
             Globals.ct.fire(newPos)
-            print("Yo we fire!", file=sys.stderr)
         newPos = myPos.add(myDir).add(myDir)
-        print("Imma try to fire at", newPos)
         if Globals.ct.can_fire(newPos):
             Globals.ct.fire(newPos)
             print("Yo we fire!", file=sys.stderr)
@@ -29440,10 +29445,10 @@ class Builder(Unit):
     def determine_state(cls):
         my_pos = Globals.my_pos
 
-        """
+        
         if RouteToBreach.is_active:
             return ('RouteBreach',)
-        """
+        
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
 
@@ -29468,11 +29473,11 @@ class Builder(Unit):
         healpos = HealTargeter.get_best_target()
         if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
-        """
+        
         breach_target = BreachBuild._pick_target()
         if breach_target is not None:
             return 'BreachBuild', breach_target
-        """
+        
         foundry_target = FoundryBuild._pick_target()
         if foundry_target is not None:
             return 'FoundryBuild', foundry_target
