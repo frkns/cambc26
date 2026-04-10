@@ -69,10 +69,7 @@ class ShieldTargeter:
                 continue
 
             if ti.has_building:
-                if not ti.is_building_ally:
-                    continue
-                elif ti.entity_type != EntityType.ROAD:
-                    continue
+                continue
 
             if ti.has_bot:
                 continue

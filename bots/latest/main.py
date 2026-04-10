@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-09 18:52:25 (local)
+# latest,  @ 2026-04-09 22:30:27 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -117,19 +117,21 @@ class Attacker:
         ti = Map.tile_info[pos.x][pos.y]
 
         # assume caller passes in enemy transporter position
+        
+        return True
 
-        hp = ti.building_hp
-        max_hp = Constants.MAX_HP_MAP[ti.entity_type]
+        # hp = ti.building_hp
+        # max_hp = Constants.MAX_HP_MAP[ti.entity_type]
 
-        if 2 * hp <= max_hp:
-            return True
+        # if 2 * hp <= max_hp:
+        #     return True
 
-        allies_ready, enemies_ready = cls.compute_readiness()
+        # allies_ready, enemies_ready = cls.compute_readiness()
 
-        if allies_ready > 2 * enemies_ready:
-            return True
+        # if allies_ready > 2 * enemies_ready:
+        #     return True
 
-        return False
+        # return False
 
 
 # ============================================================
@@ -23298,7 +23300,6 @@ class HarvesterAdjacent:
             cls.cand.append(info)
             info.position = pos
             info.dist_enemy_core = Util.dist_sq(pos, Symmetry.enemy_core_pos)
-            info.has_ally_road = ti.entity_type == EntityType.ROAD
             info.enemy_hadj = 0
             info.ally_hadj = 0
             info.bfs_dist = BfsBureau.bfs20_dist[idx]
@@ -25360,6 +25361,9 @@ class OreExecutive:
                 continue
             if ti.entity_type == EntityType.FOUNDRY:
                 continue
+            
+            if ti.has_building and not ti.is_building_ally:
+                continue
 
             if env == Environment.ORE_TITANIUM:
                 if cls.state[pos] != 1:  # intended: can potentially requeue
@@ -25395,6 +25399,11 @@ class OreExecutive:
                 heapq.heappop(cls.ti_queue)
                 cls.state[pos] = 3 # just to prevent requeuing, doesn't matter much
                 continue
+            
+            if ti.has_building and not ti.is_building_ally:
+                heapq.heappop(cls.ti_queue)
+                cls.state[pos] = 3
+                continue
 
             if not ti.has_bot and MarketMaker.should_build_harvester(pos):
                 ret = pos
@@ -25425,18 +25434,23 @@ class OreExecutive:
                 heapq.heappop(cls.ax_queue)
                 continue
 
-            ax = Map.tile_info[pos.x][pos.y]
+            ti = Map.tile_info[pos.x][pos.y]
 
-            if ax.entity_type == EntityType.HARVESTER:
+            if ti.entity_type == EntityType.HARVESTER:
                 heapq.heappop(cls.ax_queue)
                 cls.state[pos] = 3
                 continue
-            if ax.entity_type == EntityType.FOUNDRY:
+            if ti.entity_type == EntityType.FOUNDRY:
                 heapq.heappop(cls.ax_queue)
                 cls.state[pos] = 3 # just to prevent requeuing, doesn't matter much
                 continue
+            
+            if ti.has_building and not ti.is_building_ally:
+                heapq.heappop(cls.ti_queue)
+                cls.state[pos] = 3
+                continue
 
-            if not ax.has_bot and MarketMaker.should_build_harvester(pos):
+            if not ti.has_bot and MarketMaker.should_build_harvester(pos):
                 ret = pos
                 break
             else:
@@ -28083,10 +28097,7 @@ class ShieldTargeter:
                 continue
 
             if ti.has_building:
-                if not ti.is_building_ally:
-                    continue
-                elif ti.entity_type != EntityType.ROAD:
-                    continue
+                continue
 
             if ti.has_bot:
                 continue
@@ -28369,19 +28380,6 @@ class StateBreachBuild:
 
 
 # ============================================================
-# StateBuildBarrier
-# ============================================================
-
-class StateBuildBarrier:
-    @classmethod
-    def run(cls, pos, banned_dir: Direction | None):
-        Pathfinder.move_to(pos, ban_target_pos=True)
-
-        if BuildManager.can_dbuild_barrier(pos):
-            BuildManager.dbuild_barrier(pos)
-
-
-# ============================================================
 # StateBuildGunner
 # ============================================================
 
@@ -28433,6 +28431,19 @@ class StateBuildLauncherAround:
             if BuildManager.can_dbuild_launcher(launcherPos):            
                 BuildManager.dbuild_launcher(launcherPos)
                 return
+
+
+# ============================================================
+# StateBuildShield
+# ============================================================
+
+class StateBuildShield:
+    @classmethod
+    def run(cls, pos, banned_dir: Direction | None):
+        Pathfinder.move_to(pos, ban_target_pos=True)
+
+        if BuildManager.can_dbuild_road(pos):
+            BuildManager.dbuild_road(pos)
 
 
 # ============================================================
@@ -29482,9 +29493,9 @@ class Builder(Unit):
         if foundry_target is not None:
             return 'FoundryBuild', foundry_target
 
-        # shieldpos = ShieldTargeter.get_best_target()
-        # if shieldpos is not None:
-        #     return 'BuildBarrier', shieldpos, None
+        shieldpos = ShieldTargeter.get_best_target()
+        if shieldpos is not None:
+            return 'BuildShield', shieldpos, None
 
         trans: TransporterInfo = ConnectManager.get_connect_target_info()
         if trans is not None:
