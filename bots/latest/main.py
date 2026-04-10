@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-10 12:39:58 (local)
+# latest,  @ 2026-04-10 12:47:07 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -29689,7 +29689,7 @@ class Builder(Unit):
         dist_ti = 1000000 if ti_target is None else my_pos.distance_squared(ti_target)
         dist_ax = 1000000 if ax_target is None else my_pos.distance_squared(ax_target)
 
-        if dist_stalk < dist_ti and dist_stalk < dist_ax:
+        if dist_stalk <= 3 or (dist_stalk < dist_ti and dist_stalk < dist_ax):
             return 'MoveTo', stalk_target, 'Stalk'
 
         if ax_target is not None:
