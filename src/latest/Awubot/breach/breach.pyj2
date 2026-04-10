@@ -37,13 +37,9 @@ class Breach({{ super() }}):
         myDir = Globals.ct.get_direction()
         myPos = Globals.my_pos
         newPos =myPos.add(myDir).add(myDir).add(myDir)
-        print("Yo my pos is", Globals.my_pos, "and I'm facing", myDir)
-        print("Imma try to fire at", newPos)
         if Globals.ct.can_fire(newPos):
             Globals.ct.fire(newPos)
-            print("Yo we fire!", file=sys.stderr)
         newPos = myPos.add(myDir).add(myDir)
-        print("Imma try to fire at", newPos)
         if Globals.ct.can_fire(newPos):
             Globals.ct.fire(newPos)
             print("Yo we fire!", file=sys.stderr)

@@ -21,6 +21,9 @@ class RouteToFoundry:
     is_active: bool = False
     from_pos: Position
     killed: set[Position] = set()
+    pathFindingKill: set[int] = set()
+    prevRoute = []
+    backTracking = False
 
     # Positions that have been claimed (or built) as foundry sites.
     # Class-level so all bots in this process see the same table.
@@ -41,7 +44,11 @@ class RouteToFoundry:
         """
         target_set = {foundry_encoded}
 
-        _, first = BfsBureau.find_bridge_route_avoid_ti_adj(ore_pos, target_set)
+        _, first = BfsBureau.find_bridge_route_avoid_ti_adj(
+            ore_pos, 
+            target_set, 
+            avoid_pos = cls.pathFindingKill | RouteToCore.pathFindingKill #| RouteToBreach.pathFindingKill
+        )
         if first is not None:
             return True
 
@@ -100,15 +107,22 @@ class RouteToFoundry:
         return best
 
     @classmethod
-    def set_pos(cls, pos: Position):
+    def set_pos(cls, pos: Position, fullReset = True):
         encoded = {{ encode_pos('pos.x', 'pos.y') }}
 
         # Arrived at the foundry site — deactivate so the caller can build.
         # Keep the entry in planned_foundry_positions: the foundry is here now.
         if cls._foundry_target is not None and encoded == cls._foundry_target:
             cls.is_active = False
+            cls.prevRoute.clear()
             return
 
+        if fullReset:
+            cls.prevRoute.clear()
+            cls.backTracking = False 
+        else:
+            cls.prevRoute.append(cls.from_pos)
+            cls.backTracking = False # Added here to clear backtracking once we resume forward progress
         cls.is_active = True
         cls.from_pos = pos
 
@@ -121,14 +135,15 @@ class RouteToFoundry:
         bridge_dist, first_target = BfsBureau.find_bridge_route_avoid_ti_adj(
             cls.from_pos,
             target_set,
+            avoid_pos = cls.pathFindingKill | RouteToCore.pathFindingKill #| RouteToBreach.pathFindingKill
         )
 
         {{ D.show('bridge_dist') }}
 
         if first_target is None:
             Debug.tee("RouteToFoundry: first_target is None, giving up")
-            cls.give_up()
-            StateMoveTo.run(Explore.get_target())
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target())
             return
 
         target = Position(*first_target)
@@ -137,10 +152,10 @@ class RouteToFoundry:
         if cls.from_pos.distance_squared(target) == 1:
             if BuildManager.can_dbuild_conveyor(cls.from_pos):
                 BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
-                cls.set_pos(target)
+                cls.set_pos(target,False)
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
-            cls.set_pos(target)
+            cls.set_pos(target,False)
 
     @classmethod
     def move_to_next(cls):
@@ -152,7 +167,7 @@ class RouteToFoundry:
         ti = Map.tile_info[x][y]
         if ti is None:
             return False
-        if Pathfinder.given_up:
+        if not cls.backTracking and Pathfinder.given_up:
             return True
 
         if ti.has_building:
@@ -160,23 +175,37 @@ class RouteToFoundry:
                 return True
             if ti.entity_type == EntityType.BRIDGE: #just avoid building foundry on top of a bridge, since that would be sad (too much logic an thinking required)
                     return True
-            if cls._foundry_target != {{ encode_pos('x', 'y') }}:
-                if ti.entity_type in Constants.TRANSPORTERS_SET:
-                    return True
-                if ti.entity_type != EntityType.ROAD:
-                    return True
+            if not cls.backTracking:
+                if cls._foundry_target != {{ encode_pos('x', 'y') }}:
+                    if ti.entity_type in Constants.TRANSPORTERS_SET:
+                        return True
+                    if ti.entity_type != EntityType.ROAD:
+                        return True
             
         return False
 
     @classmethod
     def give_up(cls):
-        cls.is_active = False
-        # Release the claim so another bot (or a retry) can use this leaf.
-        if cls._foundry_target is not None:
-            cls.planned_foundry_positions.discard(cls._foundry_target)
-            cls._foundry_target = None
-        cls.killed.add(cls.from_pos)
-        Debug.diamond(Color.PURPLE)
+        if len(cls.prevRoute) == 0:
+            cls.is_active = False
+            # Release the claim so another bot (or a retry) can use this leaf.
+            if cls._foundry_target is not None:
+                cls.planned_foundry_positions.discard(cls._foundry_target)
+                cls._foundry_target = None
+            cls.killed.add(cls.from_pos)
+            if Pathfinder.given_up:
+                cls.pathFindingKill.add({{ encode_pos('cls.from_pos.x', 'cls.from_pos.y') }})
+            Debug.diamond(Color.PURPLE)
+            print("RouteToFoundry: giving up from", cls.from_pos)
+            return True
+        else:
+            cls.killed.add(cls.from_pos)
+            if Pathfinder.given_up:
+                cls.pathFindingKill.add({{ encode_pos('cls.from_pos.x', 'cls.from_pos.y') }})
+            cls.from_pos = cls.prevRoute.pop()
+            print("RouteToFoundry: backtracking to", cls.from_pos)
+            cls.backTracking = True
+            return False
 
     @classmethod
     def try_claim_target(cls):
@@ -185,8 +214,8 @@ class RouteToFoundry:
             cls._foundry_target = cls._pick_target()
             if cls._foundry_target is None:
                 Debug.tee("RouteToFoundry: no unclaimed titanium leaf available")
-                cls.give_up()
-                StateMoveTo.run(Explore.get_target())
+                if cls.give_up():
+                    StateMoveTo.run(Explore.get_target())
                 return
             cls.planned_foundry_positions.add(cls._foundry_target)
 
@@ -198,8 +227,8 @@ class RouteToFoundry:
             return
         print("Aiming at foundry:",{{decode_pos('cls._foundry_target') | join(', ')}})
         if cls.should_give_up():
-            cls.give_up()
-            StateMoveTo.run(Explore.get_target())
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target())
             return
 
         dsq = Globals.my_pos.distance_squared(cls.from_pos)
