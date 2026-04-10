@@ -144,6 +144,7 @@ class Builder({{ super() }}):
         healpos = HealTargeter.get_best_target()
         if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
+        
         """
         breach_target = BreachBuild._pick_target()
         if breach_target is not None:

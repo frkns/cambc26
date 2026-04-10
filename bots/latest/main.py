@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-10 11:33:18 (local)
+# latest,  @ 2026-04-10 11:46:34 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -124,7 +124,6 @@ class Attacker:
         ti = tile_info[x][y]
 
         # assume caller passes in enemy transporter position
-        assert not ti.is_building_ally
         
         hp = ti.building_hp
         max_hp = Constants.MAX_HP_MAP[ti.entity_type]
@@ -291,7 +290,6 @@ class BfsBureau:
         cls.weight[idx + -56] += 1000000
         cls.weight[idx + -57] += 1000000
 
-        Debug.dot(Position(x, y), Color.YELLOW)
 
     @classmethod
     def remove_enemy_launcher(cls, idx):
@@ -332,7 +330,6 @@ class BfsBureau:
         if cls.weight[i] < 1:
             cls.weight[i] = 1
 
-        Debug.dot(Position(x, y), Color.GREEN)
 
 
 
@@ -1856,7 +1853,7 @@ class BfsBureau:
             return 1000000, None
 
         # ── Phase 2: bitmask BFS from Dijkstra frontier ──
-        Profiler.start()
+        
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = (cls.now_passable_int | _tm) & cls.board_mask
@@ -3020,7 +3017,6 @@ class BuildManager:
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3054,7 +3050,6 @@ class BuildManager:
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3088,7 +3083,6 @@ class BuildManager:
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3122,7 +3116,6 @@ class BuildManager:
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3156,7 +3149,6 @@ class BuildManager:
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3189,7 +3181,6 @@ class BuildManager:
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3222,7 +3213,6 @@ class BuildManager:
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3255,7 +3245,6 @@ class BuildManager:
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3288,7 +3277,6 @@ class BuildManager:
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3321,7 +3309,6 @@ class BuildManager:
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3354,7 +3341,6 @@ class BuildManager:
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3387,7 +3373,6 @@ class BuildManager:
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3420,7 +3405,6 @@ class BuildManager:
 
         ti_cost += int(10 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -21628,9 +21612,6 @@ class Entrypoint:
     def run(cls, ct: Controller):
 
         # because engine is bugged
-        if ct.get_current_round() > 666: 
-            ct.self_destruct()
-            return  
 
         Globals.ct = ct  # in case not fixed...
         if cls.needs_init:
@@ -23814,7 +23795,6 @@ class HealTargeter:
             if not cond:
                 return None
 
-        print(f'HealTargeter {best.position=} {best.building_heal=} {best.building_hp=}')
 
         return best.position
 
@@ -25300,9 +25280,9 @@ class MarketMaker:
 
     @staticmethod
     def harvester_cost(apos: Position) -> int:
-        Profiler.start()
+        
         bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.sink_set)
-        Profiler.end("""BfsBureau.find_bridge_route""")
+        
         h_cost, _ = Globals.ct.get_harvester_cost()
         b_cost, _ = Globals.ct.get_bridge_cost()
         return h_cost + b_cost * bridges
@@ -25322,7 +25302,7 @@ class MarketMaker:
             return False
 
         pbt = MarketMaker.harvester_payback(apos)
-        print(f"""{pbt=}""")
+        
 
         if int(pbt * 1.5 + 100) < Util.get_rounds_left():
             return True
@@ -25734,9 +25714,9 @@ class Pathfinder:
         Debug.line(target)
         my_pos = Globals.my_pos
 
-        Profiler.start()
+        
         dist, dir = BfsBureau.find_route(Globals.my_pos, target, ban_target_pos)
-        Profiler.end("""BfsBureau.find_route""")
+        
 
         if dir is None or dist >= 1000000:
             cls.given_up = True
@@ -25818,9 +25798,6 @@ class Player:
             err = traceback.format_exc()
             Debug.tee(err)
             Debug.tee(f'(I am a {Globals.my_type})')
-
-            ct.resign()
-            raise Exception
 
 
 # ============================================================
@@ -25922,6 +25899,7 @@ class RouteToBreach:
     is_active: bool = False
     from_pos: Position
     killed: set[Position] = set()
+    prevRoute = []
 
     # Positions that have been claimed (or built) as breach sites.
     # Class-level so all bots in this process see the same table.
@@ -25952,6 +25930,8 @@ class RouteToBreach:
                 tile = Map.tile_info[candidate.x][candidate.y]
                 if tile is None:
                     continue
+                if tile.env in [Environment.WALL]:
+                    continue
                 if tile.has_building and (not tile.is_building_ally):
                     continue
                 if tile.has_building and tile.entity_type in Constants.TURRET_SET:
@@ -25969,17 +25949,20 @@ class RouteToBreach:
         
 
     @classmethod
-    def set_pos(cls, pos: Position):
+    def set_pos(cls, pos: Position, fullReset = True):
         encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
 
         # Arrived at the breach site — deactivate so the caller can build.
         # Keep the entry in planned_breach_positions: the breach is here now.
         if cls._breach_target is not None and encoded == cls._breach_target:
             cls.is_active = False
+            cls.prevRoute.clear()
             return
 
         cls.is_active = True
         cls.from_pos = pos
+        if fullReset:
+            cls.prevRoute.clear()
 
     @classmethod
     def try_build_route(cls):
@@ -25987,17 +25970,17 @@ class RouteToBreach:
 
         target_set = {cls._breach_target}
 
-        bridge_dist, first_target = BfsBureau.find_bridge_route(
+        bridge_dist, first_target = BfsBureau.find_bridge_route_avoid_ti_adj(
             cls.from_pos,
             target_set,
         )
 
-        print(f"""{bridge_dist=}""")
+        
 
         if first_target is None:
             Debug.tee("RouteToBreach: first_target is None, giving up")
-            cls.give_up()
-            StateMoveTo.run(Explore.get_target())
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target())
             return
 
         target = Position(*first_target)
@@ -26006,10 +25989,12 @@ class RouteToBreach:
         if cls.from_pos.distance_squared(target) == 1:
             if BuildManager.can_dbuild_conveyor(cls.from_pos):
                 BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
-                cls.set_pos(target)
+                cls.prevRoute.append(cls.from_pos)
+                cls.set_pos(target,False)
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
-            cls.set_pos(target)
+            cls.prevRoute.append(cls.from_pos)
+            cls.set_pos(target,False)
 
     @classmethod
     def move_to_next(cls):
@@ -26023,6 +26008,14 @@ class RouteToBreach:
             return False
         if Pathfinder.given_up:
             return True
+
+        if ti.env in [Environment.WALL]:
+            newTarg = cls._pick_target()
+            if newTarg is None:
+                return True
+            else:
+                cls._breach_target = newTarg
+                return False
 
         if ti.has_building:
             if not ti.is_building_ally:
@@ -26059,36 +26052,41 @@ class RouteToBreach:
 
     @classmethod
     def give_up(cls):
-        cls.is_active = False
-        # Release the claim so another bot (or a retry) can use this leaf.
-        if cls._breach_target is not None:
-            cls.planned_breach_positions.discard(cls._breach_target)
-            cls._breach_target = None
-        cls.killed.add(cls.from_pos)
-        Debug.diamond(Color.PURPLE)
+        if len(cls.prevRoute) == 0: # cooked:
+            cls.is_active = False
+            # Release the claim so another bot (or a retry) can use this leaf.
+            if cls._breach_target is not None:
+                cls.planned_breach_positions.discard(cls._breach_target)
+                cls._breach_target = None
+            cls.killed.add(cls.from_pos)
+            Debug.diamond(Color.PURPLE)
+            return True
+        else:
+            cls.from_pos = cls.prevRoute[-1]
+            cls.prevRoute.pop()
+            return False
 
     @classmethod
     def try_claim_target(cls):
-        # Claim a target on first call (or if we lost one).
+        cls._breach_target = cls._pick_target()
         if cls._breach_target is None:
-            cls._breach_target = cls._pick_target()
-            if cls._breach_target is None:
-                Debug.tee("RouteToBreach: no possible breach targets, giving up")
-                cls.give_up()
+            Debug.tee("RouteToBreach: no possible breach targets, giving up")
+            if cls.give_up():
                 StateMoveTo.run(Explore.get_target())
-                return
-            cls.planned_breach_positions.add(cls._breach_target)
+            return
+        cls.planned_breach_positions.add(cls._breach_target)
 
     @classmethod
     def do_routing(cls):
         cls.try_claim_target()
+        
         if cls._breach_target is None:
             RouteToBreach.is_active = False
             return
         print("Aiming at breach:",((cls._breach_target) // 56 - 3), ((cls._breach_target) % 56 - 3))
         if cls.should_give_up():
-            cls.give_up()
-            StateMoveTo.run(Explore.get_target())
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target())
             return
 
         dsq = Globals.my_pos.distance_squared(cls.from_pos)
@@ -26108,14 +26106,18 @@ class RouteToCore:
     is_active: bool = False
     from_pos: Position
     killed: set[Position] = set()
+    prevRoute = []
 
     @classmethod
-    def set_pos(cls, pos: Position):
+    def set_pos(cls, pos: Position, fullReset = True):
         if (((pos.x) + 3) * 56 + ((pos.y) + 3)) in DarkForest.core_sink_set:  # was sink_set
             cls.is_active = False
+            cls.prevRoute.clear()
             return
         cls.is_active = True
         cls.from_pos = pos
+        if fullReset:
+            cls.prevRoute.clear()
 
 
     @classmethod
@@ -26135,12 +26137,12 @@ class RouteToCore:
                 DarkForest.core_sink_set,  # was sink_set
             )
 
-        print(f"""{bridge_dist=}""")
+        
 
         if first_target is None:
             Debug.tee("first_target is None: giving up")
-            cls.give_up()
-            StateMoveTo.run(Explore.get_target()) # new
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target()) # new
             return
 
         target = Position(*first_target)
@@ -26152,10 +26154,12 @@ class RouteToCore:
                     BuildManager.dbuild_armoured_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
                 else:
                     BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
-                cls.set_pos(target)
+                cls.prevRoute.append(cls.from_pos)
+                cls.set_pos(target,False)
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
-            cls.set_pos(target)
+            cls.prevRoute.append(cls.from_pos)
+            cls.set_pos(target,False)
 
     @classmethod
     def move_to_next(cls):
@@ -26182,16 +26186,22 @@ class RouteToCore:
 
     @classmethod
     def give_up(cls):
-        cls.is_active = False
-        cls.killed.add(cls.from_pos)
-        Debug.diamond(Color.PURPLE)
+        if len(cls.prevRoute) == 0: # cooked:
+            cls.is_active = False
+            cls.killed.add(cls.from_pos)
+            Debug.diamond(Color.PURPLE)
+            return True
+        else:
+            cls.from_pos = cls.prevRoute[-1]
+            cls.prevRoute.pop()
+            return False
 
 
     @classmethod
     def do_routing(cls):
         if cls.should_give_up():
-            cls.give_up()
-            StateMoveTo.run(Explore.get_target()) # new
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target()) # new
             return
 
         dsq = Globals.my_pos.distance_squared(cls.from_pos)
@@ -26211,6 +26221,7 @@ class RouteToFoundry:
     is_active: bool = False
     from_pos: Position
     killed: set[Position] = set()
+    prevRoute = []
 
     # Positions that have been claimed (or built) as foundry sites.
     # Class-level so all bots in this process see the same table.
@@ -26290,17 +26301,20 @@ class RouteToFoundry:
         return best
 
     @classmethod
-    def set_pos(cls, pos: Position):
+    def set_pos(cls, pos: Position, fullReset = True):
         encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
 
         # Arrived at the foundry site — deactivate so the caller can build.
         # Keep the entry in planned_foundry_positions: the foundry is here now.
         if cls._foundry_target is not None and encoded == cls._foundry_target:
             cls.is_active = False
+            cls.prevRoute.clear()
             return
 
         cls.is_active = True
         cls.from_pos = pos
+        if fullReset:
+            cls.prevRoute.clear()
 
     @classmethod
     def try_build_route(cls):
@@ -26313,12 +26327,12 @@ class RouteToFoundry:
             target_set,
         )
 
-        print(f"""{bridge_dist=}""")
+        
 
         if first_target is None:
             Debug.tee("RouteToFoundry: first_target is None, giving up")
-            cls.give_up()
-            StateMoveTo.run(Explore.get_target())
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target())
             return
 
         target = Position(*first_target)
@@ -26327,10 +26341,12 @@ class RouteToFoundry:
         if cls.from_pos.distance_squared(target) == 1:
             if BuildManager.can_dbuild_conveyor(cls.from_pos):
                 BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
-                cls.set_pos(target)
+                cls.prevRoute.append(cls.from_pos)
+                cls.set_pos(target,False)
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
-            cls.set_pos(target)
+            cls.prevRoute.append(cls.from_pos)
+            cls.set_pos(target,False)
 
     @classmethod
     def move_to_next(cls):
@@ -26360,13 +26376,19 @@ class RouteToFoundry:
 
     @classmethod
     def give_up(cls):
-        cls.is_active = False
-        # Release the claim so another bot (or a retry) can use this leaf.
-        if cls._foundry_target is not None:
-            cls.planned_foundry_positions.discard(cls._foundry_target)
-            cls._foundry_target = None
-        cls.killed.add(cls.from_pos)
-        Debug.diamond(Color.PURPLE)
+        if len(cls.prevRoute) == 0:
+            cls.is_active = False
+            # Release the claim so another bot (or a retry) can use this leaf.
+            if cls._foundry_target is not None:
+                cls.planned_foundry_positions.discard(cls._foundry_target)
+                cls._foundry_target = None
+            cls.killed.add(cls.from_pos)
+            Debug.diamond(Color.PURPLE)
+            return True
+        else:
+            cls.from_pos = cls.prevRoute[-1]
+            cls.prevRoute.pop()
+            return False
 
     @classmethod
     def try_claim_target(cls):
@@ -26375,8 +26397,8 @@ class RouteToFoundry:
             cls._foundry_target = cls._pick_target()
             if cls._foundry_target is None:
                 Debug.tee("RouteToFoundry: no unclaimed titanium leaf available")
-                cls.give_up()
-                StateMoveTo.run(Explore.get_target())
+                if cls.give_up():
+                    StateMoveTo.run(Explore.get_target())
                 return
             cls.planned_foundry_positions.add(cls._foundry_target)
 
@@ -26388,8 +26410,8 @@ class RouteToFoundry:
             return
         print("Aiming at foundry:",((cls._foundry_target) // 56 - 3), ((cls._foundry_target) % 56 - 3))
         if cls.should_give_up():
-            cls.give_up()
-            StateMoveTo.run(Explore.get_target())
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target())
             return
 
         dsq = Globals.my_pos.distance_squared(cls.from_pos)
@@ -28110,7 +28132,6 @@ class ShieldTargeter:
         if not best.harvester_adjacent:
             return None
 
-        print(f'ShieldTargetInfo {best.position=} {best.harvester_adjacent=}')
 
         return best.position
 
@@ -28371,7 +28392,7 @@ class SpawnManager:
 class StalkTargeter:
     @classmethod
     def get_best_target(cls) -> Position | None:
-        Profiler.start()
+        
 
         if not Map.harvester_set:
             return None
@@ -28382,10 +28403,8 @@ class StalkTargeter:
             if ti.has_bot and not ti.is_bot_ally \
                     and VisionTracker.me_is_canonical_ally(pos) \
                     and bfs20_dist[idx] < 1000000:  # reachable
-                Profiler.end("""StalkTargeter.get_best_target""")
+                
                 return pos
-
-        Profiler.end("""StalkTargeter.get_best_target""")
 
 
 # ============================================================
@@ -28512,7 +28531,6 @@ class StateFoundryBuild:
 class StateMoveTo:
     @classmethod
     def run(cls, pos, tag='_'):
-        print(f'{tag=}')
         Pathfinder.move_to(pos)
 
 
@@ -28641,9 +28659,9 @@ class Symmetry:
         cls.predict_enemy_core()
         DarkForest.register_enemy_core()
 
-        Profiler.start()
+        
         Map.sync_tile_infos()
-        Profiler.end_now("""Map.sync_tile_infos""")
+        
 
 
 
@@ -29200,9 +29218,9 @@ class Unit:
         Globals.start_tick()
         MarketMaker.refresh()
 
-        Profiler.start()
+        
         Map.fill_tile_info()
-        Profiler.end("""Map.fill_tile_info""")
+        
 
     @classmethod
     def run_turn(cls):
@@ -29211,7 +29229,7 @@ class Unit:
     @classmethod
     def end_turn(cls):
 
-        if Globals.round == 667:
+        if Globals.round == 1999:
             Profiler.report()
         print(f'scale ratio {MarketMaker.scale_ratio:.2f}')
 
@@ -29340,11 +29358,11 @@ class VisionTracker:
 
     @classmethod
     def canonical_ally(cls, from_pos: Position) -> BotInfo:
-        Profiler.start()
+        
         ret = min(cls.allies, key=
             lambda x: (Util.linf(from_pos, x.position) << 16) + x.id
         )
-        Profiler.end("""canonical_ally""")
+        
         return ret
 
 
@@ -29388,13 +29406,9 @@ class Breach(Unit):
         myDir = Globals.ct.get_direction()
         myPos = Globals.my_pos
         newPos =myPos.add(myDir).add(myDir).add(myDir)
-        print("Yo my pos is", Globals.my_pos, "and I'm facing", myDir)
-        print("Imma try to fire at", newPos)
         if Globals.ct.can_fire(newPos):
             Globals.ct.fire(newPos)
-            print("Yo we fire!", file=sys.stderr)
         newPos = myPos.add(myDir).add(myDir)
-        print("Imma try to fire at", newPos)
         if Globals.ct.can_fire(newPos):
             Globals.ct.fire(newPos)
             print("Yo we fire!", file=sys.stderr)
@@ -29423,51 +29437,50 @@ class Builder(Unit):
     def start_turn(cls):
         Unit.start_turn()
 
-        Profiler.start()
+        
         DarkForest.fcompute()
-        Profiler.end("""DarkForest.fcompute""")
+        
 
-        Profiler.start()
+        
         BfsBureau.update()
-        Profiler.end("""BfsBureau.update""")
+        
 
         Symmetry.run_sym_check()
 
         DarkForest.debug_kind()
 
-        Profiler.start()
+        
         BfsBureau.bfs20()
-        Profiler.end("""BfsBureau.bfs20""")
+        
 
-        Profiler.start()
+        
         OreExecutive.fill()
-        Profiler.end("""OreExecutive.fill""")
+        
 
-        Profiler.start()
+        
         VisionTracker.fill()
-        Profiler.end("""VisionTracker.fill""")
+        
 
-        Profiler.start()
+        
         TurretTakedown.fill()
-        Profiler.end("""TurretTakedown.fill""")
+        
 
-        Profiler.start()
+        
         SitterTakedown.fill()
-        Profiler.end("""SitterTakedown.fill""")
+        
 
-        Profiler.start()
+        
         HarvesterAdjacent.fill()
-        Profiler.end("""HarvesterAdjacent.fill""")
+        
 
-        Profiler.start()
+        
         HealTargeter.fill()
-        Profiler.end("""HealTargeter.fill""")
+        
 
-        Profiler.start()
+        
         ShieldTargeter.fill()
-        Profiler.end("""ShieldTargeter.fill""")
+        
 
-        Symmetry.debug()
 
 
 
@@ -29475,7 +29488,6 @@ class Builder(Unit):
     def run_turn(cls):
         cls.state, *args = cls.determine_state()
 
-        print(f'running: {cls.state}  @', *args, sep=' ')
 
         globals()[f'State{cls.state}'].run(*args)
 
@@ -29484,13 +29496,13 @@ class Builder(Unit):
     def end_turn(cls):
         Unit.end_turn()
 
-        Profiler.start()
+        
         HealExecutor.execute_heal_attempt()
-        Profiler.end("""HealExecutor.execute_heal_attempt""")
+        
 
-        Profiler.start()
+        
         Marker.attempt_mark()
-        Profiler.end("""Marker.attempt_mark""")
+        
 
 
 
@@ -29526,6 +29538,7 @@ class Builder(Unit):
         healpos = HealTargeter.get_best_target()
         if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
+        
         """
         breach_target = BreachBuild._pick_target()
         if breach_target is not None:
@@ -29622,10 +29635,6 @@ class Core(Unit):
     @classmethod
     def end_turn(cls):
         Unit.end_turn()
-
-        if Globals.round > 666:
-            Globals.ct.resign()
-            raise Exception
 
 
 # ============================================================

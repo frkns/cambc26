@@ -21,14 +21,18 @@ class RouteToCore:
     is_active: bool = False
     from_pos: Position
     killed: set[Position] = set()
+    prevRoute = []
 
     @classmethod
-    def set_pos(cls, pos: Position):
+    def set_pos(cls, pos: Position, fullReset = True):
         if {{ encode_pos('pos.x', 'pos.y') }} in DarkForest.core_sink_set:  # was sink_set
             cls.is_active = False
+            cls.prevRoute.clear()
             return
         cls.is_active = True
         cls.from_pos = pos
+        if fullReset:
+            cls.prevRoute.clear()
 
 
     @classmethod
@@ -52,8 +56,8 @@ class RouteToCore:
 
         if first_target is None:
             Debug.tee("first_target is None: giving up")
-            cls.give_up()
-            StateMoveTo.run(Explore.get_target()) # new
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target()) # new
             return
 
         target = Position(*first_target)
@@ -65,10 +69,12 @@ class RouteToCore:
                     BuildManager.dbuild_armoured_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
                 else:
                     BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
-                cls.set_pos(target)
+                cls.prevRoute.append(cls.from_pos)
+                cls.set_pos(target,False)
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
-            cls.set_pos(target)
+            cls.prevRoute.append(cls.from_pos)
+            cls.set_pos(target,False)
 
     @classmethod
     def move_to_next(cls):
@@ -95,16 +101,22 @@ class RouteToCore:
 
     @classmethod
     def give_up(cls):
-        cls.is_active = False
-        cls.killed.add(cls.from_pos)
-        Debug.diamond(Color.PURPLE)
+        if len(cls.prevRoute) == 0: # cooked:
+            cls.is_active = False
+            cls.killed.add(cls.from_pos)
+            Debug.diamond(Color.PURPLE)
+            return True
+        else:
+            cls.from_pos = cls.prevRoute[-1]
+            cls.prevRoute.pop()
+            return False
 
 
     @classmethod
     def do_routing(cls):
         if cls.should_give_up():
-            cls.give_up()
-            StateMoveTo.run(Explore.get_target()) # new
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target()) # new
             return
 
         dsq = Globals.my_pos.distance_squared(cls.from_pos)
