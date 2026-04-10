@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-10 17:10:39 (local)
+# latest,  @ 2026-04-10 17:14:14 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -26306,14 +26306,14 @@ class RouteToCore:
             cls.from_pos,
             Unit.core_pos_set,
             max_iter=0,
-            avoid_pos = cls.pathFindingKill | RouteToCore.pathFindingKill #| RouteToBreach.pathFindingKill
+            avoid_pos = cls.pathFindingKill
         )
         # otherwise allow all sinks
         if first_target is None:
             bridge_dist, first_target = BfsBureau.find_bridge_route(
                 cls.from_pos,
                 DarkForest.core_sink_set,  # was sink_set
-                avoid_pos = cls.pathFindingKill | RouteToFoundry.pathFindingKill #| RouteToBreach.pathFindingKill
+                avoid_pos = cls.pathFindingKill
             )
 
         print(f"""{bridge_dist=}""")
@@ -26407,7 +26407,6 @@ class RouteToFoundry:
     is_active: bool = False
     from_pos: Position
     killed: set[Position] = set()
-    pathFindingKill: set[int] = set()
     prevRoute = []
     backTracking = False
 
@@ -26433,7 +26432,7 @@ class RouteToFoundry:
         _, first = BfsBureau.find_bridge_route_avoid_ti_adj(
             ore_pos, 
             target_set, 
-            avoid_pos = cls.pathFindingKill | RouteToCore.pathFindingKill #| RouteToBreach.pathFindingKill
+            avoid_pos = RouteToCore.pathFindingKill 
         )
         if first is not None:
             return True
@@ -26521,7 +26520,7 @@ class RouteToFoundry:
         bridge_dist, first_target = BfsBureau.find_bridge_route_avoid_ti_adj(
             cls.from_pos,
             target_set,
-            avoid_pos = cls.pathFindingKill | RouteToCore.pathFindingKill #| RouteToBreach.pathFindingKill
+            avoid_pos = RouteToCore.pathFindingKill 
         )
 
         print(f"""{bridge_dist=}""")
@@ -26580,14 +26579,14 @@ class RouteToFoundry:
                 cls._foundry_target = None
             cls.killed.add(cls.from_pos)
             if Pathfinder.given_up:
-                cls.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
+                RouteToCore.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
             Debug.diamond(Color.PURPLE)
             print("RouteToFoundry: giving up from", cls.from_pos)
             return True
         else:
             cls.killed.add(cls.from_pos)
             if Pathfinder.given_up:
-                cls.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
+                RouteToCore.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
             cls.from_pos = cls.prevRoute.pop()
             print("RouteToFoundry: backtracking to", cls.from_pos)
             cls.backTracking = True
@@ -29814,7 +29813,7 @@ class Builder(Unit):
         dist_ti = 1000000 if ti_target is None else my_pos.distance_squared(ti_target)
         dist_ax = 1000000 if ax_target is None else my_pos.distance_squared(ax_target)
 
-        if dist_stalk < dist_ti and dist_stalk < dist_ax:
+        if dist_stalk <= 3 or (dist_stalk < dist_ti and dist_stalk < dist_ax):
             return 'MoveTo', stalk_target, 'Stalk'
 
         if ax_target is not None:

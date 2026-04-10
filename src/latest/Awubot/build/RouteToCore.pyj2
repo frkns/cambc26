@@ -51,14 +51,14 @@ class RouteToCore:
             cls.from_pos,
             Unit.core_pos_set,
             max_iter=0,
-            avoid_pos = cls.pathFindingKill | RouteToCore.pathFindingKill #| RouteToBreach.pathFindingKill
+            avoid_pos = cls.pathFindingKill
         )
         # otherwise allow all sinks
         if first_target is None:
             bridge_dist, first_target = BfsBureau.find_bridge_route(
                 cls.from_pos,
                 DarkForest.core_sink_set,  # was sink_set
-                avoid_pos = cls.pathFindingKill | RouteToFoundry.pathFindingKill #| RouteToBreach.pathFindingKill
+                avoid_pos = cls.pathFindingKill
             )
 
         {{ D.show('bridge_dist') }}
