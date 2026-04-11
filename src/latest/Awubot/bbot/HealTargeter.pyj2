@@ -25,6 +25,7 @@ class HealTargetInfo:
     bot_hp: int
     harvester_adjacent: bool
     is_transporter: bool
+    is_turret: bool
     has_enemy_bot: bool
     bfs_dist: int
     entity_type: EntityType
@@ -35,9 +36,15 @@ class HealTargetInfo:
             return a.building_heal > b.building_heal
 
         # Make sure at least one building is healable
-        if a.building_heal > 0 and b.building_heal > 0:
+        if a.building_heal > 0:
             if a.harvester_adjacent != b.harvester_adjacent:
                 if a.harvester_adjacent:
+                    return True
+                else:
+                    return False
+                
+            if a.is_turret != b.is_turret:
+                if a.is_turret:
                     return True
                 else:
                     return False
@@ -49,6 +56,11 @@ class HealTargetInfo:
                         return True
                     else:
                         return False
+        
+            if a.has_enemy_bot:
+                return True
+            else:
+                return False
 
         if a.building_hp != b.building_hp:
             return a.building_hp < b.building_hp
@@ -61,12 +73,6 @@ class HealTargetInfo:
 
         if a.bot_hp != b.bot_hp:
             return a.bot_hp < b.bot_hp
-        
-        if a.has_enemy_bot != b.has_enemy_bot:
-            if a.has_enemy_bot:
-                return True
-            else:
-                return False
 
         return False
 
@@ -87,7 +93,8 @@ class HealTargeter:
                 best = cand
 
         if best.building_heal + best.bot_heal < {{ GameConstants.HEAL_AMOUNT }}:
-            return None
+            if not best.harvester_adjacent or best.building_heal + best.bot_heal == 0:
+                return None
 
         # if far away from core and not critical and core hp is high, do other stuff
         core_ti = Map.tile_info[Unit.core_pos.x][Unit.core_pos.y]
@@ -118,6 +125,7 @@ class HealTargeter:
             info.building_hp = {{ INF }}
             info.bot_hp = {{ INF }}
             info.is_transporter = (ti.entity_type is not None and ti.entity_type in Constants.TRANSPORTERS_SET)
+            info.is_turret = (ti.entity_type is not None and ti.entity_type in Constants.TURRET_SET)
             info.has_enemy_bot = False
             info.bfs_dist = BfsBureau.bfs20_dist[idx]
             info.entity_type = ti.entity_type

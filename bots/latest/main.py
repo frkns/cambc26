@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-11 11:59:53 (local)
+# latest,  @ 2026-04-11 18:10:12 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -55,6 +55,15 @@ class AdjacentInfo:
 
         if a.is_harvester_ally and (not b.is_harvester_ally): return False
         if (not a.is_harvester_ally) and b.is_harvester_ally: return True
+        
+        ati = a.ti
+        bti = b.ti
+        
+        if ati.has_bot != bti.has_bot:
+            if ati.has_bot:
+                return False
+            else:
+                return True
 
         if a.bfs_dist != b.bfs_dist:
             return a.bfs_dist < b.bfs_dist
@@ -102,6 +111,8 @@ class Attacker:
             return None
         if not VisionTracker.me_is_canonical_ally(trans.position):
             return None
+        if not cls.should_fire(trans.position):
+            return None
         return trans.position
 
 
@@ -113,6 +124,8 @@ class Attacker:
         if not road.bfs_dist < 10: 
             return None
         if not VisionTracker.me_is_canonical_ally(road.position):
+            return None
+        if not cls.should_fire(road.position):
             return None
         return road.position
 
@@ -23964,6 +23977,7 @@ class HealTargetInfo:
     bot_hp: int
     harvester_adjacent: bool
     is_transporter: bool
+    is_turret: bool
     has_enemy_bot: bool
     bfs_dist: int
     entity_type: EntityType
@@ -23974,9 +23988,15 @@ class HealTargetInfo:
             return a.building_heal > b.building_heal
 
         # Make sure at least one building is healable
-        if a.building_heal > 0 and b.building_heal > 0:
+        if a.building_heal > 0:
             if a.harvester_adjacent != b.harvester_adjacent:
                 if a.harvester_adjacent:
+                    return True
+                else:
+                    return False
+                
+            if a.is_turret != b.is_turret:
+                if a.is_turret:
                     return True
                 else:
                     return False
@@ -23988,6 +24008,11 @@ class HealTargetInfo:
                         return True
                     else:
                         return False
+        
+            if a.has_enemy_bot:
+                return True
+            else:
+                return False
 
         if a.building_hp != b.building_hp:
             return a.building_hp < b.building_hp
@@ -24000,12 +24025,6 @@ class HealTargetInfo:
 
         if a.bot_hp != b.bot_hp:
             return a.bot_hp < b.bot_hp
-        
-        if a.has_enemy_bot != b.has_enemy_bot:
-            if a.has_enemy_bot:
-                return True
-            else:
-                return False
 
         return False
 
@@ -24030,7 +24049,8 @@ class HealTargeter:
                 best = cand
 
         if best.building_heal + best.bot_heal < 4:
-            return None
+            if not best.harvester_adjacent or best.building_heal + best.bot_heal == 0:
+                return None
 
         # if far away from core and not critical and core hp is high, do other stuff
         core_ti = Map.tile_info[Unit.core_pos.x][Unit.core_pos.y]
@@ -24058,6 +24078,7 @@ class HealTargeter:
             info.building_hp = 1000000
             info.bot_hp = 1000000
             info.is_transporter = (ti.entity_type is not None and ti.entity_type in Constants.TRANSPORTERS_SET)
+            info.is_turret = (ti.entity_type is not None and ti.entity_type in Constants.TURRET_SET)
             info.has_enemy_bot = False
             info.bfs_dist = BfsBureau.bfs20_dist[idx]
             info.entity_type = ti.entity_type
@@ -30135,6 +30156,10 @@ class Builder(Unit):
         my_pos = Globals.my_pos
         healpos = HealTargeter.get_best_target()
 
+        shieldpos = HarvesterAdjacent.get_best_shield_position()
+        if shieldpos is not None:
+            return 'BuildShield', shieldpos, None
+
         if RouteToBreach.is_active:
             return ('RouteBreach',)
 
@@ -30148,17 +30173,6 @@ class Builder(Unit):
         if takedownpos is not None:
             Debug.dot(takedownpos, Color.PURPLE)
             return 'BuildGunner', takedownpos, None
-            
-
-        hpos = HarvesterAdjacent.get_best_hijack_position()
-        if hpos is not None:
-            Debug.dot(hpos, Color.PURPLE)
-            return 'BuildTurret', hpos, None
-
-
-        shieldpos = HarvesterAdjacent.get_best_shield_position()
-        if shieldpos is not None:
-            return 'BuildShield', shieldpos, None
 
 
         if healpos is not None:
@@ -30172,6 +30186,12 @@ class Builder(Unit):
             if healpos is not None:  # redundant, OK
                 return 'MoveTo', healpos, '[lrh: move to heal]'
             return 'MoveTo', HealExecutor.last_healed.position, '[lrh: wait for heal]'
+            
+
+        hpos = HarvesterAdjacent.get_best_hijack_position()
+        if hpos is not None:
+            Debug.dot(hpos, Color.PURPLE)
+            return 'BuildTurret', hpos, None
 
 
         breach_target = BreachBuild._pick_target()

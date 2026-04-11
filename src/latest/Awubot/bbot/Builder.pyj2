@@ -113,6 +113,10 @@ class Builder({{ super() }}):
         my_pos = Globals.my_pos
         healpos = HealTargeter.get_best_target()
 
+        shieldpos = HarvesterAdjacent.get_best_shield_position()
+        if shieldpos is not None:
+            return 'BuildShield', shieldpos, None
+
         if RouteToBreach.is_active:
             return ('RouteBreach',)
 
@@ -126,17 +130,6 @@ class Builder({{ super() }}):
         if takedownpos is not None:
             Debug.dot(takedownpos, Color.PURPLE)
             return 'BuildGunner', takedownpos, None
-            
-
-        hpos = HarvesterAdjacent.get_best_hijack_position()
-        if hpos is not None:
-            Debug.dot(hpos, Color.PURPLE)
-            return 'BuildTurret', hpos, None
-
-
-        shieldpos = HarvesterAdjacent.get_best_shield_position()
-        if shieldpos is not None:
-            return 'BuildShield', shieldpos, None
 
 
         if healpos is not None:
@@ -150,6 +143,12 @@ class Builder({{ super() }}):
             if healpos is not None:  # redundant, OK
                 return 'MoveTo', healpos, '[lrh: move to heal]'
             return 'MoveTo', HealExecutor.last_healed.position, '[lrh: wait for heal]'
+            
+
+        hpos = HarvesterAdjacent.get_best_hijack_position()
+        if hpos is not None:
+            Debug.dot(hpos, Color.PURPLE)
+            return 'BuildTurret', hpos, None
 
         {# /* sitterpos = SitterTakedown.get_best_hijack_position() */ #}
         {# /* if sitterpos is not None: */ #}
