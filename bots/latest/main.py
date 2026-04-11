@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-11 11:59:53 (local)
+# latest,  @ 2026-04-11 11:13:33 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -24414,7 +24414,7 @@ class Map:
                 ti.has_building = False
                 ti.has_turret = False
                 ti.entity_type = None
-
+                ti.resource_type = None
             cls.proc_nearby_tiles.append(
                 (pos, x, y, idx, ti)
             )
@@ -24670,7 +24670,7 @@ class Map:
                 ti.has_building = False
                 ti.has_turret = False
                 ti.entity_type = None
-
+                ti.resource_type = None
             cls.proc_nearby_tiles.append(
                 (pos, x, y, idx, ti)
             )
@@ -24926,7 +24926,7 @@ class Map:
                 ti.has_building = False
                 ti.has_turret = False
                 ti.entity_type = None
-
+                ti.resource_type = None
             cls.proc_nearby_tiles.append(
                 (pos, x, y, idx, ti)
             )
@@ -25179,7 +25179,7 @@ class Map:
                 ti.has_building = False
                 ti.has_turret = False
                 ti.entity_type = None
-
+                ti.resource_type = None
             cls.proc_nearby_tiles.append(
                 (pos, x, y, idx, ti)
             )
@@ -29950,7 +29950,8 @@ class VisionTracker:
 
                 if DarkForest.node_kind[idx] == 0 and DarkForest.flow[idx] > 0:
                     if DarkForest.nodes[idx].up is None:
-                        cls.disconnected_roots.append(trans)
+                        if Globals.ct.get_stored_resource(trans.ti.building_id) in [ResourceType.TITANIUM, ResourceType.REFINED_AXIONITE ]:
+                            cls.disconnected_roots.append(trans)
 
 
     @classmethod
