@@ -28,10 +28,10 @@ class TakedownTargetInfo:
 
     @staticmethod
     def is_better_than(a: TakedownTargetInfo, b: TakedownTargetInfo):
-        if a.has_transporter != b.has_transporter:
-            return a.has_transporter < b.has_transporter
         if a.enemy_turrets_nearby != b.enemy_turrets_nearby:
             return a.enemy_turrets_nearby > b.enemy_turrets_nearby
+        if a.has_transporter != b.has_transporter:
+            return a.has_transporter < b.has_transporter
         return a.dist_enemy_core < b.dist_enemy_core
 
 
