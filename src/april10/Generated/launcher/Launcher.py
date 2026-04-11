@@ -1,0 +1,35 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+
+class Launcher(Unit):
+    @classmethod
+    def init(cls):
+        Unit.init()
+        DarkForest.init()
+
+    @classmethod
+    def start_turn(cls):
+        Unit.start_turn()
+        DarkForest.fcompute()
+
+        LauncherSupervisor.fill()
+
+    @classmethod
+    def run_turn(cls):
+        LauncherSupervisor.try_launch()
+
+    @classmethod
+    def end_turn(cls):
+        Unit.end_turn()

@@ -1,0 +1,119 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+
+
+class StateBuildHarvester:
+    @classmethod
+    def run(cls, pos):
+        OreExecutive.go_build_harvester(pos)
+        {# /* Debug.line(pos, Color.YELLOW) */ #}
+
+class StateBuildHarvesterAx:
+    @classmethod
+    def run(cls, pos):
+        OreExecutive.go_build_ax_harvester(pos)
+        {# /* Debug.line(pos, Color.YELLOW) */ #}
+
+
+class StateAttack:
+    @classmethod
+    def run(cls, pos):
+        Pathfinder.move_to(pos)
+
+        if Globals.my_pos != pos:
+            return
+
+        if Globals.ct.can_fire(pos) and Attacker.should_fire(pos):
+            Globals.ct.fire(pos)
+
+
+class StateRoute:
+    @classmethod
+    def run(cls):
+        RouteToCore.do_routing()
+
+class StateFoundryBuild:
+    @classmethod
+    def run(cls, pos):
+        FoundryBuild.build_foundry(pos)
+
+class StateBreachBuild:
+    @classmethod
+    def run(cls, pos):
+        BreachBuild.build_breach(pos)
+
+class StateRouteFoundry:
+    @classmethod
+    def run(cls):
+        RouteToFoundry.do_routing()
+        
+class StateRouteBreach:
+    @classmethod
+    def run(cls):
+        RouteToBreach.do_routing()
+
+
+class StateMoveTo:
+    @classmethod
+    def run(cls, pos, tag='_'):
+        {% if LOCAL %}
+        print(f'{tag=}')
+        {% endif %}
+        Pathfinder.move_to(pos)
+
+
+class StateBuildTurret:
+    @classmethod
+    def run(cls, pos, banned_dir: Direction | None = None):
+        Pathfinder.move_to(pos, ban_target_pos=True)
+
+        if BuildManager.can_dbuild_sentinel(pos):
+            dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
+            BuildManager.dbuild_sentinel(pos, dir)
+
+class StateBuildGunner:
+    @classmethod
+    def run(cls, pos, banned_dir: Direction | None):
+        Pathfinder.move_to(pos, ban_target_pos=True)
+
+        if BuildManager.can_dbuild_gunner(pos):
+            dir: Direction = GunnerDirectionPicker.get_best_direction(pos)
+            
+            BuildManager.dbuild_gunner(pos, dir)
+
+class StateBuildLauncherAround:
+    @classmethod
+    def run(cls, pos):
+        posToMe = pos.direction_to(Globals.my_pos)
+        
+        Pathfinder.move_to(pos.add(posToMe), ban_target_pos=True)
+        
+        for dir in (posToMe, posToMe.rotate_left(), posToMe.rotate_right()):
+            launcherPos = pos.add(dir)
+
+            if BuildManager.can_dbuild_launcher(launcherPos):            
+                BuildManager.dbuild_launcher(launcherPos)
+                return
+
+class StateBuildShield:
+    @classmethod
+    def run(cls, pos, banned_dir: Direction | None):
+        Pathfinder.move_to(pos, ban_target_pos=True)
+
+        if BuildManager.can_dbuild_road(pos):
+            BuildManager.dbuild_road(pos)
