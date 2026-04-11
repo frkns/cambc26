@@ -56,7 +56,6 @@ class TileInfo:
     ally_transporters_adjacent: int
     enemy_transporters_adjacent: int
 
-
 class Map:
     W: int
     H: int
@@ -133,7 +132,7 @@ class Map:
                 ti.has_building = False
                 ti.has_turret = False
                 ti.entity_type = None
-
+                ti.resource_type = None
             cls.proc_nearby_tiles.append(
                 (pos, x, y, idx, ti)
             )
