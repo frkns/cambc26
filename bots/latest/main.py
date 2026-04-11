@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-11 00:43:38 (local)
+# latest,  @ 2026-04-11 00:55:18 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -30126,9 +30126,12 @@ class Builder(Unit):
         if cls.mode == 0:
             if Globals.round in [4,5]:
                 cls.mode = 2
+                Explore.target = Explore.new_target()
             else:
                 cls.mode = 1
         if Globals.round >= Constants.RUSH_OVER:
+            cls.mode = 1
+        if Symmetry.is_sym_known and Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= 7:
             cls.mode = 1
         print("Mode:",cls.mode)
 
