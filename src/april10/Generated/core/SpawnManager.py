@@ -1,0 +1,129 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+
+class SpawnManager:
+    nearest_dangerous_enemy: Position | None
+
+    # persistent
+    num_spawned: int = 0
+
+
+    @classmethod
+    def fill(cls):
+        my_pos = Globals.my_pos
+        dist = 1000000
+        enemy = None
+
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            ti: TileInfo
+
+            if not ti.entity_type in Constants.ATTACKABLE_TRANSPORTERS_SET:
+                continue
+            if not (ti.has_bot and not ti.is_bot_ally):
+                continue
+            if ti.allied_bots_adjacent > 0:
+                continue
+
+            # Calculate the distance first
+            d = my_pos.distance_squared(pos)
+
+            if enemy is None or d < dist:
+                dist = d
+                enemy = pos
+
+        cls.nearest_dangerous_enemy = enemy
+
+
+
+
+    @classmethod
+    def spawn(cls):
+        # rework this
+        my_pos = Globals.my_pos
+
+        pos = my_pos.add(Direction.CENTRE)
+        if Globals.ct.can_spawn(pos):
+            Globals.ct.spawn_builder(pos)
+            cls.num_spawned += 1
+        pos = my_pos.add(Direction.NORTHWEST)
+        if Globals.ct.can_spawn(pos):
+            Globals.ct.spawn_builder(pos)
+            cls.num_spawned += 1
+        pos = my_pos.add(Direction.WEST)
+        if Globals.ct.can_spawn(pos):
+            Globals.ct.spawn_builder(pos)
+            cls.num_spawned += 1
+        pos = my_pos.add(Direction.SOUTHWEST)
+        if Globals.ct.can_spawn(pos):
+            Globals.ct.spawn_builder(pos)
+            cls.num_spawned += 1
+        pos = my_pos.add(Direction.SOUTH)
+        if Globals.ct.can_spawn(pos):
+            Globals.ct.spawn_builder(pos)
+            cls.num_spawned += 1
+        pos = my_pos.add(Direction.SOUTHEAST)
+        if Globals.ct.can_spawn(pos):
+            Globals.ct.spawn_builder(pos)
+            cls.num_spawned += 1
+        pos = my_pos.add(Direction.EAST)
+        if Globals.ct.can_spawn(pos):
+            Globals.ct.spawn_builder(pos)
+            cls.num_spawned += 1
+        pos = my_pos.add(Direction.NORTHEAST)
+        if Globals.ct.can_spawn(pos):
+            Globals.ct.spawn_builder(pos)
+            cls.num_spawned += 1
+        pos = my_pos.add(Direction.NORTH)
+        if Globals.ct.can_spawn(pos):
+            Globals.ct.spawn_builder(pos)
+            cls.num_spawned += 1
+
+
+    @classmethod
+    def should_spawn(cls):
+        ct = Globals.ct
+        num_units = ct.get_unit_count()
+
+        ti, ax = ct.get_global_resources()
+        bot_ti, bot_ax = ct.get_builder_bot_cost()
+
+        if Globals.round <= 10 and cls.num_spawned < 5:
+            return True
+
+        if ti - bot_ti >= num_units * 100:
+            return True
+
+        return False
+
+
+    @classmethod
+    def should_spawn_emergency(cls):
+        if cls.nearest_dangerous_enemy is not None:
+            return True
+        
+        lost_short = CoreHistory.hp_delta(1) < 0 
+        lost_long = CoreHistory.hp_delta(10) < 0 
+        low_hp = Globals.ct.get_hp() < 450
+
+        if (lost_short or lost_long) and low_hp:
+            return True
+
+        return False
+
+
+
+
+
+

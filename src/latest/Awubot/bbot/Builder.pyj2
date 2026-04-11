@@ -46,7 +46,7 @@ class Builder({{ super() }}):
         Symmetry.run_sym_check()
 
         {# /* DarkForest.debug_pressure() */ #}
-        DarkForest.debug_kind()
+        {# /* DarkForest.debug_kind() */ #}
 
         {{ P.start() }}
         BfsBureau.bfs20()
@@ -76,13 +76,9 @@ class Builder({{ super() }}):
         HealTargeter.fill()
         {{ P.end('HealTargeter.fill') }}
 
-        {{ P.start() }}
-        ShieldTargeter.fill()
-        {{ P.end('ShieldTargeter.fill') }}
-
-        {% if LOCAL %}
-        Symmetry.debug()
-        {% endif %}
+        {# /* {% if LOCAL %} */ #}
+        {# /* Symmetry.debug() */ #}
+        {# /* {% endif %} */ #}
 
 
 
@@ -131,33 +127,35 @@ class Builder({{ super() }}):
             Debug.dot(takedownpos, Color.PURPLE)
             return 'BuildGunner', takedownpos, None
             
-        {# /* sitterpos = SitterTakedown.get_best_hijack_position() */ #}
-        {# /* if sitterpos is not None: */ #}
-            {# /* Debug.dot(sitterpos, Color.PURPLE) */ #}
-            {# /* return 'BuildLauncherAround', sitterpos */ #}
 
         hpos = HarvesterAdjacent.get_best_hijack_position()
         if hpos is not None:
             Debug.dot(hpos, Color.PURPLE)
             return 'BuildTurret', hpos, None
 
-        if healpos is not None:
-            return 'MoveTo', healpos, 'Heal'
 
-        shieldpos = ShieldTargeter.get_best_target()
+        shieldpos = HarvesterAdjacent.get_best_shield_position()
         if shieldpos is not None:
             return 'BuildShield', shieldpos, None
+
+
+        if healpos is not None:
+            return 'MoveTo', healpos, 'Heal'
 
         if (
              HealExecutor.last_healed is not None 
              and HealExecutor.last_healed.is_turret
              and (Globals.round - HealExecutor.last_healed_round) <= 5
         ):
-            if healpos is not None:
+            if healpos is not None:  # redundant, OK
                 return 'MoveTo', healpos, '[lrh: move to heal]'
             return 'MoveTo', HealExecutor.last_healed.position, '[lrh: wait for heal]'
 
-        
+        {# /* sitterpos = SitterTakedown.get_best_hijack_position() */ #}
+        {# /* if sitterpos is not None: */ #}
+            {# /* Debug.dot(sitterpos, Color.PURPLE) */ #}
+            {# /* return 'BuildLauncherAround', sitterpos */ #}
+
         breach_target = BreachBuild._pick_target()
         if breach_target is not None:
             return 'BreachBuild', breach_target
@@ -196,11 +194,16 @@ class Builder({{ super() }}):
         if dist_stalk <= 3 or (dist_stalk < dist_ti and dist_stalk < dist_ax):
             return 'MoveTo', stalk_target, 'Stalk'
 
+        if ti_target is not None:
+            return 'BuildHarvester', ti_target
+
         if ax_target is not None:
             return 'BuildHarvesterAx', ax_target
 
-        if ti_target is not None:
-            return 'BuildHarvester', ti_target
+        route_pos = HarvesterAdjacent.get_best_route_position()
+        if route_pos is not None:
+            RouteToCore.set_pos(route_pos)
+            return ('Route',)
 
         if stalk_target is not None:
             return 'MoveTo', stalk_target, 'Stalk'
