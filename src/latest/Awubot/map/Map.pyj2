@@ -47,10 +47,12 @@ class TileInfo:
     has_turret: bool
     turret_direction: Direction
 
-    # harvester stuff
+    # turret
     turrets_adjacent: int
     ally_turrets_adjacent: int
     enemy_turrets_adjacent: int
+
+    # harvester stuff
     ally_transporters_adjacent: int
     enemy_transporters_adjacent: int
 
@@ -301,14 +303,15 @@ class Map:
                 ((nti := tile_info[x-1][y+1]) is not None and nti.has_bot and nti.is_bot_ally) + \
                 ((nti := tile_info[x+1][y+1]) is not None and nti.has_bot and nti.is_bot_ally)
 
-            ti.ally_turrets_adjacent = 0
-            ti.enemy_turrets_adjacent = 0
-            ti.turrets_adjacent = 0
-            ti.ally_transporters_adjacent = 0
-            ti.enemy_transporters_adjacent = 0
             
 
             if ti.entity_type == EntityType.HARVESTER:
+                ti.ally_turrets_adjacent = 0
+                ti.enemy_turrets_adjacent = 0
+                ti.turrets_adjacent = 0
+                ti.ally_transporters_adjacent = 0
+                ti.enemy_transporters_adjacent = 0
+
                 {% for dir in cardinal_directions %}
                 {% set dx, dy = dir.delta() %}
 

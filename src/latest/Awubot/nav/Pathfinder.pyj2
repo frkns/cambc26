@@ -19,7 +19,7 @@ from Generated import *
 
 class Pathfinder:
     cur_target = None
-    given_up: bool
+    given_up: bool = False
 
     @classmethod
     def reset(cls):

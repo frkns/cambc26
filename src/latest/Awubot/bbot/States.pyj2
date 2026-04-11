@@ -78,7 +78,7 @@ class StateMoveTo:
         Pathfinder.move_to(pos)
 
 
-class StateBuildTurret:
+class StateBuildSentinel:
     @classmethod
     def run(cls, pos, banned_dir: Direction | None = None):
         Pathfinder.move_to(pos, ban_target_pos=True)
