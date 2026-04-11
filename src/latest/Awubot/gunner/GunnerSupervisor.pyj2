@@ -27,6 +27,7 @@ class GunnerTargetInfo:
     has_launcher: bool
     can_shoot_me: bool
     is_road: bool
+    is_core: bool
 
     bot_hp: int
     building_hp: int
@@ -45,6 +46,8 @@ class GunnerTargetInfo:
     def is_better_than(a: GunnerTargetInfo, b: GunnerTargetInfo):
         {% set DMG = GameConstants.GUNNER_DAMAGE %}
 
+        if a.is_core:
+            return True #always just aim towards *a* core
         if a.is_harvester_feeding_ally: return False
         if b.is_harvester_feeding_ally: return True
 
@@ -231,6 +234,7 @@ class GunnerSupervisor:
                 info.iscore = cls.importance_score[ti.entity_type]
                 info.entity_type = ti.entity_type
                 info.is_road = ti.entity_type == EntityType.ROAD
+                info.is_core = ti.entity_type == EntityType.CORE
                 info.current_dir = current_dir == {{ dir }}
                 info.rand_key = random.random()
                 info.ally_connected = DarkForest.node_kind[idx] in \

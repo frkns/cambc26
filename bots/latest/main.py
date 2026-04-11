@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-10 21:15:30 (local)
+# latest,  @ 2026-04-10 23:04:07 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -22749,6 +22749,7 @@ class GunnerSupervisor:
                 info.iscore = cls.importance_score[ti.entity_type]
                 info.entity_type = ti.entity_type
                 info.is_road = ti.entity_type == EntityType.ROAD
+                info.is_core = ti.entity_type == EntityType.CORE
                 info.current_dir = current_dir == Direction.NORTH
                 info.rand_key = random.random()
                 info.ally_connected = DarkForest.node_kind[idx] in \
@@ -22823,6 +22824,7 @@ class GunnerSupervisor:
                 info.iscore = cls.importance_score[ti.entity_type]
                 info.entity_type = ti.entity_type
                 info.is_road = ti.entity_type == EntityType.ROAD
+                info.is_core = ti.entity_type == EntityType.CORE
                 info.current_dir = current_dir == Direction.NORTHEAST
                 info.rand_key = random.random()
                 info.ally_connected = DarkForest.node_kind[idx] in \
@@ -22897,6 +22899,7 @@ class GunnerSupervisor:
                 info.iscore = cls.importance_score[ti.entity_type]
                 info.entity_type = ti.entity_type
                 info.is_road = ti.entity_type == EntityType.ROAD
+                info.is_core = ti.entity_type == EntityType.CORE
                 info.current_dir = current_dir == Direction.EAST
                 info.rand_key = random.random()
                 info.ally_connected = DarkForest.node_kind[idx] in \
@@ -22971,6 +22974,7 @@ class GunnerSupervisor:
                 info.iscore = cls.importance_score[ti.entity_type]
                 info.entity_type = ti.entity_type
                 info.is_road = ti.entity_type == EntityType.ROAD
+                info.is_core = ti.entity_type == EntityType.CORE
                 info.current_dir = current_dir == Direction.SOUTHEAST
                 info.rand_key = random.random()
                 info.ally_connected = DarkForest.node_kind[idx] in \
@@ -23045,6 +23049,7 @@ class GunnerSupervisor:
                 info.iscore = cls.importance_score[ti.entity_type]
                 info.entity_type = ti.entity_type
                 info.is_road = ti.entity_type == EntityType.ROAD
+                info.is_core = ti.entity_type == EntityType.CORE
                 info.current_dir = current_dir == Direction.SOUTH
                 info.rand_key = random.random()
                 info.ally_connected = DarkForest.node_kind[idx] in \
@@ -23119,6 +23124,7 @@ class GunnerSupervisor:
                 info.iscore = cls.importance_score[ti.entity_type]
                 info.entity_type = ti.entity_type
                 info.is_road = ti.entity_type == EntityType.ROAD
+                info.is_core = ti.entity_type == EntityType.CORE
                 info.current_dir = current_dir == Direction.SOUTHWEST
                 info.rand_key = random.random()
                 info.ally_connected = DarkForest.node_kind[idx] in \
@@ -23193,6 +23199,7 @@ class GunnerSupervisor:
                 info.iscore = cls.importance_score[ti.entity_type]
                 info.entity_type = ti.entity_type
                 info.is_road = ti.entity_type == EntityType.ROAD
+                info.is_core = ti.entity_type == EntityType.CORE
                 info.current_dir = current_dir == Direction.WEST
                 info.rand_key = random.random()
                 info.ally_connected = DarkForest.node_kind[idx] in \
@@ -23267,6 +23274,7 @@ class GunnerSupervisor:
                 info.iscore = cls.importance_score[ti.entity_type]
                 info.entity_type = ti.entity_type
                 info.is_road = ti.entity_type == EntityType.ROAD
+                info.is_core = ti.entity_type == EntityType.CORE
                 info.current_dir = current_dir == Direction.NORTHWEST
                 info.rand_key = random.random()
                 info.ally_connected = DarkForest.node_kind[idx] in \
@@ -23325,6 +23333,7 @@ class GunnerTargetInfo:
     has_launcher: bool
     can_shoot_me: bool
     is_road: bool
+    is_core: bool
 
     bot_hp: int
     building_hp: int
@@ -23342,6 +23351,8 @@ class GunnerTargetInfo:
     @staticmethod
     def is_better_than(a: GunnerTargetInfo, b: GunnerTargetInfo):
 
+        if a.is_core:
+            return True #always just aim towards *a* core
         if a.is_harvester_feeding_ally: return False
         if b.is_harvester_feeding_ally: return True
 
