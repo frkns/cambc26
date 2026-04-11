@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-11 18:10:12 (local)
+# latest,  @ 2026-04-11 18:51:02 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -24058,6 +24058,18 @@ class HealTargeter:
             cond = best.building_hp < 500 - best.bfs_dist * (core_ti.allied_bots_adjacent) * 4
             if not cond:
                 return None
+            
+        # count canonical allies between us and the target
+        allyIndex = VisionTracker.canonical_ally_index()
+        
+        totalHeal = max(
+            Constants.MAX_HP_MAP[best.entity_type] - best.building_hp,
+            40 - best.bot_hp
+        )
+        
+        # if there are already enough canonical healers, ignore the target
+        if allyIndex * GameConstants.HEAL_AMOUNT > totalHeal:
+            return None
 
 
         return best.position
@@ -25974,6 +25986,35 @@ class OreExecutive:
         if not VisionTracker.me_is_canonical_ally(ret):
             # just kill?
             return None
+            
+        
+        # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
+        ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + -1]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                return None
+                
+        
+        # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
+        ti: TileInfo = Map.tile_info[ret.x + 1][ret.y + 0]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                return None
+                
+        
+        # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
+        ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + 1]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                return None
+                
+        
+        # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
+        ti: TileInfo = Map.tile_info[ret.x + -1][ret.y + 0]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                return None
+                
 
         return ret
 
@@ -29982,6 +30023,19 @@ class VisionTracker:
         )
         
         return ret
+    
+    @classmethod
+    def canonical_ally_index(cls, from_pos: Position) -> int:
+        
+        allyIndex = map(lambda x: x.position, sorted(cls.allies, key=
+            lambda x: (Util.linf(from_pos, x.position) << 16) + x.id
+        ))
+        if from_pos in allyIndex:
+            i = all.index(from_pos)
+        else:
+            i = 0
+        
+        return i
 
 
     canon_map: dict[Position, int] = {}
@@ -30229,7 +30283,7 @@ class Builder(Unit):
         dist_ti = 1000000 if ti_target is None else my_pos.distance_squared(ti_target)
         dist_ax = 1000000 if ax_target is None else my_pos.distance_squared(ax_target)
 
-        if dist_stalk <= 3 or (dist_stalk < dist_ti and dist_stalk < dist_ax):
+        if dist_stalk <= 4 or (dist_stalk < dist_ti and dist_stalk < dist_ax):
             return 'MoveTo', stalk_target, 'Stalk'
 
         if ti_target is not None:

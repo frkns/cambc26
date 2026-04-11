@@ -102,6 +102,18 @@ class HealTargeter:
             cond = best.building_hp < 500 - best.bfs_dist * (core_ti.allied_bots_adjacent) * 4
             if not cond:
                 return None
+            
+        # count canonical allies between us and the target
+        allyIndex = VisionTracker.canonical_ally_index()
+        
+        totalHeal = max(
+            Constants.MAX_HP_MAP[best.entity_type] - best.building_hp,
+            {{ GameConstants.BUILDER_BOT_MAX_HP }} - best.bot_hp
+        )
+        
+        # if there are already enough canonical healers, ignore the target
+        if allyIndex * GameConstants.HEAL_AMOUNT > totalHeal:
+            return None
 
         {% if LOCAL %}
         print(f'HealTargeter {best.position=} {best.building_heal=} {best.building_hp=}')

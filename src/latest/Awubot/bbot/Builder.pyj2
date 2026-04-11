@@ -190,7 +190,7 @@ class Builder({{ super() }}):
         dist_ti = {{ INF }} if ti_target is None else my_pos.distance_squared(ti_target)
         dist_ax = {{ INF }} if ax_target is None else my_pos.distance_squared(ax_target)
 
-        if dist_stalk <= 3 or (dist_stalk < dist_ti and dist_stalk < dist_ax):
+        if dist_stalk <= 4 or (dist_stalk < dist_ti and dist_stalk < dist_ax):
             return 'MoveTo', stalk_target, 'Stalk'
 
         if ti_target is not None:
