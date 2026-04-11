@@ -22,7 +22,6 @@ class RouteToBreach:
     from_pos: Position
     killed: set[Position] = set()
     prevRoute = []
-    backTracking = False
 
     # Positions that have been claimed (or built) as breach sites.
     # Class-level so all bots in this process see the same table.
@@ -84,10 +83,8 @@ class RouteToBreach:
 
         if fullReset:
             cls.prevRoute.clear()
-            cls.backTracking = False 
         else:
             cls.prevRoute.append(cls.from_pos)
-            cls.backTracking = False # Added here to clear backtracking once we resume forward progress
         cls.is_active = True
         cls.from_pos = pos
 
@@ -132,7 +129,7 @@ class RouteToBreach:
         ti = Map.tile_info[x][y]
         if ti is None:
             return False
-        if not cls.backTracking and Pathfinder.given_up:
+        if Pathfinder.given_up:
             return True
 
         if ti.env in [Environment.WALL]:
@@ -191,12 +188,11 @@ class RouteToBreach:
             return True
         else:
             cls.killed.add(cls.from_pos)
-            if Pathfinder.given_up:
-                if Pathfinder.given_up:
-                    RouteToCore.pathFindingKill.add({{ encode_pos('cls.from_pos.x', 'cls.from_pos.y') }})
-            cls.from_pos = cls.prevRoute.pop()
-            cls.backTracking = True
-            return False
+            cls.is_active = False
+            newPos = cls.prevRoute.pop()
+            cls._breach_target = {{ encode_pos('newPos.x', 'newPos.y') }}
+            cls.prevRoute.clear()
+            return True
 
     @classmethod
     def try_claim_target(cls):

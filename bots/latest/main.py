@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-10 20:42:35 (local)
+# latest,  @ 2026-04-10 21:15:30 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -3018,8 +3018,14 @@ class BreachBuild:
                 and Globals.ct.get_action_cooldown() == 0:
                 Globals.ct.destroy(pos)
         
-        dirToBuild = pos.direction_to(Symmetry.enemy_core_pos )
-        if Globals.ct.can_build_breach(pos, dirToBuild):
+        dirToBuild = pos.direction_to(Symmetry.enemy_core_pos)
+        
+        # Calculate distance to the closest tile of the 3x3 enemy core
+        core_dx = max(0, abs(pos.x - Symmetry.enemy_core_pos.x) - 1)
+        core_dy = max(0, abs(pos.y - Symmetry.enemy_core_pos.y) - 1)
+        dist_to_core_sq = core_dx**2 + core_dy**2
+
+        if Globals.ct.can_build_breach(pos, dirToBuild) and dist_to_core_sq <= GameConstants.BREACH_ATTACK_RADIUS_SQ:
             Globals.ct.build_breach(pos, dirToBuild)
             print("OMGGGGGG I ACTUALLY BUILT THE BREACH AT", pos,file = sys.stderr)
 
@@ -3033,6 +3039,13 @@ class BreachBuild:
         if Globals.ct.can_build_gunner(pos, dirToBuild):
             Globals.ct.build_gunner(pos, dirToBuild)
             encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
+            if dist_to_core_sq > GameConstants.BREACH_ATTACK_RADIUS_SQ:
+                print("Too lazy, we build gunner instead of breach at", pos, "because it's out of breach attack radius")
+                encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
+                # Register the new breach as a sink so fcompute updates the tree.
+                DarkForest.register_sink(encoded, 3)
+
+                RouteToBreach._breach_target = None
             return True
         return False
 
@@ -26051,7 +26064,6 @@ class RouteToBreach:
     from_pos: Position
     killed: set[Position] = set()
     prevRoute = []
-    backTracking = False
 
     # Positions that have been claimed (or built) as breach sites.
     # Class-level so all bots in this process see the same table.
@@ -26113,10 +26125,8 @@ class RouteToBreach:
 
         if fullReset:
             cls.prevRoute.clear()
-            cls.backTracking = False 
         else:
             cls.prevRoute.append(cls.from_pos)
-            cls.backTracking = False # Added here to clear backtracking once we resume forward progress
         cls.is_active = True
         cls.from_pos = pos
 
@@ -26161,7 +26171,7 @@ class RouteToBreach:
         ti = Map.tile_info[x][y]
         if ti is None:
             return False
-        if not cls.backTracking and Pathfinder.given_up:
+        if Pathfinder.given_up:
             return True
 
         if ti.env in [Environment.WALL]:
@@ -26220,12 +26230,11 @@ class RouteToBreach:
             return True
         else:
             cls.killed.add(cls.from_pos)
-            if Pathfinder.given_up:
-                if Pathfinder.given_up:
-                    RouteToCore.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
-            cls.from_pos = cls.prevRoute.pop()
-            cls.backTracking = True
-            return False
+            cls.is_active = False
+            newPos = cls.prevRoute.pop()
+            cls._breach_target = (((newPos.x) + 3) * 56 + ((newPos.y) + 3))
+            cls.prevRoute.clear()
+            return True
 
     @classmethod
     def try_claim_target(cls):
