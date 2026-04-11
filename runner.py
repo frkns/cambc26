@@ -170,9 +170,10 @@ def runTourneyParallel(a, b, maps, parallel_count=4, verbose=False):
             
             with results_lock:
                 if is_reversed:
-                    # When reversed (b, a): titA is b's, titB is a's
+                    # When reversed (b, a): runMatch's "a" means team b won, and titA/titB are swapped
+                    normalized_winner = "b" if winner == "a" else "a"
                     results_map[map_idx][f"match_{len(results_map[map_idx])}"] = {
-                        "winner": winner,
+                        "winner": normalized_winner,
                         "time": elapsed,
                         "titaniumA": titB,  # a's titanium
                         "titaniumB": titA,  # b's titanium

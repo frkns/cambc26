@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-11 10:05:36 (local)
+# latest,  @ 2026-04-11 11:23:52 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -37,6 +37,12 @@ class AdjacentInfo:
 
         if ati.has_building: return False
         if bti.has_building: return True
+        
+        if ati.harvester_adjacent != bti.harvester_adjacent:
+            if ati.harvester_adjacent:
+                return True
+            else:
+                return False
 
         return a.bfs_dist < b.bfs_dist
 
@@ -23447,108 +23453,112 @@ class HarvesterAdjacent:
             x, y = sx , sy -1
             ti = tile_info[x][y]
             if ti is not None:
-
+                valid = True
+                
                 if ti.env == Environment.WALL:
-                    continue
-
-                if ti.has_building:
+                    valid = False
+                elif ti.has_building:
                     if not ti.is_building_ally:
-                        continue
-                    if ti.entity_type != EntityType.ROAD:
-                        continue
+                        valid = False
+                    elif ti.entity_type != EntityType.ROAD:
+                        valid = False
 
-                pos = Position(x, y)
-                idx = (((x) + 3) * 56 + ((y) + 3))
+                if valid:
+                    pos = Position(x, y)
+                    idx = (((x) + 3) * 56 + ((y) + 3))
 
-                info = AdjacentInfo()
-                info.position = pos
-                info.bfs_dist = BfsBureau.bfs20_dist[idx]
-                info.is_harvester_ally = is_harvester_ally
-                info.ti = ti
-                info.consider_route = consider_route
-                info.dist_to_ally_core = dist_to_ally_core
-                cls.infos.append(info)
+                    info = AdjacentInfo()
+                    info.position = pos
+                    info.bfs_dist = BfsBureau.bfs20_dist[idx]
+                    info.is_harvester_ally = is_harvester_ally
+                    info.ti = ti
+                    info.consider_route = consider_route
+                    info.dist_to_ally_core = dist_to_ally_core
+                    cls.infos.append(info)
 
 
 
             x, y = sx +1, sy 
             ti = tile_info[x][y]
             if ti is not None:
-
+                valid = True
+                
                 if ti.env == Environment.WALL:
-                    continue
-
-                if ti.has_building:
+                    valid = False
+                elif ti.has_building:
                     if not ti.is_building_ally:
-                        continue
-                    if ti.entity_type != EntityType.ROAD:
-                        continue
+                        valid = False
+                    elif ti.entity_type != EntityType.ROAD:
+                        valid = False
 
-                pos = Position(x, y)
-                idx = (((x) + 3) * 56 + ((y) + 3))
+                if valid:
+                    pos = Position(x, y)
+                    idx = (((x) + 3) * 56 + ((y) + 3))
 
-                info = AdjacentInfo()
-                info.position = pos
-                info.bfs_dist = BfsBureau.bfs20_dist[idx]
-                info.is_harvester_ally = is_harvester_ally
-                info.ti = ti
-                info.consider_route = consider_route
-                info.dist_to_ally_core = dist_to_ally_core
-                cls.infos.append(info)
+                    info = AdjacentInfo()
+                    info.position = pos
+                    info.bfs_dist = BfsBureau.bfs20_dist[idx]
+                    info.is_harvester_ally = is_harvester_ally
+                    info.ti = ti
+                    info.consider_route = consider_route
+                    info.dist_to_ally_core = dist_to_ally_core
+                    cls.infos.append(info)
 
 
 
             x, y = sx , sy +1
             ti = tile_info[x][y]
             if ti is not None:
-
+                valid = True
+                
                 if ti.env == Environment.WALL:
-                    continue
-
-                if ti.has_building:
+                    valid = False
+                elif ti.has_building:
                     if not ti.is_building_ally:
-                        continue
-                    if ti.entity_type != EntityType.ROAD:
-                        continue
+                        valid = False
+                    elif ti.entity_type != EntityType.ROAD:
+                        valid = False
 
-                pos = Position(x, y)
-                idx = (((x) + 3) * 56 + ((y) + 3))
+                if valid:
+                    pos = Position(x, y)
+                    idx = (((x) + 3) * 56 + ((y) + 3))
 
-                info = AdjacentInfo()
-                info.position = pos
-                info.bfs_dist = BfsBureau.bfs20_dist[idx]
-                info.is_harvester_ally = is_harvester_ally
-                info.ti = ti
-                info.consider_route = consider_route
-                info.dist_to_ally_core = dist_to_ally_core
-                cls.infos.append(info)
+                    info = AdjacentInfo()
+                    info.position = pos
+                    info.bfs_dist = BfsBureau.bfs20_dist[idx]
+                    info.is_harvester_ally = is_harvester_ally
+                    info.ti = ti
+                    info.consider_route = consider_route
+                    info.dist_to_ally_core = dist_to_ally_core
+                    cls.infos.append(info)
 
 
 
             x, y = sx -1, sy 
             ti = tile_info[x][y]
             if ti is not None:
-
+                valid = True
+                
                 if ti.env == Environment.WALL:
-                    continue
-
-                if ti.has_building:
+                    valid = False
+                elif ti.has_building:
                     if not ti.is_building_ally:
-                        continue
-                    if ti.entity_type != EntityType.ROAD:
-                        continue
+                        valid = False
+                    elif ti.entity_type != EntityType.ROAD:
+                        valid = False
 
-                pos = Position(x, y)
-                idx = (((x) + 3) * 56 + ((y) + 3))
+                if valid:
+                    pos = Position(x, y)
+                    idx = (((x) + 3) * 56 + ((y) + 3))
 
-                info = AdjacentInfo()
-                info.position = pos
-                info.bfs_dist = BfsBureau.bfs20_dist[idx]
-                info.is_harvester_ally = is_harvester_ally
-                info.ti = ti
-                info.consider_route = consider_route
-                info.dist_to_ally_core = dist_to_ally_core
-                cls.infos.append(info)
+                    info = AdjacentInfo()
+                    info.position = pos
+                    info.bfs_dist = BfsBureau.bfs20_dist[idx]
+                    info.is_harvester_ally = is_harvester_ally
+                    info.ti = ti
+                    info.consider_route = consider_route
+                    info.dist_to_ally_core = dist_to_ally_core
+                    cls.infos.append(info)
 
 
 # ============================================================
