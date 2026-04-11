@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-10 23:56:42 (local)
+# latest,  @ 2026-04-11 09:01:02 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -29037,11 +29037,12 @@ class StalkTargeter:
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             if ti.has_bot and not ti.is_bot_ally \
                     and VisionTracker.me_is_canonical_ally(pos):
-                
                 dist = bfs20_dist[idx]
                 if dist < best_dist:
                     best_dist = dist
                     best = pos
+                
+        
                 
         return best
 
