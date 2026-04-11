@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-11 09:01:02 (local)
+# latest,  @ 2026-04-11 09:37:45 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -24032,6 +24032,7 @@ class HealTargetInfo:
     building_hp: int
     bot_heal: int
     bot_hp: int
+    harvester_adjacent: bool
     is_transporter: bool
     has_enemy_bot: bool
     bfs_dist: int
@@ -24044,11 +24045,19 @@ class HealTargetInfo:
 
         # Make sure at least one building is healable
         if a.building_heal > 0 and b.building_heal > 0:
-            if a.is_transporter != b.is_transporter:
-                if a.is_transporter:
+            if a.harvester_adjacent != b.harvester_adjacent:
+                if a.harvester_adjacent:
                     return True
                 else:
                     return False
+                
+            # Transporters are only more important if not next to a harvester
+            if not a.harvester_adjacent:
+                if a.is_transporter != b.is_transporter:
+                    if a.is_transporter:
+                        return True
+                    else:
+                        return False
 
             if a.has_enemy_bot != b.has_enemy_bot:
                 if a.has_enemy_bot:
@@ -24122,6 +24131,7 @@ class HealTargeter:
             info.has_enemy_bot = False
             info.bfs_dist = BfsBureau.bfs20_dist[idx]
             info.entity_type = ti.entity_type
+            info.harvester_adjacent = ti.harvester_adjacent
 
             if ti.has_building and ti.is_building_ally:
                 info.building_heal = min(
@@ -29054,7 +29064,8 @@ class StalkTargeter:
 class StateAttack:
     @classmethod
     def run(cls, pos):
-        Pathfinder.move_to(pos)
+        if Globals.my_pos != pos:
+            Pathfinder.move_to(pos)
 
         if Globals.my_pos != pos:
             return
@@ -29576,10 +29587,10 @@ class TakedownTargetInfo:
 
     @staticmethod
     def is_better_than(a: TakedownTargetInfo, b: TakedownTargetInfo):
-        if a.has_transporter != b.has_transporter:
-            return a.has_transporter < b.has_transporter
         if a.enemy_turrets_nearby != b.enemy_turrets_nearby:
             return a.enemy_turrets_nearby > b.enemy_turrets_nearby
+        if a.has_transporter != b.has_transporter:
+            return a.has_transporter < b.has_transporter
         return a.dist_enemy_core < b.dist_enemy_core
 
 

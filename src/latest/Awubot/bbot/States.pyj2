@@ -33,7 +33,8 @@ class StateBuildHarvesterAx:
 class StateAttack:
     @classmethod
     def run(cls, pos):
-        Pathfinder.move_to(pos)
+        if Globals.my_pos != pos:
+            Pathfinder.move_to(pos)
 
         if Globals.my_pos != pos:
             return
