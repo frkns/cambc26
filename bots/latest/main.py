@@ -29030,13 +29030,20 @@ class StalkTargeter:
             return None
 
         bfs20_dist = BfsBureau.bfs20_dist
+        
+        best: Position = None
+        best_dist: int = 1000000
 
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             if ti.has_bot and not ti.is_bot_ally \
-                    and VisionTracker.me_is_canonical_ally(pos) \
-                    and bfs20_dist[idx] < 1000000:  # reachable
+                    and VisionTracker.me_is_canonical_ally(pos):
                 
-                return pos
+                dist = bfs20_dist[idx]
+                if dist < best_dist:
+                    best_dist = dist
+                    best = pos
+                
+        return best
 
 
 # ============================================================
