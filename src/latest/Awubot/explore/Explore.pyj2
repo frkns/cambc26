@@ -70,7 +70,10 @@ class Explore:
         #     return Util.follow_to_edge(Globals.my_pos.x, Globals.my_pos.y, bestDx, bestDy)
         # # Later in the game, we should just go to random places to hit every last corner
         # else:
-        return Util.rand_pos()
+        if Builder.mode == 2:
+            return Symmetry.sym_pos(Unit.core_pos)
+        else:
+            return Util.rand_pos()
 
 
     @classmethod

@@ -22,6 +22,7 @@ from Generated import *
 
 class Builder({{ super() }}):
     state: str
+    mode: int = 0 # 0 = undef, 1 = econ, 2 = early rush 
 
     @classmethod
     def init(cls):
@@ -34,6 +35,14 @@ class Builder({{ super() }}):
     @classmethod
     def start_turn(cls):
         {{ super() }}.start_turn()
+        
+        if cls.mode == 0:
+            if Globals.round in [4,5]:
+                cls.mode = 2
+            else:
+                cls.mode = 1
+        if Globals.round >= Constants.RUSH_OVER:
+            cls.mode = 1
 
         {{ P.start() }}
         DarkForest.fcompute()
@@ -194,14 +203,14 @@ class Builder({{ super() }}):
         if dist_stalk <= 3 or (dist_stalk < dist_ti and dist_stalk < dist_ax):
             return 'MoveTo', stalk_target, 'Stalk'
 
-        if ti_target is not None:
+        if ti_target is not None and cls.mode != 2:
             return 'BuildHarvester', ti_target
 
-        if ax_target is not None:
+        if ax_target is not None and cls.mode != 2:
             return 'BuildHarvesterAx', ax_target
 
         route_pos = HarvesterAdjacent.get_best_route_position()
-        if route_pos is not None:
+        if route_pos is not None and cls.mode != 2:
             RouteToCore.set_pos(route_pos)
             return ('Route',)
 
