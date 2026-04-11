@@ -65,6 +65,12 @@ class AdjacentInfo:
 
         if a.is_harvester_ally and (not b.is_harvester_ally): return False
         if (not a.is_harvester_ally) and b.is_harvester_ally: return True
+        
+        ati = a.ti
+        bti = b.ti
+        
+        if ati.has_bot != bti.has_bot:
+            return ati.has_bot < bti.has_bot
 
         if a.bfs_dist != b.bfs_dist:
             return a.bfs_dist < b.bfs_dist

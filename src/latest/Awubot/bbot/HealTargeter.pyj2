@@ -25,6 +25,7 @@ class HealTargetInfo:
     bot_hp: int
     harvester_adjacent: bool
     is_transporter: bool
+    is_turret: bool
     has_enemy_bot: bool
     bfs_dist: int
     entity_type: EntityType
@@ -40,10 +41,22 @@ class HealTargetInfo:
 
         if a.building_heal != b.building_heal:
             return a.building_heal > b.building_heal
-
+        
         if a.is_turret != b.is_turret:
             return a.is_turret > b.is_turret
-
+            
+        
+        if a.harvester_adjacent != b.harvester_adjacent:
+            return a.harvester_adjacent > b.harvester_adjacent
+            
+        # Transporters are only more important if not next to a harvester
+        if not a.harvester_adjacent:
+            if a.is_transporter != b.is_transporter:
+                return a.is_transporter > b.is_transporter
+    
+        if a.has_enemy_bot != b.has_enemy_bot:
+            return a.has_enemy_bot > b.has_enemy_bot
+        
         ahp = a.building_hp
         bhp = b.building_hp
 
@@ -63,12 +76,6 @@ class HealTargetInfo:
 
         if a.bot_hp != b.bot_hp:
             return a.bot_hp < b.bot_hp
-        
-        if a.has_enemy_bot != b.has_enemy_bot:
-            if a.has_enemy_bot:
-                return True
-            else:
-                return False
 
         return False
 
@@ -93,7 +100,9 @@ class HealTargeter:
             {% if LOCAL %}
             print(f'{total_heal=}')
             {% endif %}
-            return None
+            # Still heal buildings next to harvesters for shielding
+            if not best.harvester_adjacent or best.building_heal + best.bot_heal == 0:
+                return None
 
         if best.bfs_dist >= 100:
             return None
@@ -104,6 +113,18 @@ class HealTargeter:
             cond = best.building_hp < 500 - best.bfs_dist * (core_ti.allied_bots_adjacent) * 4
             if not cond:
                 return None
+            
+        # count canonical allies between us and the target
+        allyIndex = VisionTracker.canonical_ally_index()
+        
+        totalHeal = max(
+            Constants.MAX_HP_MAP[best.entity_type] - best.building_hp,
+            {{ GameConstants.BUILDER_BOT_MAX_HP }} - best.bot_hp
+        )
+        
+        # if there are already enough canonical healers, ignore the target
+        if allyIndex * GameConstants.HEAL_AMOUNT > totalHeal:
+            return None
 
         {% if LOCAL %}
         print(f'HealTargeter {best.position=} {best.building_heal=} {best.building_hp=}')
@@ -127,6 +148,7 @@ class HealTargeter:
             info.building_hp = {{ INF }}
             info.bot_hp = {{ INF }}
             info.is_transporter = (ti.entity_type is not None and ti.entity_type in Constants.TRANSPORTERS_SET)
+            info.is_turret = (ti.entity_type is not None and ti.entity_type in Constants.TURRET_SET)
             info.has_enemy_bot = False
             info.bfs_dist = BfsBureau.bfs20_dist[idx]
             info.entity_type = ti.entity_type

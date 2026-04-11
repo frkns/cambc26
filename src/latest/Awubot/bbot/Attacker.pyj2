@@ -38,6 +38,8 @@ class Attacker:
             return None
         if not VisionTracker.me_is_canonical_ally(trans.position):
             return None
+        if not cls.should_fire(trans.position):
+            return None
         return trans.position
 
 
@@ -49,6 +51,8 @@ class Attacker:
         if not road.bfs_dist < 10: 
             return None
         if not VisionTracker.me_is_canonical_ally(road.position):
+            return None
+        if not cls.should_fire(road.position):
             return None
         return road.position
 

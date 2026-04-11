@@ -134,6 +134,10 @@ class Builder({{ super() }}):
         takedowninfo = HarvesterAdjacent.get_best_turret_takedown_info()
         takedownpos = None if takedowninfo is None else takedowninfo.position
 
+        shieldpos = HarvesterAdjacent.get_best_shield_position()
+        if shieldpos is not None:
+            return 'BuildShield', shieldpos, None
+
         if RouteToBreach.is_active:
             return ('RouteBreach',)
 
@@ -152,11 +156,6 @@ class Builder({{ super() }}):
         if sentinelpos is not None:
             Debug.dot(sentinelpos, Color.PURPLE)
             return 'BuildSentinel', sentinelpos, None
-
-
-        shieldpos = HarvesterAdjacent.get_best_shield_position()
-        if shieldpos is not None:
-            return 'BuildShield', shieldpos, None
 
 
         if healpos is not None:
@@ -211,7 +210,7 @@ class Builder({{ super() }}):
         dist_ti = {{ INF }} if ti_target is None else my_pos.distance_squared(ti_target)
         dist_ax = {{ INF }} if ax_target is None else my_pos.distance_squared(ax_target)
 
-        if dist_stalk <= 3 or (dist_stalk < dist_ti and dist_stalk < dist_ax):
+        if dist_stalk <= 4 or (dist_stalk < dist_ti and dist_stalk < dist_ax):
             return 'MoveTo', stalk_target, 'Stalk'
 
         if ti_target is not None and cls.mode != 2:

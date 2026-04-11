@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-11 12:52:25 (local)
+# latest,  @ 2026-04-11 19:14:14 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -64,6 +64,12 @@ class AdjacentInfo:
 
         if a.is_harvester_ally and (not b.is_harvester_ally): return False
         if (not a.is_harvester_ally) and b.is_harvester_ally: return True
+        
+        ati = a.ti
+        bti = b.ti
+        
+        if ati.has_bot != bti.has_bot:
+            return ati.has_bot < bti.has_bot
 
         if a.bfs_dist != b.bfs_dist:
             return a.bfs_dist < b.bfs_dist
@@ -125,6 +131,8 @@ class Attacker:
             return None
         if not VisionTracker.me_is_canonical_ally(trans.position):
             return None
+        if not cls.should_fire(trans.position):
+            return None
         return trans.position
 
 
@@ -136,6 +144,8 @@ class Attacker:
         if not road.bfs_dist < 10: 
             return None
         if not VisionTracker.me_is_canonical_ally(road.position):
+            return None
+        if not cls.should_fire(road.position):
             return None
         return road.position
 
@@ -24289,6 +24299,7 @@ class HealTargetInfo:
     bot_hp: int
     harvester_adjacent: bool
     is_transporter: bool
+    is_turret: bool
     has_enemy_bot: bool
     bfs_dist: int
     entity_type: EntityType
@@ -24304,10 +24315,22 @@ class HealTargetInfo:
 
         if a.building_heal != b.building_heal:
             return a.building_heal > b.building_heal
-
+        
         if a.is_turret != b.is_turret:
             return a.is_turret > b.is_turret
-
+            
+        
+        if a.harvester_adjacent != b.harvester_adjacent:
+            return a.harvester_adjacent > b.harvester_adjacent
+            
+        # Transporters are only more important if not next to a harvester
+        if not a.harvester_adjacent:
+            if a.is_transporter != b.is_transporter:
+                return a.is_transporter > b.is_transporter
+    
+        if a.has_enemy_bot != b.has_enemy_bot:
+            return a.has_enemy_bot > b.has_enemy_bot
+        
         ahp = a.building_hp
         bhp = b.building_hp
 
@@ -24327,12 +24350,6 @@ class HealTargetInfo:
 
         if a.bot_hp != b.bot_hp:
             return a.bot_hp < b.bot_hp
-        
-        if a.has_enemy_bot != b.has_enemy_bot:
-            if a.has_enemy_bot:
-                return True
-            else:
-                return False
 
         return False
 
@@ -24358,7 +24375,9 @@ class HealTargeter:
 
         total_heal = best.building_heal + best.bot_heal
         if total_heal < 4:
-            return None
+            # Still heal buildings next to harvesters for shielding
+            if not best.harvester_adjacent or best.building_heal + best.bot_heal == 0:
+                return None
 
         if best.bfs_dist >= 100:
             return None
@@ -24369,6 +24388,18 @@ class HealTargeter:
             cond = best.building_hp < 500 - best.bfs_dist * (core_ti.allied_bots_adjacent) * 4
             if not cond:
                 return None
+            
+        # count canonical allies between us and the target
+        allyIndex = VisionTracker.canonical_ally_index()
+        
+        totalHeal = max(
+            Constants.MAX_HP_MAP[best.entity_type] - best.building_hp,
+            40 - best.bot_hp
+        )
+        
+        # if there are already enough canonical healers, ignore the target
+        if allyIndex * GameConstants.HEAL_AMOUNT > totalHeal:
+            return None
 
 
         return best
@@ -24389,6 +24420,7 @@ class HealTargeter:
             info.building_hp = 1000000
             info.bot_hp = 1000000
             info.is_transporter = (ti.entity_type is not None and ti.entity_type in Constants.TRANSPORTERS_SET)
+            info.is_turret = (ti.entity_type is not None and ti.entity_type in Constants.TURRET_SET)
             info.has_enemy_bot = False
             info.bfs_dist = BfsBureau.bfs20_dist[idx]
             info.entity_type = ti.entity_type
@@ -26292,6 +26324,35 @@ class OreExecutive:
         if not VisionTracker.me_is_canonical_ally(ret):
             # just kill?
             return None
+            
+        
+        # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
+        ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + -1]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                return None
+                
+        
+        # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
+        ti: TileInfo = Map.tile_info[ret.x + 1][ret.y + 0]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                return None
+                
+        
+        # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
+        ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + 1]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                return None
+                
+        
+        # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
+        ti: TileInfo = Map.tile_info[ret.x + -1][ret.y + 0]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                return None
+                
 
         return ret
 
@@ -30299,6 +30360,19 @@ class VisionTracker:
         )
         
         return ret
+    
+    @classmethod
+    def canonical_ally_index(cls, from_pos: Position) -> int:
+        
+        allyIndex = map(lambda x: x.position, sorted(cls.allies, key=
+            lambda x: (Util.linf(from_pos, x.position) << 16) + x.id
+        ))
+        if from_pos in allyIndex:
+            i = all.index(from_pos)
+        else:
+            i = 0
+        
+        return i
 
 
     canon_map: dict[Position, int] = {}
@@ -30491,6 +30565,10 @@ class Builder(Unit):
         takedowninfo = HarvesterAdjacent.get_best_turret_takedown_info()
         takedownpos = None if takedowninfo is None else takedowninfo.position
 
+        shieldpos = HarvesterAdjacent.get_best_shield_position()
+        if shieldpos is not None:
+            return 'BuildShield', shieldpos, None
+
         if RouteToBreach.is_active:
             return ('RouteBreach',)
 
@@ -30509,11 +30587,6 @@ class Builder(Unit):
         if sentinelpos is not None:
             Debug.dot(sentinelpos, Color.PURPLE)
             return 'BuildSentinel', sentinelpos, None
-
-
-        shieldpos = HarvesterAdjacent.get_best_shield_position()
-        if shieldpos is not None:
-            return 'BuildShield', shieldpos, None
 
 
         if healpos is not None:
@@ -30564,7 +30637,7 @@ class Builder(Unit):
         dist_ti = 1000000 if ti_target is None else my_pos.distance_squared(ti_target)
         dist_ax = 1000000 if ax_target is None else my_pos.distance_squared(ax_target)
 
-        if dist_stalk <= 3 or (dist_stalk < dist_ti and dist_stalk < dist_ax):
+        if dist_stalk <= 4 or (dist_stalk < dist_ti and dist_stalk < dist_ax):
             return 'MoveTo', stalk_target, 'Stalk'
 
         if ti_target is not None and cls.mode != 2:
