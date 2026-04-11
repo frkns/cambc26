@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-11 19:25:07 (local)
+# latest,  @ 2026-04-11 19:28:12 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -24413,8 +24413,8 @@ class HealTargeter:
         allyIndex = VisionTracker.canonical_ally_index(best.position)
         
         totalHeal = max(
-            Constants.MAX_HP_MAP[best.entity_type] - best.building_hp,
-            40 - best.bot_hp
+            0 if best.entity_type is None else Constants.MAX_HP_MAP[best.entity_type] - best.building_hp,
+            0 if best.bot_heal == 0 else 40 - best.bot_hp
         )
         
         # if there are already enough canonical healers, ignore the target
