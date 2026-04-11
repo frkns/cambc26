@@ -99,6 +99,8 @@ class RouteToFoundry:
                 continue # do not consider bridges.
             
             d = abs(cx - sx) + abs(cy - sy)
+
+            print(f"RouteToFoundry: candidate {c} at ({cx}, {cy}) has d={d}")
             if d < best_d:
                 best_d = d
                 best = c

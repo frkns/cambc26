@@ -160,6 +160,7 @@ class Map:
                 opp_ti.allied_bots_adjacent = 0
                 tile_info[ox][oy] = opp_ti
                 new_syms.append(Position(ox, oy))
+                BfsBureau.ti_ore_adj[ {{ encode_pos('ox', 'oy') }}] = BfsBureau.ti_ore_adj[ {{ encode_pos('x', 'y') }}]
             {% endif %}
 
             ti.env = tile_env
@@ -366,5 +367,6 @@ class Map:
                     opp_ti.target = None
                     opp_ti.allied_bots_adjacent = 0
                     orow[oy] = opp_ti
+                    BfsBureau.ti_ore_adj[ {{ encode_pos('ox', 'oy') }}] = BfsBureau.ti_ore_adj[ {{ encode_pos('x', 'y') }}]
                     new_syms.append(Position(ox, oy))
 # ===---

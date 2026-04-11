@@ -100,7 +100,7 @@ class RouteToBreach:
         bridge_dist, first_target = BfsBureau.find_bridge_route_avoid_ti_adj(
             cls.from_pos,
             target_set,
-            avoid_pos = cls.pathFindingKill
+            avoid_pos = RouteToCore.pathFindingKill
         )
 
         {{ D.show('bridge_dist') }}
@@ -185,7 +185,7 @@ class RouteToBreach:
             if cls._breach_target is not None:
                 cls.planned_breach_positions.discard(cls._breach_target)
                 cls._breach_target = None
-            if PathFinder.given_up:
+            if Pathfinder.given_up:
                 RouteToCore.pathFindingKill.add({{ encode_pos('cls.from_pos.x', 'cls.from_pos.y') }})
             Debug.diamond(Color.PURPLE)
             return True
@@ -193,7 +193,7 @@ class RouteToBreach:
             cls.killed.add(cls.from_pos)
             if Pathfinder.given_up:
                 if Pathfinder.given_up:
-                    cls.pathFindingKill.add({{ encode_pos('cls.from_pos.x', 'cls.from_pos.y') }})
+                    RouteToCore.pathFindingKill.add({{ encode_pos('cls.from_pos.x', 'cls.from_pos.y') }})
             cls.from_pos = cls.prevRoute.pop()
             cls.backTracking = True
             return False

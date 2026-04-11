@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-10 17:14:14 (local)
+# latest,  @ 2026-04-10 19:04:47 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -3702,7 +3702,7 @@ class Constants:
         EntityType.BREACH,
     }
 
-    AXIONITE_START: int = 100 # Start producing axionite at this round
+    AXIONITE_START: int = 50 # Start producing axionite at this round
 
     MAX_HP_MAP: dict[EntityType, int] = {
         EntityType.BUILDER_BOT: 40,
@@ -24350,6 +24350,7 @@ class Map:
                 opp_ti.allied_bots_adjacent = 0
                 tile_info[ox][oy] = opp_ti
                 new_syms.append(Position(ox, oy))
+                BfsBureau.ti_ore_adj[ (((ox) + 3) * 56 + ((oy) + 3))] = BfsBureau.ti_ore_adj[ (((x) + 3) * 56 + ((y) + 3))]
 
             ti.env = tile_env
             ti.round = round
@@ -24538,6 +24539,7 @@ class Map:
                 opp_ti.allied_bots_adjacent = 0
                 tile_info[ox][oy] = opp_ti
                 new_syms.append(Position(ox, oy))
+                BfsBureau.ti_ore_adj[ (((ox) + 3) * 56 + ((oy) + 3))] = BfsBureau.ti_ore_adj[ (((x) + 3) * 56 + ((y) + 3))]
 
             ti.env = tile_env
             ti.round = round
@@ -24726,6 +24728,7 @@ class Map:
                 opp_ti.allied_bots_adjacent = 0
                 tile_info[ox][oy] = opp_ti
                 new_syms.append(Position(ox, oy))
+                BfsBureau.ti_ore_adj[ (((ox) + 3) * 56 + ((oy) + 3))] = BfsBureau.ti_ore_adj[ (((x) + 3) * 56 + ((y) + 3))]
 
             ti.env = tile_env
             ti.round = round
@@ -25100,6 +25103,7 @@ class Map:
                     opp_ti.target = None
                     opp_ti.allied_bots_adjacent = 0
                     orow[oy] = opp_ti
+                    BfsBureau.ti_ore_adj[ (((ox) + 3) * 56 + ((oy) + 3))] = BfsBureau.ti_ore_adj[ (((x) + 3) * 56 + ((y) + 3))]
                     new_syms.append(Position(ox, oy))
 
 
@@ -26070,6 +26074,7 @@ class RouteToBreach:
     from_pos: Position
     killed: set[Position] = set()
     prevRoute = []
+    backTracking = False
 
     # Positions that have been claimed (or built) as breach sites.
     # Class-level so all bots in this process see the same table.
@@ -26129,10 +26134,14 @@ class RouteToBreach:
             cls.prevRoute.clear()
             return
 
-        cls.is_active = True
-        cls.from_pos = pos
         if fullReset:
             cls.prevRoute.clear()
+            cls.backTracking = False 
+        else:
+            cls.prevRoute.append(cls.from_pos)
+            cls.backTracking = False # Added here to clear backtracking once we resume forward progress
+        cls.is_active = True
+        cls.from_pos = pos
 
     @classmethod
     def try_build_route(cls):
@@ -26143,6 +26152,7 @@ class RouteToBreach:
         bridge_dist, first_target = BfsBureau.find_bridge_route_avoid_ti_adj(
             cls.from_pos,
             target_set,
+            avoid_pos = RouteToCore.pathFindingKill
         )
 
         print(f"""{bridge_dist=}""")
@@ -26159,11 +26169,9 @@ class RouteToBreach:
         if cls.from_pos.distance_squared(target) == 1:
             if BuildManager.can_dbuild_conveyor(cls.from_pos):
                 BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
-                cls.prevRoute.append(cls.from_pos)
                 cls.set_pos(target,False)
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
-            cls.prevRoute.append(cls.from_pos)
             cls.set_pos(target,False)
 
     @classmethod
@@ -26176,7 +26184,7 @@ class RouteToBreach:
         ti = Map.tile_info[x][y]
         if ti is None:
             return False
-        if Pathfinder.given_up:
+        if not cls.backTracking and Pathfinder.given_up:
             return True
 
         if ti.env in [Environment.WALL]:
@@ -26225,15 +26233,21 @@ class RouteToBreach:
         if len(cls.prevRoute) == 0: # cooked:
             cls.is_active = False
             # Release the claim so another bot (or a retry) can use this leaf.
+            cls.killed.add(cls.from_pos)
             if cls._breach_target is not None:
                 cls.planned_breach_positions.discard(cls._breach_target)
                 cls._breach_target = None
-            cls.killed.add(cls.from_pos)
+            if Pathfinder.given_up:
+                RouteToCore.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
             Debug.diamond(Color.PURPLE)
             return True
         else:
-            cls.from_pos = cls.prevRoute[-1]
-            cls.prevRoute.pop()
+            cls.killed.add(cls.from_pos)
+            if Pathfinder.given_up:
+                if Pathfinder.given_up:
+                    RouteToCore.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
+            cls.from_pos = cls.prevRoute.pop()
+            cls.backTracking = True
             return False
 
     @classmethod
@@ -26485,6 +26499,8 @@ class RouteToFoundry:
                 continue # do not consider bridges.
             
             d = abs(cx - sx) + abs(cy - sy)
+
+            print(f"RouteToFoundry: candidate {c} at ({cx}, {cy}) has d={d}")
             if d < best_d:
                 best_d = d
                 best = c
@@ -28868,6 +28884,7 @@ class Symmetry:
         Profiler.start()
         Map.sync_tile_infos()
         Profiler.end_now("""Map.sync_tile_infos""")
+        RouteToCore.pathFindingKill.update(cls.enemy_core_pos_set) # don't route to core anymore
 
 
 
@@ -29741,10 +29758,9 @@ class Builder(Unit):
         my_pos = Globals.my_pos
         healpos = HealTargeter.get_best_target()
 
-        """
         if RouteToBreach.is_active:
             return ('RouteBreach',)
-        """
+
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
 
@@ -29778,11 +29794,12 @@ class Builder(Unit):
                 return 'MoveTo', healpos, '[lrh: move to heal]'
             return 'MoveTo', HealExecutor.last_healed.position, '[lrh: wait for heal]'
 
-        """
+        
         breach_target = BreachBuild._pick_target()
         if breach_target is not None:
             return 'BreachBuild', breach_target
-        """
+        
+        
         foundry_target = FoundryBuild._pick_target()
         if foundry_target is not None:
             return 'FoundryBuild', foundry_target
