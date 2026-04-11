@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-10 17:14:14 (local)
+# latest,  @ 2026-04-10 21:03:02 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -24411,8 +24411,8 @@ class Map:
             else:
                 ti.target = None
 
-                if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.FOUNDRY):
-                    if etype in (EntityType.SENTINEL, EntityType.GUNNER):
+                if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.BREACH, EntityType.FOUNDRY):
+                    if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.BREACH):
                         ti.has_turret = True
                         ti.turret_direction = ct.get_direction(building_id)
 
@@ -24599,8 +24599,8 @@ class Map:
             else:
                 ti.target = None
 
-                if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.FOUNDRY):
-                    if etype in (EntityType.SENTINEL, EntityType.GUNNER):
+                if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.BREACH, EntityType.FOUNDRY):
+                    if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.BREACH):
                         ti.has_turret = True
                         ti.turret_direction = ct.get_direction(building_id)
 
@@ -24787,8 +24787,8 @@ class Map:
             else:
                 ti.target = None
 
-                if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.FOUNDRY):
-                    if etype in (EntityType.SENTINEL, EntityType.GUNNER):
+                if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.BREACH, EntityType.FOUNDRY):
+                    if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.BREACH):
                         ti.has_turret = True
                         ti.turret_direction = ct.get_direction(building_id)
 
@@ -24957,8 +24957,8 @@ class Map:
             else:
                 ti.target = None
 
-                if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.FOUNDRY):
-                    if etype in (EntityType.SENTINEL, EntityType.GUNNER):
+                if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.BREACH, EntityType.FOUNDRY):
+                    if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.BREACH):
                         ti.has_turret = True
                         ti.turret_direction = ct.get_direction(building_id)
 
