@@ -142,12 +142,8 @@ class RouteToBreach:
 
         if ti.has_building:
             if not ti.is_building_ally:
-                newTarg = cls._pick_target()
-                if newTarg is None:
-                    return True
-                else:
-                    cls._breach_target = newTarg
-                    return False
+                return True
+                     
             if ti.entity_type in Constants.TURRET_SET:
                 return True
             """
