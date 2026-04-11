@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-11 19:14:14 (local)
+# latest,  @ 2026-04-11 19:18:23 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -24390,7 +24390,7 @@ class HealTargeter:
                 return None
             
         # count canonical allies between us and the target
-        allyIndex = VisionTracker.canonical_ally_index()
+        allyIndex = VisionTracker.canonical_ally_index(best.position)
         
         totalHeal = max(
             Constants.MAX_HP_MAP[best.entity_type] - best.building_hp,
@@ -30364,11 +30364,11 @@ class VisionTracker:
     @classmethod
     def canonical_ally_index(cls, from_pos: Position) -> int:
         
-        allyIndex = map(lambda x: x.position, sorted(cls.allies, key=
+        allyIndex = list(map(lambda x: x.position, sorted(cls.allies, key=
             lambda x: (Util.linf(from_pos, x.position) << 16) + x.id
-        ))
+        )))
         if from_pos in allyIndex:
-            i = all.index(from_pos)
+            i = allyIndex.index(from_pos)
         else:
             i = 0
         

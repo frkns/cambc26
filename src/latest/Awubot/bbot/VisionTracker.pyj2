@@ -182,11 +182,11 @@ class VisionTracker:
     @classmethod
     def canonical_ally_index(cls, from_pos: Position) -> int:
         {{ P.start() }}
-        allyIndex = map(lambda x: x.position, sorted(cls.allies, key=
+        allyIndex = list(map(lambda x: x.position, sorted(cls.allies, key=
             lambda x: (Util.linf(from_pos, x.position) << 16) + x.id
-        ))
+        )))
         if from_pos in allyIndex:
-            i = all.index(from_pos)
+            i = allyIndex.index(from_pos)
         else:
             i = 0
         {{ P.end('canonical_ally') }}

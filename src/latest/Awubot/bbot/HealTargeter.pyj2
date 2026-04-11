@@ -115,7 +115,7 @@ class HealTargeter:
                 return None
             
         # count canonical allies between us and the target
-        allyIndex = VisionTracker.canonical_ally_index()
+        allyIndex = VisionTracker.canonical_ally_index(best.position)
         
         totalHeal = max(
             Constants.MAX_HP_MAP[best.entity_type] - best.building_hp,
