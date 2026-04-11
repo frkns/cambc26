@@ -1,5 +1,6 @@
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
 import inspect
+import math
 
 
 class Dir:
@@ -60,6 +61,19 @@ def is_diagonal(dir: Direction):
     dx, dy = dir.delta()
     return abs(dx) == 1 and abs(dy) == 1
 
+def signInt(n: int) -> int: # sign() is already taken
+    """Returns the sign of an integer.
+
+    Args:
+        n (int): an integer to take the sign of
+
+    Returns:
+        int: the sign of n
+    """
+    if n == 0: return 0
+    if n > 0: return 1
+    return -1
+
 
 INF = 1_000_000
 INF1 = INF + 1
@@ -107,15 +121,8 @@ def gunner_target_valid(rx, ry, direction: Direction) -> bool:
     dist_sq = rx * rx + ry * ry
     if dist_sq == 0 or dist_sq > GameConstants.GUNNER_VISION_RADIUS_SQ:
         return False
-    dx, dy = direction.delta()
-    k = 1
-    while k * k * (dx * dx + dy * dy) <= GameConstants.GUNNER_VISION_RADIUS_SQ:
-        lx = rx - k * dx
-        ly = ry - k * dy
-        if abs(lx) <= 1 and abs(ly) <= 1:
-            return True
-        k += 1
-    return False
+    # Check if the signs match the direction
+    return (signInt(rx), signInt(ry)) == direction.delta()
 
 
 sentinel_pattern: list[list[tuple]] = [[] for _ in range(8)]

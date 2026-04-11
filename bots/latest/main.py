@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-11 00:55:18 (local)
+# latest,  @ 2026-04-11 11:18:52 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -37,6 +37,12 @@ class AdjacentInfo:
 
         if ati.has_building: return False
         if bti.has_building: return True
+        
+        if ati.harvester_adjacent != bti.harvester_adjacent:
+            if ati.harvester_adjacent:
+                return True
+            else:
+                return False
 
         return a.bfs_dist < b.bfs_dist
 
@@ -22334,37 +22340,29 @@ class GunnerDirectionPicker:
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info6.enemy_building_hp += e_building_hp
                 info7.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info6.enemy_bot_hp += e_bot_hp
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info5.enemy_building_hp += e_building_hp
                 info6.enemy_building_hp += e_building_hp
-                info7.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info5.enemy_bot_hp += e_bot_hp
                 info6.enemy_bot_hp += e_bot_hp
-                info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + 1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
-                info6.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info5.enemy_bot_hp += e_bot_hp
-                info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + 2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -22378,97 +22376,65 @@ class GunnerDirectionPicker:
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info0.enemy_building_hp += e_building_hp
                 info7.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info0.enemy_bot_hp += e_bot_hp
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + -1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info0.enemy_building_hp += e_building_hp
-                info6.enemy_building_hp += e_building_hp
                 info7.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info0.enemy_bot_hp += e_bot_hp
-                info6.enemy_bot_hp += e_bot_hp
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info0.enemy_building_hp += e_building_hp
-                info4.enemy_building_hp += e_building_hp
-                info5.enemy_building_hp += e_building_hp
                 info6.enemy_building_hp += e_building_hp
-                info7.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info0.enemy_bot_hp += e_bot_hp
-                info4.enemy_bot_hp += e_bot_hp
-                info5.enemy_bot_hp += e_bot_hp
                 info6.enemy_bot_hp += e_bot_hp
-                info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + 1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info4.enemy_building_hp += e_building_hp
                 info5.enemy_building_hp += e_building_hp
-                info6.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info4.enemy_bot_hp += e_bot_hp
                 info5.enemy_bot_hp += e_bot_hp
-                info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + 2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info4.enemy_building_hp += e_building_hp
                 info5.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info4.enemy_bot_hp += e_bot_hp
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + -2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
-                info1.enemy_building_hp += e_building_hp
-                info7.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info0.enemy_bot_hp += e_bot_hp
-                info1.enemy_bot_hp += e_bot_hp
-                info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + -1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
-                info1.enemy_building_hp += e_building_hp
-                info2.enemy_building_hp += e_building_hp
-                info6.enemy_building_hp += e_building_hp
-                info7.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info0.enemy_bot_hp += e_bot_hp
-                info1.enemy_bot_hp += e_bot_hp
-                info2.enemy_bot_hp += e_bot_hp
-                info6.enemy_bot_hp += e_bot_hp
-                info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -22480,97 +22446,65 @@ class GunnerDirectionPicker:
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info2.enemy_building_hp += e_building_hp
-                info3.enemy_building_hp += e_building_hp
                 info4.enemy_building_hp += e_building_hp
-                info5.enemy_building_hp += e_building_hp
-                info6.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info2.enemy_bot_hp += e_bot_hp
-                info3.enemy_bot_hp += e_bot_hp
                 info4.enemy_bot_hp += e_bot_hp
-                info5.enemy_bot_hp += e_bot_hp
-                info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + 2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info3.enemy_building_hp += e_building_hp
                 info4.enemy_building_hp += e_building_hp
-                info5.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info3.enemy_bot_hp += e_bot_hp
                 info4.enemy_bot_hp += e_bot_hp
-                info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + -2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info0.enemy_building_hp += e_building_hp
                 info1.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info0.enemy_bot_hp += e_bot_hp
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + -1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info0.enemy_building_hp += e_building_hp
                 info1.enemy_building_hp += e_building_hp
-                info2.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info0.enemy_bot_hp += e_bot_hp
                 info1.enemy_bot_hp += e_bot_hp
-                info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info0.enemy_building_hp += e_building_hp
-                info1.enemy_building_hp += e_building_hp
                 info2.enemy_building_hp += e_building_hp
-                info3.enemy_building_hp += e_building_hp
-                info4.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info0.enemy_bot_hp += e_bot_hp
-                info1.enemy_bot_hp += e_bot_hp
                 info2.enemy_bot_hp += e_bot_hp
-                info3.enemy_bot_hp += e_bot_hp
-                info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + 1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info2.enemy_building_hp += e_building_hp
                 info3.enemy_building_hp += e_building_hp
-                info4.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info2.enemy_bot_hp += e_bot_hp
                 info3.enemy_bot_hp += e_bot_hp
-                info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + 2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
-                info4.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info3.enemy_bot_hp += e_bot_hp
-                info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + -2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -22585,35 +22519,27 @@ class GunnerDirectionPicker:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
-                info2.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info1.enemy_bot_hp += e_bot_hp
-                info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info1.enemy_building_hp += e_building_hp
                 info2.enemy_building_hp += e_building_hp
-                info3.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info1.enemy_bot_hp += e_bot_hp
                 info2.enemy_bot_hp += e_bot_hp
-                info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + 1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info2.enemy_building_hp += e_building_hp
                 info3.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info2.enemy_bot_hp += e_bot_hp
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + 2]
         if ti is not None:
@@ -23532,108 +23458,112 @@ class HarvesterAdjacent:
             x, y = sx , sy -1
             ti = tile_info[x][y]
             if ti is not None:
-
+                valid = True
+                
                 if ti.env == Environment.WALL:
-                    continue
-
-                if ti.has_building:
+                    valid = False
+                elif ti.has_building:
                     if not ti.is_building_ally:
-                        continue
-                    if ti.entity_type != EntityType.ROAD:
-                        continue
+                        valid = False
+                    elif ti.entity_type != EntityType.ROAD:
+                        valid = False
 
-                pos = Position(x, y)
-                idx = (((x) + 3) * 56 + ((y) + 3))
+                if valid:
+                    pos = Position(x, y)
+                    idx = (((x) + 3) * 56 + ((y) + 3))
 
-                info = AdjacentInfo()
-                info.position = pos
-                info.bfs_dist = BfsBureau.bfs20_dist[idx]
-                info.is_harvester_ally = is_harvester_ally
-                info.ti = ti
-                info.consider_route = consider_route
-                info.dist_to_ally_core = dist_to_ally_core
-                cls.infos.append(info)
+                    info = AdjacentInfo()
+                    info.position = pos
+                    info.bfs_dist = BfsBureau.bfs20_dist[idx]
+                    info.is_harvester_ally = is_harvester_ally
+                    info.ti = ti
+                    info.consider_route = consider_route
+                    info.dist_to_ally_core = dist_to_ally_core
+                    cls.infos.append(info)
 
 
 
             x, y = sx +1, sy 
             ti = tile_info[x][y]
             if ti is not None:
-
+                valid = True
+                
                 if ti.env == Environment.WALL:
-                    continue
-
-                if ti.has_building:
+                    valid = False
+                elif ti.has_building:
                     if not ti.is_building_ally:
-                        continue
-                    if ti.entity_type != EntityType.ROAD:
-                        continue
+                        valid = False
+                    elif ti.entity_type != EntityType.ROAD:
+                        valid = False
 
-                pos = Position(x, y)
-                idx = (((x) + 3) * 56 + ((y) + 3))
+                if valid:
+                    pos = Position(x, y)
+                    idx = (((x) + 3) * 56 + ((y) + 3))
 
-                info = AdjacentInfo()
-                info.position = pos
-                info.bfs_dist = BfsBureau.bfs20_dist[idx]
-                info.is_harvester_ally = is_harvester_ally
-                info.ti = ti
-                info.consider_route = consider_route
-                info.dist_to_ally_core = dist_to_ally_core
-                cls.infos.append(info)
+                    info = AdjacentInfo()
+                    info.position = pos
+                    info.bfs_dist = BfsBureau.bfs20_dist[idx]
+                    info.is_harvester_ally = is_harvester_ally
+                    info.ti = ti
+                    info.consider_route = consider_route
+                    info.dist_to_ally_core = dist_to_ally_core
+                    cls.infos.append(info)
 
 
 
             x, y = sx , sy +1
             ti = tile_info[x][y]
             if ti is not None:
-
+                valid = True
+                
                 if ti.env == Environment.WALL:
-                    continue
-
-                if ti.has_building:
+                    valid = False
+                elif ti.has_building:
                     if not ti.is_building_ally:
-                        continue
-                    if ti.entity_type != EntityType.ROAD:
-                        continue
+                        valid = False
+                    elif ti.entity_type != EntityType.ROAD:
+                        valid = False
 
-                pos = Position(x, y)
-                idx = (((x) + 3) * 56 + ((y) + 3))
+                if valid:
+                    pos = Position(x, y)
+                    idx = (((x) + 3) * 56 + ((y) + 3))
 
-                info = AdjacentInfo()
-                info.position = pos
-                info.bfs_dist = BfsBureau.bfs20_dist[idx]
-                info.is_harvester_ally = is_harvester_ally
-                info.ti = ti
-                info.consider_route = consider_route
-                info.dist_to_ally_core = dist_to_ally_core
-                cls.infos.append(info)
+                    info = AdjacentInfo()
+                    info.position = pos
+                    info.bfs_dist = BfsBureau.bfs20_dist[idx]
+                    info.is_harvester_ally = is_harvester_ally
+                    info.ti = ti
+                    info.consider_route = consider_route
+                    info.dist_to_ally_core = dist_to_ally_core
+                    cls.infos.append(info)
 
 
 
             x, y = sx -1, sy 
             ti = tile_info[x][y]
             if ti is not None:
-
+                valid = True
+                
                 if ti.env == Environment.WALL:
-                    continue
-
-                if ti.has_building:
+                    valid = False
+                elif ti.has_building:
                     if not ti.is_building_ally:
-                        continue
-                    if ti.entity_type != EntityType.ROAD:
-                        continue
+                        valid = False
+                    elif ti.entity_type != EntityType.ROAD:
+                        valid = False
 
-                pos = Position(x, y)
-                idx = (((x) + 3) * 56 + ((y) + 3))
+                if valid:
+                    pos = Position(x, y)
+                    idx = (((x) + 3) * 56 + ((y) + 3))
 
-                info = AdjacentInfo()
-                info.position = pos
-                info.bfs_dist = BfsBureau.bfs20_dist[idx]
-                info.is_harvester_ally = is_harvester_ally
-                info.ti = ti
-                info.consider_route = consider_route
-                info.dist_to_ally_core = dist_to_ally_core
-                cls.infos.append(info)
+                    info = AdjacentInfo()
+                    info.position = pos
+                    info.bfs_dist = BfsBureau.bfs20_dist[idx]
+                    info.is_harvester_ally = is_harvester_ally
+                    info.ti = ti
+                    info.consider_route = consider_route
+                    info.dist_to_ally_core = dist_to_ally_core
+                    cls.infos.append(info)
 
 
 # ============================================================
@@ -24037,6 +23967,7 @@ class HealTargetInfo:
     building_hp: int
     bot_heal: int
     bot_hp: int
+    harvester_adjacent: bool
     is_transporter: bool
     has_enemy_bot: bool
     bfs_dist: int
@@ -24049,17 +23980,19 @@ class HealTargetInfo:
 
         # Make sure at least one building is healable
         if a.building_heal > 0 and b.building_heal > 0:
-            if a.is_transporter != b.is_transporter:
-                if a.is_transporter:
+            if a.harvester_adjacent != b.harvester_adjacent:
+                if a.harvester_adjacent:
                     return True
                 else:
                     return False
-
-            if a.has_enemy_bot != b.has_enemy_bot:
-                if a.has_enemy_bot:
-                    return True
-                else:
-                    return False
+                
+            # Transporters are only more important if not next to a harvester
+            if not a.harvester_adjacent:
+                if a.is_transporter != b.is_transporter:
+                    if a.is_transporter:
+                        return True
+                    else:
+                        return False
 
         if a.building_hp != b.building_hp:
             return a.building_hp < b.building_hp
@@ -24072,6 +24005,12 @@ class HealTargetInfo:
 
         if a.bot_hp != b.bot_hp:
             return a.bot_hp < b.bot_hp
+        
+        if a.has_enemy_bot != b.has_enemy_bot:
+            if a.has_enemy_bot:
+                return True
+            else:
+                return False
 
         return False
 
@@ -24127,6 +24066,7 @@ class HealTargeter:
             info.has_enemy_bot = False
             info.bfs_dist = BfsBureau.bfs20_dist[idx]
             info.entity_type = ti.entity_type
+            info.harvester_adjacent = ti.harvester_adjacent
 
             if ti.has_building and ti.is_building_ally:
                 info.building_heal = min(
@@ -24479,7 +24419,7 @@ class Map:
                 ti.has_building = False
                 ti.has_turret = False
                 ti.entity_type = None
-
+                ti.resource_type = None
             cls.proc_nearby_tiles.append(
                 (pos, x, y, idx, ti)
             )
@@ -24735,7 +24675,7 @@ class Map:
                 ti.has_building = False
                 ti.has_turret = False
                 ti.entity_type = None
-
+                ti.resource_type = None
             cls.proc_nearby_tiles.append(
                 (pos, x, y, idx, ti)
             )
@@ -24991,7 +24931,7 @@ class Map:
                 ti.has_building = False
                 ti.has_turret = False
                 ti.entity_type = None
-
+                ti.resource_type = None
             cls.proc_nearby_tiles.append(
                 (pos, x, y, idx, ti)
             )
@@ -25244,7 +25184,7 @@ class Map:
                 ti.has_building = False
                 ti.has_turret = False
                 ti.entity_type = None
-
+                ti.resource_type = None
             cls.proc_nearby_tiles.append(
                 (pos, x, y, idx, ti)
             )
@@ -29035,13 +28975,21 @@ class StalkTargeter:
             return None
 
         bfs20_dist = BfsBureau.bfs20_dist
+        
+        best: Position = None
+        best_dist: int = 1000000
 
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             if ti.has_bot and not ti.is_bot_ally \
-                    and VisionTracker.me_is_canonical_ally(pos) \
-                    and bfs20_dist[idx] < 1000000:  # reachable
+                    and VisionTracker.me_is_canonical_ally(pos):
+                dist = bfs20_dist[idx]
+                if dist < best_dist:
+                    best_dist = dist
+                    best = pos
                 
-                return pos
+        
+                
+        return best
 
 
 # ============================================================
@@ -29051,7 +28999,8 @@ class StalkTargeter:
 class StateAttack:
     @classmethod
     def run(cls, pos):
-        Pathfinder.move_to(pos)
+        if Globals.my_pos != pos:
+            Pathfinder.move_to(pos)
 
         if Globals.my_pos != pos:
             return
@@ -29573,10 +29522,10 @@ class TakedownTargetInfo:
 
     @staticmethod
     def is_better_than(a: TakedownTargetInfo, b: TakedownTargetInfo):
-        if a.has_transporter != b.has_transporter:
-            return a.has_transporter < b.has_transporter
         if a.enemy_turrets_nearby != b.enemy_turrets_nearby:
             return a.enemy_turrets_nearby > b.enemy_turrets_nearby
+        if a.has_transporter != b.has_transporter:
+            return a.has_transporter < b.has_transporter
         return a.dist_enemy_core < b.dist_enemy_core
 
 
@@ -30006,7 +29955,8 @@ class VisionTracker:
 
                 if DarkForest.node_kind[idx] == 0 and DarkForest.flow[idx] > 0:
                     if DarkForest.nodes[idx].up is None:
-                        cls.disconnected_roots.append(trans)
+                        if Globals.ct.get_stored_resource(trans.ti.building_id) in [ResourceType.TITANIUM, ResourceType.REFINED_AXIONITE ]:
+                            cls.disconnected_roots.append(trans)
 
 
     @classmethod
@@ -30131,7 +30081,7 @@ class Builder(Unit):
                 cls.mode = 1
         if Globals.round >= Constants.RUSH_OVER:
             cls.mode = 1
-        if Symmetry.is_sym_known and Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= 7:
+        if (Symmetry.is_sym_known and Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= 7):
             cls.mode = 1
         print("Mode:",cls.mode)
 
