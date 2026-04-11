@@ -669,17 +669,20 @@ class BfsBureau:
         {% endfor %}
     })
 # ===---
+    bfs20_dist_adj: list[int] = [{{ INF }}] * {{ PADDED_GRID_SIZE }}
 # ---===
     @classmethod
     def bfs20(cls):
         """Weighted Dijkstra from pos, limited to tiles within vision r²≤20."""
         weight = cls.now_weight
         distances = cls.bfs20_dist
+        distances_adj = cls.bfs20_dist_adj
         IMPASSABLE = {{ INF }}
 
         # Reset tiles touched by the previous call
         for touched_index in cls._bfs20_touched_indices:
             distances[touched_index] = IMPASSABLE
+            distances_adj[touched_index] = IMPASSABLE
 
         pos = Globals.my_pos
         start_x, start_y = pos.x, pos.y
@@ -721,6 +724,16 @@ class BfsBureau:
             {% endfor %}
 
         cls._bfs20_touched_indices = touched_indices
+
+        # Post-process: for each touched tile, set dist_adj to min of 8 neighbours
+        for idx in touched_indices:
+            best = IMPASSABLE
+            {% for dir in range(8) %}
+            d = distances[idx + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}]
+            if d < best:
+                best = d
+            {% endfor %}
+            distances_adj[idx] = best
 # ===---
 # ---===
     @classmethod

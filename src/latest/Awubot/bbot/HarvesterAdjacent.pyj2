@@ -21,7 +21,7 @@ from Generated import *
 
 class AdjacentInfo:
     position: Position
-    bfs_dist: int
+    bfs_dist_adj: int
     is_harvester_ally: bool
     ti: TileInfo
     consider_route: bool
@@ -37,8 +37,8 @@ class AdjacentInfo:
 
     @staticmethod
     def is_better_than_shield(a: AdjacentInfo, b: AdjacentInfo):
-        if a.bfs_dist >= 100: return False        
-        if b.bfs_dist >= 100: return True
+        if a.bfs_dist_adj >= 100: return False        
+        if b.bfs_dist_adj >= 100: return True
 
         ati = a.ti
         bti = b.ti
@@ -52,7 +52,7 @@ class AdjacentInfo:
             else:
                 return False
 
-        return a.bfs_dist < b.bfs_dist
+        return a.bfs_dist_adj < b.bfs_dist_adj
 
 
 
@@ -60,20 +60,20 @@ class AdjacentInfo:
     def is_better_than_sentinel(a: AdjacentInfo, b: AdjacentInfo):
         # TODO: could be better 
             
-        if a.bfs_dist >= 100: return False        
-        if b.bfs_dist >= 100: return True
+        if a.bfs_dist_adj >= 100: return False        
+        if b.bfs_dist_adj >= 100: return True
 
         if a.is_harvester_ally and (not b.is_harvester_ally): return False
         if (not a.is_harvester_ally) and b.is_harvester_ally: return True
 
-        if a.bfs_dist != b.bfs_dist:
-            return a.bfs_dist < b.bfs_dist
+        if a.bfs_dist_adj != b.bfs_dist_adj:
+            return a.bfs_dist_adj < b.bfs_dist_adj
 
 
     @staticmethod
     def is_better_than_route(a: AdjacentInfo, b: AdjacentInfo):
-        if a.bfs_dist >= 100: return False
-        if b.bfs_dist >= 100: return True
+        if a.bfs_dist_adj >= 100: return False
+        if b.bfs_dist_adj >= 100: return True
 
         if not a.consider_route: return False
         if not b.consider_route: return True
@@ -86,8 +86,8 @@ class AdjacentInfo:
 
     @staticmethod
     def is_better_than_turret_takedown(a: AdjacentInfo, b: AdjacentInfo):
-        if a.bfs_dist >= 100: return False
-        if b.bfs_dist >= 100: return True
+        if a.bfs_dist_adj >= 100: return False
+        if b.bfs_dist_adj >= 100: return True
 
         if a.enemy_turrets_nearby == 0: return False
         if b.enemy_turrets_nearby == 0: return True
@@ -98,7 +98,7 @@ class AdjacentInfo:
         if a.has_ally_transporter != b.has_ally_transporter:
             return not a.has_ally_transporter
 
-        return a.bfs_dist < b.bfs_dist
+        return a.bfs_dist_adj < b.bfs_dist_adj
 
 
 
@@ -120,7 +120,7 @@ class HarvesterAdjacent:
             if AdjacentInfo.is_better_than_sentinel(c, best):
                 best = c
 
-        if best.bfs_dist >= 100:
+        if best.bfs_dist_adj >= 100:
             return None
 
         if best.is_harvester_ally is True:
@@ -145,7 +145,7 @@ class HarvesterAdjacent:
             if AdjacentInfo.is_better_than_turret_takedown(c, best):
                 best = c
 
-        if best.bfs_dist >= 100:
+        if best.bfs_dist_adj >= 100:
             return None
 
         if best.enemy_turrets_nearby == 0:
@@ -175,7 +175,7 @@ class HarvesterAdjacent:
         if best.consider_route is False:
             return None
 
-        if best.bfs_dist >= 100:
+        if best.bfs_dist_adj >= 100:
             return None
 
         if not VisionTracker.me_is_canonical_ally(best.position):
@@ -197,7 +197,7 @@ class HarvesterAdjacent:
         if best.ti.has_building:
             return None
 
-        if best.bfs_dist >= 100:
+        if best.bfs_dist_adj >= 100:
             return None
 
         if not VisionTracker.me_is_canonical_ally(best.position):
@@ -245,7 +245,7 @@ class HarvesterAdjacent:
 
                     info = AdjacentInfo()
                     info.position = pos
-                    info.bfs_dist = BfsBureau.bfs20_dist[idx]
+                    info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
                     info.is_harvester_ally = is_harvester_ally
                     info.ti = ti
                     info.consider_route = consider_route

@@ -19,7 +19,7 @@ from Generated import *
 
 class BuildManager:
     {% set ti_reserve_map = {
-        EntityType.HARVESTER: 10,
+        EntityType.ROAD: 10,
     } %}
     {% set ti_reserve_default = 10 %}
 
