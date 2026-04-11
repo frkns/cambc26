@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-11 11:23:52 (local)
+# latest,  @ 2026-04-11 11:59:53 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -23989,12 +23989,6 @@ class HealTargetInfo:
                     else:
                         return False
 
-            if a.has_enemy_bot != b.has_enemy_bot:
-                if a.has_enemy_bot:
-                    return True
-                else:
-                    return False
-
         if a.building_hp != b.building_hp:
             return a.building_hp < b.building_hp
 
@@ -24006,6 +24000,12 @@ class HealTargetInfo:
 
         if a.bot_hp != b.bot_hp:
             return a.bot_hp < b.bot_hp
+        
+        if a.has_enemy_bot != b.has_enemy_bot:
+            if a.has_enemy_bot:
+                return True
+            else:
+                return False
 
         return False
 
