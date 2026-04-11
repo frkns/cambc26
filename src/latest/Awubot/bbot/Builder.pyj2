@@ -35,18 +35,6 @@ class Builder({{ super() }}):
     @classmethod
     def start_turn(cls):
         {{ super() }}.start_turn()
-        
-        if cls.mode == 0:
-            if Globals.round in [4,5]:
-                cls.mode = 2
-                Explore.target = Explore.new_target()
-            else:
-                cls.mode = 1
-        if Globals.round >= Constants.RUSH_OVER:
-            cls.mode = 1
-        if (Symmetry.is_sym_known and Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= 7):
-            cls.mode = 1
-        print("Mode:",cls.mode)
 
         {{ P.start() }}
         DarkForest.fcompute()
@@ -57,6 +45,20 @@ class Builder({{ super() }}):
         {{ P.end('BfsBureau.update') }}
 
         Symmetry.run_sym_check()
+
+        if cls.mode == 0:
+            if Globals.round in [4,5]:
+                cls.mode = 2
+                Explore.target = Explore.new_target()
+            else:
+                cls.mode = 1
+        if Globals.round >= Constants.RUSH_OVER:
+            cls.mode = 1
+            Explore.target = Explore.new_target()
+        if (cls.mode == 2 and Symmetry.is_sym_known and Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= 36):
+            cls.mode = 1
+            Explore.target = Explore.new_target()
+        print("Mode:",cls.mode)
 
         {# /* DarkForest.debug_pressure() */ #}
         {# /* DarkForest.debug_kind() */ #}

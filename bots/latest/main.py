@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-11 11:18:52 (local)
+# latest,  @ 2026-04-11 11:44:44 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -30072,18 +30072,6 @@ class Builder(Unit):
     @classmethod
     def start_turn(cls):
         Unit.start_turn()
-        
-        if cls.mode == 0:
-            if Globals.round in [4,5]:
-                cls.mode = 2
-                Explore.target = Explore.new_target()
-            else:
-                cls.mode = 1
-        if Globals.round >= Constants.RUSH_OVER:
-            cls.mode = 1
-        if (Symmetry.is_sym_known and Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= 7):
-            cls.mode = 1
-        print("Mode:",cls.mode)
 
         
         DarkForest.fcompute()
@@ -30094,6 +30082,20 @@ class Builder(Unit):
         
 
         Symmetry.run_sym_check()
+
+        if cls.mode == 0:
+            if Globals.round in [4,5]:
+                cls.mode = 2
+                Explore.target = Explore.new_target()
+            else:
+                cls.mode = 1
+        if Globals.round >= Constants.RUSH_OVER:
+            cls.mode = 1
+            Explore.target = Explore.new_target()
+        if (cls.mode == 2 and Symmetry.is_sym_known and Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= 36):
+            cls.mode = 1
+            Explore.target = Explore.new_target()
+        print("Mode:",cls.mode)
 
 
         
