@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-11 00:36:15 (local)
+# latest,  @ 2026-04-11 00:43:38 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -30130,6 +30130,7 @@ class Builder(Unit):
                 cls.mode = 1
         if Globals.round >= Constants.RUSH_OVER:
             cls.mode = 1
+        print("Mode:",cls.mode)
 
         
         DarkForest.fcompute()

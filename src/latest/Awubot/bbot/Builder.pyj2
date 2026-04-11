@@ -43,6 +43,7 @@ class Builder({{ super() }}):
                 cls.mode = 1
         if Globals.round >= Constants.RUSH_OVER:
             cls.mode = 1
+        print("Mode:",cls.mode)
 
         {{ P.start() }}
         DarkForest.fcompute()
