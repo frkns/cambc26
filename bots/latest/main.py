@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-11 12:21:57 (local)
+# latest,  @ 2026-04-11 12:52:25 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -26229,10 +26229,13 @@ class OreExecutive:
                 continue
             ti = Map.tile_info[pos.x][pos.y]
             env = ti.env
+            if ti.entity_type == EntityType.FOUNDRY:
+                RouteToFoundry.planned_foundry_positions.add((((pos.x) + 3) * 56 + ((pos.y) + 3)))
+                continue
+            
             if ti.entity_type == EntityType.HARVESTER:
                 continue
-            if ti.entity_type == EntityType.FOUNDRY:
-                continue
+            
             
             if ti.has_building and not ti.is_building_ally:
                 continue
