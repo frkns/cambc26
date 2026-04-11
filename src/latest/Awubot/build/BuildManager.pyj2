@@ -19,9 +19,10 @@ from Generated import *
 
 class BuildManager:
     {% set ti_reserve_map = {
-        EntityType.ROAD: 10,
+        EntityType.GUNNER: 0,
+        EntityType.SENTINEL: 0,
     } %}
-    {% set ti_reserve_default = 10 %}
+    {% set ti_reserve_default = 20 %}
 
     @staticmethod
     def scale(cost: int) -> int:

@@ -21,12 +21,14 @@ from Generated import *
 
 class AdjacentInfo:
     position: Position
+    bfs_dist: int
     bfs_dist_adj: int
     is_harvester_ally: bool
     ti: TileInfo
     consider_route: bool
     dist_to_ally_core: int
     has_ally_transporter: bool
+    easily_buildable: bool  # nothing or ally road
 
     harvester_ally_turrets_adjacent: int  # harvester tile, 4 dirs
     harvester_enemy_turrets_adjacent: int 
@@ -37,15 +39,16 @@ class AdjacentInfo:
 
     @staticmethod
     def is_better_than_shield(a: AdjacentInfo, b: AdjacentInfo):
-        if a.bfs_dist_adj >= 100: return False        
-        if b.bfs_dist_adj >= 100: return True
-
         ati = a.ti
         bti = b.ti
 
         if ati.has_building: return False
         if bti.has_building: return True
-        
+
+        if a.bfs_dist_adj >= 100: return False        
+        if b.bfs_dist_adj >= 100: return True
+
+
         if ati.harvester_adjacent != bti.harvester_adjacent:
             if ati.harvester_adjacent:
                 return True
@@ -59,6 +62,9 @@ class AdjacentInfo:
     @staticmethod
     def is_better_than_sentinel(a: AdjacentInfo, b: AdjacentInfo):
         # TODO: could be better 
+
+        if not a.easily_buildable: return False
+        if not b.easily_buildable: return True
             
         if a.bfs_dist_adj >= 100: return False        
         if b.bfs_dist_adj >= 100: return True
@@ -66,14 +72,13 @@ class AdjacentInfo:
         if a.is_harvester_ally and (not b.is_harvester_ally): return False
         if (not a.is_harvester_ally) and b.is_harvester_ally: return True
 
-        if a.bfs_dist_adj != b.bfs_dist_adj:
-            return a.bfs_dist_adj < b.bfs_dist_adj
+        return a.bfs_dist_adj < b.bfs_dist_adj
 
 
     @staticmethod
     def is_better_than_route(a: AdjacentInfo, b: AdjacentInfo):
-        if a.bfs_dist_adj >= 100: return False
-        if b.bfs_dist_adj >= 100: return True
+        if a.bfs_dist >= 100: return False
+        if b.bfs_dist >= 100: return True
 
         if not a.consider_route: return False
         if not b.consider_route: return True
@@ -81,13 +86,16 @@ class AdjacentInfo:
         if a.harvester_ally_turrets_adjacent != b.harvester_ally_turrets_adjacent:
             return a.harvester_ally_turrets_adjacent > b.harvester_ally_turrets_adjacent
 
-        return a.dist_to_ally_core < b.dist_to_ally_core
+        return a.bfs_dist < b.bfs_dist
 
 
     @staticmethod
     def is_better_than_turret_takedown(a: AdjacentInfo, b: AdjacentInfo):
         if a.bfs_dist_adj >= 100: return False
         if b.bfs_dist_adj >= 100: return True
+
+        if not a.easily_buildable: return False
+        if not b.easily_buildable: return True
 
         if a.enemy_turrets_nearby == 0: return False
         if b.enemy_turrets_nearby == 0: return True
@@ -120,6 +128,9 @@ class HarvesterAdjacent:
             if AdjacentInfo.is_better_than_sentinel(c, best):
                 best = c
 
+        if not best.easily_buildable:
+            return None
+
         if best.bfs_dist_adj >= 100:
             return None
 
@@ -144,6 +155,9 @@ class HarvesterAdjacent:
         for c in cls.infos[1:]:
             if AdjacentInfo.is_better_than_turret_takedown(c, best):
                 best = c
+
+        if not best.easily_buildable:
+            return None
 
         if best.bfs_dist_adj >= 100:
             return None
@@ -175,7 +189,7 @@ class HarvesterAdjacent:
         if best.consider_route is False:
             return None
 
-        if best.bfs_dist_adj >= 100:
+        if best.bfs_dist >= 100:
             return None
 
         if not VisionTracker.me_is_canonical_ally(best.position):
@@ -246,8 +260,10 @@ class HarvesterAdjacent:
                     info = AdjacentInfo()
                     info.position = pos
                     info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
+                    info.bfs_dist = BfsBureau.bfs20_dist[idx]
                     info.is_harvester_ally = is_harvester_ally
                     info.ti = ti
+                    info.easily_buildable = not ti.has_building or (ti.is_building_ally and ti.entity_type == EntityType.ROAD)
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
 

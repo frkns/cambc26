@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-11 16:14:15 (local)
+# latest,  @ 2026-04-11 17:19:35 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -20,12 +20,14 @@ from itertools import chain
 
 class AdjacentInfo:
     position: Position
+    bfs_dist: int
     bfs_dist_adj: int
     is_harvester_ally: bool
     ti: TileInfo
     consider_route: bool
     dist_to_ally_core: int
     has_ally_transporter: bool
+    easily_buildable: bool  # nothing or ally road
 
     harvester_ally_turrets_adjacent: int  # harvester tile, 4 dirs
     harvester_enemy_turrets_adjacent: int 
@@ -36,15 +38,16 @@ class AdjacentInfo:
 
     @staticmethod
     def is_better_than_shield(a: AdjacentInfo, b: AdjacentInfo):
-        if a.bfs_dist_adj >= 100: return False        
-        if b.bfs_dist_adj >= 100: return True
-
         ati = a.ti
         bti = b.ti
 
         if ati.has_building: return False
         if bti.has_building: return True
-        
+
+        if a.bfs_dist_adj >= 100: return False        
+        if b.bfs_dist_adj >= 100: return True
+
+
         if ati.harvester_adjacent != bti.harvester_adjacent:
             if ati.harvester_adjacent:
                 return True
@@ -58,6 +61,9 @@ class AdjacentInfo:
     @staticmethod
     def is_better_than_sentinel(a: AdjacentInfo, b: AdjacentInfo):
         # TODO: could be better 
+
+        if not a.easily_buildable: return False
+        if not b.easily_buildable: return True
             
         if a.bfs_dist_adj >= 100: return False        
         if b.bfs_dist_adj >= 100: return True
@@ -65,14 +71,13 @@ class AdjacentInfo:
         if a.is_harvester_ally and (not b.is_harvester_ally): return False
         if (not a.is_harvester_ally) and b.is_harvester_ally: return True
 
-        if a.bfs_dist_adj != b.bfs_dist_adj:
-            return a.bfs_dist_adj < b.bfs_dist_adj
+        return a.bfs_dist_adj < b.bfs_dist_adj
 
 
     @staticmethod
     def is_better_than_route(a: AdjacentInfo, b: AdjacentInfo):
-        if a.bfs_dist_adj >= 100: return False
-        if b.bfs_dist_adj >= 100: return True
+        if a.bfs_dist >= 100: return False
+        if b.bfs_dist >= 100: return True
 
         if not a.consider_route: return False
         if not b.consider_route: return True
@@ -80,13 +85,16 @@ class AdjacentInfo:
         if a.harvester_ally_turrets_adjacent != b.harvester_ally_turrets_adjacent:
             return a.harvester_ally_turrets_adjacent > b.harvester_ally_turrets_adjacent
 
-        return a.dist_to_ally_core < b.dist_to_ally_core
+        return a.bfs_dist < b.bfs_dist
 
 
     @staticmethod
     def is_better_than_turret_takedown(a: AdjacentInfo, b: AdjacentInfo):
         if a.bfs_dist_adj >= 100: return False
         if b.bfs_dist_adj >= 100: return True
+
+        if not a.easily_buildable: return False
+        if not b.easily_buildable: return True
 
         if a.enemy_turrets_nearby == 0: return False
         if b.enemy_turrets_nearby == 0: return True
@@ -3227,9 +3235,9 @@ class BuildManager:
     def can_afford_builder_bot() -> bool:
         ti_cost, ax_cost = Globals.ct.get_builder_bot_cost()
 
-        ti_cost += int(10 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3261,9 +3269,6 @@ class BuildManager:
     def can_afford_gunner() -> bool:
         ti_cost, ax_cost = Globals.ct.get_gunner_cost()
 
-        ti_cost += int(10 * MarketMaker.scale_ratio)
-
-        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3295,9 +3300,6 @@ class BuildManager:
     def can_afford_sentinel() -> bool:
         ti_cost, ax_cost = Globals.ct.get_sentinel_cost()
 
-        ti_cost += int(10 * MarketMaker.scale_ratio)
-
-        assert int(10 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3329,9 +3331,9 @@ class BuildManager:
     def can_afford_breach() -> bool:
         ti_cost, ax_cost = Globals.ct.get_breach_cost()
 
-        ti_cost += int(10 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3363,9 +3365,9 @@ class BuildManager:
     def can_afford_launcher() -> bool:
         ti_cost, ax_cost = Globals.ct.get_launcher_cost()
 
-        ti_cost += int(10 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3396,9 +3398,9 @@ class BuildManager:
     def can_afford_conveyor() -> bool:
         ti_cost, ax_cost = Globals.ct.get_conveyor_cost()
 
-        ti_cost += int(10 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3429,9 +3431,9 @@ class BuildManager:
     def can_afford_splitter() -> bool:
         ti_cost, ax_cost = Globals.ct.get_splitter_cost()
 
-        ti_cost += int(10 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3462,9 +3464,9 @@ class BuildManager:
     def can_afford_armoured_conveyor() -> bool:
         ti_cost, ax_cost = Globals.ct.get_armoured_conveyor_cost()
 
-        ti_cost += int(10 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3495,9 +3497,9 @@ class BuildManager:
     def can_afford_bridge() -> bool:
         ti_cost, ax_cost = Globals.ct.get_bridge_cost()
 
-        ti_cost += int(10 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3528,9 +3530,9 @@ class BuildManager:
     def can_afford_harvester() -> bool:
         ti_cost, ax_cost = Globals.ct.get_harvester_cost()
 
-        ti_cost += int(10 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3561,9 +3563,9 @@ class BuildManager:
     def can_afford_foundry() -> bool:
         ti_cost, ax_cost = Globals.ct.get_foundry_cost()
 
-        ti_cost += int(10 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3594,9 +3596,9 @@ class BuildManager:
     def can_afford_road() -> bool:
         ti_cost, ax_cost = Globals.ct.get_road_cost()
 
-        ti_cost += int(10 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3627,9 +3629,9 @@ class BuildManager:
     def can_afford_barrier() -> bool:
         ti_cost, ax_cost = Globals.ct.get_barrier_cost()
 
-        ti_cost += int(10 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(10 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -23500,6 +23502,9 @@ class HarvesterAdjacent:
             if AdjacentInfo.is_better_than_sentinel(c, best):
                 best = c
 
+        if not best.easily_buildable:
+            return None
+
         if best.bfs_dist_adj >= 100:
             return None
 
@@ -23524,6 +23529,9 @@ class HarvesterAdjacent:
         for c in cls.infos[1:]:
             if AdjacentInfo.is_better_than_turret_takedown(c, best):
                 best = c
+
+        if not best.easily_buildable:
+            return None
 
         if best.bfs_dist_adj >= 100:
             return None
@@ -23555,7 +23563,7 @@ class HarvesterAdjacent:
         if best.consider_route is False:
             return None
 
-        if best.bfs_dist_adj >= 100:
+        if best.bfs_dist >= 100:
             return None
 
         if not VisionTracker.me_is_canonical_ally(best.position):
@@ -23624,8 +23632,10 @@ class HarvesterAdjacent:
                     info = AdjacentInfo()
                     info.position = pos
                     info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
+                    info.bfs_dist = BfsBureau.bfs20_dist[idx]
                     info.is_harvester_ally = is_harvester_ally
                     info.ti = ti
+                    info.easily_buildable = not ti.has_building or (ti.is_building_ally and ti.entity_type == EntityType.ROAD)
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
 
@@ -23718,8 +23728,10 @@ class HarvesterAdjacent:
                     info = AdjacentInfo()
                     info.position = pos
                     info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
+                    info.bfs_dist = BfsBureau.bfs20_dist[idx]
                     info.is_harvester_ally = is_harvester_ally
                     info.ti = ti
+                    info.easily_buildable = not ti.has_building or (ti.is_building_ally and ti.entity_type == EntityType.ROAD)
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
 
@@ -23812,8 +23824,10 @@ class HarvesterAdjacent:
                     info = AdjacentInfo()
                     info.position = pos
                     info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
+                    info.bfs_dist = BfsBureau.bfs20_dist[idx]
                     info.is_harvester_ally = is_harvester_ally
                     info.ti = ti
+                    info.easily_buildable = not ti.has_building or (ti.is_building_ally and ti.entity_type == EntityType.ROAD)
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
 
@@ -23906,8 +23920,10 @@ class HarvesterAdjacent:
                     info = AdjacentInfo()
                     info.position = pos
                     info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
+                    info.bfs_dist = BfsBureau.bfs20_dist[idx]
                     info.is_harvester_ally = is_harvester_ally
                     info.ti = ti
+                    info.easily_buildable = not ti.has_building or (ti.is_building_ally and ti.entity_type == EntityType.ROAD)
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
 
@@ -24311,15 +24327,14 @@ class HealExecutor:
         if not a.is_accessible: return False
         if not b.is_accessible: return True
 
-        if max(a.building_heal, b.building_heal) > 4:
-            if a.building_heal != b.building_heal:
-                return a.building_heal > b.building_heal
+        if a.building_heal != b.building_heal:
+            return a.building_heal > b.building_heal
 
-            if a.building_hp != b.building_hp:
-                return a.building_hp < b.building_hp
+        if a.is_turret and (not b.is_turret): return True
+        if (not a.is_turret) and b.is_turret: return False
 
-            if a.is_turret and (not b.is_turret): return True
-            if (not a.is_turret) and b.is_turret: return False
+        if a.building_hp != b.building_hp:
+            return a.building_hp < b.building_hp
 
         if a.bot_heal != b.bot_heal:
             return a.bot_heal > b.bot_heal
@@ -29101,76 +29116,6 @@ class SentinelTargetInfo:
 
 
 # ============================================================
-# ShieldTargetInfo
-# ============================================================
-
-class ShieldTargetInfo:
-    position: Position
-    harvester_adjacent: bool
-
-    @staticmethod
-    def is_better_than(a: ShieldTargetInfo, b: ShieldTargetInfo) -> bool:
-        if not a.harvester_adjacent: return False
-        if not b.harvester_adjacent: return True
-
-        return False
-
-
-# ============================================================
-# ShieldTargeter
-# ============================================================
-
-class ShieldTargeter:
-    targets: list[ShieldTargetInfo] = []
-
-
-    @classmethod
-    def get_best_target(cls) -> Position | None:
-        targets = cls.targets
-        if not targets:
-            return None
-
-        best = targets[0]
-        for cand in targets[1:]:
-            if ShieldTargetInfo.is_better_than(cand, best):
-                best = cand
-
-        if not best.harvester_adjacent:
-            return None
-
-        print(f'ShieldTargetInfo {best.position=} {best.harvester_adjacent=}')
-
-        return best.position
-
-
-    @classmethod
-    def fill(cls):
-        cls.targets = []
-        targets = cls.targets
-
-        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
-            ti: TileInfo
-
-            if not ti.harvester_adjacent:
-                continue
-            
-            if ti.env == Environment.WALL:
-                continue
-
-            if ti.has_building:
-                continue
-
-            if ti.has_bot:
-                continue
-
-            info = ShieldTargetInfo()
-            info.position = pos
-            info.harvester_adjacent = ti.harvester_adjacent
-
-            targets.append(info)
-
-
-# ============================================================
 # SitterTakedown
 # ============================================================
 
@@ -29404,7 +29349,7 @@ class StalkTargeter:
         if not Map.harvester_set:
             return None
 
-        bfs20_dist = BfsBureau.bfs20_dist
+        bfs20_dist_adj = BfsBureau.bfs20_dist_adj
         
         best: Position = None
         best_dist: int = 1000000
@@ -29412,7 +29357,7 @@ class StalkTargeter:
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             if ti.has_bot and not ti.is_bot_ally \
                     and VisionTracker.me_is_canonical_ally(pos):
-                dist = bfs20_dist[idx]
+                dist = bfs20_dist_adj[idx]
                 if dist < best_dist:
                     best_dist = dist
                     best = pos
@@ -29941,26 +29886,6 @@ class Symmetry:
 
 
 # ============================================================
-# TakedownTargetInfo
-# ============================================================
-
-class TakedownTargetInfo:
-    position: Position
-    dist_enemy_core: int # distance to the enemy core
-    has_transporter: bool # whether the tile has an allied transporter already
-    ally_turrets_nearby: int # allied turrets on nearby tiles
-    enemy_turrets_nearby: int # enemy turrets on nearby tiles
-
-    @staticmethod
-    def is_better_than(a: TakedownTargetInfo, b: TakedownTargetInfo):
-        if a.enemy_turrets_nearby != b.enemy_turrets_nearby:
-            return a.enemy_turrets_nearby > b.enemy_turrets_nearby
-        if a.has_transporter != b.has_transporter:
-            return a.has_transporter < b.has_transporter
-        return a.dist_enemy_core < b.dist_enemy_core
-
-
-# ============================================================
 # TileInfo
 # ============================================================
 
@@ -30064,127 +29989,6 @@ class TreeNode:
 
 # total flow/harvester is set to 12 (LCM of 1,2,3,4)
 # bottleneck of a route is 4 harvesters = 4 * 12 = 48 pressure
-
-
-# ============================================================
-# TurretTakedown
-# ============================================================
-
-class TurretTakedown:
-    cand: list[TakedownTargetInfo] # adjacent candidate build positions
-
-
-    @classmethod
-    def get_best_hijack_position(cls) -> Position | None:
-        if not cls.cand:
-            return None
-
-        best = cls.cand[0]
-        for c in cls.cand[1:]:
-            if TakedownTargetInfo.is_better_than(c, best):
-                best = c
-
-        if best.enemy_turrets_nearby == 0:
-            return None
-        
-        # If we already have turrets, don't break transporters
-        if best.ally_turrets_nearby > 0 and best.has_transporter:
-            return None
-
-        if not VisionTracker.me_is_canonical_ally(best.position):
-            return None
-
-        return best.position
-
-
-    @classmethod
-    def fill(cls):
-        cls.cand = []
-        tile_info = Map.tile_info
-
-        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
-            if not ti.harvester_adjacent: 
-                continue
-            
-            if ti.env == Environment.WALL:
-                continue
-
-            if ti.has_building:
-                if not ti.is_building_ally:
-                    continue
-                if ti.entity_type != EntityType.ROAD:
-                    # We can build on top of allied transporters if we really need to
-                    if not ti.entity_type in Constants.TRANSPORTERS_SET:
-                        continue
-                    
-            # Some teams will leave their bots on turret spots to stop builders
-            if ti.has_bot and not ti.is_bot_ally:
-                continue
-
-            info = TakedownTargetInfo()
-            cls.cand.append(info)
-            info.position = pos
-            info.dist_enemy_core = Util.dist_sq(pos, Symmetry.enemy_core_pos)
-            info.has_transporter = (ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET)
-            info.enemy_turrets_nearby = 0
-            info.ally_turrets_nearby = 0
-
-
-            nti = tile_info[x ][y -1]
-            if nti is not None and nti.has_turret:
-                if nti.is_building_ally:
-                    info.ally_turrets_nearby += 1
-                else:
-                    info.enemy_turrets_nearby += 1
-
-            nti = tile_info[x +1][y -1]
-            if nti is not None and nti.has_turret:
-                if nti.is_building_ally:
-                    info.ally_turrets_nearby += 1
-                else:
-                    info.enemy_turrets_nearby += 1
-
-            nti = tile_info[x +1][y ]
-            if nti is not None and nti.has_turret:
-                if nti.is_building_ally:
-                    info.ally_turrets_nearby += 1
-                else:
-                    info.enemy_turrets_nearby += 1
-
-            nti = tile_info[x +1][y +1]
-            if nti is not None and nti.has_turret:
-                if nti.is_building_ally:
-                    info.ally_turrets_nearby += 1
-                else:
-                    info.enemy_turrets_nearby += 1
-
-            nti = tile_info[x ][y +1]
-            if nti is not None and nti.has_turret:
-                if nti.is_building_ally:
-                    info.ally_turrets_nearby += 1
-                else:
-                    info.enemy_turrets_nearby += 1
-
-            nti = tile_info[x -1][y +1]
-            if nti is not None and nti.has_turret:
-                if nti.is_building_ally:
-                    info.ally_turrets_nearby += 1
-                else:
-                    info.enemy_turrets_nearby += 1
-
-            nti = tile_info[x -1][y ]
-            if nti is not None and nti.has_turret:
-                if nti.is_building_ally:
-                    info.ally_turrets_nearby += 1
-                else:
-                    info.enemy_turrets_nearby += 1
-
-            nti = tile_info[x -1][y -1]
-            if nti is not None and nti.has_turret:
-                if nti.is_building_ally:
-                    info.ally_turrets_nearby += 1
-                else:
-                    info.enemy_turrets_nearby += 1
 
 
 # ============================================================
@@ -30662,9 +30466,9 @@ class Builder(Unit):
         ti_target = OreExecutive.get_titanium_target()
         stalk_target = StalkTargeter.get_best_target()
 
-        dist_stalk = 1000000 if stalk_target is None else my_pos.distance_squared(stalk_target)
         dist_ti = 1000000 if ti_target is None else my_pos.distance_squared(ti_target)
         dist_ax = 1000000 if ax_target is None else my_pos.distance_squared(ax_target)
+        dist_stalk = 1000000 if stalk_target is None else my_pos.distance_squared(stalk_target)
 
         if dist_stalk <= 3 or (dist_stalk < dist_ti and dist_stalk < dist_ax):
             return 'MoveTo', stalk_target, 'Stalk'
