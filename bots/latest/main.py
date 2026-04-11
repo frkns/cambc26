@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-11 09:37:45 (local)
+# latest,  @ 2026-04-11 10:05:36 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -22329,37 +22329,29 @@ class GunnerDirectionPicker:
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info6.enemy_building_hp += e_building_hp
                 info7.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info6.enemy_bot_hp += e_bot_hp
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info5.enemy_building_hp += e_building_hp
                 info6.enemy_building_hp += e_building_hp
-                info7.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info5.enemy_bot_hp += e_bot_hp
                 info6.enemy_bot_hp += e_bot_hp
-                info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + 1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
-                info6.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info5.enemy_bot_hp += e_bot_hp
-                info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + 2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -22373,97 +22365,65 @@ class GunnerDirectionPicker:
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info0.enemy_building_hp += e_building_hp
                 info7.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info0.enemy_bot_hp += e_bot_hp
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + -1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info0.enemy_building_hp += e_building_hp
-                info6.enemy_building_hp += e_building_hp
                 info7.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info0.enemy_bot_hp += e_bot_hp
-                info6.enemy_bot_hp += e_bot_hp
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info0.enemy_building_hp += e_building_hp
-                info4.enemy_building_hp += e_building_hp
-                info5.enemy_building_hp += e_building_hp
                 info6.enemy_building_hp += e_building_hp
-                info7.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info0.enemy_bot_hp += e_bot_hp
-                info4.enemy_bot_hp += e_bot_hp
-                info5.enemy_bot_hp += e_bot_hp
                 info6.enemy_bot_hp += e_bot_hp
-                info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + 1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info4.enemy_building_hp += e_building_hp
                 info5.enemy_building_hp += e_building_hp
-                info6.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info4.enemy_bot_hp += e_bot_hp
                 info5.enemy_bot_hp += e_bot_hp
-                info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + 2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info4.enemy_building_hp += e_building_hp
                 info5.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info4.enemy_bot_hp += e_bot_hp
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + -2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
-                info1.enemy_building_hp += e_building_hp
-                info7.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info0.enemy_bot_hp += e_bot_hp
-                info1.enemy_bot_hp += e_bot_hp
-                info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + -1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
-                info1.enemy_building_hp += e_building_hp
-                info2.enemy_building_hp += e_building_hp
-                info6.enemy_building_hp += e_building_hp
-                info7.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info0.enemy_bot_hp += e_bot_hp
-                info1.enemy_bot_hp += e_bot_hp
-                info2.enemy_bot_hp += e_bot_hp
-                info6.enemy_bot_hp += e_bot_hp
-                info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -22475,97 +22435,65 @@ class GunnerDirectionPicker:
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info2.enemy_building_hp += e_building_hp
-                info3.enemy_building_hp += e_building_hp
                 info4.enemy_building_hp += e_building_hp
-                info5.enemy_building_hp += e_building_hp
-                info6.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info2.enemy_bot_hp += e_bot_hp
-                info3.enemy_bot_hp += e_bot_hp
                 info4.enemy_bot_hp += e_bot_hp
-                info5.enemy_bot_hp += e_bot_hp
-                info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + 2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info3.enemy_building_hp += e_building_hp
                 info4.enemy_building_hp += e_building_hp
-                info5.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info3.enemy_bot_hp += e_bot_hp
                 info4.enemy_bot_hp += e_bot_hp
-                info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + -2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info0.enemy_building_hp += e_building_hp
                 info1.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info0.enemy_bot_hp += e_bot_hp
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + -1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info0.enemy_building_hp += e_building_hp
                 info1.enemy_building_hp += e_building_hp
-                info2.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info0.enemy_bot_hp += e_bot_hp
                 info1.enemy_bot_hp += e_bot_hp
-                info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info0.enemy_building_hp += e_building_hp
-                info1.enemy_building_hp += e_building_hp
                 info2.enemy_building_hp += e_building_hp
-                info3.enemy_building_hp += e_building_hp
-                info4.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info0.enemy_bot_hp += e_bot_hp
-                info1.enemy_bot_hp += e_bot_hp
                 info2.enemy_bot_hp += e_bot_hp
-                info3.enemy_bot_hp += e_bot_hp
-                info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + 1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info2.enemy_building_hp += e_building_hp
                 info3.enemy_building_hp += e_building_hp
-                info4.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info2.enemy_bot_hp += e_bot_hp
                 info3.enemy_bot_hp += e_bot_hp
-                info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + 2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
-                info4.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info3.enemy_bot_hp += e_bot_hp
-                info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + -2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -22580,35 +22508,27 @@ class GunnerDirectionPicker:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
-                info2.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info1.enemy_bot_hp += e_bot_hp
-                info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info1.enemy_building_hp += e_building_hp
                 info2.enemy_building_hp += e_building_hp
-                info3.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info1.enemy_bot_hp += e_bot_hp
                 info2.enemy_bot_hp += e_bot_hp
-                info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + 1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
-                info2.enemy_building_hp += e_building_hp
                 info3.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
-                info2.enemy_bot_hp += e_bot_hp
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + 2]
         if ti is not None:
