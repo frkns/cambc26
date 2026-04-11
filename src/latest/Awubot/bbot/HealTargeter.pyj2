@@ -27,14 +27,14 @@ class HealTargetInfo:
     is_transporter: bool
     is_turret: bool
     has_enemy_bot: bool
-    bfs_dist: int
+    bfs_dist_adj: int
     entity_type: EntityType
     is_turret: bool
 
     @staticmethod
     def is_better_than(a: HealTargetInfo, b: HealTargetInfo) -> bool:
-        adist = a.bfs_dist
-        bdist = b.bfs_dist
+        adist = a.bfs_dist_adj
+        bdist = b.bfs_dist_adj
 
         if adist >= 100: return False
         if bdist >= 100: return True
@@ -104,13 +104,13 @@ class HealTargeter:
             if not best.harvester_adjacent or best.building_heal + best.bot_heal == 0:
                 return None
 
-        if best.bfs_dist >= 100:
+        if best.bfs_dist_adj >= 100:
             return None
 
         # if far away from core and not critical and core hp is high, do other stuff
         core_ti = Map.tile_info[Unit.core_pos.x][Unit.core_pos.y]
         if best.entity_type == EntityType.CORE:
-            cond = best.building_hp < 500 - best.bfs_dist * (core_ti.allied_bots_adjacent) * 4
+            cond = best.building_hp < 500 - best.bfs_dist_adj * (core_ti.allied_bots_adjacent) * 4
             if not cond:
                 return None
             
@@ -150,7 +150,7 @@ class HealTargeter:
             info.is_transporter = (ti.entity_type is not None and ti.entity_type in Constants.TRANSPORTERS_SET)
             info.is_turret = (ti.entity_type is not None and ti.entity_type in Constants.TURRET_SET)
             info.has_enemy_bot = False
-            info.bfs_dist = BfsBureau.bfs20_dist[idx]
+            info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
             info.entity_type = ti.entity_type
             info.is_turret = ti.has_turret
             info.harvester_adjacent = ti.harvester_adjacent

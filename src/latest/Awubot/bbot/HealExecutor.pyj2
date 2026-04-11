@@ -92,11 +92,11 @@ class HealExecutor:
         if a.building_heal != b.building_heal:
             return a.building_heal > b.building_heal
 
-        if a.building_hp != b.building_hp:
-            return a.building_hp < b.building_hp
-
         if a.is_turret and (not b.is_turret): return True
         if (not a.is_turret) and b.is_turret: return False
+
+        if a.building_hp != b.building_hp:
+            return a.building_hp < b.building_hp
 
         if a.bot_heal != b.bot_heal:
             return a.bot_heal > b.bot_heal

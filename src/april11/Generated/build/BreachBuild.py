@@ -1,0 +1,83 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+
+class BreachBuild:
+    @classmethod
+    def build_breach(cls, pos):
+        print("Trying to build breach at", pos)
+        print("Breach cost:", Globals.ct.get_breach_cost()[0])
+        ti = Map.tile_info[pos.x][pos.y]
+        if ti.has_building and not ti.is_building_ally:
+            print("Can't build breach at", pos, "because of enemy building")
+            RouteToBreach._breach_target = None
+            return False
+        """
+        if ti.has_building and ti.is_building_ally and ti.entity_type == EntityType.BREACH:
+            print("Already have breach at", pos)
+            RouteToBreach._breach_target = None
+            return False
+        """
+        Pathfinder.move_to(pos, ban_target_pos=True)
+        """
+        if (Globals.ct.get_global_resources()[0] > Globals.ct.get_breach_cost()[0] and Globals.ct.get_global_resources()[1] > Globals.ct.get_breach_cost()[1]) \
+                and Globals.ct.can_destroy(pos) \
+                and Globals.ct.get_action_cooldown() == 0:
+            Globals.ct.destroy(pos)
+        """
+        if ti.has_building and ti.entity_type != EntityType.GUNNER:
+            if (Globals.ct.get_global_resources()[0] > Globals.ct.get_gunner_cost()[0]) \
+                and Globals.ct.can_destroy(pos) \
+                and Globals.ct.get_action_cooldown() == 0:
+                Globals.ct.destroy(pos)
+        
+        dirToBuild = pos.direction_to(Symmetry.enemy_core_pos)
+        
+        # Calculate distance to the closest tile of the 3x3 enemy core
+        core_dx = max(0, abs(pos.x - Symmetry.enemy_core_pos.x) - 1)
+        core_dy = max(0, abs(pos.y - Symmetry.enemy_core_pos.y) - 1)
+        dist_to_core_sq = core_dx**2 + core_dy**2
+
+        """
+        if Globals.ct.can_build_breach(pos, dirToBuild) and dist_to_core_sq <= GameConstants.BREACH_ATTACK_RADIUS_SQ:
+            Globals.ct.build_breach(pos, dirToBuild)
+            print("OMGGGGGG I ACTUALLY BUILT THE BREACH AT", pos,file = sys.stderr)
+
+            encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
+
+            # Register the new breach as a sink so fcompute updates the tree.
+            DarkForest.register_sink(encoded, 3)
+
+            RouteToBreach._breach_target = None
+            return True
+        """
+        if Globals.ct.can_build_gunner(pos, dirToBuild):
+            Globals.ct.build_gunner(pos, dirToBuild)
+            encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
+            #if dist_to_core_sq > GameConstants.BREACH_ATTACK_RADIUS_SQ:
+            #print("Too lazy, we build gunner instead of breach at", pos, "because it's out of breach attack radius")
+            encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
+            # Register the new breach as a sink so fcompute updates the tree.
+            DarkForest.register_sink(encoded, 3)
+
+            RouteToBreach._breach_target = None
+            return True
+        return False
+
+    @classmethod
+    def _pick_target(cls):
+        if RouteToBreach._breach_target is None:
+            return None
+        t = ((RouteToBreach._breach_target) // 56 - 3), ((RouteToBreach._breach_target) % 56 - 3)
+        return Position(t[0], t[1])

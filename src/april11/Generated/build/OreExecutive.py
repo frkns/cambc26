@@ -1,0 +1,214 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+
+class OreExecutive:
+    state: dict[Position, int] = defaultdict(int)  
+    ti_queue: list[tuple[int, Position]] = []
+    ax_queue: list[tuple[int, Position]] = []
+
+
+    @classmethod
+    def register_ti(cls, pos: Position):
+        if cls.state[pos] == 0:
+            dist = pos.distance_squared(Unit.core_pos)
+            heapq.heappush(cls.ti_queue, (dist, pos))
+            cls.state[pos] = 1
+
+
+    @classmethod
+    def fill(cls):
+        for pos in Map.nearby_tiles:
+            # not using Map.harvester_set..?
+
+            if cls.state[pos] == 2:
+                continue
+            ti = Map.tile_info[pos.x][pos.y]
+            env = ti.env
+            if ti.entity_type == EntityType.FOUNDRY:
+                RouteToFoundry.planned_foundry_positions.add((((pos.x) + 3) * 56 + ((pos.y) + 3)))
+                continue
+            
+            if ti.entity_type == EntityType.HARVESTER:
+                continue
+            
+            
+            if ti.has_building and not ti.is_building_ally:
+                continue
+
+            if env == Environment.ORE_TITANIUM:
+                if cls.state[pos] != 1:  # intended: can potentially requeue
+                    dist = pos.distance_squared(Unit.core_pos)
+                    heapq.heappush(cls.ti_queue, (dist, pos))
+                    cls.state[pos] = 1
+
+
+            if env == Environment.ORE_AXIONITE:
+                if cls.state[pos] != 4:  # intended: can potentially requeue
+                    dist = pos.distance_squared(Unit.core_pos)
+                    heapq.heappush(cls.ax_queue, (dist, pos))
+                    cls.state[pos] = 4
+
+
+    @classmethod
+    def get_titanium_target(cls) -> Position | None:
+        ret = None
+        while cls.ti_queue:
+            dist, pos = cls.ti_queue[0]
+
+            if cls.state[pos] == 2:
+                heapq.heappop(cls.ti_queue)
+                continue
+
+            ti = Map.tile_info[pos.x][pos.y]
+
+            if ti.entity_type == EntityType.HARVESTER:
+                heapq.heappop(cls.ti_queue)
+                cls.state[pos] = 3
+                continue
+            if ti.entity_type == EntityType.FOUNDRY:
+                heapq.heappop(cls.ti_queue)
+                cls.state[pos] = 3 # just to prevent requeuing, doesn't matter much
+                continue
+            
+            if ti.has_building and not ti.is_building_ally:
+                heapq.heappop(cls.ti_queue)
+                cls.state[pos] = 3
+                continue
+
+            if not ti.has_bot and MarketMaker.should_build_harvester(pos):
+                ret = pos
+                break
+            else:
+                break
+
+        if ret is None:
+            return None
+
+        if not VisionTracker.me_is_canonical_ally(ret):
+            # just kill?
+            return None
+
+        return ret
+
+    @classmethod
+    def get_axionite_target(cls) -> Position | None:
+        if Globals.round < Constants.AXIONITE_START:
+            return None # don't want to waste resources on axionite early on
+            
+        ret = None
+        while cls.ax_queue:
+            dist, pos = cls.ax_queue[0]
+
+            if cls.state[pos] == 2:
+                heapq.heappop(cls.ax_queue)
+                continue
+
+            ti = Map.tile_info[pos.x][pos.y]
+
+            if ti.entity_type == EntityType.HARVESTER:
+                heapq.heappop(cls.ax_queue)
+                cls.state[pos] = 3
+                continue
+            if ti.entity_type == EntityType.FOUNDRY:
+                heapq.heappop(cls.ax_queue)
+                cls.state[pos] = 3 # just to prevent requeuing, doesn't matter much
+                continue
+            
+            if ti.has_building and not ti.is_building_ally:
+                heapq.heappop(cls.ax_queue)
+                cls.state[pos] = 3
+                continue
+
+            if not ti.has_bot and MarketMaker.should_build_harvester(pos):
+                ret = pos
+                break
+            else:
+                break
+
+        if ret is None:
+            return None
+
+        if not VisionTracker.me_is_canonical_ally(ret):
+            # just kill?
+            cls.state[ret] = 2
+            return None
+
+        return ret
+
+
+    @classmethod
+    def go_build_harvester(cls, pos):
+        Pathfinder.move_to(pos, ban_target_pos=True)
+
+        if Pathfinder.given_up:
+            Debug.line(pos, Color.RED)
+            Debug.diamond(Color.RED)
+            cls.state[pos] = 2
+            return
+
+        if BuildManager.can_dbuild_harvester(pos):
+            Debug.line(pos, Color.YELLOW)
+            BuildManager.dbuild_harvester(pos)
+
+            
+            cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
+            if cand is not None:
+                RouteToCore.set_pos(cand.position)
+
+    @classmethod
+    def go_build_ax_harvester(cls, pos):
+        Pathfinder.move_to(pos, ban_target_pos=True)
+
+        if Pathfinder.given_up:
+            Debug.line(pos, Color.RED)
+            Debug.diamond(Color.RED)
+            cls.state[pos] = 2
+            return
+
+        cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
+        ti = Map.tile_info[cand.position.x][cand.position.y]
+        if ti.entity_type in Constants.TRANSPORTERS_SET:
+            cls.state[pos] = 2
+            Debug.line(pos, Color.RED)
+            Debug.diamond(Color.RED)
+            return
+
+
+        RouteToFoundry.set_pos(cand.position)
+        RouteToFoundry.try_claim_target()
+        foundry_enc = RouteToFoundry._foundry_target
+        if foundry_enc is None or not RouteToFoundry.axionite_can_reach_foundry(cand.position, foundry_enc):
+            cls.state[pos] = 2
+            Debug.line(pos, Color.RED)
+            Debug.diamond(Color.RED)
+            RouteToFoundry.give_up()
+            return
+        if BuildManager.can_dbuild_harvester(pos):
+            Debug.line(pos, Color.YELLOW)
+            BuildManager.dbuild_harvester(pos)
+            #Check if already routed naturally
+            for d in Constants.CARDINAL_DIRECTIONS:
+                newPos = pos.add(d)
+                ti = Map.tile_info[newPos.x][newPos.y]
+                if ti is None: # off-map, ignore
+                    continue
+                if ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET:
+                    break # If already routed ignore
+            else:
+                RouteToFoundry.set_pos(cand.position)
+                return
+            RouteToFoundry.give_up()
+        else:
+            RouteToFoundry.give_up()

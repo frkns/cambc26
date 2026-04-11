@@ -20,8 +20,10 @@ from Generated import *
 class GunnerTargetInfo:
     position: Position
 
+    has_ally_bot: bool
+
     # enemy
-    has_bot: bool
+    has_enemy_bot: bool
     has_building: bool
     has_turret: bool  # subset of building
     has_launcher: bool
@@ -46,8 +48,9 @@ class GunnerTargetInfo:
     def is_better_than(a: GunnerTargetInfo, b: GunnerTargetInfo):
         {% set DMG = GameConstants.GUNNER_DAMAGE %}
 
-        if a.is_core:
-            return True #always just aim towards *a* core
+        if a.has_ally_bot: return False
+        if b.has_ally_bot: return True
+
         if a.is_harvester_feeding_ally: return False
         if b.is_harvester_feeding_ally: return True
 
@@ -64,10 +67,10 @@ class GunnerTargetInfo:
             if (not a_is_gunner) and b_is_gunner: return False
 
         # if there is a bot on top of the tile, nothing underneath gets hit
-        if a.has_bot and (not b.has_bot): return True
-        if (not a.has_bot) and b.has_bot: return False
+        if a.has_enemy_bot and (not b.has_enemy_bot): return True
+        if (not a.has_enemy_bot) and b.has_enemy_bot: return False
 
-        if a.has_bot and b.has_bot:
+        if a.has_enemy_bot and b.has_enemy_bot:
             if a.bot_hp != b.bot_hp:
                 return a.bot_hp < b.bot_hp
 
@@ -155,14 +158,17 @@ class GunnerSupervisor:
             if GunnerTargetInfo.is_better_than(target, best):
                 best = target
 
-        if not best.has_bot and not best.has_building:
+        if best.has_ally_bot:
             return None
 
-        if not best.has_bot and best.ally_connected:
+        if not best.has_enemy_bot and not best.has_building:
+            return None
+
+        if not best.has_enemy_bot and best.ally_connected:
             return None
         
         # Don't bother turning just to knock out some roads
-        if not best.has_bot and best.is_road and not best.current_dir:
+        if not best.has_enemy_bot and best.is_road and not best.current_dir:
             return None
 
         if best.is_harvester_feeding_ally:
@@ -226,7 +232,8 @@ class GunnerSupervisor:
                 
                 info = GunnerTargetInfo()
                 info.position = pos
-                info.has_bot = False
+                info.has_ally_bot = False
+                info.has_enemy_bot = False
                 info.has_turret = False
                 info.has_building = False
                 info.has_launcher = False
@@ -250,9 +257,12 @@ class GunnerSupervisor:
                         info.is_harvester_feeding_ally = True
                     {% endfor %}
 
-                if ti.has_bot and not ti.is_bot_ally:
-                    info.has_bot = True
-                    info.bot_hp = ti.bot_hp
+                if ti.has_bot:
+                    if ti.is_bot_ally:
+                        info.has_ally_bot = True
+                    else:
+                        info.has_enemy_bot = True
+                        info.bot_hp = ti.bot_hp
 
                 if ti.has_building and not ti.is_building_ally:
                     info.has_building = True

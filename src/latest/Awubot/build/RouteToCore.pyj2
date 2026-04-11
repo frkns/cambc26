@@ -87,6 +87,7 @@ class RouteToCore:
     def move_to_next(cls):
         Pathfinder.move_to(cls.from_pos, ban_target_pos=True)
 
+
     @classmethod
     def should_give_up(cls):
         x, y = cls.from_pos
@@ -101,8 +102,11 @@ class RouteToCore:
                 return True
             if not cls.backTracking:
                 if ti.entity_type in Constants.TRANSPORTERS_SET:
+                    # Another bot already built here — they've taken over, bow out cleanly
+                    cls.is_active = False
+                    cls.prevRoute.clear()
                     return True
-                if ti.entity_type != EntityType.ROAD:  # redundant
+                if ti.entity_type != EntityType.ROAD:
                     return True
         return False
 

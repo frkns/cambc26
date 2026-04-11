@@ -166,7 +166,7 @@ class VisionTracker:
 
                 if DarkForest.node_kind[idx] == 0 and DarkForest.flow[idx] > 0:
                     if DarkForest.nodes[idx].up is None:
-                        if Globals.ct.get_stored_resource(trans.ti.building_id) in [ResourceType.TITANIUM, ResourceType.REFINED_AXIONITE ]:
+                        if Globals.ct.get_stored_resource(trans.ti.building_id) in (ResourceType.TITANIUM, ResourceType.REFINED_AXIONITE):
                             cls.disconnected_roots.append(trans)
 
 

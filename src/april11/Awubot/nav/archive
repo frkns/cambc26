@@ -1,0 +1,155 @@
+Sym	Transformed X'	Transformed Y'	sym_idx = X'·PH + Y'
+R	maxX+2P − X	maxY+2P − Y	(maxX+2P)·PH + (maxY+2P) − (X·PH + Y) = C_R − idx
+V	maxX+2P − X	Y	(maxX+2P)·PH − X·PH + Y = C_V − idx + 2Y
+H	X	maxY+2P − Y	X·PH + (maxY+2P) − Y = idx + C_H − 2Y
+
+# ---===
+    @classmethod
+    def dists_from_pos(cls, pos: Position):
+        dist = cls.dist_global[:]
+
+        si = (pos.x + {{ PAD }}) * {{ PH }} + (pos.y + {{ PAD }})
+        dist[si] = 0
+
+        frontier = [si]
+        d = 1
+        while frontier:
+            nxt = []
+            _a = nxt.append
+            for idx in frontier:
+                {% for dir in range(8) %}
+                ni = idx + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
+                if dist[ni] == {{ INF }}:
+                    dist[ni] = d
+                    _a(ni)
+                {% endfor %}
+            frontier = nxt
+            d += 1
+
+        result = [[0] * (Map.H + 1) for _ in range(Map.W + 1)]
+        for x in range(Map.W + 1):
+            row = result[x]
+            base = (x + {{ PAD }}) * {{ PH }} + {{ PAD }}
+            for y in range(Map.H + 1):
+                v = dist[base + y]
+                row[y] = {{ INF }} if v >= {{ INF }} else v
+        return result
+# ===---
+
+{# /* # ---=== */ #}
+    {# /* @classmethod */ #}
+    {# /* def find_bridge_route(cls, start: Position, sink_set: set[int], max_iter: int = 1000, purify: bool = False): */ #}
+        {# /* {% set main_bridge_offsets = [ */ #}
+            {# /* (3,0),(-3,0),(0,3),(0,-3), */ #}
+            {# /* (2,2),(2,-2),(-2,-2),(-2,2), */ #}
+        {# /* ] %} */ #}
+
+        {# /* {% set seed_bridge_offsets = [ */ #}
+            {# /* (3,0),(-3,0),(0,3),(0,-3), */ #}
+            {# /* (2,2),(2,-2),(-2,-2),(-2,2), */ #}
+            {# /* (1,2),(2,1),(2,-1),(1,-2), */ #}
+            {# /* (-1,-2),(-2,-1),(-2,1),(-1,2), */ #}
+        {# /* ] %} */ #}
+
+        {# /* dist = cls.dist_bridge[:] */ #}
+        {# /* first_hop = [None] * {{ PADDED_GRID_SIZE }} */ #}
+
+        {# /* sx, sy = start.x, start.y */ #}
+        {# /* si = {{ encode_pos('sx', 'sy') }} */ #}
+        {# /* dist[si] = 0 */ #}
+
+        {# /* for s in sink_set: */ #}
+            {# /* if dist[s] == {{ INF1 }}: */ #}
+                {# /* dist[s] = {{ INF }} */ #}
+
+        {# /* q = deque() */ #}
+        {# /* _qa = q.append */ #}
+
+        {# /* if purify: */ #}
+            {# /* _ti = Map.tile_info */ #}
+            {# /* def _ore_adj(ni): */ #}
+                {# /* _nx = ni // {{ PH }} - {{ PAD }} */ #}
+                {# /* _ny = ni % {{ PH }} - {{ PAD }} */ #}
+                {# /* return ( */ #}
+                    {# /* ((_t := _ti[_nx - 1][_ny]) is not None and _t.env == Environment.ORE_TITANIUM) or */ #}
+                    {# /* ((_t := _ti[_nx + 1][_ny]) is not None and _t.env == Environment.ORE_TITANIUM) or */ #}
+                    {# /* ((_t := _ti[_nx][_ny - 1]) is not None and _t.env == Environment.ORE_TITANIUM) or */ #}
+                    {# /* ((_t := _ti[_nx][_ny + 1]) is not None and _t.env == Environment.ORE_TITANIUM) */ #}
+                {# /* ) */ #}
+        {# /* else: */ #}
+            {# /* def _ore_adj(ni): */ #}
+                {# /* return False */ #}
+
+        {# /* {% set CONVEYOR_DEPTH = 4 %} */ #}
+
+        {# /* # ── Phase 1: conveyor mini-BFS (≤4 cardinal steps from start) ── */ #}
+        {# /* conv_reached = [] */ #}
+        {# /* _cra = conv_reached.append */ #}
+
+        {# /* conv_front = [] */ #}
+        {# /* _cfa = conv_front.append */ #}
+        {# /* {% for dx, dy in [(1,0),(-1,0),(0,1),(0,-1)] %} */ #}
+        {# /* ni = si + {{ dx * PH + dy }} */ #}
+        {# /* if dist[ni] == {{ INF }} and (ni in sink_set or not _ore_adj(ni)): */ #}
+            {# /* dist[ni] = -1 */ #}
+            {# /* first_hop[ni] = (sx {{ sign0(dx) }}, sy {{ sign0(dy) }}) */ #}
+            {# /* _cfa(ni) */ #}
+            {# /* _cra(ni) */ #}
+        {# /* {% endfor %} */ #}
+
+        {# /* {% for _ in range(CONVEYOR_DEPTH - 1) %} */ #}
+        {# /* conv_next = [] */ #}
+        {# /* _cna = conv_next.append */ #}
+        {# /* for cidx in conv_front: */ #}
+            {# /* _fh = first_hop[cidx] */ #}
+            {# /* {% for dx, dy in [(1,0),(-1,0),(0,1),(0,-1)] %} */ #}
+            {# /* ni = cidx + {{ dx * PH + dy }} */ #}
+            {# /* if dist[ni] == {{ INF }} and (ni in sink_set or not _ore_adj(ni)): */ #}
+                {# /* dist[ni] = -1 */ #}
+                {# /* first_hop[ni] = _fh */ #}
+                {# /* _cna(ni) */ #}
+                {# /* _cra(ni) */ #}
+            {# /* {% endfor %} */ #}
+        {# /* conv_front = conv_next */ #}
+        {# /* {% endfor %} */ #}
+
+        {# /* # ── Phase 2: seed conveyors first (priority over bridges) ── */ #}
+
+        {# /* for cidx in conv_reached: */ #}
+            {# /* if dist[cidx] == -1: */ #}
+                {# /* dist[cidx] = 1 */ #}
+                {# /* if cidx in sink_set: */ #}
+                    {# /* return 1, first_hop[cidx] */ #}
+                {# /* _qa(cidx) */ #}
+
+        {# /* # ── Phase 3: bridge seeds for tiles conveyors couldn't reach ── */ #}
+        {# /* {% for dx, dy in seed_bridge_offsets %} */ #}
+        {# /* ni = si + {{ dx * PH + dy }} */ #}
+        {# /* if dist[ni] == {{ INF }} and (ni in sink_set or not _ore_adj(ni)): */ #}
+            {# /* dist[ni] = 1 */ #}
+            {# /* first_hop[ni] = (sx {{ sign0(dx) }}, sy {{ sign0(dy) }}) */ #}
+            {# /* if ni in sink_set: */ #}
+                {# /* return 1, first_hop[ni] */ #}
+            {# /* _qa(ni) */ #}
+        {# /* {% endfor %} */ #}
+
+        {# /* # ── Phase 4: main bridge BFS ── */ #}
+
+        {# /* it = 0 */ #}
+        {# /* while q and (it := it + 1) <= max_iter: */ #}
+            {# /* idx = q.popleft() */ #}
+            {# /* d = dist[idx] + 1 */ #}
+            {# /* fh = first_hop[idx] */ #}
+
+            {# /* {% for dx, dy in main_bridge_offsets %} */ #}
+            {# /* ni = idx + {{ dx * PH + dy }} */ #}
+            {# /* if dist[ni] == {{ INF }} and (ni in sink_set or not _ore_adj(ni)): */ #}
+                {# /* dist[ni] = d */ #}
+                {# /* first_hop[ni] = fh */ #}
+                {# /* if ni in sink_set: */ #}
+                    {# /* return d, fh */ #}
+                {# /* _qa(ni) */ #}
+            {# /* {% endfor %} */ #}
+
+        {# /* return {{ INF }}, None */ #}
+{# /* # ===--- */ #}
