@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # latest,  @ 2026-04-11 13:03:38 (local)
+=======
+# latest,  @ 2026-04-11 11:53:17 (local)
+>>>>>>> main
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -3766,6 +3770,8 @@ class Constants:
     }
 
     AXIONITE_START: int = 100 # Start producing axionite at this round
+
+    RUSH_OVER: int = 500 # stop rush attempt now
 
     MAX_HP_MAP: dict[EntityType, int] = {
         EntityType.BUILDER_BOT: 40,
@@ -21925,7 +21931,10 @@ class Explore:
         #     return Util.follow_to_edge(Globals.my_pos.x, Globals.my_pos.y, bestDx, bestDy)
         # # Later in the game, we should just go to random places to hit every last corner
         # else:
-        return Util.rand_pos()
+        if Builder.mode == 2:
+            return Symmetry.sym_pos(Unit.core_pos)
+        else:
+            return Util.rand_pos()
 
 
     @classmethod
@@ -30387,6 +30396,7 @@ class Breach(Unit):
 
 class Builder(Unit):
     state: str
+    mode: int = 0 # 0 = undef, 1 = econ, 2 = early rush 
 
     @classmethod
     def init(cls):
@@ -30409,6 +30419,20 @@ class Builder(Unit):
         
 
         Symmetry.run_sym_check()
+
+        if cls.mode == 0:
+            if Globals.round in [4,5]:
+                cls.mode = 2
+                Explore.target = Explore.new_target()
+            else:
+                cls.mode = 1
+        if Globals.round >= Constants.RUSH_OVER:
+            cls.mode = 1
+            Explore.target = Explore.new_target()
+        if (cls.mode == 2 and Symmetry.is_sym_known and Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= 36):
+            cls.mode = 1
+            Explore.target = Explore.new_target()
+        print("Mode:",cls.mode)
 
 
         
@@ -30548,14 +30572,14 @@ class Builder(Unit):
         if dist_stalk <= 3 or (dist_stalk < dist_ti and dist_stalk < dist_ax):
             return 'MoveTo', stalk_target, 'Stalk'
 
-        if ti_target is not None:
+        if ti_target is not None and cls.mode != 2:
             return 'BuildHarvester', ti_target
 
-        if ax_target is not None:
+        if ax_target is not None and cls.mode != 2:
             return 'BuildHarvesterAx', ax_target
 
         route_pos = HarvesterAdjacent.get_best_route_position()
-        if route_pos is not None:
+        if route_pos is not None and cls.mode != 2:
             RouteToCore.set_pos(route_pos)
             return ('Route',)
 

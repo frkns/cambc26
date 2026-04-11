@@ -22,6 +22,7 @@ from Generated import *
 
 class Builder({{ super() }}):
     state: str
+    mode: int = 0 # 0 = undef, 1 = econ, 2 = early rush 
 
     @classmethod
     def init(cls):
@@ -44,6 +45,20 @@ class Builder({{ super() }}):
         {{ P.end('BfsBureau.update') }}
 
         Symmetry.run_sym_check()
+
+        if cls.mode == 0:
+            if Globals.round in [4,5]:
+                cls.mode = 2
+                Explore.target = Explore.new_target()
+            else:
+                cls.mode = 1
+        if Globals.round >= Constants.RUSH_OVER:
+            cls.mode = 1
+            Explore.target = Explore.new_target()
+        if (cls.mode == 2 and Symmetry.is_sym_known and Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= 36):
+            cls.mode = 1
+            Explore.target = Explore.new_target()
+        print("Mode:",cls.mode)
 
         {# /* DarkForest.debug_pressure() */ #}
         {# /* DarkForest.debug_kind() */ #}
@@ -199,14 +214,14 @@ class Builder({{ super() }}):
         if dist_stalk <= 3 or (dist_stalk < dist_ti and dist_stalk < dist_ax):
             return 'MoveTo', stalk_target, 'Stalk'
 
-        if ti_target is not None:
+        if ti_target is not None and cls.mode != 2:
             return 'BuildHarvester', ti_target
 
-        if ax_target is not None:
+        if ax_target is not None and cls.mode != 2:
             return 'BuildHarvesterAx', ax_target
 
         route_pos = HarvesterAdjacent.get_best_route_position()
-        if route_pos is not None:
+        if route_pos is not None and cls.mode != 2:
             RouteToCore.set_pos(route_pos)
             return ('Route',)
 
