@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-10 19:04:47 (local)
+# latest,  @ 2026-04-10 19:13:12 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -21931,7 +21931,7 @@ class FoundryBuild:
             RouteToFoundry._foundry_target = None
 
             cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
-            if cand is not None:
+            if cand is not None and cand.ti.entity_type not in Constants.TRANSPORTERS_SET:
                 RouteToBreach.set_pos(cand.position) # begin breach routing
             return True
         return False

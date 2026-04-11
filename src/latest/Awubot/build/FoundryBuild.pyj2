@@ -67,7 +67,7 @@ class FoundryBuild:
             RouteToFoundry._foundry_target = None
 
             cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
-            if cand is not None:
+            if cand is not None and cand.ti.entity_type not in Constants.TRANSPORTERS_SET:
                 RouteToBreach.set_pos(cand.position) # begin breach routing
             return True
         return False
