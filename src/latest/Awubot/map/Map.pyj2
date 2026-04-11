@@ -222,8 +222,8 @@ class Map:
             else:
                 ti.target = None
 
-                if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.FOUNDRY):
-                    if etype in (EntityType.SENTINEL, EntityType.GUNNER):
+                if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.BREACH, EntityType.FOUNDRY):
+                    if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.BREACH):
                         ti.has_turret = True
                         ti.turret_direction = ct.get_direction(building_id)
 
