@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-11 17:34:02 (local)
+# latest,  @ 2026-04-12 16:20:31 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -27494,8 +27494,9 @@ class RushTargeter:
         if Symmetry.is_sym_known:
             if Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100:
                 return Symmetry.enemy_core_pos
-        else:
-            return None
+        elif Builder.mode == 2:
+                return Symmetry.sym_pos(Unit.core_pos)
+        return None
 
 
 # ============================================================

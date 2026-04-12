@@ -19,12 +19,6 @@ from Generated import *
 
 {% macro super() %}Unit{% endmacro %}
 
-{% set Mode = namespace() %}
-{% set Mode.NONE = 0 %}
-{% set Mode.ECON = 1 %}
-{% set Mode.EARLY_RUSH = 2 %}
-
-
 class Builder({{ super() }}):
     state: str
     mode: int = {{ Mode.NONE }}
