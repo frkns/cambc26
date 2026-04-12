@@ -1,0 +1,621 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+
+# for choosing build position
+
+class AdjacentInfo:
+    position: Position
+    bfs_dist: int
+    bfs_dist_adj: int
+    is_harvester_ally: bool
+    ti: TileInfo
+    consider_route: bool
+    dist_to_ally_core: int
+    has_ally_transporter: bool
+    easily_buildable: bool  # nothing or ally road
+
+    harvester_ally_turrets_adjacent: int  # harvester tile, 4 dirs
+    harvester_enemy_turrets_adjacent: int 
+
+    enemy_turrets_nearby: int  # this tile, 8 dirs
+    ally_turrets_nearby: int
+
+
+    @staticmethod
+    def is_better_than_shield(a: AdjacentInfo, b: AdjacentInfo):
+        ati = a.ti
+        bti = b.ti
+
+        if ati.has_building: return False
+        if bti.has_building: return True
+
+        if a.bfs_dist_adj >= 100: return False        
+        if b.bfs_dist_adj >= 100: return True
+
+
+        if ati.harvester_adjacent != bti.harvester_adjacent:
+            if ati.harvester_adjacent:
+                return True
+            else:
+                return False
+
+        return a.bfs_dist_adj < b.bfs_dist_adj
+
+
+
+    @staticmethod
+    def is_better_than_sentinel(a: AdjacentInfo, b: AdjacentInfo):
+        # TODO: could be better 
+
+        if not a.easily_buildable: return False
+        if not b.easily_buildable: return True
+            
+        if a.bfs_dist_adj >= 100: return False        
+        if b.bfs_dist_adj >= 100: return True
+
+        if a.is_harvester_ally and (not b.is_harvester_ally): return False
+        if (not a.is_harvester_ally) and b.is_harvester_ally: return True
+        
+        ati = a.ti
+        bti = b.ti
+        
+        if ati.has_bot != bti.has_bot:
+            return ati.has_bot < bti.has_bot
+
+        return a.bfs_dist_adj < b.bfs_dist_adj
+
+
+    @staticmethod
+    def is_better_than_route(a: AdjacentInfo, b: AdjacentInfo):
+        if a.bfs_dist >= 100: return False
+        if b.bfs_dist >= 100: return True
+
+        if not a.consider_route: return False
+        if not b.consider_route: return True
+        
+        if a.harvester_ally_turrets_adjacent != b.harvester_ally_turrets_adjacent:
+            return a.harvester_ally_turrets_adjacent > b.harvester_ally_turrets_adjacent
+
+        return a.bfs_dist < b.bfs_dist
+
+
+    @staticmethod
+    def is_better_than_turret_takedown(a: AdjacentInfo, b: AdjacentInfo):
+        if a.bfs_dist_adj >= 100: return False
+        if b.bfs_dist_adj >= 100: return True
+
+        if not a.easily_buildable: return False
+        if not b.easily_buildable: return True
+
+        if a.enemy_turrets_nearby == 0: return False
+        if b.enemy_turrets_nearby == 0: return True
+
+        if a.enemy_turrets_nearby != b.enemy_turrets_nearby:
+            return a.enemy_turrets_nearby < b.enemy_turrets_nearby
+
+        if a.has_ally_transporter != b.has_ally_transporter:
+            return not a.has_ally_transporter
+
+        return a.bfs_dist_adj < b.bfs_dist_adj
+
+
+
+
+class HarvesterAdjacent:
+    infos: list[AdjacentInfo]  # adjacent candidate build positions
+
+
+    @classmethod
+    def get_best_sentinel_position(cls) -> Position | None:
+        if not BuildManager.can_afford_sentinel():
+            return None
+
+        if not cls.infos:
+            return None
+
+        best = cls.infos[0]
+        for c in cls.infos[1:]:
+            if AdjacentInfo.is_better_than_sentinel(c, best):
+                best = c
+
+        if not best.easily_buildable:
+            return None
+
+        if best.bfs_dist_adj >= 100:
+            return None
+
+        if best.is_harvester_ally is True:
+            return None
+
+        if not VisionTracker.me_is_canonical_ally(best.position):
+            return None
+
+        return best.position
+
+
+    @classmethod
+    def get_best_turret_takedown_info(cls) -> AdjacentInfo | None:
+        if not BuildManager.can_afford_gunner():
+            return None
+
+        if not cls.infos:
+            return None
+
+        best = cls.infos[0]
+        for c in cls.infos[1:]:
+            if AdjacentInfo.is_better_than_turret_takedown(c, best):
+                best = c
+
+        if not best.easily_buildable:
+            return None
+
+        if best.bfs_dist_adj >= 100:
+            return None
+
+        if best.enemy_turrets_nearby == 0:
+            return None
+        
+        # If we already have turrets, don't break transporters
+        if best.ally_turrets_nearby > 0 and best.has_ally_transporter:
+            return None
+
+        if not VisionTracker.me_is_canonical_ally(best.position):
+            return None
+
+        return best
+
+
+
+    @classmethod
+    def get_best_route_position(cls) -> Position | None:
+        if not cls.infos:
+            return None
+
+        best = cls.infos[0]
+        for c in cls.infos[1:]:
+            if AdjacentInfo.is_better_than_route(c, best):
+                best = c
+
+        if best.consider_route is False:
+            return None
+
+        if best.bfs_dist >= 100:
+            return None
+
+        if not VisionTracker.me_is_canonical_ally(best.position):
+            return None
+
+        return best.position
+
+
+    @classmethod
+    def get_best_shield_position(cls) -> Position | None:
+        if not cls.infos:
+            return None
+
+        best = cls.infos[0]
+        for c in cls.infos[1:]:
+            if AdjacentInfo.is_better_than_shield(c, best):
+                best = c
+
+        if best.ti.has_building:
+            return None
+
+        if best.bfs_dist_adj >= 100:
+            return None
+
+        if not VisionTracker.me_is_canonical_ally(best.position):
+            return None
+
+        return best.position
+
+
+    @classmethod
+    def fill(cls):
+        cls.infos = []
+        tile_info = Map.tile_info
+
+        for spos, sx, sy, _, hti in Map.proc_nearby_tiles:
+            if hti.entity_type != EntityType.HARVESTER or hti.env == Environment.ORE_AXIONITE:
+                continue
+
+            is_harvester_ally = hti.is_building_ally
+            consider_route = hti.ally_transporters_adjacent == 0 and hti.enemy_turrets_adjacent == 0
+            dist_to_ally_core = spos.distance_squared(Unit.core_pos)
+            
+
+            x, y = sx , sy -1
+            ti = tile_info[x][y]
+            if ti is not None:
+                valid = True
+                
+                if ti.env == Environment.WALL:
+                    valid = False
+                elif ti.has_building:
+                    if not ti.is_building_ally:
+                        valid = False
+                    elif ti.entity_type != EntityType.ROAD:
+                        if ti.entity_type not in Constants.TRANSPORTERS_SET:
+                            valid = False
+
+                if ti.has_bot and not ti.is_bot_ally:
+                    valid = False
+
+                if valid:
+                    pos = Position(x, y)
+                    idx = (((x) + 3) * 56 + ((y) + 3))
+
+                    info = AdjacentInfo()
+                    info.position = pos
+                    info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
+                    info.bfs_dist = BfsBureau.bfs20_dist[idx]
+                    info.is_harvester_ally = is_harvester_ally
+                    info.ti = ti
+                    info.easily_buildable = not ti.has_building or (ti.is_building_ally and ti.entity_type == EntityType.ROAD)
+                    info.consider_route = consider_route
+                    info.dist_to_ally_core = dist_to_ally_core
+
+                    info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
+                    info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
+
+                    info.has_ally_transporter = (
+                        ti.has_building 
+                        and ti.is_building_ally 
+                        and ti.entity_type in Constants.TRANSPORTERS_SET
+                    )
+
+                    # count nearby turrets in all 8 directions
+                    info.enemy_turrets_nearby = 0
+                    info.ally_turrets_nearby = 0
+                    nti = tile_info[x ][y -1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x +1][y -1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x +1][y ]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x +1][y +1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x ][y +1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x -1][y +1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x -1][y ]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x -1][y -1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+
+                    cls.infos.append(info)
+
+
+
+            x, y = sx +1, sy 
+            ti = tile_info[x][y]
+            if ti is not None:
+                valid = True
+                
+                if ti.env == Environment.WALL:
+                    valid = False
+                elif ti.has_building:
+                    if not ti.is_building_ally:
+                        valid = False
+                    elif ti.entity_type != EntityType.ROAD:
+                        if ti.entity_type not in Constants.TRANSPORTERS_SET:
+                            valid = False
+
+                if ti.has_bot and not ti.is_bot_ally:
+                    valid = False
+
+                if valid:
+                    pos = Position(x, y)
+                    idx = (((x) + 3) * 56 + ((y) + 3))
+
+                    info = AdjacentInfo()
+                    info.position = pos
+                    info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
+                    info.bfs_dist = BfsBureau.bfs20_dist[idx]
+                    info.is_harvester_ally = is_harvester_ally
+                    info.ti = ti
+                    info.easily_buildable = not ti.has_building or (ti.is_building_ally and ti.entity_type == EntityType.ROAD)
+                    info.consider_route = consider_route
+                    info.dist_to_ally_core = dist_to_ally_core
+
+                    info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
+                    info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
+
+                    info.has_ally_transporter = (
+                        ti.has_building 
+                        and ti.is_building_ally 
+                        and ti.entity_type in Constants.TRANSPORTERS_SET
+                    )
+
+                    # count nearby turrets in all 8 directions
+                    info.enemy_turrets_nearby = 0
+                    info.ally_turrets_nearby = 0
+                    nti = tile_info[x ][y -1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x +1][y -1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x +1][y ]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x +1][y +1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x ][y +1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x -1][y +1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x -1][y ]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x -1][y -1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+
+                    cls.infos.append(info)
+
+
+
+            x, y = sx , sy +1
+            ti = tile_info[x][y]
+            if ti is not None:
+                valid = True
+                
+                if ti.env == Environment.WALL:
+                    valid = False
+                elif ti.has_building:
+                    if not ti.is_building_ally:
+                        valid = False
+                    elif ti.entity_type != EntityType.ROAD:
+                        if ti.entity_type not in Constants.TRANSPORTERS_SET:
+                            valid = False
+
+                if ti.has_bot and not ti.is_bot_ally:
+                    valid = False
+
+                if valid:
+                    pos = Position(x, y)
+                    idx = (((x) + 3) * 56 + ((y) + 3))
+
+                    info = AdjacentInfo()
+                    info.position = pos
+                    info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
+                    info.bfs_dist = BfsBureau.bfs20_dist[idx]
+                    info.is_harvester_ally = is_harvester_ally
+                    info.ti = ti
+                    info.easily_buildable = not ti.has_building or (ti.is_building_ally and ti.entity_type == EntityType.ROAD)
+                    info.consider_route = consider_route
+                    info.dist_to_ally_core = dist_to_ally_core
+
+                    info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
+                    info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
+
+                    info.has_ally_transporter = (
+                        ti.has_building 
+                        and ti.is_building_ally 
+                        and ti.entity_type in Constants.TRANSPORTERS_SET
+                    )
+
+                    # count nearby turrets in all 8 directions
+                    info.enemy_turrets_nearby = 0
+                    info.ally_turrets_nearby = 0
+                    nti = tile_info[x ][y -1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x +1][y -1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x +1][y ]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x +1][y +1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x ][y +1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x -1][y +1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x -1][y ]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x -1][y -1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+
+                    cls.infos.append(info)
+
+
+
+            x, y = sx -1, sy 
+            ti = tile_info[x][y]
+            if ti is not None:
+                valid = True
+                
+                if ti.env == Environment.WALL:
+                    valid = False
+                elif ti.has_building:
+                    if not ti.is_building_ally:
+                        valid = False
+                    elif ti.entity_type != EntityType.ROAD:
+                        if ti.entity_type not in Constants.TRANSPORTERS_SET:
+                            valid = False
+
+                if ti.has_bot and not ti.is_bot_ally:
+                    valid = False
+
+                if valid:
+                    pos = Position(x, y)
+                    idx = (((x) + 3) * 56 + ((y) + 3))
+
+                    info = AdjacentInfo()
+                    info.position = pos
+                    info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
+                    info.bfs_dist = BfsBureau.bfs20_dist[idx]
+                    info.is_harvester_ally = is_harvester_ally
+                    info.ti = ti
+                    info.easily_buildable = not ti.has_building or (ti.is_building_ally and ti.entity_type == EntityType.ROAD)
+                    info.consider_route = consider_route
+                    info.dist_to_ally_core = dist_to_ally_core
+
+                    info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
+                    info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
+
+                    info.has_ally_transporter = (
+                        ti.has_building 
+                        and ti.is_building_ally 
+                        and ti.entity_type in Constants.TRANSPORTERS_SET
+                    )
+
+                    # count nearby turrets in all 8 directions
+                    info.enemy_turrets_nearby = 0
+                    info.ally_turrets_nearby = 0
+                    nti = tile_info[x ][y -1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x +1][y -1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x +1][y ]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x +1][y +1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x ][y +1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x -1][y +1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x -1][y ]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+                    nti = tile_info[x -1][y -1]
+                    if nti is not None and nti.has_turret:
+                        if nti.is_building_ally:
+                            info.ally_turrets_nearby += 1
+                        else:
+                            info.enemy_turrets_nearby += 1
+
+                    cls.infos.append(info)
+
+

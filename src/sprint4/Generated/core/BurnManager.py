@@ -1,0 +1,41 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+
+class BurnManager:
+    @classmethod
+    def burn(cls):
+        if not BuildManager.can_afford_builder_bot():
+            ct = Globals.ct
+            ti, ax = ct.get_global_resources()
+            
+            builderCost = Globals.ct.get_builder_bot_cost()[0]
+            
+            tiNeeded = builderCost - ti
+            axNeeded = max(0, math.ceil(tiNeeded/4))
+            
+            if axNeeded > ax and axNeeded > 0 and ax > 1:
+                ct.convert(min(axNeeded, ax - 1))
+            
+    
+    @classmethod
+    def should_burn_emergency(cls):
+        lost_short = CoreHistory.hp_delta(1) < 0 
+        lost_long = CoreHistory.hp_delta(10) < 0 
+        low_hp = Globals.ct.get_hp() < 250
+
+        if (lost_short or lost_long) and low_hp:
+            return True
+
+        return False
