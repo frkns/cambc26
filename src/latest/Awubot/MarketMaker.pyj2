@@ -15,6 +15,7 @@ from Generated import *
 {% import 'debug/debug.j2' as D %}
 {% import 'debug/profiler.j2' as P %}
 {% from 'map/kind.j2' import Kind %}
+{% from 'bbot/mode.j2' import Mode %}
 
 
 class MarketMaker:
