@@ -24,5 +24,6 @@ class RushTargeter:
         if Symmetry.is_sym_known:
             if Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100:
                 return Symmetry.enemy_core_pos
-        else:
-            return None
+        elif Builder.mode == {{ Mode.EARLY_RUSH }}:
+                return Symmetry.sym_pos(Unit.core_pos)
+        return None

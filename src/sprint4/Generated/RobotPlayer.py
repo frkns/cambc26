@@ -1,0 +1,70 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+
+class Entrypoint:
+    me: type[Core | Builder | Sentinel | Gunner | Launcher]
+    needs_init = True
+
+    @classmethod
+    def init(cls, ct: Controller):
+        Globals.init(ct)
+        Map.init()
+
+        match ct.get_entity_type():
+            case EntityType.CORE:
+                Core.init()
+                cls.me = Core
+            case EntityType.BUILDER_BOT:
+                Builder.init()
+                cls.me = Builder
+            case EntityType.SENTINEL:
+                Sentinel.init()
+                cls.me = Sentinel
+            case EntityType.GUNNER:
+                Gunner.init()
+                cls.me = Gunner
+            case EntityType.LAUNCHER:
+                Launcher.init()
+                cls.me = Launcher
+            case EntityType.BREACH:
+                Breach.init()
+                cls.me = Breach
+
+    @classmethod
+    def run(cls, ct: Controller):
+
+        # because engine is bugged
+
+        Globals.ct = ct  # in case not fixed...
+        if cls.needs_init:
+            cls.init(ct)
+            cls.needs_init = False
+
+        cls.me.start_turn()
+        cls.me.run_turn()
+        cls.me.end_turn()
+
+
+class Player:
+    def run(self, ct):
+        try:
+            Entrypoint.run(ct)
+        except Exception as e:
+            Debug.line(Position(0, 0), Color.RED)
+
+            err = traceback.format_exc()
+            Debug.tee(err)
+            Debug.tee(f'(I am a {Globals.my_type})')
+
