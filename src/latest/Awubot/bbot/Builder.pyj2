@@ -157,6 +157,11 @@ class Builder({{ super() }}):
             Debug.dot(sentinelpos, Color.PURPLE)
             return 'BuildSentinel', sentinelpos, None
 
+        sitterpos = SitterTakedown.get_best_launcher_position()
+        if sitterpos is not None:
+            Debug.dot(sitterpos, Color.PURPLE)
+            return 'BuildLauncher', sitterpos
+
 
         if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
@@ -169,11 +174,6 @@ class Builder({{ super() }}):
             if healpos is not None:  # redundant, OK
                 return 'MoveTo', healpos, '[lrh: move to heal]'
             return 'MoveTo', HealExecutor.last_healed.position, '[lrh: wait for heal]'
-
-        {# /* sitterpos = SitterTakedown.get_best_hijack_position() */ #}
-        {# /* if sitterpos is not None: */ #}
-            {# /* Debug.dot(sitterpos, Color.PURPLE) */ #}
-            {# /* return 'BuildLauncherAround', sitterpos */ #}
 
         breach_target = BreachBuild._pick_target()
         if breach_target is not None:

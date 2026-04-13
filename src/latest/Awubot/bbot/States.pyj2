@@ -98,19 +98,14 @@ class StateBuildGunner:
             
             BuildManager.dbuild_gunner(pos, dir)
 
-class StateBuildLauncherAround:
+class StateBuildLauncher:
     @classmethod
     def run(cls, pos):
-        posToMe = pos.direction_to(Globals.my_pos)
+        Pathfinder.move_to(pos, ban_target_pos=True)
         
-        Pathfinder.move_to(pos.add(posToMe), ban_target_pos=True)
-        
-        for dir in (posToMe, posToMe.rotate_left(), posToMe.rotate_right()):
-            launcherPos = pos.add(dir)
-
-            if BuildManager.can_dbuild_launcher(launcherPos):            
-                BuildManager.dbuild_launcher(launcherPos)
-                return
+        if BuildManager.can_dbuild_launcher(pos):            
+            BuildManager.dbuild_launcher(pos)
+            return
 
 class StateBuildShield:
     @classmethod

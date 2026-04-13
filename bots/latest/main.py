@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-12 21:34:14 (local)
+# latest,  @ 2026-04-13 11:17:05 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -24485,6 +24485,8 @@ class HealTargeter:
             0 if best.bot_heal == 0 else 40 - best.bot_hp
         )
         
+        totalHeal += 4 # add some buffer for flanking and stuf
+        
         # if there are already enough canonical healers, ignore the target
         if allyIndex * GameConstants.HEAL_AMOUNT > totalHeal:
             return None
@@ -29164,7 +29166,7 @@ class SitterTakedown:
 
 
     @classmethod
-    def get_best_hijack_position(cls) -> Position | None:
+    def get_best_launcher_position(cls) -> Position | None:
         if not cls.cand:
             return None
 
@@ -29173,7 +29175,13 @@ class SitterTakedown:
             if SitterTargetInfo.is_better_than(c, best):
                 best = c
 
-        if best.enemy_turrets_nearby == 0:
+        if best.enemy_bots_nearby == 0:
+            return None
+        
+        if not best.harvester_nearby:
+            return None
+        
+        if best.launchers_adjacent > 0:
             return None
 
         if not VisionTracker.me_is_canonical_ally(best.position):
@@ -29188,13 +29196,10 @@ class SitterTakedown:
         tile_info = Map.tile_info
 
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
-            if not ti.harvester_adjacent: 
-                continue
-            
             if ti.env == Environment.WALL:
                 continue
             
-            if not ti.has_bot:
+            if ti.has_bot:
                 continue
             
             if ti.has_building:
@@ -29208,40 +29213,106 @@ class SitterTakedown:
             info.position = pos
             info.dist_enemy_core = Util.dist_sq(pos, Symmetry.enemy_core_pos)
             info.has_transporter = (ti.has_building and ti.is_building_ally and (ti.entity_type in Constants.TRANSPORTERS_SET or ti.entity_type == EntityType.FOUNDRY))
-            info.enemy_turrets_nearby = 0
+            info.enemy_bots_nearby = 0
+            info.harvester_nearby = False
+            info.launchers_adjacent = 0
 
 
             nti = tile_info[x ][y -1]
-            if nti is not None and nti.has_turret and not nti.is_building_ally:
-                info.enemy_turrets_nearby += 1
+            if nti is not None:
+                if nti.has_bot and not nti.is_bot_ally:
+                    info.enemy_bots_nearby += 1
+                elif nti.has_building and nti.entity_type == EntityType.HARVESTER:
+                    info.harvester_nearby = True
+                elif nti.harvester_adjacent:
+                    info.harvester_nearby = True
+                    
+                if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                    info.launchers_adjacent += 1
 
             nti = tile_info[x +1][y -1]
-            if nti is not None and nti.has_turret and not nti.is_building_ally:
-                info.enemy_turrets_nearby += 1
+            if nti is not None:
+                if nti.has_bot and not nti.is_bot_ally:
+                    info.enemy_bots_nearby += 1
+                elif nti.has_building and nti.entity_type == EntityType.HARVESTER:
+                    info.harvester_nearby = True
+                elif nti.harvester_adjacent:
+                    info.harvester_nearby = True
+                    
+                if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                    info.launchers_adjacent += 1
 
             nti = tile_info[x +1][y ]
-            if nti is not None and nti.has_turret and not nti.is_building_ally:
-                info.enemy_turrets_nearby += 1
+            if nti is not None:
+                if nti.has_bot and not nti.is_bot_ally:
+                    info.enemy_bots_nearby += 1
+                elif nti.has_building and nti.entity_type == EntityType.HARVESTER:
+                    info.harvester_nearby = True
+                elif nti.harvester_adjacent:
+                    info.harvester_nearby = True
+                    
+                if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                    info.launchers_adjacent += 1
 
             nti = tile_info[x +1][y +1]
-            if nti is not None and nti.has_turret and not nti.is_building_ally:
-                info.enemy_turrets_nearby += 1
+            if nti is not None:
+                if nti.has_bot and not nti.is_bot_ally:
+                    info.enemy_bots_nearby += 1
+                elif nti.has_building and nti.entity_type == EntityType.HARVESTER:
+                    info.harvester_nearby = True
+                elif nti.harvester_adjacent:
+                    info.harvester_nearby = True
+                    
+                if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                    info.launchers_adjacent += 1
 
             nti = tile_info[x ][y +1]
-            if nti is not None and nti.has_turret and not nti.is_building_ally:
-                info.enemy_turrets_nearby += 1
+            if nti is not None:
+                if nti.has_bot and not nti.is_bot_ally:
+                    info.enemy_bots_nearby += 1
+                elif nti.has_building and nti.entity_type == EntityType.HARVESTER:
+                    info.harvester_nearby = True
+                elif nti.harvester_adjacent:
+                    info.harvester_nearby = True
+                    
+                if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                    info.launchers_adjacent += 1
 
             nti = tile_info[x -1][y +1]
-            if nti is not None and nti.has_turret and not nti.is_building_ally:
-                info.enemy_turrets_nearby += 1
+            if nti is not None:
+                if nti.has_bot and not nti.is_bot_ally:
+                    info.enemy_bots_nearby += 1
+                elif nti.has_building and nti.entity_type == EntityType.HARVESTER:
+                    info.harvester_nearby = True
+                elif nti.harvester_adjacent:
+                    info.harvester_nearby = True
+                    
+                if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                    info.launchers_adjacent += 1
 
             nti = tile_info[x -1][y ]
-            if nti is not None and nti.has_turret and not nti.is_building_ally:
-                info.enemy_turrets_nearby += 1
+            if nti is not None:
+                if nti.has_bot and not nti.is_bot_ally:
+                    info.enemy_bots_nearby += 1
+                elif nti.has_building and nti.entity_type == EntityType.HARVESTER:
+                    info.harvester_nearby = True
+                elif nti.harvester_adjacent:
+                    info.harvester_nearby = True
+                    
+                if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                    info.launchers_adjacent += 1
 
             nti = tile_info[x -1][y -1]
-            if nti is not None and nti.has_turret and not nti.is_building_ally:
-                info.enemy_turrets_nearby += 1
+            if nti is not None:
+                if nti.has_bot and not nti.is_bot_ally:
+                    info.enemy_bots_nearby += 1
+                elif nti.has_building and nti.entity_type == EntityType.HARVESTER:
+                    info.harvester_nearby = True
+                elif nti.harvester_adjacent:
+                    info.harvester_nearby = True
+                    
+                if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                    info.launchers_adjacent += 1
 
 
 # ============================================================
@@ -29252,12 +29323,18 @@ class SitterTargetInfo:
     position: Position
     dist_enemy_core: int # distance to the enemy core
     has_transporter: bool # whether the tile has an allied transporter
-    enemy_turrets_nearby: int # enemy turrets on nearby tiles
+    enemy_bots_nearby: int # enemy turrets on nearby tiles
+    harvester_nearby: int # if there is a harvesters within distance sqrt(8)
+    launchers_adjacent: int # number of adjacent allied launchers
 
     @staticmethod
     def is_better_than(a: SitterTargetInfo, b: SitterTargetInfo):
-        if a.enemy_turrets_nearby != b.enemy_turrets_nearby:
-            return a.enemy_turrets_nearby > b.enemy_turrets_nearby
+        if a.launchers_adjacent != b.launchers_adjacent:
+            return a.launchers_adjacent < b.launchers_adjacent
+        if a.enemy_bots_nearby != b.enemy_bots_nearby:
+            return a.enemy_bots_nearby > b.enemy_bots_nearby
+        if a.harvester_nearby != b.harvester_nearby:
+            return a.harvester_nearby > b.harvester_nearby
         if a.has_transporter != b.has_transporter:
             return a.has_transporter < b.has_transporter
         return a.dist_enemy_core < b.dist_enemy_core
@@ -29470,22 +29547,17 @@ class StateBuildHarvesterAx:
 
 
 # ============================================================
-# StateBuildLauncherAround
+# StateBuildLauncher
 # ============================================================
 
-class StateBuildLauncherAround:
+class StateBuildLauncher:
     @classmethod
     def run(cls, pos):
-        posToMe = pos.direction_to(Globals.my_pos)
+        Pathfinder.move_to(pos, ban_target_pos=True)
         
-        Pathfinder.move_to(pos.add(posToMe), ban_target_pos=True)
-        
-        for dir in (posToMe, posToMe.rotate_left(), posToMe.rotate_right()):
-            launcherPos = pos.add(dir)
-
-            if BuildManager.can_dbuild_launcher(launcherPos):            
-                BuildManager.dbuild_launcher(launcherPos)
-                return
+        if BuildManager.can_dbuild_launcher(pos):            
+            BuildManager.dbuild_launcher(pos)
+            return
 
 
 # ============================================================
@@ -30472,6 +30544,11 @@ class Builder(Unit):
             Debug.dot(sentinelpos, Color.PURPLE)
             return 'BuildSentinel', sentinelpos, None
 
+        sitterpos = SitterTakedown.get_best_launcher_position()
+        if sitterpos is not None:
+            Debug.dot(sitterpos, Color.PURPLE)
+            return 'BuildLauncher', sitterpos
+
 
         if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
@@ -30484,7 +30561,6 @@ class Builder(Unit):
             if healpos is not None:  # redundant, OK
                 return 'MoveTo', healpos, '[lrh: move to heal]'
             return 'MoveTo', HealExecutor.last_healed.position, '[lrh: wait for heal]'
-
 
         breach_target = BreachBuild._pick_target()
         if breach_target is not None:
