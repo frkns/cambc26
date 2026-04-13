@@ -118,7 +118,7 @@ class HealTargeter:
         allyIndex = VisionTracker.canonical_ally_index(best.position)
         
         totalHeal = max(
-            0 if best.entity_type is None else Constants.MAX_HP_MAP[best.entity_type] - best.building_hp,
+            0 if best.building_heal == 0 else Constants.MAX_HP_MAP[best.entity_type] - best.building_hp,
             0 if best.bot_heal == 0 else {{ GameConstants.BUILDER_BOT_MAX_HP }} - best.bot_hp
         )
         
