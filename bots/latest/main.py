@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-12 19:20:33 (local)
+# latest,  @ 2026-04-12 21:34:14 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -30250,9 +30250,10 @@ class VisionTracker:
         allyIndex = list(map(lambda x: x.position, sorted(cls.allies, key=
             lambda x: (Util.linf(from_pos, x.position) << 16) + x.id
         )))
-        if from_pos in allyIndex:
-            i = allyIndex.index(from_pos)
+        if Globals.my_pos in allyIndex:
+            i = allyIndex.index(Globals.my_pos)
         else:
+            Debug.warn("my_pos not found in canonical ally list!")
             i = 0
         
         return i
