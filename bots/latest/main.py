@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-14 12:29:43 (local)
+# latest,  @ 2026-04-14 18:28:04 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -32,8 +32,8 @@ class AdjacentInfo:
     harvester_ally_turrets_adjacent: int  # harvester tile, 4 dirs
     harvester_enemy_turrets_adjacent: int 
 
-    enemy_turrets_nearby: int  # this tile, 8 dirs
-    ally_turrets_nearby: int
+    enemy_turrets_adjacent: int  # this tile, 8 dirs
+    ally_turrets_adjacent: int
 
 
     @staticmethod
@@ -47,12 +47,11 @@ class AdjacentInfo:
         if a.bfs_dist_adj >= 100: return False        
         if b.bfs_dist_adj >= 100: return True
 
-
         if ati.harvester_adjacent != bti.harvester_adjacent:
-            if ati.harvester_adjacent:
-                return True
-            else:
-                return False
+            return ati.harvester_adjacent > bti.harvester_adjacent
+
+        if a.enemy_turrets_adjacent != b.enemy_turrets_adjacent:
+            return a.enemy_turrets_adjacent < b.enemy_turrets_adjacent # Less enemy turrets is better for shield
 
         return a.bfs_dist_adj < b.bfs_dist_adj
 
@@ -102,11 +101,11 @@ class AdjacentInfo:
         if not a.easily_buildable: return False
         if not b.easily_buildable: return True
 
-        if a.enemy_turrets_nearby == 0: return False
-        if b.enemy_turrets_nearby == 0: return True
+        if a.enemy_turrets_adjacent == 0: return False
+        if b.enemy_turrets_adjacent == 0: return True
 
-        if a.enemy_turrets_nearby != b.enemy_turrets_nearby:
-            return a.enemy_turrets_nearby < b.enemy_turrets_nearby
+        if a.enemy_turrets_adjacent != b.enemy_turrets_adjacent:
+            return a.enemy_turrets_adjacent > b.enemy_turrets_adjacent
 
         if a.has_ally_transporter != b.has_ally_transporter:
             return not a.has_ally_transporter
@@ -23565,11 +23564,11 @@ class HarvesterAdjacent:
         if best.bfs_dist_adj >= 100:
             return None
 
-        if best.enemy_turrets_nearby == 0:
+        if best.enemy_turrets_adjacent == 0:
             return None
         
         # If we already have turrets, don't break transporters
-        if best.ally_turrets_nearby > 0 and best.has_ally_transporter:
+        if best.ally_turrets_adjacent > 0 and best.has_ally_transporter:
             return None
 
         if not VisionTracker.me_is_canonical_ally(best.position):
@@ -23616,6 +23615,9 @@ class HarvesterAdjacent:
 
         if best.bfs_dist_adj >= 100:
             return None
+        
+        if best.enemy_turrets_adjacent > 0:
+            return None
 
         if not VisionTracker.me_is_canonical_ally(best.position):
             return None
@@ -23651,9 +23653,6 @@ class HarvesterAdjacent:
                         if ti.entity_type not in Constants.TRANSPORTERS_SET:
                             valid = False
 
-                if ti.has_bot and not ti.is_bot_ally:
-                    valid = False
-
                 if valid:
                     pos = Position(x, y)
                     idx = (((x) + 3) * 56 + ((y) + 3))
@@ -23678,56 +23677,64 @@ class HarvesterAdjacent:
                     )
 
                     # count nearby turrets in all 8 directions
-                    info.enemy_turrets_nearby = 0
-                    info.ally_turrets_nearby = 0
+                    info.enemy_turrets_adjacent = 0
+                    info.ally_turrets_adjacent = 0
                     nti = tile_info[x ][y -1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y -1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y ]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y +1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x ][y +1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y +1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y ]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y -1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
 
                     cls.infos.append(info)
 
@@ -23747,9 +23754,6 @@ class HarvesterAdjacent:
                         if ti.entity_type not in Constants.TRANSPORTERS_SET:
                             valid = False
 
-                if ti.has_bot and not ti.is_bot_ally:
-                    valid = False
-
                 if valid:
                     pos = Position(x, y)
                     idx = (((x) + 3) * 56 + ((y) + 3))
@@ -23774,56 +23778,64 @@ class HarvesterAdjacent:
                     )
 
                     # count nearby turrets in all 8 directions
-                    info.enemy_turrets_nearby = 0
-                    info.ally_turrets_nearby = 0
+                    info.enemy_turrets_adjacent = 0
+                    info.ally_turrets_adjacent = 0
                     nti = tile_info[x ][y -1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y -1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y ]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y +1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x ][y +1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y +1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y ]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y -1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
 
                     cls.infos.append(info)
 
@@ -23843,9 +23855,6 @@ class HarvesterAdjacent:
                         if ti.entity_type not in Constants.TRANSPORTERS_SET:
                             valid = False
 
-                if ti.has_bot and not ti.is_bot_ally:
-                    valid = False
-
                 if valid:
                     pos = Position(x, y)
                     idx = (((x) + 3) * 56 + ((y) + 3))
@@ -23870,56 +23879,64 @@ class HarvesterAdjacent:
                     )
 
                     # count nearby turrets in all 8 directions
-                    info.enemy_turrets_nearby = 0
-                    info.ally_turrets_nearby = 0
+                    info.enemy_turrets_adjacent = 0
+                    info.ally_turrets_adjacent = 0
                     nti = tile_info[x ][y -1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y -1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y ]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y +1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x ][y +1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y +1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y ]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y -1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
 
                     cls.infos.append(info)
 
@@ -23939,9 +23956,6 @@ class HarvesterAdjacent:
                         if ti.entity_type not in Constants.TRANSPORTERS_SET:
                             valid = False
 
-                if ti.has_bot and not ti.is_bot_ally:
-                    valid = False
-
                 if valid:
                     pos = Position(x, y)
                     idx = (((x) + 3) * 56 + ((y) + 3))
@@ -23966,56 +23980,64 @@ class HarvesterAdjacent:
                     )
 
                     # count nearby turrets in all 8 directions
-                    info.enemy_turrets_nearby = 0
-                    info.ally_turrets_nearby = 0
+                    info.enemy_turrets_adjacent = 0
+                    info.ally_turrets_adjacent = 0
                     nti = tile_info[x ][y -1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y -1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y ]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y +1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x ][y +1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y +1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y ]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y -1]
-                    if nti is not None and nti.has_turret:
-                        if nti.is_building_ally:
-                            info.ally_turrets_nearby += 1
-                        else:
-                            info.enemy_turrets_nearby += 1
+                    if nti is not None:
+                        if nti.has_turret:
+                            if nti.is_building_ally:
+                                info.ally_turrets_adjacent += 1
+                            else:
+                                info.enemy_turrets_adjacent += 1
 
                     cls.infos.append(info)
 
@@ -24462,7 +24484,7 @@ class HealTargetInfo:
         if adist >= 100: return False
         if bdist >= 100: return True
 
-        if a.building_heal != b.building_heal:
+        if bool(a.building_heal) != bool(b.building_heal): # Don't compare micro values of healing because of 4 HP roads
             return a.building_heal > b.building_heal
         
         if a.is_turret != b.is_turret:
@@ -24483,10 +24505,10 @@ class HealTargetInfo:
         ahp = a.building_hp
         bhp = b.building_hp
 
-        # prevent excessive jittering
-        if abs(ahp - bhp) <= 4 and max(adist, bdist) > 2:
-            if adist != bdist:
-                return adist < bdist
+        # # prevent excessive jittering
+        # if abs(ahp - bhp) <= 4 and max(adist, bdist) > 2:
+        #     if adist != bdist:
+        #         return adist < bdist
 
         if ahp != bhp:
             return ahp < bhp
@@ -30638,15 +30660,15 @@ class Builder(Unit):
 
         takedowninfo = HarvesterAdjacent.get_best_turret_takedown_info()
         takedownpos = None if takedowninfo is None else takedowninfo.position
-
-        shieldpos = HarvesterAdjacent.get_best_shield_position()
-        if shieldpos is not None:
-            return 'BuildShield', shieldpos, None
-
+        
         """
         if RouteToBreach.is_active:
             return ('RouteBreach',)
         """
+
+        shieldpos = HarvesterAdjacent.get_best_shield_position()
+        if shieldpos is not None:
+            return 'BuildShield', shieldpos, None
 
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)

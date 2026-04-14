@@ -137,15 +137,15 @@ class Builder({{ super() }}):
 
         takedowninfo = HarvesterAdjacent.get_best_turret_takedown_info()
         takedownpos = None if takedowninfo is None else takedowninfo.position
-
-        shieldpos = HarvesterAdjacent.get_best_shield_position()
-        if shieldpos is not None:
-            return 'BuildShield', shieldpos, None
-
+        
         """
         if RouteToBreach.is_active:
             return ('RouteBreach',)
         """
+
+        shieldpos = HarvesterAdjacent.get_best_shield_position()
+        if shieldpos is not None:
+            return 'BuildShield', shieldpos, None
 
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)

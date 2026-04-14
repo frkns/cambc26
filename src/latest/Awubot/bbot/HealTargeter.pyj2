@@ -40,7 +40,7 @@ class HealTargetInfo:
         if adist >= 100: return False
         if bdist >= 100: return True
 
-        if a.building_heal != b.building_heal:
+        if bool(a.building_heal) != bool(b.building_heal): # Don't compare micro values of healing because of 4 HP roads
             return a.building_heal > b.building_heal
         
         if a.is_turret != b.is_turret:
@@ -61,10 +61,10 @@ class HealTargetInfo:
         ahp = a.building_hp
         bhp = b.building_hp
 
-        # prevent excessive jittering
-        if abs(ahp - bhp) <= 4 and max(adist, bdist) > 2:
-            if adist != bdist:
-                return adist < bdist
+        # # prevent excessive jittering
+        # if abs(ahp - bhp) <= 4 and max(adist, bdist) > 2:
+        #     if adist != bdist:
+        #         return adist < bdist
 
         if ahp != bhp:
             return ahp < bhp
