@@ -27,6 +27,7 @@ class OreExecutive:
     state: dict[Position, int] = defaultdict(int)  
     ti_queue: list[tuple[int, Position]] = []
     ax_queue: list[tuple[int, Position]] = []
+    nearby_ti_queue: list[tuple[int, Position]] = []
 
 
     @classmethod
@@ -39,6 +40,7 @@ class OreExecutive:
 
     @classmethod
     def fill(cls):
+        cls.nearby_ti_queue.clear()
         for pos in Map.nearby_tiles:
             # not using Map.harvester_set..?
 
@@ -58,6 +60,9 @@ class OreExecutive:
                 continue
 
             if env == Environment.ORE_TITANIUM:
+                if BfsBureau.bfs20_dist[{{ encode_pos('pos.x', 'pos.y') }}] < 100:
+                    dist = pos.distance_squared(Unit.core_pos)
+                    heapq.heappush(cls.nearby_ti_queue, (dist, pos))
                 if cls.state[pos] != {{ TITANIUM_QUEUED }}:  # intended: can potentially requeue
                     dist = pos.distance_squared(Unit.core_pos)
                     heapq.heappush(cls.ti_queue, (dist, pos))
@@ -74,7 +79,35 @@ class OreExecutive:
     @classmethod
     def get_titanium_target(cls) -> Position | None:
         ret = None
-        while cls.ti_queue:
+        while cls.nearby_ti_queue:
+            dist, pos = cls.nearby_ti_queue[0]
+
+            if cls.state[pos] == {{ KILLED }}:
+                heapq.heappop(cls.nearby_ti_queue)
+                continue
+
+            ti = Map.tile_info[pos.x][pos.y]
+
+            if ti.entity_type == EntityType.HARVESTER:
+                heapq.heappop(cls.nearby_ti_queue)
+                cls.state[pos] = {{ HAS_HARVESTER }}
+                continue
+            if ti.entity_type == EntityType.FOUNDRY:
+                heapq.heappop(cls.nearby_ti_queue)
+                cls.state[pos] = {{ HAS_HARVESTER }} # just to prevent requeuing, doesn't matter much
+                continue
+            
+            if ti.has_building and not ti.is_building_ally:
+                heapq.heappop(cls.nearby_ti_queue)
+                cls.state[pos] = {{ HAS_HARVESTER }}
+                continue
+
+            if not ti.has_bot and MarketMaker.should_build_harvester(pos):
+                ret = pos
+                break
+            else:
+                break
+        while ret == None and cls.ti_queue:
             dist, pos = cls.ti_queue[0]
 
             if cls.state[pos] == {{ KILLED }}:
@@ -110,7 +143,7 @@ class OreExecutive:
             # just kill?
             {# /* cls.state[ret] = {{ KILLED }} */ #}
             return None
-            
+
         {% for dir in cardinal_directions %}
         {% set dx, dy = dir.delta() %}
         

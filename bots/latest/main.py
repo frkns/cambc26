@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # latest,  @ 2026-04-14 00:07:27 (local)
+=======
+# latest,  @ 2026-04-14 10:34:13 (local)
+>>>>>>> foundry
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -26415,6 +26419,7 @@ class OreExecutive:
     state: dict[Position, int] = defaultdict(int)  
     ti_queue: list[tuple[int, Position]] = []
     ax_queue: list[tuple[int, Position]] = []
+    nearby_ti_queue: list[tuple[int, Position]] = []
 
 
     @classmethod
@@ -26427,6 +26432,7 @@ class OreExecutive:
 
     @classmethod
     def fill(cls):
+        cls.nearby_ti_queue.clear()
         for pos in Map.nearby_tiles:
             # not using Map.harvester_set..?
 
@@ -26446,6 +26452,9 @@ class OreExecutive:
                 continue
 
             if env == Environment.ORE_TITANIUM:
+                if BfsBureau.bfs20_dist[(((pos.x) + 3) * 56 + ((pos.y) + 3))] < 100:
+                    dist = pos.distance_squared(Unit.core_pos)
+                    heapq.heappush(cls.nearby_ti_queue, (dist, pos))
                 if cls.state[pos] != 1:  # intended: can potentially requeue
                     dist = pos.distance_squared(Unit.core_pos)
                     heapq.heappush(cls.ti_queue, (dist, pos))
@@ -26462,7 +26471,35 @@ class OreExecutive:
     @classmethod
     def get_titanium_target(cls) -> Position | None:
         ret = None
-        while cls.ti_queue:
+        while cls.nearby_ti_queue:
+            dist, pos = cls.nearby_ti_queue[0]
+
+            if cls.state[pos] == 2:
+                heapq.heappop(cls.nearby_ti_queue)
+                continue
+
+            ti = Map.tile_info[pos.x][pos.y]
+
+            if ti.entity_type == EntityType.HARVESTER:
+                heapq.heappop(cls.nearby_ti_queue)
+                cls.state[pos] = 3
+                continue
+            if ti.entity_type == EntityType.FOUNDRY:
+                heapq.heappop(cls.nearby_ti_queue)
+                cls.state[pos] = 3 # just to prevent requeuing, doesn't matter much
+                continue
+            
+            if ti.has_building and not ti.is_building_ally:
+                heapq.heappop(cls.nearby_ti_queue)
+                cls.state[pos] = 3
+                continue
+
+            if not ti.has_bot and MarketMaker.should_build_harvester(pos):
+                ret = pos
+                break
+            else:
+                break
+        while ret == None and cls.ti_queue:
             dist, pos = cls.ti_queue[0]
 
             if cls.state[pos] == 2:
@@ -26497,7 +26534,7 @@ class OreExecutive:
         if not VisionTracker.me_is_canonical_ally(ret):
             # just kill?
             return None
-            
+
         
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + -1]
@@ -30628,8 +30665,10 @@ class Builder(Unit):
         if shieldpos is not None:
             return 'BuildShield', shieldpos, None
 
+        """
         if RouteToBreach.is_active:
             return ('RouteBreach',)
+        """
 
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
@@ -30661,10 +30700,11 @@ class Builder(Unit):
                 return 'MoveTo', healpos, '[lrh: move to heal]'
             return 'MoveTo', HealExecutor.last_healed.position, '[lrh: wait for heal]'
 
+        """
         breach_target = BreachBuild._pick_target()
         if breach_target is not None:
             return 'BreachBuild', breach_target
-        
+        """
         
         foundry_target = FoundryBuild._pick_target()
         if foundry_target is not None:
