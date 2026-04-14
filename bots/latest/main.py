@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-14 10:40:51 (local)
+# latest,  @ 2026-04-14 12:29:43 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -26634,7 +26634,7 @@ class OreExecutive:
             cls.state[pos] = 2
             Debug.line(pos, Color.RED)
             Debug.diamond(Color.RED)
-            RouteToFoundry.give_up()
+            RouteToFoundry.give_up(True)
             return
         if BuildManager.can_dbuild_harvester(pos):
             Debug.line(pos, Color.YELLOW)
@@ -26650,9 +26650,9 @@ class OreExecutive:
             else:
                 RouteToFoundry.set_pos(cand.position)
                 return
-            RouteToFoundry.give_up()
+            RouteToFoundry.give_up(True)
         else:
-            RouteToFoundry.give_up()
+            RouteToFoundry.give_up(True)
 
 
 # ============================================================
@@ -27527,7 +27527,13 @@ class RouteToFoundry:
         return False
 
     @classmethod
-    def give_up(cls):
+    def give_up(cls, testRun = False):
+        if testRun:
+            cls.is_active = False
+            if cls._foundry_target is not None:
+                cls.planned_foundry_positions.discard(cls._foundry_target)
+                cls._foundry_target = None
+            return False
         if len(cls.prevRoute) == 0:
             cls.is_active = False
             # Release the claim so another bot (or a retry) can use this leaf.

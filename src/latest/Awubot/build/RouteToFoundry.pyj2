@@ -187,7 +187,13 @@ class RouteToFoundry:
         return False
 
     @classmethod
-    def give_up(cls):
+    def give_up(cls, testRun = False):
+        if testRun:
+            cls.is_active = False
+            if cls._foundry_target is not None:
+                cls.planned_foundry_positions.discard(cls._foundry_target)
+                cls._foundry_target = None
+            return False
         if len(cls.prevRoute) == 0:
             cls.is_active = False
             # Release the claim so another bot (or a retry) can use this leaf.

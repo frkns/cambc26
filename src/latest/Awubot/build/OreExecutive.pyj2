@@ -248,7 +248,7 @@ class OreExecutive:
             cls.state[pos] = {{ KILLED }}
             Debug.line(pos, Color.RED)
             Debug.diamond(Color.RED)
-            RouteToFoundry.give_up()
+            RouteToFoundry.give_up(True)
             return
         if BuildManager.can_dbuild_harvester(pos):
             Debug.line(pos, Color.YELLOW)
@@ -264,6 +264,6 @@ class OreExecutive:
             else:
                 RouteToFoundry.set_pos(cand.position)
                 return
-            RouteToFoundry.give_up()
+            RouteToFoundry.give_up(True)
         else:
-            RouteToFoundry.give_up()
+            RouteToFoundry.give_up(True)
