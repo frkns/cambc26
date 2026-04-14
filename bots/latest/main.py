@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-13 17:58:42 (local)
+# latest,  @ 2026-04-13 18:31:17 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -24483,7 +24483,10 @@ class HealTargeter:
             0 if best.bot_heal == 0 else 40 - best.bot_hp
         )
         
-        totalHeal += 4 # add some buffer for flanking and stuf
+        if best.entity_type == EntityType.ROAD:
+            totalHeal += 2 # add some buffer for flanking and stuf
+        else:
+            totalHeal += 4 # add some buffer for flanking and stuf
         
         # if there are already enough canonical healers, ignore the target
         if allyIndex * GameConstants.HEAL_AMOUNT > totalHeal:
