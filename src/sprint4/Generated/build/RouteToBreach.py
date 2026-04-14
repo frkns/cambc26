@@ -96,7 +96,7 @@ class RouteToBreach:
             avoid_pos = RouteToCore.pathFindingKill
         )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("RouteToBreach: first_target is None, giving up")

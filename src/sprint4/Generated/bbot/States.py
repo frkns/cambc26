@@ -66,6 +66,7 @@ class StateRouteBreach:
 class StateMoveTo:
     @classmethod
     def run(cls, pos, tag='_'):
+        print(f'{tag=}')
         Pathfinder.move_to(pos)
 
 

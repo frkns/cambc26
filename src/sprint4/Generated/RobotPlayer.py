@@ -46,6 +46,9 @@ class Entrypoint:
     def run(cls, ct: Controller):
 
         # because engine is bugged
+        if ct.get_current_round() > 666: 
+            ct.self_destruct()
+            return  
 
         Globals.ct = ct  # in case not fixed...
         if cls.needs_init:
@@ -68,3 +71,5 @@ class Player:
             Debug.tee(err)
             Debug.tee(f'(I am a {Globals.my_type})')
 
+            ct.resign()
+            raise Exception

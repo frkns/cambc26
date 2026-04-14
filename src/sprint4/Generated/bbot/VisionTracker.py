@@ -168,16 +168,16 @@ class VisionTracker:
 
     @classmethod
     def canonical_ally(cls, from_pos: Position) -> BotInfo:
-        
+        Profiler.start()
         ret = min(cls.allies, key=
             lambda x: (Util.linf(from_pos, x.position) << 16) + x.id
         )
-        
+        Profiler.end("""canonical_ally""")
         return ret
     
     @classmethod
     def canonical_ally_index(cls, from_pos: Position) -> int:
-        
+        Profiler.start()
         allyIndex = list(map(lambda x: x.position, sorted(cls.allies, key=
             lambda x: (Util.linf(from_pos, x.position) << 16) + x.id
         )))
@@ -185,7 +185,7 @@ class VisionTracker:
             i = allyIndex.index(from_pos)
         else:
             i = 0
-        
+        Profiler.end("""canonical_ally""")
         return i
 
 

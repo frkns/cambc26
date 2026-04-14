@@ -45,3 +45,6 @@ class Core(Unit):
     def end_turn(cls):
         Unit.end_turn()
 
+        if Globals.round > 666:
+            Globals.ct.resign()
+            raise Exception

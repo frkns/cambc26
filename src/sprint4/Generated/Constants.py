@@ -92,7 +92,7 @@ class Constants:
         EntityType.BRIDGE: 20,
         EntityType.HARVESTER: 30,
         EntityType.FOUNDRY: 50,
-        EntityType.ROAD: 5,
+        EntityType.ROAD: 4,
         EntityType.BARRIER: 30,
         EntityType.MARKER: 1,
     }

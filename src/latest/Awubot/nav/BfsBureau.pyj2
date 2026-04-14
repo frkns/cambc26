@@ -80,19 +80,22 @@ class BfsBureau:
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             bit = 1 << (x * stride + y)
 
+
             if ti.env != Environment.WALL:
                 if ti.easily_passable:
-                    weight[idx] = 1
+                    w = 1
                     cls.passable_int |= bit
                 elif ti.has_building:
-                    weight[idx] = {{ INF }}
+                    w = {{ INF }}
                     cls.passable_int &= ~bit
                 else:
-                    weight[idx] = 2
+                    w = 2
                     cls.passable_int |= bit
             else:
-                weight[idx] = {{ INF }}
+                w = {{ INF }}
                 cls.passable_int &= ~bit
+
+            weight[idx] = max(weight[idx], w)
 
             if (
                 ti.env == Environment.EMPTY and
@@ -785,4 +788,31 @@ class BfsBureau:
                 y = lsb.bit_length() - 1
                 Debug.dot(Position(x, y), Color.PINK)
                 col ^= lsb
+# ===---
+# ---===
+    @classmethod
+    def debug_now_weight_inf(cls):
+        """Draw tiles whose now_weight is impassable (>= INF)."""
+        weight = cls.now_weight
+        IMPASSABLE = {{ INF }}
+
+        for x in range(Map.W):
+            for y in range(Map.H):
+                idx = {{ encode_pos('x', 'y') }}
+                if weight[idx] >= IMPASSABLE:
+                    Debug.dot(Position(x, y), Color.YELLOW)
+# ===---
+
+# ---===
+    @classmethod
+    def debug_now_passable_int_impassable(cls):
+        """Draw tiles that are blocked in now_passable_int (bit == 0)."""
+        stride = cls.STRIDE
+        bits = cls.now_passable_int & cls.board_mask
+
+        for x in range(Map.W):
+            for y in range(Map.H):
+                bit = 1 << (x * stride + y)
+                if not (bits & bit):
+                    Debug.dot(Position(x, y), Color.PINK)
 # ===---

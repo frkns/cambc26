@@ -122,6 +122,10 @@ class Builder({{ super() }}):
         {{ P.end('Marker.attempt_mark') }}
 
         {# /* BfsBureau.debug_enemy_launcher_zone() */ #}
+        {# /* if Globals.round & 1: */ #}
+            {# /* BfsBureau.debug_now_passable_int_impassable() */ #}
+        {# /* else: */ #}
+            {# /* BfsBureau.debug_now_weight_inf() */ #}
 
 
     @classmethod
@@ -157,10 +161,10 @@ class Builder({{ super() }}):
             Debug.dot(sentinelpos, Color.PURPLE)
             return 'BuildSentinel', sentinelpos, None
 
-        sitterpos = SitterTakedown.get_best_launcher_position()
-        if sitterpos is not None:
-            Debug.dot(sitterpos, Color.PURPLE)
-            return 'BuildLauncher', sitterpos
+        {# /* sitterpos = SitterTakedown.get_best_launcher_position() */ #}
+        {# /* if sitterpos is not None: */ #}
+            {# /* Debug.dot(sitterpos, Color.PURPLE) */ #}
+            {# /* return 'BuildLauncher', sitterpos */ #}
 
 
         if healpos is not None:

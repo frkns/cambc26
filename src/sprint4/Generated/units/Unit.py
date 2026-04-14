@@ -66,9 +66,9 @@ class Unit:
         Globals.start_tick()
         MarketMaker.refresh()
 
-        
+        Profiler.start()
         Map.fill_tile_info()
-        
+        Profiler.end("""Map.fill_tile_info""")
 
     @classmethod
     def run_turn(cls):
@@ -77,7 +77,7 @@ class Unit:
     @classmethod
     def end_turn(cls):
 
-        if Globals.round == 1999:
+        if Globals.round == 667:
             Profiler.report()
         print(f'scale ratio {MarketMaker.scale_ratio:.2f}')
 
