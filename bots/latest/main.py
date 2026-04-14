@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-13 11:17:05 (local)
+# latest,  @ 2026-04-13 17:58:42 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -3139,7 +3139,6 @@ class BreachBuild:
         core_dy = max(0, abs(pos.y - Symmetry.enemy_core_pos.y) - 1)
         dist_to_core_sq = core_dx**2 + core_dy**2
 
-        """
         if Globals.ct.can_build_breach(pos, dirToBuild) and dist_to_core_sq <= GameConstants.BREACH_ATTACK_RADIUS_SQ:
             Globals.ct.build_breach(pos, dirToBuild)
             print("OMGGGGGG I ACTUALLY BUILT THE BREACH AT", pos,file = sys.stderr)
@@ -3151,8 +3150,7 @@ class BreachBuild:
 
             RouteToBreach._breach_target = None
             return True
-        """
-        if Globals.ct.can_build_gunner(pos, dirToBuild):
+        elif Globals.ct.can_build_gunner(pos, dirToBuild):
             Globals.ct.build_gunner(pos, dirToBuild)
             encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
             #if dist_to_core_sq > GameConstants.BREACH_ATTACK_RADIUS_SQ:
@@ -3828,7 +3826,7 @@ class Constants:
         EntityType.BRIDGE: 20,
         EntityType.HARVESTER: 30,
         EntityType.FOUNDRY: 50,
-        EntityType.ROAD: 5,
+        EntityType.ROAD: 4,
         EntityType.BARRIER: 30,
         EntityType.MARKER: 1,
     }
@@ -30400,16 +30398,31 @@ class Breach(Unit):
 
     @classmethod
     def run_turn(cls):
+        ct = Globals.ct
+        nearbyTiles = ct.get_nearby_tiles()
+        nearbyCore = False
+        for tile in nearbyTiles:
+            daBuildingID = ct.get_tile_building_id(tile)
+            if daBuildingID is not None:
+                if ct.get_team(daBuildingID) != Globals.my_team and ct.get_entity_type(daBuildingID) == EntityType.CORE:
+                    nearbyCore = True
+                    break
+        RANGE_DIST = 5
+        if nearbyCore:
+            RANGE_DIST = 2 #nearby core, shoot closer
+        print("Nearby core?", nearbyCore, "Range dist:", RANGE_DIST)
         myDir = Globals.ct.get_direction()
         myPos = Globals.my_pos
-        newPos =myPos.add(myDir).add(myDir).add(myDir)
-        if Globals.ct.can_fire(newPos):
-            Globals.ct.fire(newPos)
-        newPos = myPos.add(myDir).add(myDir)
-        if Globals.ct.can_fire(newPos):
-            Globals.ct.fire(newPos)
-            print("Yo we fire!", file=sys.stderr)
-
+        newPos = myPos
+        for _ in range(RANGE_DIST):
+            newPos =newPos.add(myDir)
+        opposite = myDir.opposite()
+        for _ in range(RANGE_DIST):
+            if Globals.ct.can_fire(newPos):
+                Globals.ct.fire(newPos)
+                print("Yo firing at", newPos)
+                return
+            newPos = newPos.add(opposite)
     @classmethod
     def end_turn(cls):
         Unit.end_turn()

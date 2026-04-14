@@ -54,7 +54,6 @@ class BreachBuild:
         core_dy = max(0, abs(pos.y - Symmetry.enemy_core_pos.y) - 1)
         dist_to_core_sq = core_dx**2 + core_dy**2
 
-        """
         if Globals.ct.can_build_breach(pos, dirToBuild) and dist_to_core_sq <= GameConstants.BREACH_ATTACK_RADIUS_SQ:
             Globals.ct.build_breach(pos, dirToBuild)
             print("OMGGGGGG I ACTUALLY BUILT THE BREACH AT", pos,file = sys.stderr)
@@ -66,8 +65,7 @@ class BreachBuild:
 
             RouteToBreach._breach_target = None
             return True
-        """
-        if Globals.ct.can_build_gunner(pos, dirToBuild):
+        elif Globals.ct.can_build_gunner(pos, dirToBuild):
             Globals.ct.build_gunner(pos, dirToBuild)
             encoded = {{ encode_pos('pos.x', 'pos.y') }}
             #if dist_to_core_sq > GameConstants.BREACH_ATTACK_RADIUS_SQ:
