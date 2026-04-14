@@ -23,6 +23,12 @@ units_set: set[EntityType] = set((
     EntityType.LAUNCHER,
 ))
 
+transporter_set: set[EntityType] = set((
+    EntityType.CONVEYOR,
+    EntityType.ARMOURED_CONVEYOR,
+    EntityType.BRIDGE,
+    EntityType.SPLITTER,
+))
 
 directions: list[Direction] = [
     Direction.NORTH,

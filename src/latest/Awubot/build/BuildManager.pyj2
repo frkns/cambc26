@@ -57,7 +57,6 @@ class BuildManager:
         return (
             {# /* ti is not None and  */ #}
             ti.env != Environment.WALL
-            and not ti.has_bot
             and (not ti.has_building or (ti.is_building_ally and ti.entity_type != EntityType.CORE))
         )
 
@@ -84,6 +83,9 @@ class BuildManager:
             {% endif %}
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
+            {% if etype not in transporter_set%}
+            not Map.tile_info[pos.x][pos.y].has_bot and
+            {% endif %}
             BuildManager.can_afford_{{ st }}()
         )
 

@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-13 18:31:17 (local)
+# latest,  @ 2026-04-13 18:53:55 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -3207,7 +3207,6 @@ class BuildManager:
 
         return (
             ti.env != Environment.WALL
-            and not ti.has_bot
             and (not ti.has_building or (ti.is_building_ally and ti.entity_type != EntityType.CORE))
         )
 
@@ -3229,6 +3228,7 @@ class BuildManager:
             Globals.ct.get_unit_count() < 50 and
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
+            not Map.tile_info[pos.x][pos.y].has_bot and
             BuildManager.can_afford_builder_bot()
         )
 
@@ -3262,6 +3262,7 @@ class BuildManager:
             Globals.ct.get_unit_count() < 50 and
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
+            not Map.tile_info[pos.x][pos.y].has_bot and
             BuildManager.can_afford_gunner()
         )
 
@@ -3293,6 +3294,7 @@ class BuildManager:
             Globals.ct.get_unit_count() < 50 and
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
+            not Map.tile_info[pos.x][pos.y].has_bot and
             BuildManager.can_afford_sentinel()
         )
 
@@ -3324,6 +3326,7 @@ class BuildManager:
             Globals.ct.get_unit_count() < 50 and
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
+            not Map.tile_info[pos.x][pos.y].has_bot and
             BuildManager.can_afford_breach()
         )
 
@@ -3357,6 +3360,7 @@ class BuildManager:
             Globals.ct.get_unit_count() < 50 and
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
+            not Map.tile_info[pos.x][pos.y].has_bot and
             BuildManager.can_afford_launcher()
         )
 
@@ -3517,6 +3521,7 @@ class BuildManager:
         return (
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
+            not Map.tile_info[pos.x][pos.y].has_bot and
             BuildManager.can_afford_harvester()
         )
 
@@ -3549,6 +3554,7 @@ class BuildManager:
         return (
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
+            not Map.tile_info[pos.x][pos.y].has_bot and
             BuildManager.can_afford_foundry()
         )
 
@@ -3581,6 +3587,7 @@ class BuildManager:
         return (
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
+            not Map.tile_info[pos.x][pos.y].has_bot and
             BuildManager.can_afford_road()
         )
 
@@ -3613,6 +3620,7 @@ class BuildManager:
         return (
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
+            not Map.tile_info[pos.x][pos.y].has_bot and
             BuildManager.can_afford_barrier()
         )
 
