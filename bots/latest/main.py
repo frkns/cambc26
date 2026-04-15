@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-15 08:44:15 (local)
+# latest,  @ 2026-04-15 12:41:05 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -3406,8 +3406,6 @@ class BuildManager:
     @staticmethod
     def can_afford_launcher() -> bool:
         ti_cost, ax_cost = Globals.ct.get_launcher_cost()
-
-        ti_cost += int(20 * MarketMaker.scale_ratio)
 
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
@@ -29376,7 +29374,7 @@ class SitterTakedown:
             if SitterTargetInfo.is_better_than(c, best):
                 best = c
 
-        if best.enemy_bots_nearby == 0:
+        if best.enemy_bots_nearby < 2:
             return None
         
         if not best.harvester_nearby:
@@ -29543,12 +29541,16 @@ class SitterTargetInfo:
     def is_better_than(a: SitterTargetInfo, b: SitterTargetInfo):
         if a.launchers_adjacent != b.launchers_adjacent:
             return a.launchers_adjacent < b.launchers_adjacent
+        
         if a.enemy_bots_nearby != b.enemy_bots_nearby:
             return a.enemy_bots_nearby > b.enemy_bots_nearby
+        
         if a.harvester_nearby != b.harvester_nearby:
             return a.harvester_nearby > b.harvester_nearby
+        
         if a.has_ally_transporter != b.has_ally_transporter:
             return a.has_ally_transporter < b.has_ally_transporter
+        
         return a.dist_enemy_core < b.dist_enemy_core
 
 
@@ -29798,32 +29800,49 @@ class StateBuildShield:
         target_dir = None
         
         tile_info = Map.tile_info
+        ally_harvester = False
         
         ti = tile_info[pos.x + 0][pos.y + -1]
         if ti is not None:
             if ti.has_building and ti.entity_type == EntityType.HARVESTER:
-                target_dir = Direction.NORTH
-                Debug.line(pos, pos.add(Direction.NORTH), Color.GREEN)
+                if not ally_harvester or ti.is_building_ally:
+                    target_dir = Direction.NORTH
+                    Debug.line(pos, pos.add(Direction.NORTH), Color.GREEN)
+                    if ti.is_building_ally:
+                        ally_harvester = True
         ti = tile_info[pos.x + 1][pos.y + 0]
         if ti is not None:
             if ti.has_building and ti.entity_type == EntityType.HARVESTER:
-                target_dir = Direction.EAST
-                Debug.line(pos, pos.add(Direction.EAST), Color.GREEN)
+                if not ally_harvester or ti.is_building_ally:
+                    target_dir = Direction.EAST
+                    Debug.line(pos, pos.add(Direction.EAST), Color.GREEN)
+                    if ti.is_building_ally:
+                        ally_harvester = True
         ti = tile_info[pos.x + 0][pos.y + 1]
         if ti is not None:
             if ti.has_building and ti.entity_type == EntityType.HARVESTER:
-                target_dir = Direction.SOUTH
-                Debug.line(pos, pos.add(Direction.SOUTH), Color.GREEN)
+                if not ally_harvester or ti.is_building_ally:
+                    target_dir = Direction.SOUTH
+                    Debug.line(pos, pos.add(Direction.SOUTH), Color.GREEN)
+                    if ti.is_building_ally:
+                        ally_harvester = True
         ti = tile_info[pos.x + -1][pos.y + 0]
         if ti is not None:
             if ti.has_building and ti.entity_type == EntityType.HARVESTER:
-                target_dir = Direction.WEST
-                Debug.line(pos, pos.add(Direction.WEST), Color.GREEN)
+                if not ally_harvester or ti.is_building_ally:
+                    target_dir = Direction.WEST
+                    Debug.line(pos, pos.add(Direction.WEST), Color.GREEN)
+                    if ti.is_building_ally:
+                        ally_harvester = True
 
 
         if target_dir is not None:
-            if BuildManager.can_dbuild_conveyor(pos):
-                BuildManager.dbuild_conveyor(pos, target_dir)
+            if ally_harvester:
+                if BuildManager.can_dbuild_conveyor(pos):
+                    BuildManager.dbuild_conveyor(pos, target_dir)
+            else:
+                if BuildManager.can_dbuild_barrier(pos):
+                    BuildManager.dbuild_barrier(pos)
         else:
             if BuildManager.can_dbuild_road(pos):
                 BuildManager.dbuild_road(pos)
@@ -30793,6 +30812,10 @@ class Builder(Unit):
             Debug.dot(sentinelpos, Color.PURPLE)
             return 'BuildSentinel', sentinelpos, None
 
+        sitterpos = SitterTakedown.get_best_launcher_position()
+        if sitterpos is not None:
+            Debug.dot(sitterpos, Color.PURPLE)
+            return 'BuildLauncher', sitterpos
 
 
         if healpos is not None:

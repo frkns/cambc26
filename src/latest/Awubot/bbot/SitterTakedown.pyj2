@@ -32,12 +32,16 @@ class SitterTargetInfo:
     def is_better_than(a: SitterTargetInfo, b: SitterTargetInfo):
         if a.launchers_adjacent != b.launchers_adjacent:
             return a.launchers_adjacent < b.launchers_adjacent
+        
         if a.enemy_bots_nearby != b.enemy_bots_nearby:
             return a.enemy_bots_nearby > b.enemy_bots_nearby
+        
         if a.harvester_nearby != b.harvester_nearby:
             return a.harvester_nearby > b.harvester_nearby
+        
         if a.has_ally_transporter != b.has_ally_transporter:
             return a.has_ally_transporter < b.has_ally_transporter
+        
         return a.dist_enemy_core < b.dist_enemy_core
 
 
@@ -55,7 +59,7 @@ class SitterTakedown:
             if SitterTargetInfo.is_better_than(c, best):
                 best = c
 
-        if best.enemy_bots_nearby == 0:
+        if best.enemy_bots_nearby < 2:
             return None
         
         if not best.harvester_nearby:
