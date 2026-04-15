@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-15 12:41:05 (local)
+# latest,  @ 2026-04-15 13:32:00 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -23677,6 +23677,8 @@ class HarvesterAdjacent:
                             ti.is_building_ally and 
                             (
                                 ti.entity_type == EntityType.ROAD 
+                                or ti.entity_type == EntityType.BARRIER
+                                or ti.entity_type == EntityType.LAUNCHER
                                 or (ti.entity_type in Constants.TRANSPORTERS_SET and ti.target == spos)
                             )
                         )
@@ -23793,6 +23795,8 @@ class HarvesterAdjacent:
                             ti.is_building_ally and 
                             (
                                 ti.entity_type == EntityType.ROAD 
+                                or ti.entity_type == EntityType.BARRIER
+                                or ti.entity_type == EntityType.LAUNCHER
                                 or (ti.entity_type in Constants.TRANSPORTERS_SET and ti.target == spos)
                             )
                         )
@@ -23909,6 +23913,8 @@ class HarvesterAdjacent:
                             ti.is_building_ally and 
                             (
                                 ti.entity_type == EntityType.ROAD 
+                                or ti.entity_type == EntityType.BARRIER
+                                or ti.entity_type == EntityType.LAUNCHER
                                 or (ti.entity_type in Constants.TRANSPORTERS_SET and ti.target == spos)
                             )
                         )
@@ -24025,6 +24031,8 @@ class HarvesterAdjacent:
                             ti.is_building_ally and 
                             (
                                 ti.entity_type == EntityType.ROAD 
+                                or ti.entity_type == EntityType.BARRIER
+                                or ti.entity_type == EntityType.LAUNCHER
                                 or (ti.entity_type in Constants.TRANSPORTERS_SET and ti.target == spos)
                             )
                         )
