@@ -30,6 +30,9 @@ class AdjacentInfo:
     dist_to_ally_core: int
     has_ally_transporter: bool
     easily_buildable: bool  # nothing or ally road
+    
+    is_canonical_ally_harvester: bool # if we're the canonical ally to the harvester
+    is_working_shield: bool # if the tile has a non-road allied building
 
     harvester_ally_turrets_adjacent: int  # harvester tile, 4 dirs
     harvester_enemy_turrets_adjacent: int 
@@ -43,11 +46,14 @@ class AdjacentInfo:
         ati = a.ti
         bti = b.ti
 
-        if ati.has_building: return False
-        if bti.has_building: return True
+        if a.is_working_shield != b.is_working_shield:
+            return a.is_working_shield < b.is_working_shield
 
         if a.bfs_dist_adj >= 100: return False        
         if b.bfs_dist_adj >= 100: return True
+        
+        if a.is_canonical_ally_harvester != b.is_canonical_ally_harvester:
+            return a.is_canonical_ally_harvester > b.is_canonical_ally_harvester
 
         if ati.harvester_adjacent != bti.harvester_adjacent:
             return ati.harvester_adjacent > bti.harvester_adjacent
@@ -110,7 +116,7 @@ class AdjacentInfo:
             return a.enemy_turrets_adjacent > b.enemy_turrets_adjacent
 
         if a.has_ally_transporter != b.has_ally_transporter:
-            return not a.has_ally_transporter
+            return a.has_ally_transporter < b.has_ally_transporter
 
         return a.bfs_dist_adj < b.bfs_dist_adj
 
@@ -214,13 +220,16 @@ class HarvesterAdjacent:
             if AdjacentInfo.is_better_than_shield(c, best):
                 best = c
 
-        if best.ti.has_building:
+        if best.is_working_shield: # if there's already a shield at the target
             return None
 
         if best.bfs_dist_adj >= 100:
             return None
         
         if best.enemy_turrets_adjacent > 0:
+            return None
+        
+        if not best.is_canonical_ally_harvester:
             return None
 
         if not VisionTracker.me_is_canonical_ally(best.position):
@@ -241,6 +250,7 @@ class HarvesterAdjacent:
             is_harvester_ally = hti.is_building_ally
             consider_route = hti.ally_transporters_adjacent == 0 and hti.enemy_turrets_adjacent == 0
             dist_to_ally_core = spos.distance_squared(Unit.core_pos)
+            is_canonical_ally_harvester = VisionTracker.me_is_canonical_ally(spos)
             
             {% for dir in cardinal_directions %}
             {% set dx, dy = dir.delta() %}
@@ -269,9 +279,20 @@ class HarvesterAdjacent:
                     info.bfs_dist = BfsBureau.bfs20_dist[idx]
                     info.is_harvester_ally = is_harvester_ally
                     info.ti = ti
-                    info.easily_buildable = not ti.has_building or (ti.is_building_ally and ti.entity_type == EntityType.ROAD)
+                    info.easily_buildable = (
+                        not ti.has_building or
+                        (
+                            ti.is_building_ally and 
+                            (
+                                ti.entity_type == EntityType.ROAD 
+                                or (ti.entity_type in Constants.TRANSPORTERS_SET and ti.target == spos)
+                            )
+                        )
+                    )
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
+                    info.is_canonical_ally_harvester = is_canonical_ally_harvester
+                    info.is_working_shield = ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD
 
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
@@ -280,7 +301,11 @@ class HarvesterAdjacent:
                         ti.has_building 
                         and ti.is_building_ally 
                         and ti.entity_type in Constants.TRANSPORTERS_SET
+                        and ti.target != spos # not pointing back into the harvester
                     )
+                    
+                    if info.has_ally_transporter:
+                        Debug.dot(pos, Color.LIME)
 
                     # count nearby turrets in all 8 directions
                     info.enemy_turrets_adjacent = 0

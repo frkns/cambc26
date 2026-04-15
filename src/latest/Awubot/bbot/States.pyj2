@@ -110,9 +110,7 @@ class StateBuildLauncher:
 class StateBuildShield:
     @classmethod
     def run(cls, pos):
-        if pos != Globals.my_pos:
-            # Not a bug, we don't need to move off if we're already on
-            Pathfinder.move_to(pos, ban_target_pos=True)
+        Pathfinder.move_to(pos, ban_target_pos=True)
         
         target_dir = None
         

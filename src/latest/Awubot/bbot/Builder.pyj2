@@ -173,7 +173,7 @@ class Builder({{ super() }}):
             
         buildingFirstConveyor = RouteToCore.is_active and len(RouteToCore.prevRoute) == 0
             
-        if (not buildingFirstConveyor):
+        if not buildingFirstConveyor:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
             if shieldpos is not None:
                 return 'BuildShield', shieldpos
@@ -184,7 +184,7 @@ class Builder({{ super() }}):
         if RouteToCore.is_active:
             return ('Route',)
             
-        if (not buildingFirstConveyor):
+        if buildingFirstConveyor:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
             if shieldpos is not None:
                 return 'BuildShield', shieldpos
