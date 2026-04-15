@@ -51,6 +51,9 @@ class SitterTakedown:
 
     @classmethod
     def get_best_launcher_position(cls) -> Position | None:
+        if not BuildManager.can_afford_launcher():
+            return None
+        
         if not cls.cand:
             return None
 

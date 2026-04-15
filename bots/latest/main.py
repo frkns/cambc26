@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-15 15:11:25 (local)
+# latest,  @ 2026-04-15 18:56:44 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -29145,6 +29145,9 @@ class SitterTakedown:
 
     @classmethod
     def get_best_launcher_position(cls) -> Position | None:
+        if not BuildManager.can_afford_launcher():
+            return None
+        
         if not cls.cand:
             return None
 
