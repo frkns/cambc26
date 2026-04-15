@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-14 18:28:04 (local)
+# latest,  @ 2026-04-14 22:53:22 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -29705,11 +29705,43 @@ class StateBuildSentinel:
 
 class StateBuildShield:
     @classmethod
-    def run(cls, pos, banned_dir: Direction | None):
-        Pathfinder.move_to(pos, ban_target_pos=True)
+    def run(cls, pos):
+        if pos != Globals.my_pos:
+            # Not a bug, we don't need to move off if we're already on
+            Pathfinder.move_to(pos, ban_target_pos=True)
+        
+        target_dir = None
+        
+        tile_info = Map.tile_info
+        
+        ti = tile_info[pos.x + 0][pos.y + -1]
+        if ti is not None:
+            if ti.has_building and ti.entity_type == EntityType.HARVESTER:
+                target_dir = Direction.NORTH
+                Debug.line(pos, pos.add(Direction.NORTH), Color.GREEN)
+        ti = tile_info[pos.x + 1][pos.y + 0]
+        if ti is not None:
+            if ti.has_building and ti.entity_type == EntityType.HARVESTER:
+                target_dir = Direction.EAST
+                Debug.line(pos, pos.add(Direction.EAST), Color.GREEN)
+        ti = tile_info[pos.x + 0][pos.y + 1]
+        if ti is not None:
+            if ti.has_building and ti.entity_type == EntityType.HARVESTER:
+                target_dir = Direction.SOUTH
+                Debug.line(pos, pos.add(Direction.SOUTH), Color.GREEN)
+        ti = tile_info[pos.x + -1][pos.y + 0]
+        if ti is not None:
+            if ti.has_building and ti.entity_type == EntityType.HARVESTER:
+                target_dir = Direction.WEST
+                Debug.line(pos, pos.add(Direction.WEST), Color.GREEN)
 
-        if BuildManager.can_dbuild_road(pos):
-            BuildManager.dbuild_road(pos)
+
+        if target_dir is not None:
+            if BuildManager.can_dbuild_conveyor(pos):
+                BuildManager.dbuild_conveyor(pos, target_dir)
+        else:
+            if BuildManager.can_dbuild_road(pos):
+                BuildManager.dbuild_road(pos)
 
 
 # ============================================================
@@ -30666,16 +30698,6 @@ class Builder(Unit):
             return ('RouteBreach',)
         """
 
-        shieldpos = HarvesterAdjacent.get_best_shield_position()
-        if shieldpos is not None:
-            return 'BuildShield', shieldpos, None
-
-        if RouteToFoundry.is_active:
-            return ('RouteFoundry',)
-
-        if RouteToCore.is_active:
-            return ('Route',)
-
         if takedownpos is not None:
             Debug.dot(takedownpos, Color.PURPLE)
             return 'BuildGunner', takedownpos, None
@@ -30699,6 +30721,24 @@ class Builder(Unit):
             if healpos is not None:  # redundant, OK
                 return 'MoveTo', healpos, '[lrh: move to heal]'
             return 'MoveTo', HealExecutor.last_healed.position, '[lrh: wait for heal]'
+            
+        buildingFirstConveyor = RouteToCore.is_active and len(RouteToCore.prevRoute) == 0
+            
+        if (not buildingFirstConveyor):
+            shieldpos = HarvesterAdjacent.get_best_shield_position()
+            if shieldpos is not None:
+                return 'BuildShield', shieldpos
+
+        if RouteToFoundry.is_active:
+            return ('RouteFoundry',)
+
+        if RouteToCore.is_active:
+            return ('Route',)
+            
+        if (not buildingFirstConveyor):
+            shieldpos = HarvesterAdjacent.get_best_shield_position()
+            if shieldpos is not None:
+                return 'BuildShield', shieldpos
 
         """
         breach_target = BreachBuild._pick_target()

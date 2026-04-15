@@ -109,8 +109,30 @@ class StateBuildLauncher:
 
 class StateBuildShield:
     @classmethod
-    def run(cls, pos, banned_dir: Direction | None):
-        Pathfinder.move_to(pos, ban_target_pos=True)
+    def run(cls, pos):
+        if pos != Globals.my_pos:
+            # Not a bug, we don't need to move off if we're already on
+            Pathfinder.move_to(pos, ban_target_pos=True)
+        
+        target_dir = None
+        
+        tile_info = Map.tile_info
+        
+        {% for dir in cardinal_directions %}
+        {% set dx, dy = dir.delta() %}
+        {% set i = directions.index(dir) %}
+        ti = tile_info[pos.x + {{ dx }}][pos.y + {{ dy }}]
+        if ti is not None:
+            if ti.has_building and ti.entity_type == EntityType.HARVESTER:
+                target_dir = {{ dir }}
+                Debug.line(pos, pos.add({{dir}}), Color.GREEN)
+        {% endfor %}
 
-        if BuildManager.can_dbuild_road(pos):
-            BuildManager.dbuild_road(pos)
+
+        if target_dir is not None:
+            if BuildManager.can_dbuild_conveyor(pos):
+                BuildManager.dbuild_conveyor(pos, target_dir)
+        else:
+            if BuildManager.can_dbuild_road(pos):
+                BuildManager.dbuild_road(pos)
+            

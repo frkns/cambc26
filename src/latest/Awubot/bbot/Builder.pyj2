@@ -143,16 +143,6 @@ class Builder({{ super() }}):
             return ('RouteBreach',)
         """
 
-        shieldpos = HarvesterAdjacent.get_best_shield_position()
-        if shieldpos is not None:
-            return 'BuildShield', shieldpos, None
-
-        if RouteToFoundry.is_active:
-            return ('RouteFoundry',)
-
-        if RouteToCore.is_active:
-            return ('Route',)
-
         if takedownpos is not None:
             Debug.dot(takedownpos, Color.PURPLE)
             return 'BuildGunner', takedownpos, None
@@ -180,6 +170,24 @@ class Builder({{ super() }}):
             if healpos is not None:  # redundant, OK
                 return 'MoveTo', healpos, '[lrh: move to heal]'
             return 'MoveTo', HealExecutor.last_healed.position, '[lrh: wait for heal]'
+            
+        buildingFirstConveyor = RouteToCore.is_active and len(RouteToCore.prevRoute) == 0
+            
+        if (not buildingFirstConveyor):
+            shieldpos = HarvesterAdjacent.get_best_shield_position()
+            if shieldpos is not None:
+                return 'BuildShield', shieldpos
+
+        if RouteToFoundry.is_active:
+            return ('RouteFoundry',)
+
+        if RouteToCore.is_active:
+            return ('Route',)
+            
+        if (not buildingFirstConveyor):
+            shieldpos = HarvesterAdjacent.get_best_shield_position()
+            if shieldpos is not None:
+                return 'BuildShield', shieldpos
 
         """
         breach_target = BreachBuild._pick_target()
