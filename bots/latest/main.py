@@ -30769,6 +30769,7 @@ class Launcher(Unit):
         DarkForest.init()
         cls.ROUTING_SET.add(EntityType.HARVESTER)
         cls.ROUTING_SET.add(EntityType.FOUNDRY)
+        cls.ROUTING_SET.add(EntityType.CORE)
 
     @classmethod
     def start_turn(cls):
