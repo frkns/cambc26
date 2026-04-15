@@ -67,7 +67,8 @@ class Launcher({{ super() }}):
         {# /* DarkForest.debug_kind() */ #}
 
         {# /* LauncherSupervisor.fill() */ #}
-
+    
+    ROUTING_SET = list(Constants.TRANSPORTERS_SET) + [EntityType.HARVESTER,EntityType.FOUNDRY]
 
     @classmethod
     def run_turn(cls):
@@ -109,7 +110,7 @@ class Launcher({{ super() }}):
 
             building = building_cache.get(tile)
             if building is not None:
-                if building.team == my_team and building.entityType in Constants.ROUTING:
+                if building.team == my_team and building.entityType in cls.ROUTING_SET:
                     continue
 
             for d in Constants.DIRECTIONS:
@@ -121,7 +122,7 @@ class Launcher({{ super() }}):
                     continue
                 if adj_building.team != my_team and adj_building.entityType == EntityType.LAUNCHER:
                     score -= 50
-                elif adj_building.team == my_team and adj_building.entityType in Constants.TRANSPORT_ROUTING:
+                elif adj_building.team == my_team and adj_building.entityType in Constants.TRANSPORTERS_SET:
                     score -= 50
 
             if score > best_score:

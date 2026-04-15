@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-15 10:47:34 (local)
+# latest,  @ 2026-04-15 10:59:58 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -30774,7 +30774,8 @@ class Launcher(Unit):
     def start_turn(cls):
         Unit.start_turn()
 
-
+    
+    ROUTING_SET = list(Constants.TRANSPORTERS_SET) + [EntityType.HARVESTER,EntityType.FOUNDRY]
 
     @classmethod
     def run_turn(cls):
@@ -30816,7 +30817,7 @@ class Launcher(Unit):
 
             building = building_cache.get(tile)
             if building is not None:
-                if building.team == my_team and building.entityType in Constants.ROUTING:
+                if building.team == my_team and building.entityType in cls.ROUTING_SET:
                     continue
 
             for d in Constants.DIRECTIONS:
@@ -30828,7 +30829,7 @@ class Launcher(Unit):
                     continue
                 if adj_building.team != my_team and adj_building.entityType == EntityType.LAUNCHER:
                     score -= 50
-                elif adj_building.team == my_team and adj_building.entityType in Constants.TRANSPORT_ROUTING:
+                elif adj_building.team == my_team and adj_building.entityType in Constants.TRANSPORTERS_SET:
                     score -= 50
 
             if score > best_score:
