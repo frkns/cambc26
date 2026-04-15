@@ -159,7 +159,7 @@ class Builder({{ super() }}):
             {# /* return 'BuildLauncher', sitterpos */ #}
 
 
-        if healpos is not None and (not RouteToCore.is_active or (healinfo.entity_type == EntityType.CORE and healinfo.building_hp < {{ GameConstants.CORE_MAX_HP/2 }})):
+        if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
 
         if (

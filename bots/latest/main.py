@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-14 22:42:36 (local)
+# latest,  @ 2026-04-14 22:58:00 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -30716,7 +30716,7 @@ class Builder(Unit):
 
 
 
-        if healpos is not None and (not RouteToCore.is_active or (healinfo.entity_type == EntityType.CORE and healinfo.building_hp < 250.0)):
+        if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
 
         if (
