@@ -29,13 +29,13 @@ class Builder(Unit):
     def start_turn(cls):
         Unit.start_turn()
 
-        Profiler.start()
+        
         DarkForest.fcompute()
-        Profiler.end("""DarkForest.fcompute""")
+        
 
-        Profiler.start()
+        
         BfsBureau.update()
-        Profiler.end("""BfsBureau.update""")
+        
 
         Symmetry.run_sym_check()
 
@@ -54,31 +54,31 @@ class Builder(Unit):
         print("Mode:", cls.mode)
 
 
-        Profiler.start()
+        
         BfsBureau.bfs20()
-        Profiler.end("""BfsBureau.bfs20""")
+        
 
-        Profiler.start()
+        
         OreExecutive.fill()
-        Profiler.end("""OreExecutive.fill""")
+        
 
-        Profiler.start()
+        
         VisionTracker.fill()
-        Profiler.end("""VisionTracker.fill""")
+        
 
         # replaced by HarvesterAdjacent
 
-        Profiler.start()
+        
         SitterTakedown.fill()
-        Profiler.end("""SitterTakedown.fill""")
+        
 
-        Profiler.start()
+        
         HarvesterAdjacent.fill()
-        Profiler.end("""HarvesterAdjacent.fill""")
+        
 
-        Profiler.start()
+        
         HealTargeter.fill()
-        Profiler.end("""HealTargeter.fill""")
+        
 
 
 
@@ -87,7 +87,6 @@ class Builder(Unit):
     def run_turn(cls):
         cls.state, *args = cls.determine_state()
 
-        print(f'running: {cls.state}  @', *args, sep=' ')
 
         globals()[f'State{cls.state}'].run(*args)
 
@@ -96,13 +95,13 @@ class Builder(Unit):
     def end_turn(cls):
         Unit.end_turn()
 
-        Profiler.start()
+        
         HealExecutor.execute_heal_attempt()
-        Profiler.end("""HealExecutor.execute_heal_attempt""")
+        
 
-        Profiler.start()
+        
         Marker.attempt_mark()
-        Profiler.end("""Marker.attempt_mark""")
+        
 
 
 

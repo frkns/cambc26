@@ -93,7 +93,6 @@ class HealTargeter:
 
         total_heal = best.building_heal + best.bot_heal
         if total_heal < 4:
-            print(f'{total_heal=}')
             # Still heal buildings next to harvesters for shielding
             if not best.harvester_adjacent or best.building_heal + best.bot_heal == 0:
                 return None
@@ -120,7 +119,6 @@ class HealTargeter:
         if allyIndex * GameConstants.HEAL_AMOUNT > totalHeal:
             return None
 
-        print(f'HealTargeter {best.position=} {best.building_heal=} {best.building_hp=}')
 
         return best
 

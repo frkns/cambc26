@@ -80,7 +80,6 @@ class BuildManager:
 
         ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -176,7 +175,6 @@ class BuildManager:
 
         ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -210,7 +208,6 @@ class BuildManager:
 
         ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -243,7 +240,6 @@ class BuildManager:
 
         ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -276,7 +272,6 @@ class BuildManager:
 
         ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -309,7 +304,6 @@ class BuildManager:
 
         ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -342,7 +336,6 @@ class BuildManager:
 
         ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -375,7 +368,6 @@ class BuildManager:
 
         ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -408,7 +400,6 @@ class BuildManager:
 
         ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -441,7 +432,6 @@ class BuildManager:
 
         ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -474,7 +464,6 @@ class BuildManager:
 
         ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
