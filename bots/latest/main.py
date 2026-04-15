@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-14 22:53:22 (local)
+# latest,  @ 2026-04-14 22:32:42 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -27237,6 +27237,8 @@ class RouteToBreach:
                 and (dsq == 1 or dsq == 2):
             cls.try_build_route()
             cls.move_to_next()
+            if Globals.ct.can_build_road(cls.from_pos):
+                Globals.ct.build_road(cls.from_pos)
         else:
             cls.move_to_next()
 
@@ -27372,6 +27374,8 @@ class RouteToCore:
                 and (dsq == 1 or dsq == 2):
             cls.try_build_route()
             cls.move_to_next()
+            if Globals.ct.can_build_road(cls.from_pos):
+                Globals.ct.build_road(cls.from_pos)
         else:
             cls.move_to_next()
 
@@ -27606,6 +27610,8 @@ class RouteToFoundry:
                 and (dsq == 1 or dsq == 2):
             cls.try_build_route()
             cls.move_to_next()
+            if Globals.ct.can_build_road(cls.from_pos):
+                Globals.ct.build_road(cls.from_pos)
         else:
             cls.move_to_next()
 
