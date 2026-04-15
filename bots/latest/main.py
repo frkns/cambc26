@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-15 08:44:15 (local)
+# latest,  @ 2026-04-15 09:30:42 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -226,6 +226,7 @@ class Attacker:
         ti = tile_info[x][y]
 
         # assume caller passes in position with enemy building
+        assert not ti.is_building_ally
         
         hp = ti.building_hp
         max_hp = Constants.MAX_HP_MAP[ti.entity_type]
@@ -395,6 +396,7 @@ class BfsBureau:
         cls.weight[idx + -56] += 1000000
         cls.weight[idx + -57] += 1000000
 
+        Debug.dot(Position(x, y), Color.YELLOW)
 
     @classmethod
     def remove_enemy_launcher(cls, idx):
@@ -435,6 +437,7 @@ class BfsBureau:
         if cls.weight[i] < 1:
             cls.weight[i] = 1
 
+        Debug.dot(Position(x, y), Color.GREEN)
 
 
 
@@ -2038,7 +2041,7 @@ class BfsBureau:
             return 1000000, None
 
         # ── Phase 2: bitmask BFS from Dijkstra frontier ──
-        
+        Profiler.start()
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = (cls.now_passable_int | _tm) & cls.board_mask
@@ -3277,6 +3280,7 @@ class BuildManager:
 
         ti_cost += int(20 * MarketMaker.scale_ratio)
 
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3375,6 +3379,7 @@ class BuildManager:
 
         ti_cost += int(20 * MarketMaker.scale_ratio)
 
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3406,8 +3411,6 @@ class BuildManager:
     @staticmethod
     def can_afford_launcher() -> bool:
         ti_cost, ax_cost = Globals.ct.get_launcher_cost()
-
-        ti_cost += int(20 * MarketMaker.scale_ratio)
 
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
@@ -3441,6 +3444,7 @@ class BuildManager:
 
         ti_cost += int(20 * MarketMaker.scale_ratio)
 
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3473,6 +3477,7 @@ class BuildManager:
 
         ti_cost += int(20 * MarketMaker.scale_ratio)
 
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3505,6 +3510,7 @@ class BuildManager:
 
         ti_cost += int(20 * MarketMaker.scale_ratio)
 
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3537,6 +3543,7 @@ class BuildManager:
 
         ti_cost += int(20 * MarketMaker.scale_ratio)
 
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3570,6 +3577,7 @@ class BuildManager:
 
         ti_cost += int(20 * MarketMaker.scale_ratio)
 
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3603,6 +3611,7 @@ class BuildManager:
 
         ti_cost += int(20 * MarketMaker.scale_ratio)
 
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3636,6 +3645,7 @@ class BuildManager:
 
         ti_cost += int(20 * MarketMaker.scale_ratio)
 
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3669,6 +3679,7 @@ class BuildManager:
 
         ti_cost += int(20 * MarketMaker.scale_ratio)
 
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -21885,6 +21896,9 @@ class Entrypoint:
     def run(cls, ct: Controller):
 
         # because engine is bugged
+        if ct.get_current_round() > 666: 
+            ct.self_destruct()
+            return  
 
         Globals.ct = ct  # in case not fixed...
         if cls.needs_init:
@@ -24616,6 +24630,7 @@ class HealTargeter:
 
         total_heal = best.building_heal + best.bot_heal
         if total_heal < 4:
+            print(f'{total_heal=}')
             # Still heal buildings next to harvesters for shielding
             if not best.harvester_adjacent or best.building_heal + best.bot_heal == 0:
                 return None
@@ -24647,6 +24662,7 @@ class HealTargeter:
         if allyIndex * GameConstants.HEAL_AMOUNT > totalHeal:
             return None
 
+        print(f'HealTargeter {best.position=} {best.building_heal=} {best.building_hp=}')
 
         return best
 
@@ -26411,9 +26427,9 @@ class MarketMaker:
 
     @staticmethod
     def harvester_cost(apos: Position) -> int:
-        
+        Profiler.start()
         bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.sink_set)
-        
+        Profiler.end("""BfsBureau.find_bridge_route""")
         h_cost, _ = Globals.ct.get_harvester_cost()
         b_cost, _ = Globals.ct.get_bridge_cost()
         return h_cost + b_cost * bridges
@@ -26433,7 +26449,7 @@ class MarketMaker:
             return False
 
         pbt = MarketMaker.harvester_payback(apos)
-        
+        print(f"""{pbt=}""")
 
         if int(pbt * 1.5 + 100) < Util.get_rounds_left():
             return True
@@ -26910,9 +26926,9 @@ class Pathfinder:
         Debug.line(target)
         my_pos = Globals.my_pos
 
-        
+        Profiler.start()
         dist, dir = BfsBureau.find_route(Globals.my_pos, target, ban_target_pos)
-        
+        Profiler.end("""BfsBureau.find_route""")
 
         if dir is None or dist >= 1000000:
             cls.given_up = True
@@ -26994,6 +27010,9 @@ class Player:
             err = traceback.format_exc()
             Debug.tee(err)
             Debug.tee(f'(I am a {Globals.my_type})')
+
+            ct.resign()
+            raise Exception
 
 
 # ============================================================
@@ -27189,7 +27208,7 @@ class RouteToBreach:
             avoid_pos = RouteToCore.pathFindingKill
         )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("RouteToBreach: first_target is None, giving up")
@@ -27361,7 +27380,7 @@ class RouteToCore:
                 avoid_pos = cls.pathFindingKill
             )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("first_target is None: giving up")
@@ -27576,7 +27595,7 @@ class RouteToFoundry:
             avoid_pos = RouteToCore.pathFindingKill 
         )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("RouteToFoundry: first_target is None, giving up")
@@ -29673,7 +29692,7 @@ class SpawnManager:
 class StalkTargeter:
     @classmethod
     def get_best_target(cls) -> Position | None:
-        
+        Profiler.start()
 
         if not Map.harvester_set:
             return None
@@ -29691,7 +29710,7 @@ class StalkTargeter:
                     best_dist = dist
                     best = pos
                 
-        
+        Profiler.end("""StalkTargeter.get_best_target""")
                 
         return best
 
@@ -29846,6 +29865,7 @@ class StateFoundryBuild:
 class StateMoveTo:
     @classmethod
     def run(cls, pos, tag='_'):
+        print(f'{tag=}')
         Pathfinder.move_to(pos)
 
 
@@ -29974,9 +29994,9 @@ class Symmetry:
         cls.predict_enemy_core()
         DarkForest.register_enemy_core()
 
-        
+        Profiler.start()
         Map.sync_tile_infos()
-        
+        Profiler.end_now("""Map.sync_tile_infos""")
         RouteToCore.pathFindingKill.update(cls.enemy_core_pos_set) # don't route to core anymore
 
 
@@ -30401,9 +30421,9 @@ class Unit:
         Globals.start_tick()
         MarketMaker.refresh()
 
-        
+        Profiler.start()
         Map.fill_tile_info()
-        
+        Profiler.end("""Map.fill_tile_info""")
 
     @classmethod
     def run_turn(cls):
@@ -30412,7 +30432,7 @@ class Unit:
     @classmethod
     def end_turn(cls):
 
-        if Globals.round == 1999:
+        if Globals.round == 667:
             Profiler.report()
         print(f'scale ratio {MarketMaker.scale_ratio:.2f}')
 
@@ -30551,16 +30571,16 @@ class VisionTracker:
 
     @classmethod
     def canonical_ally(cls, from_pos: Position) -> BotInfo:
-        
+        Profiler.start()
         ret = min(cls.allies, key=
             lambda x: (Util.linf(from_pos, x.position) << 16) + x.id
         )
-        
+        Profiler.end("""canonical_ally""")
         return ret
     
     @classmethod
     def canonical_ally_index(cls, from_pos: Position) -> int:
-        
+        Profiler.start()
         allyIndex = list(map(lambda x: x.position, sorted(cls.allies, key=
             lambda x: (Util.linf(from_pos, x.position) << 16) + x.id
         )))
@@ -30569,7 +30589,7 @@ class VisionTracker:
         else:
             Debug.warn("my_pos not found in canonical ally list!")
             i = 0
-        
+        Profiler.end("""canonical_ally""")
         return i
 
 
@@ -30692,13 +30712,13 @@ class Builder(Unit):
     def start_turn(cls):
         Unit.start_turn()
 
-        
+        Profiler.start()
         DarkForest.fcompute()
-        
+        Profiler.end("""DarkForest.fcompute""")
 
-        
+        Profiler.start()
         BfsBureau.update()
-        
+        Profiler.end("""BfsBureau.update""")
 
         Symmetry.run_sym_check()
 
@@ -30717,31 +30737,31 @@ class Builder(Unit):
         print("Mode:", cls.mode)
 
 
-        
+        Profiler.start()
         BfsBureau.bfs20()
-        
+        Profiler.end("""BfsBureau.bfs20""")
 
-        
+        Profiler.start()
         OreExecutive.fill()
-        
+        Profiler.end("""OreExecutive.fill""")
 
-        
+        Profiler.start()
         VisionTracker.fill()
-        
+        Profiler.end("""VisionTracker.fill""")
 
         # replaced by HarvesterAdjacent
 
-        
+        Profiler.start()
         SitterTakedown.fill()
-        
+        Profiler.end("""SitterTakedown.fill""")
 
-        
+        Profiler.start()
         HarvesterAdjacent.fill()
-        
+        Profiler.end("""HarvesterAdjacent.fill""")
 
-        
+        Profiler.start()
         HealTargeter.fill()
-        
+        Profiler.end("""HealTargeter.fill""")
 
 
 
@@ -30750,6 +30770,7 @@ class Builder(Unit):
     def run_turn(cls):
         cls.state, *args = cls.determine_state()
 
+        print(f'running: {cls.state}  @', *args, sep=' ')
 
         globals()[f'State{cls.state}'].run(*args)
 
@@ -30758,14 +30779,19 @@ class Builder(Unit):
     def end_turn(cls):
         Unit.end_turn()
 
-        
+        Profiler.start()
         HealExecutor.execute_heal_attempt()
-        
+        Profiler.end("""HealExecutor.execute_heal_attempt""")
 
-        
+        Profiler.start()
         Marker.attempt_mark()
-        
+        Profiler.end("""Marker.attempt_mark""")
 
+        BfsBureau.debug_enemy_launcher_zone()
+        if Globals.round & 1: 
+            BfsBureau.debug_now_passable_int_impassable() 
+        else: 
+            BfsBureau.debug_now_weight_inf() 
 
 
     @classmethod
@@ -30924,6 +30950,10 @@ class Core(Unit):
     @classmethod
     def end_turn(cls):
         Unit.end_turn()
+
+        if Globals.round > 666:
+            Globals.ct.resign()
+            raise Exception
 
 
 # ============================================================
