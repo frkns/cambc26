@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-15 15:11:25 (local)
+# latest,  @ 2026-04-15 15:57:44 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -30766,6 +30766,7 @@ class Launcher(Unit):
         DarkForest.init()
         cls.ROUTING_SET.add(EntityType.HARVESTER)
         cls.ROUTING_SET.add(EntityType.FOUNDRY)
+        cls.ROUTING_SET.add(EntityType.CORE)
 
     @classmethod
     def start_turn(cls):
