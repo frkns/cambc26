@@ -3672,6 +3672,45 @@ class BuildManager:
 
 
 # ============================================================
+# Building
+# ============================================================
+
+class Building:
+    passableBuildings = [
+        EntityType.CONVEYOR,
+        EntityType.SPLITTER,
+        EntityType.ARMOURED_CONVEYOR,
+        EntityType.BRIDGE,
+        EntityType.ROAD,
+    ]
+    def __init__(self, ct: Controller, id: int, tile):
+        self.team = ct.get_team(id)
+        self.position = tile
+        self.id = id
+        self.hp = ct.get_hp(id)
+        self.max_hp = ct.get_max_hp(id)
+        self.entityType = ct.get_entity_type(id)
+        self.playerTeam = ct.get_team()
+        try:
+            self.direction = ct.get_direction(id)
+        except Exception as e:
+            self.direction = None
+        if(self.entityType == self.entityType.BRIDGE):
+            self.target = ct.get_bridge_target(id)
+        else:
+            self.target= None
+    def is_passable(self):
+        fun = self.entityType in Building.passableBuildings
+        if fun:
+            return True
+        if self.team == self.playerTeam and (self.entityType == EntityType.CORE):
+            return True
+        if(self.team != self.playerTeam and self.entityType == EntityType.MARKER): #run over enemy markers
+            return True
+        return False
+
+
+# ============================================================
 # BurnManager
 # ============================================================
 
@@ -24701,260 +24740,6 @@ class HealTargeter:
 
 
 # ============================================================
-# LauncherSupervisor
-# ============================================================
-
-class LauncherSupervisor:
-    targets: list[LauncherTargetInfo]
-
-    @classmethod
-    def try_launch(cls):
-        pos = cls.get_best_target()
-        if pos is None or pos == Globals.my_pos:
-            return
-
-        target = cls.get_launch_target(pos)
-        
-        print(f'target launch @ {pos} to {target}')
-        Debug.line(pos_a=pos, pos_b=target, color=Color.TEAL)
-        
-        if target is None:
-            return
-        
-        if Globals.ct.can_launch(pos, target):
-            Globals.ct.launch(pos, target)
-            
-    @classmethod
-    def get_launch_target(cls, start: Position) -> Position | None:
-        ct = Globals.ct
-        
-        dir = Globals.my_pos.direction_to(start)
-        
-        if dir == Direction.CENTRE:
-            return
-        
-        # Find the furthest position we can launch to
-        
-        best = None
-        target = start.add(dir)
-        while Util.on_the_map(target) and Globals.ct.is_in_vision(target):
-            if ct.can_launch(start, target):
-                best = target
-                
-            target = target.add(dir)
-            
-        return best
-
-
-    @classmethod
-    def get_best_target(cls) -> Position | None:
-        targets = cls.targets
-        if not targets:
-            return None
-
-        best = targets[0]
-        for target in targets[1:]:
-            if LauncherTargetInfo.is_better_than(target, best):
-                best = target
-
-        if not best.has_bot:
-            return None
-
-        return best.position
-
-
-    @classmethod
-    def fill(cls):
-        ct = Globals.ct
-        cls.targets = []
-        tile_info = Map.tile_info
-        my_pos = Globals.my_pos
-        
-        x, y = my_pos.x , my_pos.y -1
-        ti = tile_info[x][y]
-        
-        if ti is not None:
-            info = LauncherTargetInfo()
-            info.position = Position(x, y)
-            info.has_bot = False
-            info.rand_key = random.random()
-
-            info.harvester_adjacent = ti.harvester_adjacent
-
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
-
-            cls.targets.append(info)
-            
-        x, y = my_pos.x +1, my_pos.y -1
-        ti = tile_info[x][y]
-        
-        if ti is not None:
-            info = LauncherTargetInfo()
-            info.position = Position(x, y)
-            info.has_bot = False
-            info.rand_key = random.random()
-
-            info.harvester_adjacent = ti.harvester_adjacent
-
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
-
-            cls.targets.append(info)
-            
-        x, y = my_pos.x +1, my_pos.y 
-        ti = tile_info[x][y]
-        
-        if ti is not None:
-            info = LauncherTargetInfo()
-            info.position = Position(x, y)
-            info.has_bot = False
-            info.rand_key = random.random()
-
-            info.harvester_adjacent = ti.harvester_adjacent
-
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
-
-            cls.targets.append(info)
-            
-        x, y = my_pos.x +1, my_pos.y +1
-        ti = tile_info[x][y]
-        
-        if ti is not None:
-            info = LauncherTargetInfo()
-            info.position = Position(x, y)
-            info.has_bot = False
-            info.rand_key = random.random()
-
-            info.harvester_adjacent = ti.harvester_adjacent
-
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
-
-            cls.targets.append(info)
-            
-        x, y = my_pos.x , my_pos.y +1
-        ti = tile_info[x][y]
-        
-        if ti is not None:
-            info = LauncherTargetInfo()
-            info.position = Position(x, y)
-            info.has_bot = False
-            info.rand_key = random.random()
-
-            info.harvester_adjacent = ti.harvester_adjacent
-
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
-
-            cls.targets.append(info)
-            
-        x, y = my_pos.x -1, my_pos.y +1
-        ti = tile_info[x][y]
-        
-        if ti is not None:
-            info = LauncherTargetInfo()
-            info.position = Position(x, y)
-            info.has_bot = False
-            info.rand_key = random.random()
-
-            info.harvester_adjacent = ti.harvester_adjacent
-
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
-
-            cls.targets.append(info)
-            
-        x, y = my_pos.x -1, my_pos.y 
-        ti = tile_info[x][y]
-        
-        if ti is not None:
-            info = LauncherTargetInfo()
-            info.position = Position(x, y)
-            info.has_bot = False
-            info.rand_key = random.random()
-
-            info.harvester_adjacent = ti.harvester_adjacent
-
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
-
-            cls.targets.append(info)
-            
-        x, y = my_pos.x -1, my_pos.y -1
-        ti = tile_info[x][y]
-        
-        if ti is not None:
-            info = LauncherTargetInfo()
-            info.position = Position(x, y)
-            info.has_bot = False
-            info.rand_key = random.random()
-
-            info.harvester_adjacent = ti.harvester_adjacent
-
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
-
-            cls.targets.append(info)
-            
-        x, y = my_pos.x , my_pos.y 
-        ti = tile_info[x][y]
-        
-        if ti is not None:
-            info = LauncherTargetInfo()
-            info.position = Position(x, y)
-            info.has_bot = False
-            info.rand_key = random.random()
-
-            info.harvester_adjacent = ti.harvester_adjacent
-
-            if ti.has_bot and not ti.is_bot_ally:
-                info.has_bot = True
-                info.bot_hp = ti.bot_hp
-
-            cls.targets.append(info)
-
-
-# ============================================================
-# LauncherTargetInfo
-# ============================================================
-
-class LauncherTargetInfo:
-    position: Position
-
-    has_bot: bool
-
-    bot_hp: int
-
-    rand_key: float  # for sake of beauty, should almost never matter
-    
-    harvester_adjacent: bool
-
-    @staticmethod
-    def is_better_than(a: LauncherTargetInfo, b: LauncherTargetInfo):
-        if a.has_bot and b.has_bot:
-            if a.bot_hp != b.bot_hp:
-                return a.bot_hp < b.bot_hp
-            
-        if a.has_bot != b.has_bot:
-            return a.has_bot
-            
-        if a.harvester_adjacent and (not b.harvester_adjacent): return True
-        if (not a.harvester_adjacent) and b.harvester_adjacent: return False
-
-        return a.rand_key < b.rand_key
-
-
-# ============================================================
 # Map
 # ============================================================
 
@@ -30996,13 +30781,77 @@ class Launcher(Unit):
     @classmethod
     def start_turn(cls):
         Unit.start_turn()
-        DarkForest.fcompute()
 
-        LauncherSupervisor.fill()
+    
+    ROUTING_SET = list(Constants.TRANSPORTERS_SET) + [EntityType.HARVESTER,EntityType.FOUNDRY]
 
     @classmethod
     def run_turn(cls):
-        LauncherSupervisor.try_launch()
+        print("Hi!")
+        ct = Globals.ct
+        my_team = ct.get_team()
+        my_pos = ct.get_position()
+        tiles = ct.get_nearby_tiles()
+
+        # Cache buildings by position — no need to pre-walk neighbours
+        building_cache = {}
+        for tile in tiles:
+            building_id = ct.get_tile_building_id(tile)
+            if building_id is not None:
+                building_cache[tile] = Building(ct, building_id, tile)
+
+        # Find the first nearby enemy builder bot
+        nearby_bot = None
+        for unit in ct.get_nearby_units(2):
+            if ct.get_entity_type(unit) != EntityType.BUILDER_BOT:
+                continue
+            if ct.get_team(unit) != my_team:
+                nearby_bot = ct.get_position(unit)
+                break
+
+        print("Oh no! Nearby Enemy Bot:", nearby_bot)
+
+        if nearby_bot is None:
+            return
+
+        best_pos = None
+        best_score = -999999
+
+        for tile in tiles:
+            if not ct.is_tile_passable(tile):
+                continue
+
+            score = my_pos.distance_squared(tile)
+
+            building = building_cache.get(tile)
+            if building is not None:
+                if building.team == my_team and building.entityType in cls.ROUTING_SET:
+                    continue
+
+            for d in Constants.DIRECTIONS:
+                new_loc = tile.add(d)
+                if not cls.on_map(ct, new_loc) or not ct.is_in_vision(new_loc):
+                    continue
+                adj_building = building_cache.get(new_loc)
+                if adj_building is None:
+                    continue
+                if adj_building.team != my_team and adj_building.entityType == EntityType.LAUNCHER:
+                    score -= 50
+                elif adj_building.team == my_team and adj_building.entityType in Constants.TRANSPORTERS_SET:
+                    score -= 50
+
+            if score > best_score:
+                best_pos = tile
+                best_score = score
+
+        print("Plausible place to throw:", best_pos)
+
+        if best_pos is not None and ct.can_launch(nearby_bot, best_pos):
+            ct.launch(nearby_bot, best_pos)
+
+    @classmethod
+    def on_map(cls, ct, pos):
+        return 0 <= pos.x < ct.get_map_width() and 0 <= pos.y < ct.get_map_height()
 
     @classmethod
     def end_turn(cls):

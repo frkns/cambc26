@@ -12,7 +12,7 @@ class Constants:
     maxSurrounding = 2
     CONVEYOR_PREFERENCE_CHANCE = 0.9  # % chance to prefer a conveyor step over a bridge
     GOAXIONITE = 50
-    DEFENSE_BUILDING = False
+    DEFENSE_BUILDING = True
     ORE_BORDER = False
     LATE_GAME_ATTACK_TICK = 1000
 
