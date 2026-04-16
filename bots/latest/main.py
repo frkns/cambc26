@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-15 20:36:35 (local)
+# latest,  @ 2026-04-15 20:38:03 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -4598,12 +4598,7 @@ class Building:
     ]
     def __init__(self, ct: Controller, id: int, tile):
         self.team = ct.get_team(id)
-        self.position = tile
-        self.id = id
-        self.hp = ct.get_hp(id)
-        self.max_hp = ct.get_max_hp(id)
         self.entityType = ct.get_entity_type(id)
-        self.playerTeam = ct.get_team()
         try:
             self.direction = ct.get_direction(id)
         except Exception as e:
@@ -4612,15 +4607,6 @@ class Building:
             self.target = ct.get_bridge_target(id)
         else:
             self.target= None
-    def is_passable(self):
-        fun = self.entityType in Building.passableBuildings
-        if fun:
-            return True
-        if self.team == self.playerTeam and (self.entityType == EntityType.CORE):
-            return True
-        if(self.team != self.playerTeam and self.entityType == EntityType.MARKER): #run over enemy markers
-            return True
-        return False
 
 
 # ============================================================
@@ -30139,6 +30125,9 @@ class SitterTakedown:
 
     @classmethod
     def get_best_launcher_position(cls) -> Position | None:
+        if not BuildManager.can_afford_launcher():
+            return None
+        
         if not cls.cand:
             return None
 
@@ -31240,9 +31229,10 @@ class Unit:
         Globals.start_tick()
         MarketMaker.refresh()
 
-        Profiler.start()
-        Map.fill_tile_info()
-        Profiler.end(f"""Map.fill_tile_info""")
+        if Globals.ct.get_entity_type() != EntityType.LAUNCHER:
+            Profiler.start()
+            Map.fill_tile_info()
+            Profiler.end(f"""Map.fill_tile_info""")
 
     @classmethod
     def run_turn(cls):
@@ -31848,56 +31838,49 @@ class Launcher(Unit):
     def init(cls):
         Unit.init()
         DarkForest.init()
+        cls.ROUTING_SET.add(EntityType.HARVESTER)
+        cls.ROUTING_SET.add(EntityType.FOUNDRY)
+        cls.ROUTING_SET.add(EntityType.CORE)
 
     @classmethod
     def start_turn(cls):
         Unit.start_turn()
 
     
-    ROUTING_SET = list(Constants.TRANSPORTERS_SET) + [EntityType.HARVESTER,EntityType.FOUNDRY]
+    ROUTING_SET = Constants.TRANSPORTERS_SET
 
     @classmethod
     def run_turn(cls):
-        print("Hi!")
         ct = Globals.ct
         my_team = ct.get_team()
         my_pos = ct.get_position()
         tiles = ct.get_nearby_tiles()
 
-        # Cache buildings by position — no need to pre-walk neighbours
+        nearby_bot = None
+        for unit in ct.get_nearby_units(2):
+            if ct.get_entity_type(unit) == EntityType.BUILDER_BOT and ct.get_team(unit) != my_team:
+                nearby_bot = ct.get_position(unit)
+                break
+
+        print("Oh no! Nearby Enemy Bot:", nearby_bot)
+        print("Time Elapsed:", ct.get_cpu_time_elapsed())
+
         building_cache = {}
+        scores = []
+
         for tile in tiles:
             building_id = ct.get_tile_building_id(tile)
             if building_id is not None:
                 building_cache[tile] = Building(ct, building_id, tile)
 
-        # Find the first nearby enemy builder bot
-        nearby_bot = None
-        for unit in ct.get_nearby_units(2):
-            if ct.get_entity_type(unit) != EntityType.BUILDER_BOT:
-                continue
-            if ct.get_team(unit) != my_team:
-                nearby_bot = ct.get_position(unit)
-                break
-
-        print("Oh no! Nearby Enemy Bot:", nearby_bot)
-
-        if nearby_bot is None:
-            return
-
-        best_pos = None
-        best_score = -999999
-
-        for tile in tiles:
             if not ct.is_tile_passable(tile):
                 continue
 
-            score = my_pos.distance_squared(tile)
-
             building = building_cache.get(tile)
-            if building is not None:
-                if building.team == my_team and building.entityType in cls.ROUTING_SET:
-                    continue
+            if building is not None and building.team == my_team and building.entityType in cls.ROUTING_SET:
+                continue
+
+            score = my_pos.distance_squared(tile)
 
             for d in Constants.DIRECTIONS:
                 new_loc = tile.add(d)
@@ -31908,16 +31891,18 @@ class Launcher(Unit):
                     continue
                 if adj_building.team != my_team and adj_building.entityType == EntityType.LAUNCHER:
                     score -= 50
-                elif adj_building.team == my_team and adj_building.entityType in Constants.TRANSPORTERS_SET:
+                elif adj_building.team == my_team and adj_building.entityType in cls.ROUTING_SET:
                     score -= 50
 
-            if score > best_score:
-                best_pos = tile
-                best_score = score
+            scores.append((score, tile))
+            if ct.get_cpu_time_elapsed() > 1920:
+                break
+
+        best_pos = max(scores, key=lambda x: x[0])[1] if scores else None
 
         print("Plausible place to throw:", best_pos)
 
-        if best_pos is not None and ct.can_launch(nearby_bot, best_pos):
+        if nearby_bot is not None and best_pos is not None and ct.can_launch(nearby_bot, best_pos):
             ct.launch(nearby_bot, best_pos)
 
     @classmethod

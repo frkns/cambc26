@@ -60,9 +60,10 @@ class Unit:
         Globals.start_tick()
         MarketMaker.refresh()
 
-        {{ P.start() }}
-        Map.fill_tile_info()
-        {{ P.end('Map.fill_tile_info') }}
+        if Globals.ct.get_entity_type() != EntityType.LAUNCHER:
+            {{ P.start() }}
+            Map.fill_tile_info()
+            {{ P.end('Map.fill_tile_info') }}
 
     @classmethod
     def run_turn(cls):
