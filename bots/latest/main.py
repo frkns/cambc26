@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-16 12:04:57 (local)
+# latest,  @ 2026-04-16 17:33:52 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -112,7 +112,7 @@ class AdjacentInfo:
         
         ati = a.ti
         bti = b.ti
-        
+
         if ati.has_bot != bti.has_bot:
             return ati.has_bot < bti.has_bot
 
@@ -24535,7 +24535,7 @@ class HarvesterAdjacent:
         if best.bfs_dist >= 100:
             return None
 
-        if not VisionTracker.me_is_canonical_ally(best.position):
+        if not best.is_canonical_ally_harvester:
             return None
 
         return best.position
@@ -24623,7 +24623,7 @@ class HarvesterAdjacent:
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester
-                    info.is_working_shield = ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD
+                    info.is_working_shield = ti.has_building and ti.is_building_ally #and ti.entity_type != EntityType.ROAD
 
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
@@ -24765,7 +24765,7 @@ class HarvesterAdjacent:
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester
-                    info.is_working_shield = ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD
+                    info.is_working_shield = ti.has_building and ti.is_building_ally #and ti.entity_type != EntityType.ROAD
 
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
@@ -24907,7 +24907,7 @@ class HarvesterAdjacent:
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester
-                    info.is_working_shield = ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD
+                    info.is_working_shield = ti.has_building and ti.is_building_ally #and ti.entity_type != EntityType.ROAD
 
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
@@ -25049,7 +25049,7 @@ class HarvesterAdjacent:
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester
-                    info.is_working_shield = ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD
+                    info.is_working_shield = ti.has_building and ti.is_building_ally #and ti.entity_type != EntityType.ROAD
 
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
