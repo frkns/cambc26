@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-16 10:11:41 (local)
+# latest,  @ 2026-04-16 10:31:50 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -3888,9 +3888,9 @@ class BuildManager:
     @staticmethod
     def can_afford_builder_bot() -> bool:
         ti_cost, ax_cost = Globals.ct.get_builder_bot_cost()
-
+        
         ti_cost += int(20 * MarketMaker.scale_ratio)
-
+            
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3945,7 +3945,7 @@ class BuildManager:
     @staticmethod
     def can_afford_gunner() -> bool:
         ti_cost, ax_cost = Globals.ct.get_gunner_cost()
-
+        
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4000,9 +4000,9 @@ class BuildManager:
     @staticmethod
     def can_afford_sentinel() -> bool:
         ti_cost, ax_cost = Globals.ct.get_sentinel_cost()
-
+        
         ti_cost += int(20 * MarketMaker.scale_ratio)
-
+            
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4057,9 +4057,9 @@ class BuildManager:
     @staticmethod
     def can_afford_breach() -> bool:
         ti_cost, ax_cost = Globals.ct.get_breach_cost()
-
+        
         ti_cost += int(20 * MarketMaker.scale_ratio)
-
+            
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4114,9 +4114,9 @@ class BuildManager:
     @staticmethod
     def can_afford_launcher() -> bool:
         ti_cost, ax_cost = Globals.ct.get_launcher_cost()
-
+        
         ti_cost += int(20 * MarketMaker.scale_ratio)
-
+            
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4168,9 +4168,7 @@ class BuildManager:
     @staticmethod
     def can_afford_conveyor() -> bool:
         ti_cost, ax_cost = Globals.ct.get_conveyor_cost()
-
-        ti_cost += int(20 * MarketMaker.scale_ratio)
-
+        
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4222,9 +4220,9 @@ class BuildManager:
     @staticmethod
     def can_afford_splitter() -> bool:
         ti_cost, ax_cost = Globals.ct.get_splitter_cost()
-
+        
         ti_cost += int(20 * MarketMaker.scale_ratio)
-
+            
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4276,9 +4274,9 @@ class BuildManager:
     @staticmethod
     def can_afford_armoured_conveyor() -> bool:
         ti_cost, ax_cost = Globals.ct.get_armoured_conveyor_cost()
-
+        
         ti_cost += int(20 * MarketMaker.scale_ratio)
-
+            
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4330,9 +4328,9 @@ class BuildManager:
     @staticmethod
     def can_afford_bridge() -> bool:
         ti_cost, ax_cost = Globals.ct.get_bridge_cost()
-
+        
         ti_cost += int(20 * MarketMaker.scale_ratio)
-
+            
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4385,9 +4383,9 @@ class BuildManager:
     @staticmethod
     def can_afford_harvester() -> bool:
         ti_cost, ax_cost = Globals.ct.get_harvester_cost()
-
+        
         ti_cost += int(20 * MarketMaker.scale_ratio)
-
+            
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4440,9 +4438,9 @@ class BuildManager:
     @staticmethod
     def can_afford_foundry() -> bool:
         ti_cost, ax_cost = Globals.ct.get_foundry_cost()
-
+        
         ti_cost += int(20 * MarketMaker.scale_ratio)
-
+            
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4494,9 +4492,9 @@ class BuildManager:
     @staticmethod
     def can_afford_road() -> bool:
         ti_cost, ax_cost = Globals.ct.get_road_cost()
-
+        
         ti_cost += int(20 * MarketMaker.scale_ratio)
-
+            
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4549,9 +4547,9 @@ class BuildManager:
     @staticmethod
     def can_afford_barrier() -> bool:
         ti_cost, ax_cost = Globals.ct.get_barrier_cost()
-
+        
         ti_cost += int(20 * MarketMaker.scale_ratio)
-
+            
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
