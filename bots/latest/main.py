@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-16 09:59:38 (local)
+# latest,  @ 2026-04-16 12:04:57 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -4118,9 +4118,6 @@ class BuildManager:
     def can_afford_launcher() -> bool:
         ti_cost, ax_cost = Globals.ct.get_launcher_cost()
         
-        
-        ti_cost += int(20 * MarketMaker.scale_ratio)
-        
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4174,7 +4171,7 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_conveyor_cost()
         
         
-        if MarketMaker.est_income > 4:
+        if MarketMaker.est_income > 4 and Globals.round > 50:
             ti_cost += int(20 * MarketMaker.scale_ratio)
         
 
@@ -4340,7 +4337,8 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_bridge_cost()
         
         
-        ti_cost += int(20 * MarketMaker.scale_ratio)
+        if MarketMaker.est_income > 4 and Globals.round > 50:
+            ti_cost += int(20 * MarketMaker.scale_ratio)
         
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
@@ -24625,7 +24623,7 @@ class HarvesterAdjacent:
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester
-                    info.is_working_shield = ti.has_building and ti.is_building_ally
+                    info.is_working_shield = ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD
 
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
@@ -24767,7 +24765,7 @@ class HarvesterAdjacent:
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester
-                    info.is_working_shield = ti.has_building and ti.is_building_ally
+                    info.is_working_shield = ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD
 
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
@@ -24909,7 +24907,7 @@ class HarvesterAdjacent:
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester
-                    info.is_working_shield = ti.has_building and ti.is_building_ally
+                    info.is_working_shield = ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD
 
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
@@ -25051,7 +25049,7 @@ class HarvesterAdjacent:
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester
-                    info.is_working_shield = ti.has_building and ti.is_building_ally
+                    info.is_working_shield = ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD
 
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
@@ -25680,7 +25678,7 @@ class HealTargeter:
         #     totalHeal += 4 # add some buffer for flanking and stuf
 
         # if there are already enough canonical healers, ignore the target
-        if ally_index * GameConstants.HEAL_AMOUNT > total_heal:
+        if ally_index * GameConstants.HEAL_AMOUNT > max(best.building_heal, best.bot_heal):
             return None
 
 
@@ -30658,8 +30656,8 @@ class StateBuildSentinel:
 class StateBuildShield:
     @classmethod
     def run(cls, pos):
-        if Globals.my_pos.distance_squared(pos) > 2:
-            Pathfinder.move_to(pos, ban_target_pos=False)
+        if Globals.my_pos.distance_squared(pos) > 0:
+            Pathfinder.move_to(pos, ban_target_pos=True)
         
         target_dir = None
         

@@ -124,7 +124,7 @@ class HealTargeter:
         #     totalHeal += 4 # add some buffer for flanking and stuf
 
         # if there are already enough canonical healers, ignore the target
-        if ally_index * GameConstants.HEAL_AMOUNT > total_heal:
+        if ally_index * GameConstants.HEAL_AMOUNT > max(best.building_heal, best.bot_heal):
             return None
 
         {% if LOCAL %}

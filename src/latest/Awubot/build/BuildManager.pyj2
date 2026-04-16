@@ -22,7 +22,7 @@ class BuildManager:
     {% set ti_reserve_map = {
         EntityType.GUNNER: 0,
         EntityType.SENTINEL: 20,
-        EntityType.LAUNCHER: 20,
+        EntityType.LAUNCHER: 0,
     } %}
     {% set ti_reserve_default = 20 %}
 
@@ -129,8 +129,8 @@ class BuildManager:
         {% set req = ti_reserve_map.get(etype, ti_reserve_default) %}
         {% if req > 0 %}
         
-        {% if etype == EntityType.CONVEYOR %}
-        if MarketMaker.est_income > 4:
+        {% if etype in (EntityType.CONVEYOR, EntityType.BRIDGE) %}
+        if MarketMaker.est_income > 4 and Globals.round > 50:
             ti_cost += int({{ req }} * MarketMaker.scale_ratio)
         {% else %}
         ti_cost += int({{ req }} * MarketMaker.scale_ratio)
