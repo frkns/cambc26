@@ -195,29 +195,14 @@ class DarkForest:
         flow = [0] * {{ N }}
         cc   = [0] * {{ N }}
 
-        {# /* # ── harvest → flow directly ── */ #}
-        {# /* _sh = (0, {{ FLOW_PER_HARVESTER }}, {{ FLOW_PER_HARVESTER // 2 }}, */ #}
-               {# /* {{ FLOW_PER_HARVESTER // 3 }}, {{ FLOW_PER_HARVESTER // 4 }}) */ #}
-        {# /* for h in harvesters: */ #}
-            {# /* {% for d in (-1, 1, -PH, PH) %} */ #}
-            {# /* _n{{ loop.index0 }} = h {{ sign0(d) }} */ #}
-            {# /* _t{{ loop.index0 }} = ns[_n{{ loop.index0 }}] */ #}
-            {# /* _e{{ loop.index0 }} = _t{{ loop.index0 }} is not None and _t{{ loop.index0 }}.up != h */ #}
-            {# /* {% endfor %} */ #}
-            {# /* cnt = _e0 + _e1 + _e2 + _e3 */ #}
-            {# /* if cnt: */ #}
-                {# /* s = _sh[cnt] */ #}
-                {# /* {% for d in (-1, 1, -PH, PH) %} */ #}
-                {# /* if _e{{ loop.index0 }}: flow[_n{{ loop.index0 }}] += s */ #}
-                {# /* {% endfor %} */ #}
-
         # ── harvest → flow directly ──
         _sh = (0, {{ FLOW_PER_HARVESTER }}, {{ FLOW_PER_HARVESTER // 2 }},
                {{ FLOW_PER_HARVESTER // 3 }}, {{ FLOW_PER_HARVESTER // 4 }})
         for h in harvesters:
             {% for d in (-1, 1, -PH, PH) %}
             _n{{ loop.index0 }} = h {{ sign0(d) }}
-            _e{{ loop.index0 }} = ns[_n{{ loop.index0 }}] is not None
+            _t{{ loop.index0 }} = ns[_n{{ loop.index0 }}]
+            _e{{ loop.index0 }} = _t{{ loop.index0 }} is not None and _t{{ loop.index0 }}.up != h
             {% endfor %}
             cnt = _e0 + _e1 + _e2 + _e3
             if cnt:

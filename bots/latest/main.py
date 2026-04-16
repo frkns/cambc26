@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-16 10:41:22 (local)
+# latest,  @ 2026-04-16 09:59:38 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -5095,19 +5095,22 @@ class DarkForest:
         flow = [0] * 3136
         cc   = [0] * 3136
 
-
         # ── harvest → flow directly ──
         _sh = (0, 12, 6,
                4, 3)
         for h in harvesters:
             _n0 = h -1
-            _e0 = ns[_n0] is not None
+            _t0 = ns[_n0]
+            _e0 = _t0 is not None and _t0.up != h
             _n1 = h +1
-            _e1 = ns[_n1] is not None
+            _t1 = ns[_n1]
+            _e1 = _t1 is not None and _t1.up != h
             _n2 = h -56
-            _e2 = ns[_n2] is not None
+            _t2 = ns[_n2]
+            _e2 = _t2 is not None and _t2.up != h
             _n3 = h +56
-            _e3 = ns[_n3] is not None
+            _t3 = ns[_n3]
+            _e3 = _t3 is not None and _t3.up != h
             cnt = _e0 + _e1 + _e2 + _e3
             if cnt:
                 s = _sh[cnt]
@@ -30499,7 +30502,9 @@ class SpawnManager:
         if Globals.round <= 10 and cls.num_spawned < 5:
             return True
 
-        if ti - bot_ti >= num_units * 100:
+        mass = 50 if cls.num_spawned < 10 else 100
+
+        if ti - bot_ti >= num_units * mass:
             return True
 
         return False
