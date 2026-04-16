@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-16 10:07:34 (local)
+# latest,  @ 2026-04-16 10:11:41 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -109,6 +109,12 @@ class AdjacentInfo:
 
         if a.enemy_turrets_adjacent == 0: return False
         if b.enemy_turrets_adjacent == 0: return True
+        
+        ati = a.ti
+        bti = b.ti
+        
+        if ati.has_bot != bti.has_bot:
+            return ati.has_bot < bti.has_bot
 
         if a.enemy_turrets_adjacent != b.enemy_turrets_adjacent:
             return a.enemy_turrets_adjacent > b.enemy_turrets_adjacent
@@ -24453,6 +24459,9 @@ class HarvesterAdjacent:
 
         if best.is_harvester_ally is True:
             return None
+        
+        if best.ti.has_bot:
+            return None
 
         if not VisionTracker.me_is_canonical_ally(best.position):
             return None
@@ -24480,6 +24489,9 @@ class HarvesterAdjacent:
             return None
 
         if best.enemy_turrets_adjacent == 0:
+            return None
+        
+        if best.ti.has_bot:
             return None
         
         # If we already have turrets, don't break transporters
@@ -24571,9 +24583,6 @@ class HarvesterAdjacent:
                     elif ti.entity_type != EntityType.ROAD:
                         if ti.entity_type not in Constants.TRANSPORTERS_SET:
                             valid = False
-                            
-                if ti.has_bot:
-                    valid = False
 
                 if valid:
                     pos = Position(x, y)
@@ -24716,9 +24725,6 @@ class HarvesterAdjacent:
                     elif ti.entity_type != EntityType.ROAD:
                         if ti.entity_type not in Constants.TRANSPORTERS_SET:
                             valid = False
-                            
-                if ti.has_bot:
-                    valid = False
 
                 if valid:
                     pos = Position(x, y)
@@ -24861,9 +24867,6 @@ class HarvesterAdjacent:
                     elif ti.entity_type != EntityType.ROAD:
                         if ti.entity_type not in Constants.TRANSPORTERS_SET:
                             valid = False
-                            
-                if ti.has_bot:
-                    valid = False
 
                 if valid:
                     pos = Position(x, y)
@@ -25006,9 +25009,6 @@ class HarvesterAdjacent:
                     elif ti.entity_type != EntityType.ROAD:
                         if ti.entity_type not in Constants.TRANSPORTERS_SET:
                             valid = False
-                            
-                if ti.has_bot:
-                    valid = False
 
                 if valid:
                     pos = Position(x, y)
