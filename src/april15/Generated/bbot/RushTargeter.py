@@ -1,0 +1,25 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+
+class RushTargeter:
+
+    @classmethod
+    def get_best_target(cls) -> Position | None:
+        if Symmetry.is_sym_known:
+            if Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100:
+                return Symmetry.enemy_core_pos
+        elif Builder.mode == 2:
+                return Symmetry.sym_pos(Unit.core_pos)
+        return None

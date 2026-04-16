@@ -314,8 +314,7 @@ class BfsBureau:
     # ---===
     @classmethod
     def find_route(cls, start: Position, target: Position,
-                   ban_target: bool = False,
-                   center_weight: int = 1) -> tuple[int, Direction | None]:
+                   ban_target: bool = False) -> tuple[int, Direction | None]:
         {% set WEIGHTED_DEPTH = 10 %}
 
         sx, sy = start.x, start.y
@@ -326,6 +325,7 @@ class BfsBureau:
 
         si = {{ encode_pos('sx', 'sy') }}
         ti = {{ encode_pos('_tx', '_ty') }}
+        center_weight = weight[si] - 1
 
         _D = ({% for d in range(8) %}{{ directions[d] }}{% if not loop.last %}, {% endif %}{% endfor %})
 
@@ -729,8 +729,16 @@ class BfsBureau:
 
         cls._bfs20_touched_indices = touched_indices
 
-        # Post-process: for each touched tile, set dist_adj to min of 8 neighbours
+        # Post-process: for each touched tile AND its neighbors, update dist_adj
+        dist_adj_touched = set()
         for idx in touched_indices:
+            {% for dir in range(8) %}
+            ni = idx + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
+            dist_adj_touched.add(ni)
+            {% endfor %}
+            dist_adj_touched.add(idx)
+
+        for idx in dist_adj_touched:
             best = IMPASSABLE
             {% for dir in range(8) %}
             d = distances[idx + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}]
@@ -739,6 +747,12 @@ class BfsBureau:
             {% endfor %}
             distances_adj[idx] = best
 # ===---
+# ---===
+    @classmethod
+    def get_bfs20_dist(cls, pos: Position):
+        return cls.bfs20_dist[{{ encode_pos('pos.x', 'pos.y') }}]
+# ===---
+
 # ---===
     @classmethod
     def debug_bfs20(cls):
@@ -766,11 +780,33 @@ class BfsBureau:
         {% endfor %}
         {% endfor %}
 # ===---
-
 # ---===
     @classmethod
-    def get_bfs20_dist(cls, pos: Position):
-        return cls.bfs20_dist[{{ encode_pos('pos.x', 'pos.y') }}]
+    def debug_bfs20_dist_adj(cls):
+        """Draw indicator dots for all tiles within r²≤20 of pos.
+        WHITE = reachable (finite distance), BLACK = impassable/unreachable.
+        Uses bfs20_dist_adj (min of 8 neighbours) instead of direct distance."""
+        distances_adj = cls.bfs20_dist_adj
+        IMPASSABLE = {{ INF }}
+
+        pos = Globals.my_pos
+        start_x, start_y = pos.x, pos.y
+        start_index = {{ encode_pos('start_x', 'start_y') }}
+
+        {% for dx in range(-4, 5) %}
+        {% for dy in range(-4, 5) %}
+        {% if dx*dx + dy*dy <= 20 %}
+        tile_x = start_x + {{ dx }}
+        tile_y = start_y + {{ dy }}
+        if 0 <= tile_x < Map.W and 0 <= tile_y < Map.H:
+            tile_index = start_index + {{ dx * PH + dy }}
+            if distances_adj[tile_index] < IMPASSABLE:
+                Debug.dot(Position(tile_x, tile_y), Color.WHITE)
+            else:
+                Debug.dot(Position(tile_x, tile_y), Color.BLACK)
+        {% endif %}
+        {% endfor %}
+        {% endfor %}
 # ===---
 # ---===
     @classmethod
@@ -802,7 +838,6 @@ class BfsBureau:
                 if weight[idx] >= IMPASSABLE:
                     Debug.dot(Position(x, y), Color.YELLOW)
 # ===---
-
 # ---===
     @classmethod
     def debug_now_passable_int_impassable(cls):

@@ -5,7 +5,7 @@ import numpy as np
 
 
 TEAM = "something else"
-# TEAM = "Blue Dragon"  # spy on other teams
+TEAM = "Blue Dragon"  # spy on other teams
 
 FILE = f"Games_{TEAM.replace(' ', '_')}.csv"
 

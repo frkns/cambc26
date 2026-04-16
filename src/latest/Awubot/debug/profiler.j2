@@ -9,12 +9,12 @@
 
 {% macro end(s='???') %}
 {% if PROFILE -%}
-    Profiler.end("""{{ s|string }}""")
+    Profiler.end(f"""{{ s|string }}""")
 {%- endif %}
 {% endmacro %}
 
 {% macro end_now(s='???') %}
 {% if PROFILE -%}
-    Profiler.end_now("""{{ s|string }}""")
+    Profiler.end_now(f"""{{ s|string }}""")
 {%- endif %}
 {% endmacro %}

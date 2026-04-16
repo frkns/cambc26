@@ -32,7 +32,7 @@ class AdjacentInfo:
     easily_buildable: bool  # nothing or ally road
     
     is_canonical_ally_harvester: bool # if we're the canonical ally to the harvester
-    is_working_shield: bool # if the tile has a non-road allied building
+    is_working_shield: bool 
 
     harvester_ally_turrets_adjacent: int  # harvester tile, 4 dirs
     harvester_enemy_turrets_adjacent: int 
@@ -306,8 +306,8 @@ class HarvesterAdjacent:
                         and ti.target != spos # not pointing back into the harvester
                     )
                     
-                    if info.has_ally_transporter:
-                        Debug.dot(pos, Color.LIME)
+                    # if info.has_ally_transporter:
+                    #     Debug.dot(pos, Color.LIME)
 
                     # count nearby turrets in all 8 directions
                     info.enemy_turrets_adjacent = 0

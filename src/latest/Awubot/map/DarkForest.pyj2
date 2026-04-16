@@ -201,7 +201,8 @@ class DarkForest:
         for h in harvesters:
             {% for d in (-1, 1, -PH, PH) %}
             _n{{ loop.index0 }} = h {{ sign0(d) }}
-            _e{{ loop.index0 }} = ns[_n{{ loop.index0 }}] is not None
+            _t{{ loop.index0 }} = ns[_n{{ loop.index0 }}]
+            _e{{ loop.index0 }} = _t{{ loop.index0 }} is not None and _t{{ loop.index0 }}.up != h
             {% endfor %}
             cnt = _e0 + _e1 + _e2 + _e3
             if cnt:
@@ -210,14 +211,14 @@ class DarkForest:
                 if _e{{ loop.index0 }}: flow[_n{{ loop.index0 }}] += s
                 {% endfor %}
 
-        # ── fix dead parents, indegree, collect active ──
+        # ── fix dead parents, indegree, collect active ──  
         active = []
         aa = active.append
         {% for i in pos2500 %}
         if (t := ns[{{ i }}]) is not None:
             aa({{ i }})
             if (p := t.up) is not None:
-                if ns[p] is not None:
+                if ns[p] is not None and p not in harvesters:  # only change
                     cc[p] += 1
                 else:
                     t.up = None

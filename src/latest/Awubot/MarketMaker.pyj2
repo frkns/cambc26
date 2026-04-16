@@ -51,8 +51,25 @@ class MarketMaker:
 
         {# /* return int(cost / 2.5) + (2 * l1)  # ~2 rounds per conveyor */ #}
 
-    @staticmethod
-    def harvester_cost(apos: Position) -> int:
+
+    # cache
+    hpos: Position | None = None
+    hround: int = -1000
+    hres: int = -1000
+
+    @classmethod
+    def harvester_cost(cls, apos: Position) -> int:
+        {% set INVALIDATION_TIME = 5 %}
+        {% set INVALIDATION_RSQ = 50 %}
+
+        if (
+            cls.hpos is not None 
+            and Globas.round - cls.hround < {{ INVALIDATION_TIME }}
+            and apos.distance_squared(cls.hpos) < {{ INVALIDATION_RSQ }}
+        ):
+            return cls.hres
+
+        
         {{ P.start() }}
         bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.sink_set)
         {{ P.end('BfsBureau.find_bridge_route') }}

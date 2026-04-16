@@ -30,6 +30,14 @@ transporter_set: set[EntityType] = set((
     EntityType.SPLITTER,
 ))
 
+no_core_passable_set: set[EntityType] = set((
+    EntityType.ROAD,
+    EntityType.CONVEYOR,
+    EntityType.ARMOURED_CONVEYOR,
+    EntityType.BRIDGE,
+    EntityType.SPLITTER,
+))
+
 directions: list[Direction] = [
     Direction.NORTH,
     Direction.NORTHEAST,

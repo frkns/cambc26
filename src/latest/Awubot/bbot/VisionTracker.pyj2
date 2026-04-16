@@ -68,6 +68,13 @@ class TransporterInfo:
         return a.bfs_dist_target < b.bfs_dist_target
 
 
+    @staticmethod
+    def is_better_misrouted_than(a: TransporterInfo, b: TransporterInfo) -> bool:
+        if a.easily_reachable and (not b.easily_reachable): return True
+        if (not a.easily_reachable) and b.easily_reachable: return False
+        return a.bfs_dist < b.bfs_dist
+
+
 class ConnectManager:
     @classmethod
     def get_connect_target_info(cls) -> TransporterInfo | None:
@@ -107,11 +114,11 @@ class RoadInfo:
 
 
 class VisionTracker:
+    allies: list[BotInfo]
     enemy_roads_harvester: list[RoadInfo]  # roads adjacent to ti harvester
     enemy_transporters: list[TransporterInfo]
     disconnected_roots: list[TransporterInfo]
-    allies: list[BotInfo]
-
+    misrouted_transporters: list[TransporterInfo]  # ally transporters 
 
     @classmethod
     def fill(cls):
@@ -119,6 +126,7 @@ class VisionTracker:
         cls.enemy_roads_harvester = []
         cls.disconnected_roots = []
         cls.allies = [BotInfo(Globals.my_pos, Globals.my_id)]
+        cls.misrouted_transporters = []
 
         tile_info = Map.tile_info
 
@@ -162,13 +170,17 @@ class VisionTracker:
                     ((not target_ti.has_building) or 
                     (target_ti.entity_type == EntityType.ROAD and target_ti.is_building_ally))
 
-                if not ti.is_building_ally:
+                if ti.is_building_ally:
+                    if target_ti is not None and target_ti.has_building and not target_ti.is_building_ally:
+                        cls.misrouted_transporters.append(trans)
+                else:
                     cls.enemy_transporters.append(trans)
 
                 if DarkForest.node_kind[idx] == 0 and DarkForest.flow[idx] > 0:
                     if DarkForest.nodes[idx].up is None:
                         if Globals.ct.get_stored_resource(trans.ti.building_id) in (ResourceType.TITANIUM, ResourceType.REFINED_AXIONITE):
                             cls.disconnected_roots.append(trans)
+
 
 
     @classmethod
@@ -233,6 +245,8 @@ class VisionTracker:
         return best 
 
 
+
+
     @classmethod
     def get_best_road_atk_target(cls) -> RoadInfo | None:
         roads = cls.enemy_roads_harvester
@@ -247,3 +261,22 @@ class VisionTracker:
         return best 
 
 
+
+    @classmethod
+    def get_best_misrouted_target(cls) -> Position | None:
+        misrouted = cls.misrouted_transporters
+        if not misrouted:
+            return None
+
+        best: TransporterInfo = misrouted[0]
+        for cand in misrouted[1:]:
+            if TransporterInfo.is_better_misrouted_than(cand, best):
+                best = cand
+
+        if not best.easily_reachable:
+            return None
+
+        if not VisionTracker.me_is_canonical_ally(best.position):
+            return None
+
+        return best.position

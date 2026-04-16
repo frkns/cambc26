@@ -44,6 +44,18 @@ class StateAttack:
             Globals.ct.fire(pos)
 
 
+class StateReroute:  # for misrouted ally transporters
+    @classmethod
+    def run(cls, pos):
+        Debug.line(pos, Color.ORANGE)
+        if Globals.my_pos.distance_squared(pos) > 2:
+            Pathfinder.move_to(pos)
+
+        if Globals.ct.can_destroy(pos):
+            Globals.ct.destroy(pos)
+            RouteToCore.set_pos(pos)
+
+
 class StateRoute:
     @classmethod
     def run(cls):
@@ -110,7 +122,7 @@ class StateBuildLauncher:
 class StateBuildShield:
     @classmethod
     def run(cls, pos):
-        Pathfinder.move_to(pos, ban_target_pos=True)
+        Pathfinder.move_to(pos, ban_target_pos=False)
         
         target_dir = None
         
@@ -131,14 +143,30 @@ class StateBuildShield:
         {% endfor %}
 
 
-        if target_dir is not None:
-            if ally_harvester:
-                if BuildManager.can_dbuild_conveyor(pos):
-                    BuildManager.dbuild_conveyor(pos, target_dir)
+        if pos != Globals.my_pos:
+            if target_dir is not None:
+                if ally_harvester:
+                    if BuildManager.can_dbuild_conveyor(pos):
+                        BuildManager.dbuild_conveyor(pos, target_dir)
+                else:
+                    if BuildManager.can_build_road(pos):
+                        BuildManager.build_road(pos)
             else:
-                if BuildManager.can_dbuild_barrier(pos):
-                    BuildManager.dbuild_barrier(pos)
+                if BuildManager.can_build_road(pos):
+                    BuildManager.build_road(pos)
         else:
-            if BuildManager.can_dbuild_road(pos):
-                BuildManager.dbuild_road(pos)
+            if target_dir is not None:
+                if ally_harvester:
+                    if BuildManager.can_mbuild_conveyor():
+                        BuildManager.dbuild_conveyor(pos, target_dir)  # mbuild check but dbuild
+                else:
+                    if BuildManager.can_mbuild_road():
+                        BuildManager.dbuild_road(pos)
+            else:
+                if BuildManager.can_mbuild_road():
+                    BuildManager.dbuild_road(pos)
             
+
+
+
+
