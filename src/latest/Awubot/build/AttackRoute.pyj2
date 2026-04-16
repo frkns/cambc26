@@ -26,45 +26,6 @@ class AttackRoute:
     _target: int | None = None
 
     @classmethod
-    def _pick_target(cls) -> int | None:
-        if not Symmetry.is_sym_known:
-            return None
-        enemy_core = Symmetry.enemy_core_pos
-        print("Yo so the enemy core is at", enemy_core)
-
-        vision_r = int(GameConstants.SENTINEL_ATTACK_RADIUS_SQ ** 0.5) + 1
-
-        # ── Step 1: pick best attack/sentinel landing position ────────────────
-        attack_pos = None
-        best_attack_dist = float('inf')
-        currLoc = Globals.my_pos
-        for dx in range(-vision_r, vision_r + 1):
-            for dy in range(-vision_r, vision_r + 1):
-                if dx * dx + dy * dy > GameConstants.SENTINEL_ATTACK_RADIUS_SQ:
-                    continue
-                candidate = Position(enemy_core.x + dx, enemy_core.y + dy)
-                tile = Map.tile_info[candidate.x][candidate.y]
-                if tile is None:
-                    continue
-                if tile.env in [Environment.WALL]:
-                    continue
-                if tile.has_building and (not tile.is_building_ally):
-                    continue
-                if tile.has_building and tile.entity_type in Constants.TURRET_SET:
-                    continue
-                d = currLoc.distance_squared(candidate)
-                if d < best_attack_dist:
-                    best_attack_dist = d
-                    attack_pos = candidate
-
-        if attack_pos is None:
-            print("[AttackRoute] No valid attack position within sentinel attack of enemy core")
-            return None
-        print("CLEARLY the best attack position is", attack_pos)
-        return {{encode_pos('attack_pos.x', 'attack_pos.y')}}
-        
-
-    @classmethod
     def set_pos(cls, pos: Position, fullReset = True):
         encoded = {{ encode_pos('pos.x', 'pos.y') }}
 
