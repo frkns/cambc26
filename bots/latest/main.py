@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-16 11:59:21 (local)
+# latest,  @ 2026-04-16 12:00:24 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -30628,7 +30628,8 @@ class StateBuildSentinel:
 class StateBuildShield:
     @classmethod
     def run(cls, pos):
-        Pathfinder.move_to(pos, ban_target_pos=True)
+        if Globals.my_pos.distance_squared(pos) > 0:
+            Pathfinder.move_to(pos, ban_target_pos=True)
         
         target_dir = None
         
