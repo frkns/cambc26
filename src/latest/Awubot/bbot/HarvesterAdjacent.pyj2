@@ -323,6 +323,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     {% endfor %}
 
                     cls.infos.append(info)

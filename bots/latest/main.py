@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-16 01:08:16 (local)
+# latest,  @ 2026-04-16 09:37:45 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -24622,6 +24622,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y -1]
                     if nti is not None:
                         if nti.has_turret:
@@ -24629,6 +24632,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y ]
                     if nti is not None:
                         if nti.has_turret:
@@ -24636,6 +24642,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y +1]
                     if nti is not None:
                         if nti.has_turret:
@@ -24643,6 +24652,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x ][y +1]
                     if nti is not None:
                         if nti.has_turret:
@@ -24650,6 +24662,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y +1]
                     if nti is not None:
                         if nti.has_turret:
@@ -24657,6 +24672,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y ]
                     if nti is not None:
                         if nti.has_turret:
@@ -24664,6 +24682,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y -1]
                     if nti is not None:
                         if nti.has_turret:
@@ -24671,6 +24692,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
 
                     cls.infos.append(info)
 
@@ -24740,6 +24764,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y -1]
                     if nti is not None:
                         if nti.has_turret:
@@ -24747,6 +24774,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y ]
                     if nti is not None:
                         if nti.has_turret:
@@ -24754,6 +24784,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y +1]
                     if nti is not None:
                         if nti.has_turret:
@@ -24761,6 +24794,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x ][y +1]
                     if nti is not None:
                         if nti.has_turret:
@@ -24768,6 +24804,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y +1]
                     if nti is not None:
                         if nti.has_turret:
@@ -24775,6 +24814,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y ]
                     if nti is not None:
                         if nti.has_turret:
@@ -24782,6 +24824,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y -1]
                     if nti is not None:
                         if nti.has_turret:
@@ -24789,6 +24834,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
 
                     cls.infos.append(info)
 
@@ -24858,6 +24906,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y -1]
                     if nti is not None:
                         if nti.has_turret:
@@ -24865,6 +24916,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y ]
                     if nti is not None:
                         if nti.has_turret:
@@ -24872,6 +24926,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y +1]
                     if nti is not None:
                         if nti.has_turret:
@@ -24879,6 +24936,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x ][y +1]
                     if nti is not None:
                         if nti.has_turret:
@@ -24886,6 +24946,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y +1]
                     if nti is not None:
                         if nti.has_turret:
@@ -24893,6 +24956,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y ]
                     if nti is not None:
                         if nti.has_turret:
@@ -24900,6 +24966,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y -1]
                     if nti is not None:
                         if nti.has_turret:
@@ -24907,6 +24976,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
 
                     cls.infos.append(info)
 
@@ -24976,6 +25048,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y -1]
                     if nti is not None:
                         if nti.has_turret:
@@ -24983,6 +25058,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y ]
                     if nti is not None:
                         if nti.has_turret:
@@ -24990,6 +25068,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x +1][y +1]
                     if nti is not None:
                         if nti.has_turret:
@@ -24997,6 +25078,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x ][y +1]
                     if nti is not None:
                         if nti.has_turret:
@@ -25004,6 +25088,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y +1]
                     if nti is not None:
                         if nti.has_turret:
@@ -25011,6 +25098,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y ]
                     if nti is not None:
                         if nti.has_turret:
@@ -25018,6 +25108,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
                     nti = tile_info[x -1][y -1]
                     if nti is not None:
                         if nti.has_turret:
@@ -25025,6 +25118,9 @@ class HarvesterAdjacent:
                                 info.ally_turrets_adjacent += 1
                             else:
                                 info.enemy_turrets_adjacent += 1
+                        # Count enemy launchers as turrets
+                        elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                            info.enemy_turrets_adjacent += 1
 
                     cls.infos.append(info)
 
@@ -25534,7 +25630,7 @@ class HealTargeter:
         total_heal = best.building_heal + best.bot_heal
         if total_heal < 4:
             # Still heal buildings next to harvesters for shielding
-            if not best.harvester_adjacent or best.building_heal + best.bot_heal == 0:
+            if not best.harvester_adjacent or total_heal == 0:
                 return None
 
         if best.bfs_dist_adj >= 100:
@@ -25548,12 +25644,7 @@ class HealTargeter:
                 return None
             
         # count canonical allies between us and the target
-        allyIndex = VisionTracker.canonical_ally_index(best.position)
-        
-        totalHeal = max(
-            0 if best.building_heal == 0 else Constants.MAX_HP_MAP[best.entity_type] - best.building_hp,
-            0 if best.bot_heal == 0 else 40 - best.bot_hp
-        )
+        ally_index = VisionTracker.canonical_ally_index(best.position)
         
         # if best.entity_type == EntityType.ROAD:
         #     totalHeal += 2 # add some buffer for flanking and stuf
@@ -25561,7 +25652,7 @@ class HealTargeter:
         #     totalHeal += 4 # add some buffer for flanking and stuf
 
         # if there are already enough canonical healers, ignore the target
-        if allyIndex * GameConstants.HEAL_AMOUNT > totalHeal:
+        if ally_index * GameConstants.HEAL_AMOUNT > total_heal:
             return None
 
 
@@ -30119,7 +30210,7 @@ class SitterTakedown:
         if best.launchers_adjacent > 0:
             return None
 
-        if not VisionTracker.me_is_canonical_ally(best.position):
+        if not VisionTracker.me_is_canonical_ally(best.position) and best.position.distance_squared(Globals.my_pos) > 2: # Make sure we're a canonical ally *if we're not already adjacent*
             return None
 
         return best.position
@@ -30157,7 +30248,7 @@ class SitterTakedown:
                 and ti.entity_type in Constants.TRANSPORTERS_SET
             )
             
-            # If the transporter is going into a harvester (probably a shield), it doesn't count
+            # If the transporter is going into a harvester (probably a shield), it doesn't count as a transporter
             if info.has_ally_transporter:
                 target_ti = tile_info[ti.target.x][ti.target.y]
                 if target_ti is not None and target_ti.has_building and target_ti.entity_type == EntityType.HARVESTER:

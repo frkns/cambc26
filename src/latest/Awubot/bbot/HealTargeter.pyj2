@@ -102,7 +102,7 @@ class HealTargeter:
             print(f'{total_heal=}')
             {% endif %}
             # Still heal buildings next to harvesters for shielding
-            if not best.harvester_adjacent or best.building_heal + best.bot_heal == 0:
+            if not best.harvester_adjacent or total_heal == 0:
                 return None
 
         if best.bfs_dist_adj >= 100:
@@ -116,12 +116,7 @@ class HealTargeter:
                 return None
             
         # count canonical allies between us and the target
-        allyIndex = VisionTracker.canonical_ally_index(best.position)
-        
-        totalHeal = max(
-            0 if best.building_heal == 0 else Constants.MAX_HP_MAP[best.entity_type] - best.building_hp,
-            0 if best.bot_heal == 0 else {{ GameConstants.BUILDER_BOT_MAX_HP }} - best.bot_hp
-        )
+        ally_index = VisionTracker.canonical_ally_index(best.position)
         
         # if best.entity_type == EntityType.ROAD:
         #     totalHeal += 2 # add some buffer for flanking and stuf
@@ -129,7 +124,7 @@ class HealTargeter:
         #     totalHeal += 4 # add some buffer for flanking and stuf
 
         # if there are already enough canonical healers, ignore the target
-        if allyIndex * GameConstants.HEAL_AMOUNT > totalHeal:
+        if ally_index * GameConstants.HEAL_AMOUNT > total_heal:
             return None
 
         {% if LOCAL %}
