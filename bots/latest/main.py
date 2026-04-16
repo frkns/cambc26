@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-16 17:33:52 (local)
+# latest,  @ 2026-04-16 14:39:49 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -112,7 +112,7 @@ class AdjacentInfo:
         
         ati = a.ti
         bti = b.ti
-
+        
         if ati.has_bot != bti.has_bot:
             return ati.has_bot < bti.has_bot
 
@@ -31748,7 +31748,7 @@ class Builder(Unit):
             Debug.dot(takedownpos, Color.PURPLE)
             return 'BuildGunner', takedownpos, None
 
-        if mispos is not None:
+        if mispos is not None and not (RouteToCore.backTracking or RouteToFoundry.backTracking):
             return 'Reroute', mispos
             
 
