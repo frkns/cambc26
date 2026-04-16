@@ -204,7 +204,7 @@ class HarvesterAdjacent:
         if best.bfs_dist >= 100:
             return None
 
-        if not VisionTracker.me_is_canonical_ally(best.position):
+        if not best.is_canonical_ally_harvester:
             return None
 
         return best.position
