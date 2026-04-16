@@ -277,7 +277,8 @@ class Builder:
                 Builder.nav.moveTo(Builder.targLoc)
 
         if Builder.targLoc is not None and Builder.state == Constants.states.SCOUT:
-            ct.draw_indicator_line(ct.get_position(), Builder.targLoc, 0, 0, 255)
+            #ct.draw_indicator_line(ct.get_position(), Builder.targLoc, 0, 0, 255)
+            pass
         print("Finished bot tick for round:", ct.get_current_round(), "state:", Builder.state, "Enemy Core Location:", Builder.nav.get_enemy_core_center(),"did we see core:",Builder.weSawCore,"Mode",Builder.mode,"Targloc",Builder.targLoc,"Healing",Builder.healFlag)
 
     @staticmethod
@@ -286,7 +287,7 @@ class Builder:
         Builder.targLoc = Builder.persistentTarget
         
         # Draw a line to the "remembered" target so you can debug
-        ct.draw_indicator_line(currLoc, Builder.persistentTarget, 255, 165, 0) # Orange for locked target
+        #ct.draw_indicator_line(currLoc, Builder.persistentTarget, 255, 165, 0) # Orange for locked target
         
         dist_to_enemy_core = Builder.nav.dist_sq_to_nearest_enemy_core(Builder.persistentTarget)
 
@@ -604,7 +605,7 @@ class Builder:
                 Builder.triedCoreFallback = False
                 Builder.setScoutTarget(ct)
                 return
-        ct.draw_indicator_line(Builder.routeFrom, toBuildTo, 0, 255, 0)
+        #ct.draw_indicator_line(Builder.routeFrom, toBuildTo, 0, 255, 0)
 
         routeFrom_building = Builder.nav.getBuilding(Builder.routeFrom)
         if (routeFrom_building != 0

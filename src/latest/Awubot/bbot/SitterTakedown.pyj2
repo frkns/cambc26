@@ -23,7 +23,7 @@ from Generated import *
 class SitterTargetInfo:
     position: Position
     dist_enemy_core: int # distance to the enemy core
-    has_transporter: bool # whether the tile has an allied transporter
+    has_ally_transporter: bool # whether the tile has an allied transporter
     enemy_bots_nearby: int # enemy turrets on nearby tiles
     harvester_nearby: int # if there is a harvesters within distance sqrt(8)
     launchers_adjacent: int # number of adjacent allied launchers
@@ -32,12 +32,16 @@ class SitterTargetInfo:
     def is_better_than(a: SitterTargetInfo, b: SitterTargetInfo):
         if a.launchers_adjacent != b.launchers_adjacent:
             return a.launchers_adjacent < b.launchers_adjacent
+        
         if a.enemy_bots_nearby != b.enemy_bots_nearby:
             return a.enemy_bots_nearby > b.enemy_bots_nearby
+        
         if a.harvester_nearby != b.harvester_nearby:
             return a.harvester_nearby > b.harvester_nearby
-        if a.has_transporter != b.has_transporter:
-            return a.has_transporter < b.has_transporter
+        
+        if a.has_ally_transporter != b.has_ally_transporter:
+            return a.has_ally_transporter < b.has_ally_transporter
+        
         return a.dist_enemy_core < b.dist_enemy_core
 
 
@@ -47,6 +51,9 @@ class SitterTakedown:
 
     @classmethod
     def get_best_launcher_position(cls) -> Position | None:
+        if not BuildManager.can_afford_launcher():
+            return None
+        
         if not cls.cand:
             return None
 
@@ -55,7 +62,7 @@ class SitterTakedown:
             if SitterTargetInfo.is_better_than(c, best):
                 best = c
 
-        if best.enemy_bots_nearby == 0:
+        if best.enemy_bots_nearby < 2:
             return None
         
         if not best.harvester_nearby:
@@ -92,10 +99,21 @@ class SitterTakedown:
             cls.cand.append(info)
             info.position = pos
             info.dist_enemy_core = Util.dist_sq(pos, Symmetry.enemy_core_pos)
-            info.has_transporter = (ti.has_building and ti.is_building_ally and (ti.entity_type in Constants.TRANSPORTERS_SET or ti.entity_type == EntityType.FOUNDRY))
             info.enemy_bots_nearby = 0
             info.harvester_nearby = False
             info.launchers_adjacent = 0
+            
+            info.has_ally_transporter = (
+                ti.has_building 
+                and ti.is_building_ally 
+                and ti.entity_type in Constants.TRANSPORTERS_SET
+            )
+            
+            # If the transporter is going into a harvester (probably a shield), it doesn't count
+            if info.has_ally_transporter:
+                target_ti = tile_info[ti.target.x][ti.target.y]
+                if target_ti is not None and target_ti.has_building and target_ti.entity_type == EntityType.HARVESTER:
+                    info.has_ally_transporter = False
 
             {% for dir in directions if dir != Direction.CENTRE %}
             {% set dx, dy = dir.delta() %}

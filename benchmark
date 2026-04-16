@@ -1,15 +1,19 @@
 #!/bin/bash
 set -e
 
-echo "Benchmarking bot: $1 (Reverting to: $2)"
+echo "Benchmarking bot: $1"
+
+# Get our team name and active bot version from cambc status
+STATUS=$(cambc status)
+OUR_TEAM=$(echo "$STATUS" | grep 'Team:' | sed 's/.*Team: \(.*\) (.*/\1/')
+ACTIVE_BOT_FULL=$(echo "$STATUS" | grep 'Active bot:' | sed 's/.*Active bot: \(.*\)/\1/')
+ACTIVE_BOT=$(echo "$ACTIVE_BOT_FULL" | sed 's/^v\([0-9]*\).*/\1/')
+
+echo "Our team: $OUR_TEAM"
+echo "Active bot: $ACTIVE_BOT_FULL"
 
 # Submit the bot to benchmark
 bash submit "$1"
-
-# Get our team name from cambc status
-OUR_TEAM=$(cambc status | grep 'Team:' | sed 's/.*Team: \(.*\) (.*/\1/')
-
-echo "Our team: $OUR_TEAM"
 
 # Get the ladder around us and extract team names (skip header/border lines)
 LADDER=$(cambc ladder --around)
@@ -36,11 +40,8 @@ echo "$TEAMS" | while IFS= read -r TEAM; do
   cambc match unrated "$TEAM_ID" || echo "Error requesting matchup"
 done
 
-# Revert to the stable bot
-echo "Reverting to bot: $2"
-cambc submit "bots/$2" -n "$2 (reverting from $1)"
-# bash submit "$2"
+# Activate old bot
+echo "Reactivating $ACTIVE_BOT_FULL"
+cambc submission activate $ACTIVE_BOT
 
-# TODO: Once the API is fixed, we can just reactivate whichever submission was active when the script started
-
-echo "Done. Benchmark matches requested, reverted to $2."
+echo "Done. Benchmark matches requested, reverted to $ACTIVE_BOT_FULL."

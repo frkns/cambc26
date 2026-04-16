@@ -36,4 +36,4 @@ class Turret:
         if(bestPos != None):
             if(ct.can_fire(bestPos)):
                 ct.fire(bestPos)
-                ct.draw_indicator_line(ct.get_position(),bestPos,255,0,0)
+                #ct.draw_indicator_line(ct.get_position(),bestPos,255,0,0)

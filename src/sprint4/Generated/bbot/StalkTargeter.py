@@ -16,7 +16,7 @@ from Generated import *
 class StalkTargeter:
     @classmethod
     def get_best_target(cls) -> Position | None:
-        Profiler.start()
+        
 
         if not Map.harvester_set:
             return None
@@ -34,7 +34,7 @@ class StalkTargeter:
                     best_dist = dist
                     best = pos
                 
-        Profiler.end("""StalkTargeter.get_best_target""")
+        
                 
         return best
 

@@ -137,21 +137,11 @@ class Builder({{ super() }}):
 
         takedowninfo = HarvesterAdjacent.get_best_turret_takedown_info()
         takedownpos = None if takedowninfo is None else takedowninfo.position
-
-        shieldpos = HarvesterAdjacent.get_best_shield_position()
-        if shieldpos is not None:
-            return 'BuildShield', shieldpos, None
-
+        
         """
         if RouteToBreach.is_active:
             return ('RouteBreach',)
         """
-
-        if RouteToFoundry.is_active:
-            return ('RouteFoundry',)
-
-        if RouteToCore.is_active:
-            return ('Route',)
 
         if takedownpos is not None:
             Debug.dot(takedownpos, Color.PURPLE)
@@ -163,10 +153,10 @@ class Builder({{ super() }}):
             Debug.dot(sentinelpos, Color.PURPLE)
             return 'BuildSentinel', sentinelpos, None
 
-        {# /* sitterpos = SitterTakedown.get_best_launcher_position() */ #}
-        {# /* if sitterpos is not None: */ #}
-            {# /* Debug.dot(sitterpos, Color.PURPLE) */ #}
-            {# /* return 'BuildLauncher', sitterpos */ #}
+        sitterpos = SitterTakedown.get_best_launcher_position()
+        if sitterpos is not None:
+            Debug.dot(sitterpos, Color.PURPLE)
+            return 'BuildLauncher', sitterpos
 
 
         if healpos is not None:
@@ -180,6 +170,24 @@ class Builder({{ super() }}):
             if healpos is not None:  # redundant, OK
                 return 'MoveTo', healpos, '[lrh: move to heal]'
             return 'MoveTo', HealExecutor.last_healed.position, '[lrh: wait for heal]'
+            
+        buildingFirstConveyor = RouteToCore.is_active and len(RouteToCore.prevRoute) == 0
+            
+        if not buildingFirstConveyor:
+            shieldpos = HarvesterAdjacent.get_best_shield_position()
+            if shieldpos is not None:
+                return 'BuildShield', shieldpos
+
+        if RouteToFoundry.is_active:
+            return ('RouteFoundry',)
+
+        if RouteToCore.is_active:
+            return ('Route',)
+            
+        if buildingFirstConveyor:
+            shieldpos = HarvesterAdjacent.get_best_shield_position()
+            if shieldpos is not None:
+                return 'BuildShield', shieldpos
 
         """
         breach_target = BreachBuild._pick_target()

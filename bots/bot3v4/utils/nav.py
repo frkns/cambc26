@@ -375,7 +375,8 @@ class Nav:
         self.buildMap[pos.y * self.ct.get_map_width() + pos.x] = building
         if(building == 0): return
         if not building.is_passable():
-            self.ct.draw_indicator_dot(pos,0,255,0)
+            #self.ct.draw_indicator_dot(pos,0,255,0)
+            pass
         if pos in self.DA_SPLITTER and (building.entityType not in [EntityType.ROAD,EntityType.SPLITTER] or building.team != self.ct.get_team()):
             self.DA_SPLITTER.remove(pos)
         if pos in self.FOUNDRIES and (building.entityType not in [EntityType.ROAD,EntityType.FOUNDRY, EntityType.BARRIER] or building.team != self.ct.get_team()):
@@ -447,14 +448,14 @@ class Nav:
         if not self.onMap(pos):
             return False
         if self.botsMap[pos.y * self.ct.get_map_width() + pos.x] != Constants.tiles.UNKNOWN:
-            self.ct.draw_indicator_dot(pos, 255, 0, 0)
+            #self.ct.draw_indicator_dot(pos, 255, 0, 0)
             return False
         posBuilding = self.getBuilding(pos)
         if(self.getTile(pos) in [Constants.tiles.ORE_AXIONITE,Constants.tiles.ORE_TITANIUM] and ( posBuilding == 0 or posBuilding.is_passable())):
             return True
         if self.buildMap[pos.y * self.ct.get_map_width() + pos.x] != Constants.tiles.UNKNOWN and \
            self.buildMap[pos.y * self.ct.get_map_width() + pos.x].is_passable() == False:
-            self.ct.draw_indicator_dot(pos, 150, 0, 0)
+            #self.ct.draw_indicator_dot(pos, 150, 0, 0)
             return False
 
         tile = self.getTile(pos)
@@ -623,7 +624,7 @@ class Nav:
                     # Increment stuck ticks. The BFS decided this is the optimal route.
                     self._bfs_stuck_ticks += 1
                     # Visualize that we are "working" on the barrier
-                    self.ct.draw_indicator_dot(next_pos, 255, 165, 0) # Orange
+                    #self.ct.draw_indicator_dot(next_pos, 255, 165, 0) # Orange
                     
                     if self._bfs_stuck_ticks >= self.BFS_STUCK_THRESHOLD:
                         if self.ct.can_destroy(next_pos):
@@ -689,7 +690,7 @@ class Nav:
 
         # ── Execute move (road-building logic preserved) ──────────────────────────
         move_pos = robot_pos.add(move_dir)
-        self.ct.draw_indicator_dot(move_pos, 0, 0, 255)
+        #self.ct.draw_indicator_dot(move_pos, 0, 0, 255)
         building = self.getBuilding(move_pos)
         if (building == 0
                 or building == Constants.tiles.UNKNOWN
@@ -934,7 +935,7 @@ class Nav:
         # ── Execute move ──────────────────────────────────────────────────────
         if move_dir is not None:
             move_pos = robot_pos.add(move_dir)
-            self.ct.draw_indicator_dot(move_pos, 0, 0, 255)
+            #self.ct.draw_indicator_dot(move_pos, 0, 0, 255)
 
             building = self.getBuilding(move_pos)
             if (building == 0 or building == Constants.tiles.UNKNOWN
