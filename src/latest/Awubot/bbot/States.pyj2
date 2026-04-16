@@ -122,8 +122,7 @@ class StateBuildLauncher:
 class StateBuildShield:
     @classmethod
     def run(cls, pos):
-        if Globals.my_pos.distance_squared(pos) > 2:
-            Pathfinder.move_to(pos, ban_target_pos=False)
+        Pathfinder.move_to(pos, ban_target_pos=True)
         
         target_dir = None
         
