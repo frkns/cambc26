@@ -122,12 +122,13 @@ class StateBuildLauncher:
 class StateBuildShield:
     @classmethod
     def run(cls, pos):
-        Pathfinder.move_to(pos, ban_target_pos=False)
+        if Globals.my_pos.distance_squared(pos) > 2:
+            Pathfinder.move_to(pos, ban_target_pos=False)
         
         target_dir = None
         
         tile_info = Map.tile_info
-        ally_harvester = False
+        found_ally_harvester = False
         
         {% for dir in cardinal_directions %}
         {% set dx, dy = dir.delta() %}
@@ -135,17 +136,20 @@ class StateBuildShield:
         ti = tile_info[pos.x + {{ dx }}][pos.y + {{ dy }}]
         if ti is not None:
             if ti.has_building and ti.entity_type == EntityType.HARVESTER:
-                if not ally_harvester or ti.is_building_ally:
+                if not found_ally_harvester or ti.is_building_ally:
                     target_dir = {{ dir }}
                     Debug.line(pos, pos.add({{dir}}), Color.GREEN)
                     if ti.is_building_ally:
-                        ally_harvester = True
+                        found_ally_harvester = True
         {% endfor %}
-
+        
+        {% if LOCAL %}
+        print(f'{target_dir=}, {found_ally_harvester=}')
+        {% endif %}
 
         if pos != Globals.my_pos:
             if target_dir is not None:
-                if ally_harvester:
+                if found_ally_harvester:
                     if BuildManager.can_dbuild_conveyor(pos):
                         BuildManager.dbuild_conveyor(pos, target_dir)
                 else:
@@ -156,7 +160,7 @@ class StateBuildShield:
                     BuildManager.build_road(pos)
         else:
             if target_dir is not None:
-                if ally_harvester:
+                if found_ally_harvester:
                     if BuildManager.can_mbuild_conveyor():
                         BuildManager.dbuild_conveyor(pos, target_dir)  # mbuild check but dbuild
                 else:

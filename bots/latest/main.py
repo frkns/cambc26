@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-16 09:37:45 (local)
+# latest,  @ 2026-04-16 09:58:17 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -30628,50 +30628,51 @@ class StateBuildSentinel:
 class StateBuildShield:
     @classmethod
     def run(cls, pos):
-        Pathfinder.move_to(pos, ban_target_pos=False)
+        if Globals.my_pos.distance_squared(pos) > 2:
+            Pathfinder.move_to(pos, ban_target_pos=False)
         
         target_dir = None
         
         tile_info = Map.tile_info
-        ally_harvester = False
+        found_ally_harvester = False
         
         ti = tile_info[pos.x + 0][pos.y + -1]
         if ti is not None:
             if ti.has_building and ti.entity_type == EntityType.HARVESTER:
-                if not ally_harvester or ti.is_building_ally:
+                if not found_ally_harvester or ti.is_building_ally:
                     target_dir = Direction.NORTH
                     Debug.line(pos, pos.add(Direction.NORTH), Color.GREEN)
                     if ti.is_building_ally:
-                        ally_harvester = True
+                        found_ally_harvester = True
         ti = tile_info[pos.x + 1][pos.y + 0]
         if ti is not None:
             if ti.has_building and ti.entity_type == EntityType.HARVESTER:
-                if not ally_harvester or ti.is_building_ally:
+                if not found_ally_harvester or ti.is_building_ally:
                     target_dir = Direction.EAST
                     Debug.line(pos, pos.add(Direction.EAST), Color.GREEN)
                     if ti.is_building_ally:
-                        ally_harvester = True
+                        found_ally_harvester = True
         ti = tile_info[pos.x + 0][pos.y + 1]
         if ti is not None:
             if ti.has_building and ti.entity_type == EntityType.HARVESTER:
-                if not ally_harvester or ti.is_building_ally:
+                if not found_ally_harvester or ti.is_building_ally:
                     target_dir = Direction.SOUTH
                     Debug.line(pos, pos.add(Direction.SOUTH), Color.GREEN)
                     if ti.is_building_ally:
-                        ally_harvester = True
+                        found_ally_harvester = True
         ti = tile_info[pos.x + -1][pos.y + 0]
         if ti is not None:
             if ti.has_building and ti.entity_type == EntityType.HARVESTER:
-                if not ally_harvester or ti.is_building_ally:
+                if not found_ally_harvester or ti.is_building_ally:
                     target_dir = Direction.WEST
                     Debug.line(pos, pos.add(Direction.WEST), Color.GREEN)
                     if ti.is_building_ally:
-                        ally_harvester = True
-
+                        found_ally_harvester = True
+        
 
         if pos != Globals.my_pos:
             if target_dir is not None:
-                if ally_harvester:
+                if found_ally_harvester:
                     if BuildManager.can_dbuild_conveyor(pos):
                         BuildManager.dbuild_conveyor(pos, target_dir)
                 else:
@@ -30682,7 +30683,7 @@ class StateBuildShield:
                     BuildManager.build_road(pos)
         else:
             if target_dir is not None:
-                if ally_harvester:
+                if found_ally_harvester:
                     if BuildManager.can_mbuild_conveyor():
                         BuildManager.dbuild_conveyor(pos, target_dir)  # mbuild check but dbuild
                 else:
