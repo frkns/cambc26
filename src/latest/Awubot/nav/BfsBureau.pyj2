@@ -325,7 +325,7 @@ class BfsBureau:
 
         si = {{ encode_pos('sx', 'sy') }}
         ti = {{ encode_pos('_tx', '_ty') }}
-        center_weight = weight[si] - 1
+        center_weight = weight[si] if weight[si] > 5 else 1
 
         _D = ({% for d in range(8) %}{{ directions[d] }}{% if not loop.last %}, {% endif %}{% endfor %})
 

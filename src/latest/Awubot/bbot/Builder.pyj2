@@ -153,10 +153,10 @@ class Builder({{ super() }}):
             return 'BuildSentinel', sentinelpos, None
 
         # disable for now
-        {# /* sitterpos = SitterTakedown.get_best_launcher_position() */ #}
-        {# /* if sitterpos is not None: */ #}
-            {# /* Debug.dot(sitterpos, Color.PURPLE) */ #}
-            {# /* return 'BuildLauncher', sitterpos */ #}
+        sitterpos = SitterTakedown.get_best_launcher_position()
+        if sitterpos is not None:
+            Debug.dot(sitterpos, Color.PURPLE)
+            return 'BuildLauncher', sitterpos
 
 
         if healpos is not None:

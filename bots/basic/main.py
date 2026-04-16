@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-15 22:56:24 (local)
+# latest,  @ 2026-04-15 20:38:03 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -1723,7 +1723,7 @@ class BfsBureau:
 
         si = (((sx) + 3) * 56 + ((sy) + 3))
         ti = (((_tx) + 3) * 56 + ((_ty) + 3))
-        center_weight = weight[si] if weight[si] > 5 else 1
+        center_weight = weight[si] - 1
 
         _D = (Direction.NORTH, Direction.NORTHEAST, Direction.EAST, Direction.SOUTHEAST, Direction.SOUTH, Direction.SOUTHWEST, Direction.WEST, Direction.NORTHWEST)
 
@@ -27665,12 +27665,9 @@ class Pathfinder:
         Debug.line(target)
         my_pos = Globals.my_pos
 
-
-
         Profiler.start()
         dist, dir = BfsBureau.find_route(Globals.my_pos, target, ban_target_pos)
         Profiler.end(f"""BfsBureau.find_route""")
-
 
         if dir is None or dist >= 1000000:
             cls.given_up = True
@@ -31669,10 +31666,6 @@ class Builder(Unit):
             return 'BuildSentinel', sentinelpos, None
 
         # disable for now
-        sitterpos = SitterTakedown.get_best_launcher_position()
-        if sitterpos is not None:
-            Debug.dot(sitterpos, Color.PURPLE)
-            return 'BuildLauncher', sitterpos
 
 
         if healpos is not None:
