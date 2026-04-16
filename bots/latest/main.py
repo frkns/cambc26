@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-16 09:58:17 (local)
+# latest,  @ 2026-04-16 10:07:34 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -24571,6 +24571,9 @@ class HarvesterAdjacent:
                     elif ti.entity_type != EntityType.ROAD:
                         if ti.entity_type not in Constants.TRANSPORTERS_SET:
                             valid = False
+                            
+                if ti.has_bot:
+                    valid = False
 
                 if valid:
                     pos = Position(x, y)
@@ -24713,6 +24716,9 @@ class HarvesterAdjacent:
                     elif ti.entity_type != EntityType.ROAD:
                         if ti.entity_type not in Constants.TRANSPORTERS_SET:
                             valid = False
+                            
+                if ti.has_bot:
+                    valid = False
 
                 if valid:
                     pos = Position(x, y)
@@ -24855,6 +24861,9 @@ class HarvesterAdjacent:
                     elif ti.entity_type != EntityType.ROAD:
                         if ti.entity_type not in Constants.TRANSPORTERS_SET:
                             valid = False
+                            
+                if ti.has_bot:
+                    valid = False
 
                 if valid:
                     pos = Position(x, y)
@@ -24997,6 +25006,9 @@ class HarvesterAdjacent:
                     elif ti.entity_type != EntityType.ROAD:
                         if ti.entity_type not in Constants.TRANSPORTERS_SET:
                             valid = False
+                            
+                if ti.has_bot:
+                    valid = False
 
                 if valid:
                     pos = Position(x, y)
