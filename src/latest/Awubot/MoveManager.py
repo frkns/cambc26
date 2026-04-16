@@ -31,7 +31,7 @@ class MoveManager:
         if not Util.on_the_map(pos):
             return False
 
-        if not Globals.ct.can_build_road(pos):
+        if not BuildManager.can_build_road(pos):
             return False
 
         ti: TileInfo = Map.tile_info[pos.x][pos.y]  # type: ignore

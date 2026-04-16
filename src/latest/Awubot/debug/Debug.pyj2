@@ -97,8 +97,8 @@ class Debug:
         print()
 
     @staticmethod
-    def diamond(color: tuple = Color.WHITE):
-        c = Globals.my_pos
+    def diamond(color: tuple = Color.WHITE, pos: Position | None = None):
+        c = Globals.my_pos if pos is None else pos
         x, y = c.x, c.y
 
         top    = Position(x, y - 1)

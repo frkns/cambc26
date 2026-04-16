@@ -1,0 +1,135 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+{% from 'bbot/mode.j2' import Mode %}
+
+
+class SentinelDirectionInfo:
+    direction: Direction
+    banned: bool
+    enemy_building_hp: int  # sum of all in attack range
+    enemy_bot_hp: int
+    cosine_sim: float  # normalised dot product of vector to enemy core
+
+    @staticmethod
+    def is_better_than(a: SentinelDirectionInfo, b: SentinelDirectionInfo) -> bool:
+        if a.banned: return False
+        if b.banned: return True
+        
+        if a.enemy_building_hp != b.enemy_building_hp:
+            return a.enemy_building_hp > b.enemy_building_hp
+
+        if a.enemy_bot_hp != b.enemy_bot_hp:
+            return a.enemy_bot_hp > b.enemy_bot_hp
+
+        return a.cosine_sim > b.cosine_sim
+
+
+class SentinelDirectionPicker:
+    infos: list[SentinelDirectionInfo] = []
+
+
+    @classmethod
+    def get_best_direction(cls, spos) -> Direction:
+        cls.precompute(spos)
+        best = cls.infos[0]
+        for info in cls.infos[1:]:
+            if SentinelDirectionInfo.is_better_than(info, best):
+                best = info
+        return best.direction
+
+    @classmethod
+    def precompute(cls, spos):
+        infos = cls.infos
+        infos.clear()
+
+        tile_info = Map.tile_info
+
+        sx, sy = spos.x, spos.y
+        sidx = {{ encode_pos('sx', 'sy') }}
+
+        has_feeder = [False] * 8
+        nadj_feeders = 0
+
+        {% for dir in cardinal_directions %}
+        {% set dx, dy = dir.delta() %}
+        {% set i = directions.index(dir) %}
+        ti = tile_info[sx + {{ dx }}][sy + {{ dy }}]
+        if ti is not None:
+            if (ti.entity_type == EntityType.HARVESTER and ti.env == Environment.ORE_TITANIUM) or ti.target == spos:
+                has_feeder[{{ i }}] = True
+                nadj_feeders += 1
+        {% endfor %}
+
+        ecore = Symmetry.enemy_core_pos
+
+        {% macro gen(need_ban) %}
+        {% for dir in directions[:8] %}
+            {% set i = loop.index0 %}
+
+            info{{ i }} = SentinelDirectionInfo()
+            info{{ i }}.direction = {{ dir }}
+            {% if need_ban %}
+            info{{ i }}.banned = has_feeder[{{ i }}]
+            {% else %}
+            info{{ i }}.banned = False
+            {% endif %}
+            info{{ i }}.enemy_building_hp = 0
+            info{{ i }}.enemy_bot_hp = 0
+
+            u1, u2 = ecore.x - sx, ecore.y - sy
+            mu = math.hypot(u1, u2)
+            u1 /= mu
+            u2 /= mu
+            {% set v1, v2 = dir.delta() %}
+            {% set mv = (v1 * v1 + v2 * v2) ** 0.5 %}
+            {% set v1, v2 = v1/mv, v2/mv %}
+            info{{ i }}.cosine_sim = u1 * {{ v1 }} + u2 * {{ v2 }}
+
+            infos.append(info{{ i }})
+        {% endfor %}
+        {% endmacro %}
+
+        if nadj_feeders == 1:
+{{ gen(True) }}
+        else:
+{{ gen(False) }}
+
+
+        {% for rx in range(-5, 6) %}
+        {% for ry in range(-5, 6) %}
+        ti = tile_info[sx + {{ rx }}][sy + {{ ry }}]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                {% for i in sentinel_reverse[(rx, ry)] %}
+                info{{ i }}.enemy_building_hp += e_building_hp
+                {% endfor %}
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                {% for i in sentinel_reverse[(rx, ry)] %}
+                info{{ i }}.enemy_bot_hp += e_bot_hp
+                {% endfor %}
+        {% endfor %}
+        {% endfor %}
+
+        
+
+
+
+

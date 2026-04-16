@@ -1,0 +1,286 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+{% from 'bbot/mode.j2' import Mode %}
+
+
+class TreeNode:
+    __slots__ = ('up',)
+    up: int | None  # can be detached. if None then is root
+
+
+# total flow/harvester is set to 12 (LCM of 1,2,3,4)
+# bottleneck of a route is 4 harvesters = 4 * 12 = 48 pressure
+{% set FLOW_PER_HARVESTER = 12 %}
+{% set MAX_ACCEPTABLE_PRESSURE = FLOW_PER_HARVESTER * 3 %}
+
+
+
+
+class DarkForest:
+    nodes: list[TreeNode | None] = [None] * {{ PADDED_GRID_SIZE }}
+    kind: list[int] = [0] * {{ PADDED_GRID_SIZE }}   # per-position sink class
+    flow: list[int]        # flow in subtree (bottom-up)
+    pressure: list[int]    # pressure at node (top-down, reset at sink boundaries)
+    node_kind: list[int]   # propagated kind per node (top-down)
+    sink_set: set[int]
+    leaf_set: set[int]   # titanium leaf nodes — valid foundry sites
+    core_sink_set: set[int] = set()  # sink_set filtered to ALLY_CORE only
+
+
+    @classmethod
+    def init(cls):
+        if Globals.my_type == EntityType.BUILDER_BOT:
+            for p in Unit.core_pos_set:
+                cls.register_sink(p, {{ Kind.ALLY_CORE }})
+            return
+
+        if Globals.my_type in (EntityType.SENTINEL, EntityType.GUNNER):
+            cls.register_sink({{ encode_pos('Globals.my_pos.x', 'Globals.my_pos.y') }},
+                              {{ Kind.ALLY_CONSUMER }})
+
+    @classmethod
+    def compute_core_sink_set(cls):
+        """Call this immediately after fcompute(). No changes to fcompute needed."""
+        cls.core_sink_set = {
+            u for u in cls.sink_set
+            if cls.node_kind[u] == {{ Kind.ALLY_CORE }} or u in Unit.core_pos_set
+        }
+
+    @classmethod
+    def register_enemy_core(cls):
+        for p in Symmetry.enemy_core_pos_set:  # from sym
+            cls.register_sink(p, {{ Kind.ENEMY_CORE }})
+
+    @classmethod
+    def remove_node(cls, u: int):
+        # Destroy node u. Any node with up=u will be severed automagically in compute func.
+        if cls.kind[u] == {{ Kind.ALLY_CORE }} or cls.kind[u] == {{ Kind.ENEMY_CORE }}:
+            return 
+
+        cls.nodes[u] = None
+        cls.kind[u] = {{ Kind.NONE }}
+
+    @classmethod
+    def register_sink(cls, u: int, k: int):
+        """Mark position u as a sink of class k and ensure a root node exists there."""
+        cls.kind[u] = k
+        ns = cls.nodes
+        if ns[u] is None:
+            n = TreeNode()
+            n.up = None
+            ns[u] = n
+        else:
+            ns[u].up = None  # sinks are roots
+
+
+    @classmethod
+    def add_edge(cls, u: int, v: int):
+        # register (u,v) edge: u.up = v
+        ns = cls.nodes
+        if ns[u] is None:
+            ns[u] = TreeNode()
+        ns[u].up = v
+
+
+
+
+# ---===
+    @classmethod
+    def debug_pressure(cls):
+        """Draw dots: green=low, yellow=med, orange=high, red=saturated."""
+        ns = cls.nodes
+        pressure = cls.pressure
+        ct = Globals.ct
+        for x in range(50):
+            for y in range(50):
+                i = {{ encode_pos('x', 'y') }}
+                if ns[i] is not None and pressure[i] > 0:
+                    p = pressure[i]
+                    if p <= {{ FLOW_PER_HARVESTER }}:
+                        ct.draw_indicator_dot(Position(x, y), 0, 255, 0)
+                    elif p <= {{ FLOW_PER_HARVESTER * 2 }}:
+                        ct.draw_indicator_dot(Position(x, y), 255, 255, 0)
+                    elif p <= {{ FLOW_PER_HARVESTER * 3 }}:
+                        ct.draw_indicator_dot(Position(x, y), 255, 128, 0)
+                    else:
+                        ct.draw_indicator_dot(Position(x, y), 255, 0, 0)
+# ===---
+# ---===
+    @classmethod
+    def debug_sink_set(cls):
+        for i in cls.sink_set:
+            {% set x, y = decode_pos('i') %}
+            Globals.ct.draw_indicator_dot(Position({{ x }}, {{ y }}), 0, 255, 255)
+# ===---
+# ---===
+    @classmethod
+    def debug_enemy_core_connected(cls):
+        """Draw magenta dots on nodes whose propagated kind is Kind.ENEMY_CORE."""
+        ns = cls.nodes
+        nk = cls.node_kind
+        ct = Globals.ct
+        for x in range(50):
+            for y in range(50):
+                i = {{ encode_pos('x', 'y') }}
+                if ns[i] is not None and nk[i] == {{ Kind.ENEMY_CORE }}:
+                    ct.draw_indicator_dot(Position(x, y), 255, 0, 255)
+# ===---
+# ---===
+    @classmethod
+    def debug_kind(cls):
+        """Draw dots colored by propagated node_kind. Extends to any number of kinds."""
+        ns = cls.nodes
+        nk = cls.node_kind
+        ct = Globals.ct
+        _palette = (
+            (128, 128, 128),  # 0: Kind.NONE (grey, never drawn)
+            (0,   255, 0  ),  # 1: Kind.ALLY_CORE (green)
+            (255, 0,   0  ),  # 2: Kind.ENEMY_CORE (red)
+            (0,   128, 255),  # 3: (blue)
+            (255, 255, 0  ),  # 4: (yellow)
+            (255, 0,   255),  # 5: (magenta)
+            (0,   255, 255),  # 6: (cyan)
+            (255, 128, 0  ),  # 7: (orange)
+            (128, 0,   255),  # 8: (purple)
+            (128, 255, 0  ),  # 9: (lime)
+        )
+        _plen = len(_palette)
+        for x in range(50):
+            for y in range(50):
+                i = {{ encode_pos('x', 'y') }}
+                if ns[i] is not None:
+                    k = nk[i]
+                    if k:
+                        if k < _plen:
+                            r, g, b = _palette[k]
+                        else:
+                            hue = (k * 137) % 360
+                            h6 = hue // 60
+                            f = (hue % 60) * 255 // 60
+                            if   h6 == 0: r, g, b = 255, f, 0
+                            elif h6 == 1: r, g, b = 255 - f, 255, 0
+                            elif h6 == 2: r, g, b = 0, 255, f
+                            elif h6 == 3: r, g, b = 0, 255 - f, 255
+                            elif h6 == 4: r, g, b = f, 0, 255
+                            else:         r, g, b = 255, 0, 255 - f
+                        ct.draw_indicator_dot(Position(x, y), r, g, b)
+# ===---
+
+
+# ---===
+    @classmethod
+    def fcompute(cls):
+        {% set N = PADDED_GRID_SIZE %}
+
+        ns = cls.nodes
+        kind = cls.kind
+        core_pos_set = Unit.core_pos_set
+        harvesters = Map.harvester_set
+
+        flow = [0] * {{ N }}
+        cc   = [0] * {{ N }}
+
+        # ── harvest → flow directly ──
+        _sh = (0, {{ FLOW_PER_HARVESTER }}, {{ FLOW_PER_HARVESTER // 2 }},
+               {{ FLOW_PER_HARVESTER // 3 }}, {{ FLOW_PER_HARVESTER // 4 }})
+        for h in harvesters:
+            {% for d in (-1, 1, -PH, PH) %}
+            _n{{ loop.index0 }} = h {{ sign0(d) }}
+            _e{{ loop.index0 }} = ns[_n{{ loop.index0 }}] is not None
+            {% endfor %}
+            cnt = _e0 + _e1 + _e2 + _e3
+            if cnt:
+                s = _sh[cnt]
+                {% for d in (-1, 1, -PH, PH) %}
+                if _e{{ loop.index0 }}: flow[_n{{ loop.index0 }}] += s
+                {% endfor %}
+
+        # ── fix dead parents, indegree, collect active ──
+        active = []
+        aa = active.append
+        {% for i in pos2500 %}
+        if (t := ns[{{ i }}]) is not None:
+            aa({{ i }})
+            if (p := t.up) is not None:
+                if ns[p] is not None:
+                    cc[p] += 1
+                else:
+                    t.up = None
+        {% endfor %}
+
+        # ── find leaves ──
+        q = []
+        qa = q.append
+        for i in active:
+            if not cc[i]:
+                qa(i)
+
+        _initial_leaves = list(q)
+
+        # ── bottom-up BFS ──
+        qi = 0
+        while qi < len(q):
+            u = q[qi]; qi += 1
+            p = ns[u].up
+            if p is not None:
+                flow[p] += flow[u]
+                cc[p] -= 1
+                if not cc[p]:
+                    qa(p)
+
+        # ── top-down ──
+        pressure = [0] * {{ N }}
+        nk = [0] * {{ N }}
+        sink_set = core_pos_set.copy()
+        sink_add = sink_set.add
+        THR = {{ MAX_ACCEPTABLE_PRESSURE - FLOW_PER_HARVESTER }}
+
+        for u in reversed(q):
+            p = ns[u].up
+            if p is None:
+                # root — use own kind
+                pressure[u] = flow[u]
+                k = kind[u]
+            elif kind[p]:
+                # direct child of a sink — per-branch pressure reset
+                pressure[u] = flow[u]
+                k = kind[p]
+            else:
+                # interior — inherit from parent
+                pressure[u] = pressure[p]
+                k = nk[p]
+            nk[u] = k
+            if k == {{ Kind.ALLY_CORE }} and pressure[u] <= THR:
+                sink_add(u)
+
+        cls.flow = flow
+        cls.pressure = pressure
+        cls.node_kind = nk
+        cls.sink_set = sink_set
+
+        # ── titanium leaf set ──
+        # Leaves in the ally-core subtree are the only valid foundry sites.
+        # Exclude the cores themselves (isolated core with no children would
+        # pass the cc==0 test but is obviously not a foundry site).
+        _ti_leaves: set[int] = set()
+        for u in _initial_leaves:
+            if nk[u] == {{ Kind.ALLY_CORE }} and u not in core_pos_set:
+                _ti_leaves.add(u)
+        cls.leaf_set = _ti_leaves
+        cls.compute_core_sink_set()
+# ===---

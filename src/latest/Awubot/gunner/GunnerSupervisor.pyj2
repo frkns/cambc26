@@ -68,8 +68,9 @@ class GunnerTargetInfo:
             if (not a_is_gunner) and b_is_gunner: return False
 
         # if there is a bot on top of the tile, nothing underneath gets hit
-        if a.has_enemy_bot and (not b.has_enemy_bot): return True
-        if (not a.has_enemy_bot) and b.has_enemy_bot: return False
+        if a.current_dir == b.current_dir:
+            if a.has_enemy_bot and (not b.has_enemy_bot): return True
+            if (not a.has_enemy_bot) and b.has_enemy_bot: return False
 
         if a.has_enemy_bot and b.has_enemy_bot:
             if a.bot_hp != b.bot_hp:

@@ -117,6 +117,7 @@ class RouteToFoundry:
         if cls._foundry_target is not None and encoded == cls._foundry_target:
             cls.is_active = False
             cls.prevRoute.clear()
+            cls.backTracking = False
             return
 
         if fullReset:
@@ -205,6 +206,7 @@ class RouteToFoundry:
                 RouteToCore.pathFindingKill.add({{ encode_pos('cls.from_pos.x', 'cls.from_pos.y') }})
             Debug.diamond(Color.PURPLE)
             print("RouteToFoundry: giving up from", cls.from_pos)
+            cls.backTracking = False
             return True
         else:
             cls.killed.add(cls.from_pos)
@@ -244,7 +246,7 @@ class RouteToFoundry:
                 and (dsq == 1 or dsq == 2):
             cls.try_build_route()
             cls.move_to_next()
-            if Globals.ct.can_build_road(cls.from_pos):
-                Globals.ct.build_road(cls.from_pos)
+            # if Globals.ct.can_build_road(cls.from_pos):
+            #     Globals.ct.build_road(cls.from_pos)
         else:
             cls.move_to_next()

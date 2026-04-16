@@ -21,8 +21,8 @@ from Generated import *
 class BuildManager:
     {% set ti_reserve_map = {
         EntityType.GUNNER: 0,
-        EntityType.SENTINEL: 0,
-        EntityType.LAUNCHER: 0
+        EntityType.SENTINEL: 20,
+        EntityType.LAUNCHER: 0,
     } %}
     {% set ti_reserve_default = 20 %}
 
@@ -73,8 +73,36 @@ class BuildManager:
     @staticmethod
     def dbuild_{{ st }}(pos, *a):
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Globals.ct.build_{{ st }}(pos, *a)
+
+
+    @staticmethod
+    def can_mbuild_{{ st }}() -> bool:
+        {% if LOCAL %}
+        assert {{ etype }} in Constants.PASSABLE_SET
+        {% endif %}
+        pos = Globals.my_pos
+
+        return (
+            (Globals.ct.can_destroy(pos) or Map.tile_info[pos.x][pos.y].entity_type is None) and
+            {% if etype in units_set %}
+            Globals.ct.get_unit_count() < {{ GameConstants.MAX_TEAM_UNITS }} and
+            {% endif %}
+            Globals.ct.get_action_cooldown() == 0 and
+            BuildManager.can_afford_{{ st }}()
+        )
+
+
+    @staticmethod
+    def mbuild_{{ st }}(*a):
+        pos = Globals.my_pos
+        if Globals.ct.can_destroy(pos):
+            BuildManager.destroy(pos)
+        Pathfinder.move_to(pos, ban_target_pos=True)
+        if BuildManager.can_build_{{ st }}(*a):
+            Globals.ct.build_{{ st }}(pos, *a)
+
 
     @staticmethod
     def can_dbuild_{{ st }}(pos) -> bool:
@@ -84,7 +112,7 @@ class BuildManager:
             {% endif %}
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
-            {% if etype not in transporter_set%}
+            {% if etype not in no_core_passable_set %}
             not Map.tile_info[pos.x][pos.y].has_bot and
             {% endif %}
             BuildManager.can_afford_{{ st }}()
@@ -97,11 +125,17 @@ class BuildManager:
     @staticmethod
     def can_afford_{{ st }}() -> bool:
         ti_cost, ax_cost = Globals.ct.get_{{ st }}_cost()
-
+        
         {% set req = ti_reserve_map.get(etype, ti_reserve_default) %}
         {% if req > 0 %}
+        
+        {% if etype in (EntityType.CONVEYOR, EntityType.BRIDGE) %}
+        if MarketMaker.est_income > 4 and Globals.round > 50:
+            ti_cost += int({{ req }} * MarketMaker.scale_ratio)
+        {% else %}
         ti_cost += int({{ req }} * MarketMaker.scale_ratio)
-
+        {% endif %}
+        
         {% if LOCAL %}
         assert int({{ req }} * MarketMaker.scale_ratio) >= 0
         {% endif %}
@@ -111,6 +145,11 @@ class BuildManager:
 
     {% endif %}
     {% endfor %}
+
+    @staticmethod
+    def destroy(pos):
+        Debug.diamond(Color.RED, pos)
+        Globals.ct.destroy(pos)
 
 
 

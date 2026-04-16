@@ -31,6 +31,7 @@ class RouteToCore:
         if {{ encode_pos('pos.x', 'pos.y') }} in DarkForest.core_sink_set:  # was sink_set
             cls.is_active = False
             cls.prevRoute.clear()
+            cls.backTracking = False
             return
 
         if fullReset:
@@ -114,19 +115,23 @@ class RouteToCore:
 
     @classmethod
     def give_up(cls):
-        if len(cls.prevRoute) == 0: # cooked:
+        from_pos = cls.from_pos
+        enc = {{ encode_pos('from_pos.x', 'from_pos.y') }}
+        if len(cls.prevRoute) == 0 or DarkForest.node_kind[enc] in \
+                ({{ Kind.ALLY_CONSUMER }}, {{ Kind.ALLY_CORE }}):
             cls.is_active = False
-            cls.killed.add(cls.from_pos)
+            cls.killed.add(from_pos)
             Debug.diamond(Color.PURPLE)
-            print("RouteToCore: giving up, no previous route to backtrack to")
+            print("RouteToCore: giving up, no previous route to backtrack to or finished")
             if Pathfinder.given_up:
-                cls.pathFindingKill.add({{ encode_pos('cls.from_pos.x', 'cls.from_pos.y') }})
+                cls.pathFindingKill.add(enc)
+            cls.backTracking = False
             return True
         else:
-            cls.killed.add(cls.from_pos)
+            cls.killed.add(from_pos)
             if Pathfinder.given_up:
-                cls.pathFindingKill.add({{ encode_pos('cls.from_pos.x', 'cls.from_pos.y') }})
-            cls.from_pos = cls.prevRoute.pop()
+                cls.pathFindingKill.add(enc)
+            from_pos = cls.prevRoute.pop()
             print("RouteToCore: backtracking to", cls.from_pos)
             cls.backTracking = True
             return False
@@ -145,7 +150,7 @@ class RouteToCore:
                 and (dsq == 1 or dsq == 2):
             cls.try_build_route()
             cls.move_to_next()
-            if Globals.ct.can_build_road(cls.from_pos):
-                Globals.ct.build_road(cls.from_pos)
+            # if Globals.ct.can_build_road(cls.from_pos):
+            #     Globals.ct.build_road(cls.from_pos)
         else:
             cls.move_to_next()

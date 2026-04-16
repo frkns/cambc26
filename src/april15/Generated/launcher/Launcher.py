@@ -1,0 +1,133 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+
+class Building:
+    passableBuildings = [
+        EntityType.CONVEYOR,
+        EntityType.SPLITTER,
+        EntityType.ARMOURED_CONVEYOR,
+        EntityType.BRIDGE,
+        EntityType.ROAD,
+    ]
+    def __init__(self, ct: Controller, id: int, tile):
+        self.team = ct.get_team(id)
+        self.position = tile
+        self.id = id
+        self.hp = ct.get_hp(id)
+        self.max_hp = ct.get_max_hp(id)
+        self.entityType = ct.get_entity_type(id)
+        self.playerTeam = ct.get_team()
+        try:
+            self.direction = ct.get_direction(id)
+        except Exception as e:
+            self.direction = None
+        if(self.entityType == self.entityType.BRIDGE):
+            self.target = ct.get_bridge_target(id)
+        else:
+            self.target= None
+    def is_passable(self):
+        fun = self.entityType in Building.passableBuildings
+        if fun:
+            return True
+        if self.team == self.playerTeam and (self.entityType == EntityType.CORE):
+            return True
+        if(self.team != self.playerTeam and self.entityType == EntityType.MARKER): #run over enemy markers
+            return True
+        return False
+
+class Launcher(Unit):
+    @classmethod
+    def init(cls):
+        Unit.init()
+        DarkForest.init()
+
+    @classmethod
+    def start_turn(cls):
+        Unit.start_turn()
+
+    
+    ROUTING_SET = list(Constants.TRANSPORTERS_SET) + [EntityType.HARVESTER,EntityType.FOUNDRY]
+
+    @classmethod
+    def run_turn(cls):
+        print("Hi!")
+        ct = Globals.ct
+        my_team = ct.get_team()
+        my_pos = ct.get_position()
+        tiles = ct.get_nearby_tiles()
+
+        # Cache buildings by position — no need to pre-walk neighbours
+        building_cache = {}
+        for tile in tiles:
+            building_id = ct.get_tile_building_id(tile)
+            if building_id is not None:
+                building_cache[tile] = Building(ct, building_id, tile)
+
+        # Find the first nearby enemy builder bot
+        nearby_bot = None
+        for unit in ct.get_nearby_units(2):
+            if ct.get_entity_type(unit) != EntityType.BUILDER_BOT:
+                continue
+            if ct.get_team(unit) != my_team:
+                nearby_bot = ct.get_position(unit)
+                break
+
+        print("Oh no! Nearby Enemy Bot:", nearby_bot)
+
+        if nearby_bot is None:
+            return
+
+        best_pos = None
+        best_score = -999999
+
+        for tile in tiles:
+            if not ct.is_tile_passable(tile):
+                continue
+
+            score = my_pos.distance_squared(tile)
+
+            building = building_cache.get(tile)
+            if building is not None:
+                if building.team == my_team and building.entityType in cls.ROUTING_SET:
+                    continue
+
+            for d in Constants.DIRECTIONS:
+                new_loc = tile.add(d)
+                if not cls.on_map(ct, new_loc) or not ct.is_in_vision(new_loc):
+                    continue
+                adj_building = building_cache.get(new_loc)
+                if adj_building is None:
+                    continue
+                if adj_building.team != my_team and adj_building.entityType == EntityType.LAUNCHER:
+                    score -= 50
+                elif adj_building.team == my_team and adj_building.entityType in Constants.TRANSPORTERS_SET:
+                    score -= 50
+
+            if score > best_score:
+                best_pos = tile
+                best_score = score
+
+        print("Plausible place to throw:", best_pos)
+
+        if best_pos is not None and ct.can_launch(nearby_bot, best_pos):
+            ct.launch(nearby_bot, best_pos)
+
+    @classmethod
+    def on_map(cls, ct, pos):
+        return 0 <= pos.x < ct.get_map_width() and 0 <= pos.y < ct.get_map_height()
+
+    @classmethod
+    def end_turn(cls):
+        Unit.end_turn()

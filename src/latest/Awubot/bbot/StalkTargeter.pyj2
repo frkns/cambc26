@@ -23,6 +23,11 @@ class StalkTargeter:
     def get_best_target(cls) -> Position | None:
         {{ P.start() }}
 
+        my_pos = Globals.my_pos
+
+        if my_pos.distance_squared(Unit.core_pos) > my_pos.distance_squared(Symmetry.enemy_core_pos):
+            return None
+
         if not Map.harvester_set:
             return None
 
@@ -32,7 +37,7 @@ class StalkTargeter:
         best_dist: int = {{ INF }}
 
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
-            {# /* if ti.has_bot and not ti.is_bot_ally and ti.allied_bots_adjacent < 2: */ #}
+
             if ti.has_bot and not ti.is_bot_ally \
                     and VisionTracker.me_is_canonical_ally(pos):
                 dist = bfs20_dist_adj[idx]

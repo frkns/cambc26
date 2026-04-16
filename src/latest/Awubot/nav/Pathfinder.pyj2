@@ -38,9 +38,23 @@ class Pathfinder:
         Debug.line(target)
         my_pos = Globals.my_pos
 
+        {# /* d = my_pos.distance_squared(target) */ #}
+        {# /* if ban_target_pos: */ #}
+            {# /* if d == 1: */ #}
+                {# /* return */ #}
+        {# /* else: */ #}
+            {# /* if d == 0: */ #}
+                {# /* return */ #}
+
+
         {{ P.start() }}
         dist, dir = BfsBureau.find_route(Globals.my_pos, target, ban_target_pos)
         {{ P.end('BfsBureau.find_route') }}
+
+        {# /* if d <= 2: */ #}
+            {# /* npos = my_pos.add(dir) */ #}
+            {# /* if npos.distance_squared(target) > d: */ #}
+                {# /* return */ #}
 
         if dir is None or dist >= {{ INF }}:
             cls.given_up = True
@@ -50,19 +64,4 @@ class Pathfinder:
             elif MoveManager.can_fill_move(dir):
                 Globals.ct.build_road(my_pos.add(dir))
                 MoveManager.move(dir)
-
-        {# /* return */ #}
-        {# /* {{ P.start() }} */ #}
-        {# /* dist = BfsBureau.dists_from_pos(target) */ #}
-        {# /* {{ P.end('BfsBureau.dists_from_pos') }} */ #}
-        {# /* Debug.debug_dist(dist) */ #}
-        {# /* cand: DirectionPicker.Candidate = \ */ #}
-            {# /* DirectionPicker.pick_best_candidate(dist, ban_target_pos) */ #}
-        {# /* if cand.moveable: */ #}
-            {# /* assert MoveManager.can_move(cand.direction) */ #}
-            {# /* MoveManager.move(cand.direction) */ #}
-        {# /* elif cand.fill_moveable: */ #}
-            {# /* assert MoveManager.can_fill_move(cand.direction) */ #}
-            {# /* Globals.ct.build_road(cand.position) */ #}
-            {# /* MoveManager.move(cand.direction) */ #}
 

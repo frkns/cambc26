@@ -71,7 +71,7 @@ class SitterTakedown:
         if best.launchers_adjacent > 0:
             return None
 
-        if not VisionTracker.me_is_canonical_ally(best.position):
+        if not VisionTracker.me_is_canonical_ally(best.position) and best.position.distance_squared(Globals.my_pos) > 2: # Make sure we're a canonical ally *if we're not already adjacent*
             return None
 
         return best.position
@@ -109,7 +109,7 @@ class SitterTakedown:
                 and ti.entity_type in Constants.TRANSPORTERS_SET
             )
             
-            # If the transporter is going into a harvester (probably a shield), it doesn't count
+            # If the transporter is going into a harvester (probably a shield), it doesn't count as a transporter
             if info.has_ally_transporter:
                 target_ti = tile_info[ti.target.x][ti.target.y]
                 if target_ti is not None and target_ti.has_building and target_ti.entity_type == EntityType.HARVESTER:

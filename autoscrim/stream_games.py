@@ -171,6 +171,7 @@ with open(OUTPUT_FILE, file_mode, newline="", encoding="utf-8") as f:
             command += ["--cursor", Pagination]
 
         output = run_cmd(command, env)
+        # print(output)
 
         cursor_match = re.search(r"--cursor\s+([^\s']+)", output)
         Pagination = cursor_match.group(1) if cursor_match else None

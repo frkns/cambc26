@@ -51,7 +51,7 @@ class FoundryBuild:
         if Globals.ct.get_global_resources()[0] > Globals.ct.get_foundry_cost()[0] \
                 and Globals.ct.can_destroy(pos) \
                 and Globals.ct.get_action_cooldown() == 0:
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         if Globals.ct.can_build_foundry(pos):
             Globals.ct.build_foundry(pos)
 

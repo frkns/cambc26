@@ -150,7 +150,8 @@ class OreExecutive:
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + {{ dx }}][ret.y + {{ dy }}]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_turret and not ti.is_building_ally:
+                cls.state[ret] = {{ KILLED }}
                 return None
                 
         {% endfor %}
@@ -199,6 +200,18 @@ class OreExecutive:
             # just kill?
             cls.state[ret] = {{ KILLED }}
             return None
+
+        {% for dir in cardinal_directions %}
+        {% set dx, dy = dir.delta() %}
+        
+        # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
+        ti: TileInfo = Map.tile_info[ret.x + {{ dx }}][ret.y + {{ dy }}]
+        if ti is not None:
+            if ti.has_turret and not ti.is_building_ally:
+                cls.state[ret] = {{ KILLED }}
+                return None
+                
+        {% endfor %}
 
         return ret
 

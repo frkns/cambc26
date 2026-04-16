@@ -75,11 +75,6 @@ class Builder({{ super() }}):
         VisionTracker.fill()
         {{ P.end('VisionTracker.fill') }}
 
-        # replaced by HarvesterAdjacent
-        {# /* {{ P.start() }} */ #}
-        {# /* TurretTakedown.fill() */ #}
-        {# /* {{ P.end('TurretTakedown.fill') }} */ #}
-
         {{ P.start() }}
         SitterTakedown.fill()
         {{ P.end('SitterTakedown.fill') }}
@@ -92,10 +87,6 @@ class Builder({{ super() }}):
         HealTargeter.fill()
         {{ P.end('HealTargeter.fill') }}
 
-        {# /* {% if LOCAL %} */ #}
-        {# /* Symmetry.debug() */ #}
-        {# /* {% endif %} */ #}
-
 
 
     @classmethod
@@ -106,7 +97,9 @@ class Builder({{ super() }}):
         print(f'running: {cls.state}  @', *args, sep=' ')
         {% endif %}
 
+        {{ P.start() }}
         globals()[f'State{cls.state}'].run(*args)
+        {{ P.end('State{cls.state}') }}
 
 
     @classmethod
@@ -121,11 +114,12 @@ class Builder({{ super() }}):
         Marker.attempt_mark()
         {{ P.end('Marker.attempt_mark') }}
 
-        {# /* BfsBureau.debug_enemy_launcher_zone() */ #}
-        {# /* if Globals.round & 1: */ #}
-            {# /* BfsBureau.debug_now_passable_int_impassable() */ #}
-        {# /* else: */ #}
-            {# /* BfsBureau.debug_now_weight_inf() */ #}
+        {# /* BfsBureau.debug_bfs20_dist_adj() */ #}
+        # BfsBureau.debug_enemy_launcher_zone()
+        # if Globals.round & 1:
+        #     BfsBureau.debug_now_passable_int_impassable()
+        # else:
+        #     BfsBureau.debug_now_weight_inf()
 
 
     @classmethod
@@ -137,6 +131,8 @@ class Builder({{ super() }}):
 
         takedowninfo = HarvesterAdjacent.get_best_turret_takedown_info()
         takedownpos = None if takedowninfo is None else takedowninfo.position
+
+        mispos = VisionTracker.get_best_misrouted_target()
         
         """
         if RouteToBreach.is_active:
@@ -146,6 +142,9 @@ class Builder({{ super() }}):
         if takedownpos is not None:
             Debug.dot(takedownpos, Color.PURPLE)
             return 'BuildGunner', takedownpos, None
+
+        if mispos is not None and not (RouteToCore.backTracking or RouteToFoundry.backTracking):
+            return 'Reroute', mispos
             
 
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
@@ -153,6 +152,7 @@ class Builder({{ super() }}):
             Debug.dot(sentinelpos, Color.PURPLE)
             return 'BuildSentinel', sentinelpos, None
 
+        # disable for now
         sitterpos = SitterTakedown.get_best_launcher_position()
         if sitterpos is not None:
             Debug.dot(sitterpos, Color.PURPLE)
