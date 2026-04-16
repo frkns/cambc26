@@ -8,7 +8,7 @@ import warnings
 warnings.filterwarnings("ignore", category=SyntaxWarning)
 
 TEAM = "something else"
-TEAM = "Blue Dragon"  # spy on other teams
+# TEAM = "Blue Dragon"  # spy on other teams
 
 OUTPUT_FILE = f"Games_{TEAM.replace(' ', '_')}.csv"
 
