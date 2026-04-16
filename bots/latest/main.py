@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-15 22:58:49 (local)
+# latest,  @ 2026-04-16 01:08:16 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -28141,19 +28141,22 @@ class RouteToCore:
 
     @classmethod
     def give_up(cls):
-        if len(cls.prevRoute) == 0: # cooked:
+        from_pos = cls.from_pos
+        enc = (((from_pos.x) + 3) * 56 + ((from_pos.y) + 3))
+        if len(cls.prevRoute) == 0 or DarkForest.node_kind[enc] in \
+                (3, 1):
             cls.is_active = False
-            cls.killed.add(cls.from_pos)
+            cls.killed.add(from_pos)
             Debug.diamond(Color.PURPLE)
-            print("RouteToCore: giving up, no previous route to backtrack to")
+            print("RouteToCore: giving up, no previous route to backtrack to or finished")
             if Pathfinder.given_up:
-                cls.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
+                cls.pathFindingKill.add(enc)
             return True
         else:
-            cls.killed.add(cls.from_pos)
+            cls.killed.add(from_pos)
             if Pathfinder.given_up:
-                cls.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
-            cls.from_pos = cls.prevRoute.pop()
+                cls.pathFindingKill.add(enc)
+            from_pos = cls.prevRoute.pop()
             print("RouteToCore: backtracking to", cls.from_pos)
             cls.backTracking = True
             return False
