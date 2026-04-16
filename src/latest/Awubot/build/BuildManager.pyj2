@@ -140,5 +140,9 @@ class BuildManager:
     {% endif %}
     {% endfor %}
 
+    @staticmethod
+    def destroy(pos):
+        Debug.diamond(pos, Color.RED)
+
 
 

@@ -57,17 +57,17 @@ class MarketMaker:
     hround: int = -1000
     hres: int = -1000
 
-    @classmethod
-    def harvester_cost(cls, apos: Position) -> int:
+    @staticmethod
+    def harvester_cost(apos: Position) -> int:
         {% set INVALIDATION_TIME = 5 %}
         {% set INVALIDATION_RSQ = 50 %}
 
         if (
-            cls.hpos is not None 
-            and Globas.round - cls.hround < {{ INVALIDATION_TIME }}
-            and apos.distance_squared(cls.hpos) < {{ INVALIDATION_RSQ }}
+            MarketMaker.hpos is not None 
+            and Globals.round - MarketMaker.hround < {{ INVALIDATION_TIME }}
+            and apos.distance_squared(MarketMaker.hpos) < {{ INVALIDATION_RSQ }}
         ):
-            return cls.hres
+            return MarketMaker.hres
 
         
         {{ P.start() }}

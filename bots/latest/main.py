@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-15 19:23:15 (local)
+# latest,  @ 2026-04-15 19:50:52 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -27118,15 +27118,15 @@ class MarketMaker:
     hround: int = -1000
     hres: int = -1000
 
-    @classmethod
-    def harvester_cost(cls, apos: Position) -> int:
+    @staticmethod
+    def harvester_cost(apos: Position) -> int:
 
         if (
-            cls.hpos is not None 
-            and Globas.round - cls.hround < 5
-            and apos.distance_squared(cls.hpos) < 50
+            MarketMaker.hpos is not None 
+            and Globals.round - MarketMaker.hround < 5
+            and apos.distance_squared(MarketMaker.hpos) < 50
         ):
-            return cls.hres
+            return MarketMaker.hres
 
         
         Profiler.start()
@@ -27326,7 +27326,7 @@ class OreExecutive:
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_turret and not ti.is_building_ally:
                 cls.state[ret] = 2
                 return None
                 
@@ -27334,7 +27334,7 @@ class OreExecutive:
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + 1][ret.y + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_turret and not ti.is_building_ally:
                 cls.state[ret] = 2
                 return None
                 
@@ -27342,7 +27342,7 @@ class OreExecutive:
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_turret and not ti.is_building_ally:
                 cls.state[ret] = 2
                 return None
                 
@@ -27350,7 +27350,7 @@ class OreExecutive:
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + -1][ret.y + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_turret and not ti.is_building_ally:
                 cls.state[ret] = 2
                 return None
                 
@@ -27404,7 +27404,7 @@ class OreExecutive:
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_turret and not ti.is_building_ally:
                 cls.state[ret] = 2
                 return None
                 
@@ -27412,7 +27412,7 @@ class OreExecutive:
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + 1][ret.y + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_turret and not ti.is_building_ally:
                 cls.state[ret] = 2
                 return None
                 
@@ -27420,7 +27420,7 @@ class OreExecutive:
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_turret and not ti.is_building_ally:
                 cls.state[ret] = 2
                 return None
                 
@@ -27428,7 +27428,7 @@ class OreExecutive:
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + -1][ret.y + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_turret and not ti.is_building_ally:
                 cls.state[ret] = 2
                 return None
                 
@@ -27761,7 +27761,6 @@ class Player:
             Debug.tee(f'(I am a {Globals.my_type})')
 
             ct.resign()
-            raise Exception
 
 
 # ============================================================
@@ -31635,6 +31634,8 @@ class Builder(Unit):
 
         takedowninfo = HarvesterAdjacent.get_best_turret_takedown_info()
         takedownpos = None if takedowninfo is None else takedowninfo.position
+
+        mispos = VisionTracker.get_best_misrouted_target()
         
         """
         if RouteToBreach.is_active:
@@ -31644,6 +31645,9 @@ class Builder(Unit):
         if takedownpos is not None:
             Debug.dot(takedownpos, Color.PURPLE)
             return 'BuildGunner', takedownpos, None
+
+        if mispos is not None:
+            return 'Reroute', mispos
             
 
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
