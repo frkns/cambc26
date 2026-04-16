@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-15 19:50:52 (local)
+# latest,  @ 2026-04-15 20:36:35 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -3747,13 +3747,13 @@ class BreachBuild:
         if (Globals.ct.get_global_resources()[0] > Globals.ct.get_breach_cost()[0] and Globals.ct.get_global_resources()[1] > Globals.ct.get_breach_cost()[1]) \
                 and Globals.ct.can_destroy(pos) \
                 and Globals.ct.get_action_cooldown() == 0:
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         """
         if ti.has_building and ti.entity_type != EntityType.GUNNER:
             if (Globals.ct.get_global_resources()[0] > Globals.ct.get_gunner_cost()[0]) \
                 and Globals.ct.can_destroy(pos) \
                 and Globals.ct.get_action_cooldown() == 0:
-                Globals.ct.destroy(pos)
+                BuildManager.destroy(pos)
         
         dirToBuild = pos.direction_to(Symmetry.enemy_core_pos)
         
@@ -3842,7 +3842,7 @@ class BuildManager:
     @staticmethod
     def dbuild_builder_bot(pos, *a):
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Globals.ct.build_builder_bot(pos, *a)
 
 
@@ -3863,7 +3863,7 @@ class BuildManager:
     def mbuild_builder_bot(*a):
         pos = Globals.my_pos
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Pathfinder.move_to(pos, ban_target_pos=True)
         if BuildManager.can_build_builder_bot(*a):
             Globals.ct.build_builder_bot(pos, *a)
@@ -3887,9 +3887,9 @@ class BuildManager:
     def can_afford_builder_bot() -> bool:
         ti_cost, ax_cost = Globals.ct.get_builder_bot_cost()
 
-        ti_cost += int(50 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(50 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -3901,7 +3901,7 @@ class BuildManager:
     @staticmethod
     def dbuild_gunner(pos, *a):
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Globals.ct.build_gunner(pos, *a)
 
 
@@ -3922,7 +3922,7 @@ class BuildManager:
     def mbuild_gunner(*a):
         pos = Globals.my_pos
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Pathfinder.move_to(pos, ban_target_pos=True)
         if BuildManager.can_build_gunner(*a):
             Globals.ct.build_gunner(pos, *a)
@@ -3957,7 +3957,7 @@ class BuildManager:
     @staticmethod
     def dbuild_sentinel(pos, *a):
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Globals.ct.build_sentinel(pos, *a)
 
 
@@ -3978,7 +3978,7 @@ class BuildManager:
     def mbuild_sentinel(*a):
         pos = Globals.my_pos
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Pathfinder.move_to(pos, ban_target_pos=True)
         if BuildManager.can_build_sentinel(*a):
             Globals.ct.build_sentinel(pos, *a)
@@ -4002,9 +4002,9 @@ class BuildManager:
     def can_afford_sentinel() -> bool:
         ti_cost, ax_cost = Globals.ct.get_sentinel_cost()
 
-        ti_cost += int(50 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(50 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4016,7 +4016,7 @@ class BuildManager:
     @staticmethod
     def dbuild_breach(pos, *a):
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Globals.ct.build_breach(pos, *a)
 
 
@@ -4037,7 +4037,7 @@ class BuildManager:
     def mbuild_breach(*a):
         pos = Globals.my_pos
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Pathfinder.move_to(pos, ban_target_pos=True)
         if BuildManager.can_build_breach(*a):
             Globals.ct.build_breach(pos, *a)
@@ -4061,9 +4061,9 @@ class BuildManager:
     def can_afford_breach() -> bool:
         ti_cost, ax_cost = Globals.ct.get_breach_cost()
 
-        ti_cost += int(50 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(50 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4075,7 +4075,7 @@ class BuildManager:
     @staticmethod
     def dbuild_launcher(pos, *a):
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Globals.ct.build_launcher(pos, *a)
 
 
@@ -4096,7 +4096,7 @@ class BuildManager:
     def mbuild_launcher(*a):
         pos = Globals.my_pos
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Pathfinder.move_to(pos, ban_target_pos=True)
         if BuildManager.can_build_launcher(*a):
             Globals.ct.build_launcher(pos, *a)
@@ -4120,9 +4120,9 @@ class BuildManager:
     def can_afford_launcher() -> bool:
         ti_cost, ax_cost = Globals.ct.get_launcher_cost()
 
-        ti_cost += int(50 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(50 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4134,7 +4134,7 @@ class BuildManager:
     @staticmethod
     def dbuild_conveyor(pos, *a):
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Globals.ct.build_conveyor(pos, *a)
 
 
@@ -4154,7 +4154,7 @@ class BuildManager:
     def mbuild_conveyor(*a):
         pos = Globals.my_pos
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Pathfinder.move_to(pos, ban_target_pos=True)
         if BuildManager.can_build_conveyor(*a):
             Globals.ct.build_conveyor(pos, *a)
@@ -4176,9 +4176,9 @@ class BuildManager:
     def can_afford_conveyor() -> bool:
         ti_cost, ax_cost = Globals.ct.get_conveyor_cost()
 
-        ti_cost += int(50 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(50 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4190,7 +4190,7 @@ class BuildManager:
     @staticmethod
     def dbuild_splitter(pos, *a):
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Globals.ct.build_splitter(pos, *a)
 
 
@@ -4210,7 +4210,7 @@ class BuildManager:
     def mbuild_splitter(*a):
         pos = Globals.my_pos
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Pathfinder.move_to(pos, ban_target_pos=True)
         if BuildManager.can_build_splitter(*a):
             Globals.ct.build_splitter(pos, *a)
@@ -4232,9 +4232,9 @@ class BuildManager:
     def can_afford_splitter() -> bool:
         ti_cost, ax_cost = Globals.ct.get_splitter_cost()
 
-        ti_cost += int(50 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(50 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4246,7 +4246,7 @@ class BuildManager:
     @staticmethod
     def dbuild_armoured_conveyor(pos, *a):
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Globals.ct.build_armoured_conveyor(pos, *a)
 
 
@@ -4266,7 +4266,7 @@ class BuildManager:
     def mbuild_armoured_conveyor(*a):
         pos = Globals.my_pos
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Pathfinder.move_to(pos, ban_target_pos=True)
         if BuildManager.can_build_armoured_conveyor(*a):
             Globals.ct.build_armoured_conveyor(pos, *a)
@@ -4288,9 +4288,9 @@ class BuildManager:
     def can_afford_armoured_conveyor() -> bool:
         ti_cost, ax_cost = Globals.ct.get_armoured_conveyor_cost()
 
-        ti_cost += int(50 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(50 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4302,7 +4302,7 @@ class BuildManager:
     @staticmethod
     def dbuild_bridge(pos, *a):
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Globals.ct.build_bridge(pos, *a)
 
 
@@ -4322,7 +4322,7 @@ class BuildManager:
     def mbuild_bridge(*a):
         pos = Globals.my_pos
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Pathfinder.move_to(pos, ban_target_pos=True)
         if BuildManager.can_build_bridge(*a):
             Globals.ct.build_bridge(pos, *a)
@@ -4344,9 +4344,9 @@ class BuildManager:
     def can_afford_bridge() -> bool:
         ti_cost, ax_cost = Globals.ct.get_bridge_cost()
 
-        ti_cost += int(50 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(50 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4358,7 +4358,7 @@ class BuildManager:
     @staticmethod
     def dbuild_harvester(pos, *a):
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Globals.ct.build_harvester(pos, *a)
 
 
@@ -4378,7 +4378,7 @@ class BuildManager:
     def mbuild_harvester(*a):
         pos = Globals.my_pos
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Pathfinder.move_to(pos, ban_target_pos=True)
         if BuildManager.can_build_harvester(*a):
             Globals.ct.build_harvester(pos, *a)
@@ -4401,9 +4401,9 @@ class BuildManager:
     def can_afford_harvester() -> bool:
         ti_cost, ax_cost = Globals.ct.get_harvester_cost()
 
-        ti_cost += int(50 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(50 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4415,7 +4415,7 @@ class BuildManager:
     @staticmethod
     def dbuild_foundry(pos, *a):
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Globals.ct.build_foundry(pos, *a)
 
 
@@ -4435,7 +4435,7 @@ class BuildManager:
     def mbuild_foundry(*a):
         pos = Globals.my_pos
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Pathfinder.move_to(pos, ban_target_pos=True)
         if BuildManager.can_build_foundry(*a):
             Globals.ct.build_foundry(pos, *a)
@@ -4458,9 +4458,9 @@ class BuildManager:
     def can_afford_foundry() -> bool:
         ti_cost, ax_cost = Globals.ct.get_foundry_cost()
 
-        ti_cost += int(50 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(50 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4472,7 +4472,7 @@ class BuildManager:
     @staticmethod
     def dbuild_road(pos, *a):
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Globals.ct.build_road(pos, *a)
 
 
@@ -4492,7 +4492,7 @@ class BuildManager:
     def mbuild_road(*a):
         pos = Globals.my_pos
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Pathfinder.move_to(pos, ban_target_pos=True)
         if BuildManager.can_build_road(*a):
             Globals.ct.build_road(pos, *a)
@@ -4514,9 +4514,9 @@ class BuildManager:
     def can_afford_road() -> bool:
         ti_cost, ax_cost = Globals.ct.get_road_cost()
 
-        ti_cost += int(50 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(50 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4528,7 +4528,7 @@ class BuildManager:
     @staticmethod
     def dbuild_barrier(pos, *a):
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Globals.ct.build_barrier(pos, *a)
 
 
@@ -4548,7 +4548,7 @@ class BuildManager:
     def mbuild_barrier(*a):
         pos = Globals.my_pos
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         Pathfinder.move_to(pos, ban_target_pos=True)
         if BuildManager.can_build_barrier(*a):
             Globals.ct.build_barrier(pos, *a)
@@ -4571,11 +4571,17 @@ class BuildManager:
     def can_afford_barrier() -> bool:
         ti_cost, ax_cost = Globals.ct.get_barrier_cost()
 
-        ti_cost += int(50 * MarketMaker.scale_ratio)
+        ti_cost += int(20 * MarketMaker.scale_ratio)
 
-        assert int(50 * MarketMaker.scale_ratio) >= 0
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
+
+
+    @staticmethod
+    def destroy(pos):
+        Debug.diamond(Color.RED, pos)
+        Globals.ct.destroy(pos)
 
 
 # ============================================================
@@ -5112,22 +5118,19 @@ class DarkForest:
         flow = [0] * 3136
         cc   = [0] * 3136
 
+
         # ── harvest → flow directly ──
         _sh = (0, 12, 6,
                4, 3)
         for h in harvesters:
             _n0 = h -1
-            _t0 = ns[_n0]
-            _e0 = _t0 is not None and _t0.up != h
+            _e0 = ns[_n0] is not None
             _n1 = h +1
-            _t1 = ns[_n1]
-            _e1 = _t1 is not None and _t1.up != h
+            _e1 = ns[_n1] is not None
             _n2 = h -56
-            _t2 = ns[_n2]
-            _e2 = _t2 is not None and _t2.up != h
+            _e2 = ns[_n2] is not None
             _n3 = h +56
-            _t3 = ns[_n3]
-            _e3 = _t3 is not None and _t3.up != h
+            _e3 = ns[_n3] is not None
             cnt = _e0 + _e1 + _e2 + _e3
             if cnt:
                 s = _sh[cnt]
@@ -5135,6 +5138,7 @@ class DarkForest:
                 if _e1: flow[_n1] += s
                 if _e2: flow[_n2] += s
                 if _e3: flow[_n3] += s
+
 
         # ── fix dead parents, indegree, collect active ──  
         active = []
@@ -22781,8 +22785,8 @@ class Debug:
         print()
 
     @staticmethod
-    def diamond(color: tuple = Color.WHITE):
-        c = Globals.my_pos
+    def diamond(color: tuple = Color.WHITE, pos: Position | None = None):
+        c = Globals.my_pos if pos is None else pos
         x, y = c.x, c.y
 
         top    = Position(x, y - 1)
@@ -23012,7 +23016,7 @@ class FoundryBuild:
         if Globals.ct.get_global_resources()[0] > Globals.ct.get_foundry_cost()[0] \
                 and Globals.ct.can_destroy(pos) \
                 and Globals.ct.get_action_cooldown() == 0:
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
         if Globals.ct.can_build_foundry(pos):
             Globals.ct.build_foundry(pos)
 
@@ -24635,7 +24639,7 @@ class HarvesterAdjacent:
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester
-                    info.is_working_shield = ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD
+                    info.is_working_shield = ti.has_building and ti.is_building_ally
 
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
@@ -24753,7 +24757,7 @@ class HarvesterAdjacent:
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester
-                    info.is_working_shield = ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD
+                    info.is_working_shield = ti.has_building and ti.is_building_ally
 
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
@@ -24871,7 +24875,7 @@ class HarvesterAdjacent:
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester
-                    info.is_working_shield = ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD
+                    info.is_working_shield = ti.has_building and ti.is_building_ally
 
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
@@ -24989,7 +24993,7 @@ class HarvesterAdjacent:
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester
-                    info.is_working_shield = ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD
+                    info.is_working_shield = ti.has_building and ti.is_building_ally
 
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
@@ -27180,7 +27184,7 @@ class MoveManager:
         if not Util.on_the_map(pos):
             return False
 
-        if not Globals.ct.can_build_road(pos):
+        if not BuildManager.can_build_road(pos):
             return False
 
         ti: TileInfo = Map.tile_info[pos.x][pos.y]  # type: ignore
@@ -30446,6 +30450,11 @@ class StalkTargeter:
     def get_best_target(cls) -> Position | None:
         Profiler.start()
 
+        my_pos = Globals.my_pos
+
+        if my_pos.distance_squared(Unit.core_pos) > my_pos.distance_squared(Symmetry.enemy_core_pos):
+            return None
+
         if not Map.harvester_set:
             return None
 
@@ -30455,6 +30464,7 @@ class StalkTargeter:
         best_dist: int = 1000000
 
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+
             if ti.has_bot and not ti.is_bot_ally \
                     and VisionTracker.me_is_canonical_ally(pos):
                 dist = bfs20_dist_adj[idx]
@@ -30662,7 +30672,7 @@ class StateReroute:  # for misrouted ally transporters
             Pathfinder.move_to(pos)
 
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
             RouteToCore.set_pos(pos)
 
 
@@ -31111,6 +31121,9 @@ class TransporterInfo:
     is_ally: bool
     node_kind: int
     flowing_into_ally: bool
+    # dist_ally_core: int
+    # dist_enemy_core: int
+    on_ally_side: bool
 
     @staticmethod
     def is_better_trans_atk_target_than(a: TransporterInfo, b: TransporterInfo) -> bool:
@@ -31137,8 +31150,8 @@ class TransporterInfo:
 
     @staticmethod
     def is_better_connect_than(a: TransporterInfo, b: TransporterInfo) -> bool:
-        a_reach = a.easily_reachable and a.easily_buildable
-        b_reach = b.easily_reachable and b.easily_buildable
+        a_reach = a.easily_reachable and a.easily_buildable and a.on_ally_side
+        b_reach = b.easily_reachable and b.easily_buildable and b.on_ally_side
         if a_reach and (not b_reach): return True
         if (not a_reach) and b_reach: return False
 
@@ -31152,6 +31165,8 @@ class TransporterInfo:
     def is_better_misrouted_than(a: TransporterInfo, b: TransporterInfo) -> bool:
         if a.easily_reachable and (not b.easily_reachable): return True
         if (not a.easily_reachable) and b.easily_reachable: return False
+        if a.on_ally_side and (not b.on_ally_side): return True
+        if (not a.on_ally_side) and b.on_ally_side: return False
         return a.bfs_dist < b.bfs_dist
 
 
@@ -31365,6 +31380,8 @@ class VisionTracker:
                     ((not target_ti.has_building) or 
                     (target_ti.entity_type == EntityType.ROAD and target_ti.is_building_ally))
 
+                trans.on_ally_side = pos.distance_squared(Unit.core_pos) < pos.distance_squared(Symmetry.enemy_core_pos)
+
                 if ti.is_building_ally:
                     if target_ti is not None and target_ti.has_building and not target_ti.is_building_ally:
                         cls.misrouted_transporters.append(trans)
@@ -31468,6 +31485,9 @@ class VisionTracker:
                 best = cand
 
         if not best.easily_reachable:
+            return None
+
+        if not best.on_ally_side:
             return None
 
         if not VisionTracker.me_is_canonical_ally(best.position):

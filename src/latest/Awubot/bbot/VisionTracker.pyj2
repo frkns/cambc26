@@ -31,6 +31,9 @@ class TransporterInfo:
     is_ally: bool
     node_kind: int
     flowing_into_ally: bool
+    # dist_ally_core: int
+    # dist_enemy_core: int
+    on_ally_side: bool
 
     @staticmethod
     def is_better_trans_atk_target_than(a: TransporterInfo, b: TransporterInfo) -> bool:
@@ -57,8 +60,8 @@ class TransporterInfo:
 
     @staticmethod
     def is_better_connect_than(a: TransporterInfo, b: TransporterInfo) -> bool:
-        a_reach = a.easily_reachable and a.easily_buildable
-        b_reach = b.easily_reachable and b.easily_buildable
+        a_reach = a.easily_reachable and a.easily_buildable and a.on_ally_side
+        b_reach = b.easily_reachable and b.easily_buildable and b.on_ally_side
         if a_reach and (not b_reach): return True
         if (not a_reach) and b_reach: return False
 
@@ -72,6 +75,8 @@ class TransporterInfo:
     def is_better_misrouted_than(a: TransporterInfo, b: TransporterInfo) -> bool:
         if a.easily_reachable and (not b.easily_reachable): return True
         if (not a.easily_reachable) and b.easily_reachable: return False
+        if a.on_ally_side and (not b.on_ally_side): return True
+        if (not a.on_ally_side) and b.on_ally_side: return False
         return a.bfs_dist < b.bfs_dist
 
 
@@ -169,6 +174,8 @@ class VisionTracker:
                     not target_ti.has_bot and \
                     ((not target_ti.has_building) or 
                     (target_ti.entity_type == EntityType.ROAD and target_ti.is_building_ally))
+
+                trans.on_ally_side = pos.distance_squared(Unit.core_pos) < pos.distance_squared(Symmetry.enemy_core_pos)
 
                 if ti.is_building_ally:
                     if target_ti is not None and target_ti.has_building and not target_ti.is_building_ally:
@@ -274,6 +281,9 @@ class VisionTracker:
                 best = cand
 
         if not best.easily_reachable:
+            return None
+
+        if not best.on_ally_side:
             return None
 
         if not VisionTracker.me_is_canonical_ally(best.position):

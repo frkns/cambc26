@@ -52,7 +52,7 @@ class StateReroute:  # for misrouted ally transporters
             Pathfinder.move_to(pos)
 
         if Globals.ct.can_destroy(pos):
-            Globals.ct.destroy(pos)
+            BuildManager.destroy(pos)
             RouteToCore.set_pos(pos)
 
 
