@@ -273,7 +273,10 @@ class Map:
             is_fresh_enemy_tower = (
                 old_etype != etype and
                 (not is_building_ally or not old_is_building_ally) and
-                (etype in (SENTINEL, LAUNCHER) or old_etype in (SENTINEL, LAUNCHER))
+                (
+                    (etype in (SENTINEL, LAUNCHER) and not is_building_ally) or
+                    (old_etype in (SENTINEL, LAUNCHER) and not old_is_building_ally)
+                )
             )
 
             if is_fresh_enemy_tower:

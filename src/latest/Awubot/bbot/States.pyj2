@@ -119,6 +119,11 @@ class StateBuildLauncher:
             BuildManager.dbuild_launcher(pos)
             return
 
+class StateNoOp:
+    @staticmethod
+    def run(*a, **kw):
+        pass
+
 class StateBuildShield:
     @classmethod
     def run(cls, pos):

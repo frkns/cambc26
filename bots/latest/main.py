@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-16 19:37:29 (local)
+# latest,  @ 2026-04-17 11:55:13 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -451,6 +451,8 @@ class BfsBureau:
 
         ti_ore_adj = cls.ti_ore_adj
 
+        enclosed_region = cls.enclosed_region
+
 
         sx, sy = start.x, start.y
         si = (((sx) + 3) * 56 + ((sy) + 3))
@@ -470,6 +472,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -484,6 +487,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -498,6 +502,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -512,6 +517,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -532,6 +538,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -546,6 +553,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -560,6 +568,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -574,6 +583,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -593,6 +603,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -607,6 +618,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -621,6 +633,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -635,6 +648,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -654,6 +668,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -668,6 +683,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -682,6 +698,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -696,6 +713,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -720,6 +738,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -736,6 +755,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -752,6 +772,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -768,6 +789,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -784,6 +806,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -800,6 +823,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -816,6 +840,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -832,6 +857,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -848,6 +874,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -864,6 +891,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -880,6 +908,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -896,6 +925,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -912,6 +942,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -928,6 +959,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -944,6 +976,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -960,6 +993,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -984,6 +1018,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -1000,6 +1035,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -1016,6 +1052,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -1032,6 +1069,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -1048,6 +1086,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -1064,6 +1103,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -1080,6 +1120,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -1096,6 +1137,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -1124,6 +1166,8 @@ class BfsBureau:
         dist = [0] * 3136
 
 
+        enclosed_region = cls.enclosed_region
+
 
         sx, sy = start.x, start.y
         si = (((sx) + 3) * 56 + ((sy) + 3))
@@ -1143,6 +1187,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1155,6 +1200,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1167,6 +1213,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1179,6 +1226,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1197,6 +1245,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1209,6 +1258,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1221,6 +1271,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1233,6 +1284,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1250,6 +1302,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1262,6 +1315,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1274,6 +1328,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1286,6 +1341,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1303,6 +1359,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1315,6 +1372,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1327,6 +1385,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1339,6 +1398,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1361,6 +1421,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1375,6 +1436,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1389,6 +1451,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1403,6 +1466,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1417,6 +1481,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1431,6 +1496,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1445,6 +1511,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1459,6 +1526,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1473,6 +1541,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1487,6 +1556,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1501,6 +1571,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1515,6 +1586,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1529,6 +1601,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1543,6 +1616,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1557,6 +1631,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1571,6 +1646,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1593,6 +1669,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1607,6 +1684,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1621,6 +1699,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1635,6 +1714,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1649,6 +1729,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1663,6 +1744,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1677,6 +1759,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1691,6 +1774,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1726,6 +1810,8 @@ class BfsBureau:
 
         # ── Same-tile: CENTRE competes with neighbors ──
         if si == ti:
+            print(f'[on top of find_route target with {ban_target=}]')
+            
             if ban_target:
                 _best_c = 1000000
                 _best_d = None
@@ -1734,41 +1820,49 @@ class BfsBureau:
                 _best_d = Direction.CENTRE if center_weight < 1000000 else None
             ni = si + -1
             w = weight[ni]
+            print(0, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.NORTH):
                 _best_c = w
                 _best_d = Direction.NORTH
             ni = si + 55
             w = weight[ni]
+            print(1, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.NORTHEAST):
                 _best_c = w
                 _best_d = Direction.NORTHEAST
             ni = si + 56
             w = weight[ni]
+            print(2, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.EAST):
                 _best_c = w
                 _best_d = Direction.EAST
             ni = si + 57
             w = weight[ni]
+            print(3, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.SOUTHEAST):
                 _best_c = w
                 _best_d = Direction.SOUTHEAST
             ni = si + 1
             w = weight[ni]
+            print(4, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.SOUTH):
                 _best_c = w
                 _best_d = Direction.SOUTH
             ni = si + -55
             w = weight[ni]
+            print(5, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.SOUTHWEST):
                 _best_c = w
                 _best_d = Direction.SOUTHWEST
             ni = si + -56
             w = weight[ni]
+            print(6, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.WEST):
                 _best_c = w
                 _best_d = Direction.WEST
             ni = si + -57
             w = weight[ni]
+            print(7, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.NORTHWEST):
                 _best_c = w
                 _best_d = Direction.NORTHWEST
@@ -2456,73 +2550,49 @@ class BfsBureau:
 
         cls._bfs20_touched_indices = touched_indices
 
-        # Post-process: for each touched tile AND its neighbors, update dist_adj
-        _seen = [False] * 3136
-        adj_list = []
-        _ala = adj_list.append
+            # Post-process: dist_adj[idx] = min dist of neighbours within r²≤20
         for idx in touched_indices:
-            if not _seen[idx]:
-                _seen[idx] = True
-                _ala(idx)
-            ni = idx + -1
-            if not _seen[ni]:
-                _seen[ni] = True
-                _ala(ni)
-            ni = idx + 55
-            if not _seen[ni]:
-                _seen[ni] = True
-                _ala(ni)
-            ni = idx + 56
-            if not _seen[ni]:
-                _seen[ni] = True
-                _ala(ni)
-            ni = idx + 57
-            if not _seen[ni]:
-                _seen[ni] = True
-                _ala(ni)
-            ni = idx + 1
-            if not _seen[ni]:
-                _seen[ni] = True
-                _ala(ni)
-            ni = idx + -55
-            if not _seen[ni]:
-                _seen[ni] = True
-                _ala(ni)
-            ni = idx + -56
-            if not _seen[ni]:
-                _seen[ni] = True
-                _ala(ni)
-            ni = idx + -57
-            if not _seen[ni]:
-                _seen[ni] = True
-                _ala(ni)
-
-        for idx in adj_list:
             best = IMPASSABLE
-            d = distances[idx + -1]
-            if d < best:
-                best = d
-            d = distances[idx + 55]
-            if d < best:
-                best = d
-            d = distances[idx + 56]
-            if d < best:
-                best = d
-            d = distances[idx + 57]
-            if d < best:
-                best = d
-            d = distances[idx + 1]
-            if d < best:
-                best = d
-            d = distances[idx + -55]
-            if d < best:
-                best = d
-            d = distances[idx + -56]
-            if d < best:
-                best = d
-            d = distances[idx + -57]
-            if d < best:
-                best = d
+            ni = idx + -1
+            if (ni - start_index) in valid_offsets:
+                d = distances[ni]
+                if d < best:
+                    best = d
+            ni = idx + 55
+            if (ni - start_index) in valid_offsets:
+                d = distances[ni]
+                if d < best:
+                    best = d
+            ni = idx + 56
+            if (ni - start_index) in valid_offsets:
+                d = distances[ni]
+                if d < best:
+                    best = d
+            ni = idx + 57
+            if (ni - start_index) in valid_offsets:
+                d = distances[ni]
+                if d < best:
+                    best = d
+            ni = idx + 1
+            if (ni - start_index) in valid_offsets:
+                d = distances[ni]
+                if d < best:
+                    best = d
+            ni = idx + -55
+            if (ni - start_index) in valid_offsets:
+                d = distances[ni]
+                if d < best:
+                    best = d
+            ni = idx + -56
+            if (ni - start_index) in valid_offsets:
+                d = distances[ni]
+                if d < best:
+                    best = d
+            ni = idx + -57
+            if (ni - start_index) in valid_offsets:
+                d = distances[ni]
+                if d < best:
+                    best = d
             distances_adj[idx] = best
 
 
@@ -3704,6 +3774,102 @@ class BfsBureau:
                 bit = 1 << (x * stride + y)
                 if not (bits & bit):
                     Debug.dot(Position(x, y), Color.PINK)
+
+
+
+    enclosed_region: list[bool] = [True] * 3136
+
+
+    @classmethod
+    def enclosed_init(cls):
+        cidx = (((Unit.core_pos.x) + 3) * 56 + ((Unit.core_pos.y) + 3))
+        cls.enclosed_region[cidx -1] = False
+        cls.enclosed_region[cidx +55] = False
+        cls.enclosed_region[cidx +56] = False
+        cls.enclosed_region[cidx +57] = False
+        cls.enclosed_region[cidx +1] = False
+        cls.enclosed_region[cidx -55] = False
+        cls.enclosed_region[cidx -56] = False
+        cls.enclosed_region[cidx -57] = False
+        cls.enclosed_region[cidx ] = False
+
+
+    @classmethod
+    def update_enclosed_regions(cls):
+        """
+        Multi-source BFS seeded from ally things in vision,
+        limited to r²≤20 from current position (same bound as bfs20).
+        Once a tile is proven not-enclosed (False) it stays False forever.
+        """
+        enclosed = cls.enclosed_region
+        valid_offsets = cls._BFS20_VALID_OFFSETS
+
+        pos = Globals.my_pos
+        start_index = (((pos.x) + 3) * 56 + ((pos.y) + 3))
+
+        q = deque()
+        _qa = q.append
+
+        passable = set()
+
+        # ── Build local passable set and seed from ally buildings ──
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            if ti.env != Environment.WALL and (not ti.has_building or ti.entity_type in Constants.PASSABLE_SET):
+                passable.add(idx)
+
+            if enclosed[idx] and ti.has_building and ti.is_building_ally and ti.entity_type in Constants.PASSABLE_SET:
+                enclosed[idx] = False
+                _qa(idx)
+
+        # ── 8-directional BFS, capped at r²≤20 ──
+        while q:
+            idx = q.popleft()
+            ni = idx + 1
+            if enclosed[ni] and ni in passable and (ni - start_index) in valid_offsets:
+                enclosed[ni] = False
+                _qa(ni)
+            ni = idx + -1
+            if enclosed[ni] and ni in passable and (ni - start_index) in valid_offsets:
+                enclosed[ni] = False
+                _qa(ni)
+            ni = idx + 56
+            if enclosed[ni] and ni in passable and (ni - start_index) in valid_offsets:
+                enclosed[ni] = False
+                _qa(ni)
+            ni = idx + -56
+            if enclosed[ni] and ni in passable and (ni - start_index) in valid_offsets:
+                enclosed[ni] = False
+                _qa(ni)
+            ni = idx + 57
+            if enclosed[ni] and ni in passable and (ni - start_index) in valid_offsets:
+                enclosed[ni] = False
+                _qa(ni)
+            ni = idx + 55
+            if enclosed[ni] and ni in passable and (ni - start_index) in valid_offsets:
+                enclosed[ni] = False
+                _qa(ni)
+            ni = idx + -55
+            if enclosed[ni] and ni in passable and (ni - start_index) in valid_offsets:
+                enclosed[ni] = False
+                _qa(ni)
+            ni = idx + -57
+            if enclosed[ni] and ni in passable and (ni - start_index) in valid_offsets:
+                enclosed[ni] = False
+                _qa(ni)
+
+
+    @classmethod
+    def is_enclosed(cls, pos: Position) -> bool:
+        return cls.enclosed_region[(((pos.x) + 3) * 56 + ((pos.y) + 3))]
+
+
+    @classmethod
+    def debug_enclosed_regions(cls):
+        """RED = enclosed (unreachable from visible ally buildings)."""
+        enclosed = cls.enclosed_region
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            if enclosed[idx]:
+                Debug.dot(Position(x, y), Color.RED)
 
 
 # ============================================================
@@ -25982,7 +26148,10 @@ class Map:
             is_fresh_enemy_tower = (
                 old_etype != etype and
                 (not is_building_ally or not old_is_building_ally) and
-                (etype in (SENTINEL, LAUNCHER) or old_etype in (SENTINEL, LAUNCHER))
+                (
+                    (etype in (SENTINEL, LAUNCHER) and not is_building_ally) or
+                    (old_etype in (SENTINEL, LAUNCHER) and not old_is_building_ally)
+                )
             )
 
             if is_fresh_enemy_tower:
@@ -26298,7 +26467,10 @@ class Map:
             is_fresh_enemy_tower = (
                 old_etype != etype and
                 (not is_building_ally or not old_is_building_ally) and
-                (etype in (SENTINEL, LAUNCHER) or old_etype in (SENTINEL, LAUNCHER))
+                (
+                    (etype in (SENTINEL, LAUNCHER) and not is_building_ally) or
+                    (old_etype in (SENTINEL, LAUNCHER) and not old_is_building_ally)
+                )
             )
 
             if is_fresh_enemy_tower:
@@ -26614,7 +26786,10 @@ class Map:
             is_fresh_enemy_tower = (
                 old_etype != etype and
                 (not is_building_ally or not old_is_building_ally) and
-                (etype in (SENTINEL, LAUNCHER) or old_etype in (SENTINEL, LAUNCHER))
+                (
+                    (etype in (SENTINEL, LAUNCHER) and not is_building_ally) or
+                    (old_etype in (SENTINEL, LAUNCHER) and not old_is_building_ally)
+                )
             )
 
             if is_fresh_enemy_tower:
@@ -26909,7 +27084,10 @@ class Map:
             is_fresh_enemy_tower = (
                 old_etype != etype and
                 (not is_building_ally or not old_is_building_ally) and
-                (etype in (SENTINEL, LAUNCHER) or old_etype in (SENTINEL, LAUNCHER))
+                (
+                    (etype in (SENTINEL, LAUNCHER) and not is_building_ally) or
+                    (old_etype in (SENTINEL, LAUNCHER) and not old_is_building_ally)
+                )
             )
 
             if is_fresh_enemy_tower:
@@ -27533,6 +27711,32 @@ class MoveManager:
         Globals.my_pos = Globals.ct.get_position()
 
 
+    @classmethod
+    def debug_moves(cls):
+        print('can_move')
+        print(f'N:{cls.can_move(Direction.NORTH)}', end=' ')
+        print(f'NE:{cls.can_move(Direction.NORTHEAST)}', end=' ')
+        print(f'E:{cls.can_move(Direction.EAST)}', end=' ')
+        print(f'SE:{cls.can_move(Direction.SOUTHEAST)}', end=' ')
+        print(f'S:{cls.can_move(Direction.SOUTH)}', end=' ')
+        print(f'SW:{cls.can_move(Direction.SOUTHWEST)}', end=' ')
+        print(f'W:{cls.can_move(Direction.WEST)}', end=' ')
+        print(f'NW:{cls.can_move(Direction.NORTHWEST)}', end=' ')
+        print(f'C:{cls.can_move(Direction.CENTRE)}', end=' ')
+        print()
+        print('can_fill_move')
+        print(f'N:{cls.can_move(Direction.NORTH)}', end=' ')
+        print(f'NE:{cls.can_move(Direction.NORTHEAST)}', end=' ')
+        print(f'E:{cls.can_move(Direction.EAST)}', end=' ')
+        print(f'SE:{cls.can_move(Direction.SOUTHEAST)}', end=' ')
+        print(f'S:{cls.can_move(Direction.SOUTH)}', end=' ')
+        print(f'SW:{cls.can_move(Direction.SOUTHWEST)}', end=' ')
+        print(f'W:{cls.can_move(Direction.WEST)}', end=' ')
+        print(f'NW:{cls.can_move(Direction.NORTHWEST)}', end=' ')
+        print(f'C:{cls.can_move(Direction.CENTRE)}', end=' ')
+        print()
+
+
 # ============================================================
 # OreExecutive
 # ============================================================
@@ -28016,10 +28220,11 @@ class Pathfinder:
         my_pos = Globals.my_pos
 
 
-
         Profiler.start()
         dist, dir = BfsBureau.find_route(Globals.my_pos, target, ban_target_pos)
         Profiler.end(f"""BfsBureau.find_route""")
+
+        print('pf', dir, dist)
 
 
         if dir is None or dist >= 1000000:
@@ -28139,7 +28344,6 @@ class Profiler:
 
         team = Globals.my_team.__str__()[-1]
         s = f"[{Globals.my_team.__str__()[-1]}][{Globals.my_type.value}] {desc}: {cls._format_time(elapsed)}"
-        print(s)
 
     @classmethod
     def end_now(cls, desc: str):
@@ -31085,6 +31289,16 @@ class StateMoveTo:
 
 
 # ============================================================
+# StateNoOp
+# ============================================================
+
+class StateNoOp:
+    @staticmethod
+    def run(*a, **kw):
+        pass
+
+
+# ============================================================
 # StateReroute
 # ============================================================
 
@@ -31958,6 +32172,7 @@ class Builder(Unit):
         Unit.init()
         Explore.init()
         DarkForest.init()
+        BfsBureau.enclosed_init()
         cls.state = 'Explore'
 
 
@@ -31995,6 +32210,11 @@ class Builder(Unit):
         Profiler.start()
         BfsBureau.bfs20()
         Profiler.end(f"""BfsBureau.bfs20""")
+
+        Profiler.start()
+        BfsBureau.update_enclosed_regions()
+        Profiler.end(f"""BfsBureau.update_enclosed_regions""")
+
 
         Profiler.start()
         OreExecutive.fill()

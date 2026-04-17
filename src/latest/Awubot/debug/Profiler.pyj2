@@ -48,7 +48,7 @@ class Profiler:
 
         team = Globals.my_team.__str__()[-1]
         s = f"{{ PREFIX_FSTRING }} {desc}: {cls._format_time(elapsed)}"
-        print(s)
+        {# /* print(s) */ #}
 
     @classmethod
     def end_now(cls, desc: str):

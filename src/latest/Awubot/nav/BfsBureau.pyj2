@@ -214,10 +214,13 @@ class BfsBureau:
         ti_ore_adj = cls.ti_ore_adj
         {% endif %}
 
+        enclosed_region = cls.enclosed_region
+
         {% macro can_visit(ni) -%}
         (
             not visited[{{ ni }}] and
             {{ ni }} not in avoid_pos and
+            not enclosed_region[{{ ni }}] and  # new
             ({{ ni }} in sink_set or (
                 passable[{{ ni }}]
                 {% if avoid_ti_adj %}
@@ -332,6 +335,10 @@ class BfsBureau:
 
         # ── Same-tile: CENTRE competes with neighbors ──
         if si == ti:
+            {% if LOCAL %}
+            print(f'[on top of find_route target with {ban_target=}]')
+            {% endif %}
+            
             if ban_target:
                 _best_c = {{ INF }}
                 _best_d = None
@@ -341,6 +348,7 @@ class BfsBureau:
             {% for dir in range(8) %}
             ni = si + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
             w = weight[ni]
+            # print({{ dir }}, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move({{ directions[dir] }}):
                 _best_c = w
                 _best_d = {{ directions[dir] }}
@@ -566,27 +574,15 @@ class BfsBureau:
 
         cls._bfs20_touched_indices = touched_indices
 
-        # Post-process: for each touched tile AND its neighbors, update dist_adj
-        _seen = [False] * {{ PADDED_GRID_SIZE }}
-        adj_list = []
-        _ala = adj_list.append
+            # Post-process: dist_adj[idx] = min dist of neighbours within r²≤20
         for idx in touched_indices:
-            if not _seen[idx]:
-                _seen[idx] = True
-                _ala(idx)
-            {% for dir in range(8) %}
-            ni = idx + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
-            if not _seen[ni]:
-                _seen[ni] = True
-                _ala(ni)
-            {% endfor %}
-
-        for idx in adj_list:
             best = IMPASSABLE
             {% for dir in range(8) %}
-            d = distances[idx + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}]
-            if d < best:
-                best = d
+            ni = idx + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
+            if (ni - start_index) in valid_offsets:
+                d = distances[ni]
+                if d < best:
+                    best = d
             {% endfor %}
             distances_adj[idx] = best
 # ===---
@@ -695,3 +691,68 @@ class BfsBureau:
                     Debug.dot(Position(x, y), Color.PINK)
 # ===---
 
+
+    enclosed_region: list[bool] = [True] * {{ PADDED_GRID_SIZE }}
+
+# ---===
+    @classmethod
+    def enclosed_init(cls):
+        cidx = {{ encode_pos('Unit.core_pos.x', 'Unit.core_pos.y') }}
+        {% for dir in directions %}
+        {% set dx, dy = dir.delta() %}
+        {% set off = dx * PH + dy %}
+        cls.enclosed_region[cidx {{ sign0(off) }}] = False
+        {% endfor %}
+# ===---
+# ---===
+    @classmethod
+    def update_enclosed_regions(cls):
+        """
+        Multi-source BFS seeded from ally things in vision,
+        limited to r²≤20 from current position (same bound as bfs20).
+        Once a tile is proven not-enclosed (False) it stays False forever.
+        """
+        enclosed = cls.enclosed_region
+        valid_offsets = cls._BFS20_VALID_OFFSETS
+
+        pos = Globals.my_pos
+        start_index = {{ encode_pos('pos.x', 'pos.y') }}
+
+        q = deque()
+        _qa = q.append
+
+        passable = set()
+
+        # ── Build local passable set and seed from ally buildings ──
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            if ti.env != Environment.WALL and (not ti.has_building or ti.entity_type in Constants.PASSABLE_SET):
+                passable.add(idx)
+
+            if enclosed[idx] and ti.has_building and ti.is_building_ally and ti.entity_type in Constants.PASSABLE_SET:
+                enclosed[idx] = False
+                _qa(idx)
+
+        # ── 8-directional BFS, capped at r²≤20 ──
+        while q:
+            idx = q.popleft()
+            {% for off in (1, -1, PH, -PH, PH+1, PH-1, -PH+1, -PH-1) %}
+            ni = idx + {{ off }}
+            if enclosed[ni] and ni in passable and (ni - start_index) in valid_offsets:
+                enclosed[ni] = False
+                _qa(ni)
+            {% endfor %}
+
+
+    @classmethod
+    def is_enclosed(cls, pos: Position) -> bool:
+        return cls.enclosed_region[{{ encode_pos('pos.x', 'pos.y') }}]
+# ===---
+# ---===
+    @classmethod
+    def debug_enclosed_regions(cls):
+        """RED = enclosed (unreachable from visible ally buildings)."""
+        enclosed = cls.enclosed_region
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            if enclosed[idx]:
+                Debug.dot(Position(x, y), Color.RED)
+# ===---
