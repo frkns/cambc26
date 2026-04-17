@@ -27,11 +27,9 @@ class TileInfo:
         'allied_bots_adjacent',
         'has_turret', 'turret_direction',
         'turrets_adjacent', 'ally_turrets_adjacent', 'enemy_turrets_adjacent',
-        'ally_transporters_adjacent', 'enemy_transporters_adjacent',
+        'ally_transporters_adjacent', 'enemy_transporters_adjacent', 
+        'resource_id', 'resource_type'
     )
-
-    resource_id: int | None #if it has a resource in/on it
-    resource_type: ResourceType | None
 
 class Map:
     W: int
