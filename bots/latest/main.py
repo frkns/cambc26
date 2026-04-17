@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # latest,  @ 2026-04-16 17:36:18 (local)
+=======
+# latest,  @ 2026-04-16 20:50:14 (local)
+>>>>>>> main
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -24681,8 +24685,7 @@ class HarvesterAdjacent:
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester
-                    info.is_working_shield = ti.has_building and ti.is_building_ally #and ti.entity_type != EntityType.ROAD
-
+                    info.is_working_shield = ti.has_building and ti.is_building_ally and (ti.entity_type != EntityType.ROAD or not is_harvester_ally)
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
 
@@ -24823,8 +24826,7 @@ class HarvesterAdjacent:
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester
-                    info.is_working_shield = ti.has_building and ti.is_building_ally #and ti.entity_type != EntityType.ROAD
-
+                    info.is_working_shield = ti.has_building and ti.is_building_ally and (ti.entity_type != EntityType.ROAD or not is_harvester_ally)
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
 
@@ -24965,8 +24967,7 @@ class HarvesterAdjacent:
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester
-                    info.is_working_shield = ti.has_building and ti.is_building_ally #and ti.entity_type != EntityType.ROAD
-
+                    info.is_working_shield = ti.has_building and ti.is_building_ally and (ti.entity_type != EntityType.ROAD or not is_harvester_ally)
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
 
@@ -25107,8 +25108,7 @@ class HarvesterAdjacent:
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester
-                    info.is_working_shield = ti.has_building and ti.is_building_ally #and ti.entity_type != EntityType.ROAD
-
+                    info.is_working_shield = ti.has_building and ti.is_building_ally and (ti.entity_type != EntityType.ROAD or not is_harvester_ally)
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
 
@@ -31399,6 +31399,7 @@ class TransporterInfo:
     position: Position
     target: Position
     easily_reachable: bool
+    easily_reachable_adj: bool
     bfs_dist: int
     bfs_dist_target: int
     flow: int
@@ -31649,6 +31650,7 @@ class VisionTracker:
                 trans.position = pos
                 trans.target = ti.target
                 trans.easily_reachable = BfsBureau.bfs20_dist[idx] < 20
+                trans.easily_reachable_adj = BfsBureau.bfs20_dist_adj[idx] < 20
                 trans.bfs_dist = BfsBureau.bfs20_dist[idx]
                 trans.flow = DarkForest.flow[idx]
                 trans.entity_type = ti.entity_type
@@ -31776,7 +31778,7 @@ class VisionTracker:
             if TransporterInfo.is_better_misrouted_than(cand, best):
                 best = cand
 
-        if not best.easily_reachable:
+        if not best.easily_reachable_adj:
             return None
 
         if not best.on_ally_side:
