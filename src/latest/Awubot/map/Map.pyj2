@@ -19,43 +19,16 @@ from Generated import *
 
 
 class TileInfo:
-    {# /* __slots__ = ( */ #}
-        {# /* 'env', 'round', 'easily_passable',  */ #}
-        {# /* 'has_building', 'building_hp', 'is_building_ally', 'entity_type', */ #}
-        {# /* 'has_bot', 'bot_hp', 'is_bot_ally', */ #}
-    {# /* ) */ #}
-
-    env: Environment
-    round: int
-
-    easily_passable: bool  # (allied core)/road/conveyor/bridge/splitter, maybe deprecated?
-    harvester_adjacent: bool  # specifically titanium harvester_adjacent, don't care about ax
-
-    has_building: bool  # non-marker building
-    building_hp: int
-    building_id: int
-    is_building_ally: bool  # lol, includes markers
-    entity_type: EntityType | None
-    target: Position | None  # for transporters
-
-    has_bot: bool  # non-self builder bot
-    bot_hp: int
-    bot_id: int
-    is_bot_ally: bool
-    
-    allied_bots_adjacent: int # number of adjacent allied bots
-
-    has_turret: bool
-    turret_direction: Direction
-
-    # turret
-    turrets_adjacent: int
-    ally_turrets_adjacent: int
-    enemy_turrets_adjacent: int
-
-    # harvester stuff
-    ally_transporters_adjacent: int
-    enemy_transporters_adjacent: int
+    __slots__ = (
+        'env', 'round', 'easily_passable', 'harvester_adjacent',
+        'has_building', 'building_hp', 'building_id', 'is_building_ally',
+        'entity_type', 'target', 'resource_type',
+        'has_bot', 'bot_hp', 'bot_id', 'is_bot_ally',
+        'allied_bots_adjacent',
+        'has_turret', 'turret_direction',
+        'turrets_adjacent', 'ally_turrets_adjacent', 'enemy_turrets_adjacent',
+        'ally_transporters_adjacent', 'enemy_transporters_adjacent',
+    )
 
 class Map:
     W: int
@@ -205,12 +178,11 @@ class Map:
 
             ti.easily_passable = False
 
-            if etype == EntityType.MARKER:
-                ti.is_building_ally = ct.get_team(building_id) == Globals.my_team
+            if etype == EntityType.MARKER or ti.has_building:
+                _building_team = ct.get_team(building_id)
+                ti.is_building_ally = _building_team == Globals.my_team
 
             if ti.has_building:
-                ti.is_building_ally = ct.get_team(building_id) == Globals.my_team
-
                 ti.building_hp = ct.get_hp(building_id)
                 if (etype in Constants.PASSABLE_SET or (
                         etype == EntityType.CORE

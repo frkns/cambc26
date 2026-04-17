@@ -21,24 +21,13 @@ from Generated import *
 # for choosing build position
 
 class AdjacentInfo:
-    position: Position
-    bfs_dist: int
-    bfs_dist_adj: int
-    is_harvester_ally: bool
-    ti: TileInfo
-    consider_route: bool
-    dist_to_ally_core: int
-    has_ally_transporter: bool
-    easily_buildable: bool  # nothing or ally road
-    
-    is_canonical_ally_harvester: bool # if we're the canonical ally to the harvester
-    is_working_shield: bool 
-
-    harvester_ally_turrets_adjacent: int  # harvester tile, 4 dirs
-    harvester_enemy_turrets_adjacent: int 
-
-    enemy_turrets_adjacent: int  # this tile, 8 dirs
-    ally_turrets_adjacent: int
+    __slots__ = (
+        'position', 'bfs_dist', 'bfs_dist_adj', 'is_harvester_ally', 'ti',
+        'consider_route', 'dist_to_ally_core', 'has_ally_transporter',
+        'easily_buildable', 'is_canonical_ally_harvester', 'is_working_shield',
+        'harvester_ally_turrets_adjacent', 'harvester_enemy_turrets_adjacent',
+        'enemy_turrets_adjacent', 'ally_turrets_adjacent',
+    )
 
 
     @staticmethod

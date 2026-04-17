@@ -19,18 +19,11 @@ from Generated import *
 
 
 class HealTargetInfo:
-    position: Position
-    building_heal: int
-    building_hp: int
-    bot_heal: int
-    bot_hp: int
-    harvester_adjacent: bool
-    is_transporter: bool
-    is_turret: bool
-    has_enemy_bot: bool
-    bfs_dist_adj: int
-    entity_type: EntityType
-    is_turret: bool
+    __slots__ = (
+        'position', 'building_heal', 'building_hp', 'bot_heal', 'bot_hp',
+        'harvester_adjacent', 'is_transporter', 'is_turret',
+        'has_enemy_bot', 'bfs_dist_adj', 'entity_type',
+    )
 
     @staticmethod
     def is_better_than(a: HealTargetInfo, b: HealTargetInfo) -> bool:
