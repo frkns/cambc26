@@ -98,7 +98,7 @@ class StateRush:
         if type == 'M': #move
             Pathfinder.move_to(pos)
         else: #build
-            OreExecutive.go_build_harvester(pos)
+            OreExecutive.go_build_harvester(pos,True)
 
 class StateBuildSentinel:
     @classmethod

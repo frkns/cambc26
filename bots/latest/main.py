@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-16 23:50:18 (local)
+# latest,  @ 2026-04-17 00:04:15 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -27613,7 +27613,7 @@ class OreExecutive:
 
 
     @classmethod
-    def go_build_harvester(cls, pos):
+    def go_build_harvester(cls, pos, isAttack = False):
         Pathfinder.move_to(pos, ban_target_pos=True)
 
         if Pathfinder.given_up:
@@ -27630,6 +27630,7 @@ class OreExecutive:
             cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
             if cand is not None:
                 RouteToCore.set_pos(cand.position)
+                RouteToCore.isAttack = isAttack
 
     @classmethod
     def go_build_ax_harvester(cls, pos):
@@ -28273,6 +28274,7 @@ class RouteToCore:
     prevRoute = []
     backTracking = False
     pathFindingKill: set[int] = set()
+    isAttack = False
 
     @classmethod
     def set_pos(cls, pos: Position, fullReset = True):
@@ -28295,27 +28297,40 @@ class RouteToCore:
     @classmethod
     def try_build_route(cls):
         assert cls.is_active
-
-        # short search to core in case it's close
-        bridge_dist, first_target = BfsBureau.find_bridge_route(
-            cls.from_pos,
-            Unit.core_pos_set,
-            max_iter=0,
-            avoid_pos = cls.pathFindingKill
-        )
-        # otherwise allow all sinks
-        if first_target is None:
+        bridge_dist = 0
+        first_target = None
+        if cls.isAttack:
+            coolPos = RushTargeter.enemy_core_turret_target(GameConstants.SENTINEL_VISION_RADIUS_SQ)
+            if coolPos == None:
+                cls.give_up(True)
+                StateMoveTo.run(Explore.get_target()) # new
+            valid_pos_set = set([coolPos]) 
             bridge_dist, first_target = BfsBureau.find_bridge_route(
                 cls.from_pos,
-                DarkForest.core_sink_set,  # was sink_set
+                valid_pos_set,
                 avoid_pos = cls.pathFindingKill
             )
+        else:
+            # short search to core in case it's close
+            bridge_dist, first_target = BfsBureau.find_bridge_route(
+                cls.from_pos,
+                Unit.core_pos_set,
+                max_iter=0,
+                avoid_pos = cls.pathFindingKill
+            )
+            # otherwise allow all sinks
+            if first_target is None:
+                bridge_dist, first_target = BfsBureau.find_bridge_route(
+                    cls.from_pos,
+                    DarkForest.core_sink_set,  # was sink_set
+                    avoid_pos = cls.pathFindingKill
+                )
 
         print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("first_target is None: giving up")
-            if cls.give_up():
+            if cls.give_up(True):
                 StateMoveTo.run(Explore.get_target()) # new
             return
 
@@ -28362,10 +28377,10 @@ class RouteToCore:
 
 
     @classmethod
-    def give_up(cls):
+    def give_up(cls, hard = False):
         from_pos = cls.from_pos
         enc = (((from_pos.x) + 3) * 56 + ((from_pos.y) + 3))
-        if len(cls.prevRoute) == 0 or DarkForest.node_kind[enc] in \
+        if hard or len(cls.prevRoute) == 0 or DarkForest.node_kind[enc] in \
                 (3, 1):
             cls.is_active = False
             cls.killed.add(from_pos)
@@ -28387,7 +28402,7 @@ class RouteToCore:
 
     @classmethod
     def do_routing(cls):
-        print("RouteToCore: doing routing from", cls.from_pos)
+        print("RouteToCore: doing routing from", cls.from_pos,"Attack route",cls.isAttack)
         if cls.should_give_up():
             if cls.give_up():
                 StateMoveTo.run(Explore.get_target()) # new
@@ -30989,7 +31004,7 @@ class StateRush:
         if type == 'M': #move
             Pathfinder.move_to(pos)
         else: #build
-            OreExecutive.go_build_harvester(pos)
+            OreExecutive.go_build_harvester(pos,True)
 
 
 # ============================================================
