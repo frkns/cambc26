@@ -21,12 +21,10 @@ from Generated import *
 # for choosing sitter position
 
 class SitterTargetInfo:
-    position: Position
-    dist_enemy_core: int # distance to the enemy core
-    has_ally_transporter: bool # whether the tile has an allied transporter
-    enemy_bots_nearby: int # enemy turrets on nearby tiles
-    harvester_nearby: int # if there is a harvesters within distance sqrt(8)
-    launchers_adjacent: int # number of adjacent allied launchers
+    __slots__ = (
+        'position', 'dist_enemy_core', 'has_ally_transporter',
+        'enemy_bots_nearby', 'harvester_nearby', 'launchers_adjacent',
+    )
 
     @staticmethod
     def is_better_than(a: SitterTargetInfo, b: SitterTargetInfo):

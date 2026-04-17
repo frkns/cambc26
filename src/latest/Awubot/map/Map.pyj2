@@ -19,43 +19,17 @@ from Generated import *
 
 
 class TileInfo:
-    {# /* __slots__ = ( */ #}
-        {# /* 'env', 'round', 'easily_passable',  */ #}
-        {# /* 'has_building', 'building_hp', 'is_building_ally', 'entity_type', */ #}
-        {# /* 'has_bot', 'bot_hp', 'is_bot_ally', */ #}
-    {# /* ) */ #}
-
-    env: Environment
-    round: int
-
-    easily_passable: bool  # (allied core)/road/conveyor/bridge/splitter, maybe deprecated?
-    harvester_adjacent: bool  # specifically titanium harvester_adjacent, don't care about ax
-
-    has_building: bool  # non-marker building
-    building_hp: int
-    building_id: int
-    is_building_ally: bool  # lol, includes markers
-    entity_type: EntityType | None
-    target: Position | None  # for transporters
-
-    has_bot: bool  # non-self builder bot
-    bot_hp: int
-    bot_id: int
-    is_bot_ally: bool
-    
-    allied_bots_adjacent: int # number of adjacent allied bots
-
-    has_turret: bool
-    turret_direction: Direction
-
-    # turret
-    turrets_adjacent: int
-    ally_turrets_adjacent: int
-    enemy_turrets_adjacent: int
-
-    # harvester stuff
-    ally_transporters_adjacent: int
-    enemy_transporters_adjacent: int
+    __slots__ = (
+        'env', 'round', 'easily_passable', 'harvester_adjacent',
+        'has_building', 'building_hp', 'building_id', 'is_building_ally',
+        'entity_type', 'target', 'resource_type',
+        'has_bot', 'bot_hp', 'bot_id', 'is_bot_ally',
+        'allied_bots_adjacent',
+        'has_turret', 'turret_direction',
+        'turrets_adjacent', 'ally_turrets_adjacent', 'enemy_turrets_adjacent',
+        'ally_transporters_adjacent', 'enemy_transporters_adjacent',
+        'resource_id', 'resource_type'
+    )
 
 class Map:
     W: int
@@ -73,6 +47,7 @@ class Map:
     harvester_set: set[int] = set()
     ti_harvester_set: set[int] = set()
     ax_harvester_set: set[int] = set()
+    enemy_route_set: set[int] = set()
 
     # cleared every turn
     new_syms: list[Position] = []
@@ -125,6 +100,8 @@ class Map:
         get_direction = ct.get_direction
         get_bridge_target = ct.get_bridge_target
         get_marker_value = ct.get_marker_value
+        get_stored_resource_id = ct.get_stored_resource_id
+        get_stored_resource = ct.get_stored_resource
 
         # cache constants
         PASSABLE_SET = Constants.PASSABLE_SET
@@ -170,6 +147,7 @@ class Map:
                 ti.has_building = False
                 ti.has_turret = False
                 ti.entity_type = None
+                ti.resource_id = None
                 ti.resource_type = None
             proc_nearby_tiles.append(
                 (pos, x, y, idx, ti)
@@ -207,6 +185,8 @@ class Map:
                 opp_ti.entity_type = None
                 opp_ti.target = None
                 opp_ti.allied_bots_adjacent = 0
+                opp_ti.resource_id = None
+                opp_ti.resource_type = None
                 tile_info[ox][oy] = opp_ti
                 new_syms.append(Position(ox, oy))
                 BfsBureau.ti_ore_adj[{{ encode_pos('ox', 'oy') }}] = BfsBureau.ti_ore_adj[pos_idx]
@@ -220,7 +200,7 @@ class Map:
             ti.building_id = building_id
             ti.bot_id = bot_id
 
-            # --- entity type + team in one block ---
+            # --- entity type + team in one block, no redundant get_team calls ---
             if building_id is not None:
                 etype = get_entity_type(building_id)
                 is_building_ally = get_team(building_id) == my_team
@@ -261,12 +241,22 @@ class Map:
                 tpos = pos.add(get_direction(building_id))
                 ti.target = tpos
                 DarkForest.add_edge(pos_idx, {{ encode_pos('tpos.x', 'tpos.y') }})
+                # resource tracking added from main
+                rid = get_stored_resource_id(building_id)
+                ti.resource_id = rid
+                ti.resource_type = get_stored_resource(building_id) if rid is not None else None
             elif etype == BRIDGE:
                 tpos = get_bridge_target(building_id)
                 ti.target = tpos
                 DarkForest.add_edge(pos_idx, {{ encode_pos('tpos.x', 'tpos.y') }})
+                # resource tracking added from main
+                rid = get_stored_resource_id(building_id)
+                ti.resource_id = rid
+                ti.resource_type = get_stored_resource(building_id) if rid is not None else None
             else:
                 ti.target = None
+                ti.resource_id = None
+                ti.resource_type = None
 
                 if etype in (SENTINEL, GUNNER, BREACH, FOUNDRY):
                     if etype in (SENTINEL, GUNNER, BREACH):
@@ -324,9 +314,6 @@ class Map:
         cls.num_enemies = num_enemies
 
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
-        # harvester_adjacent only needs to check cardinal neighbors for titanium harvesters
-        # allied_bots_adjacent checks 8-neighbors + self
-
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
             # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
             row_xm1 = tile_info[x - 1]
@@ -334,8 +321,8 @@ class Map:
             row_xp1 = tile_info[x + 1]
 
             # harvester_adjacent: cardinal only, titanium harvesters
-            nti = row_xm1[y];  h1 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
-            nti = row_xp1[y];  h2 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_xm1[y];   h1 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_xp1[y];   h2 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
             nti = row_x[y - 1]; h3 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
             nti = row_x[y + 1]; h4 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
             ti.harvester_adjacent = h1 or h2 or h3 or h4
@@ -345,15 +332,15 @@ class Map:
             yp1 = y + 1
 
             cnt = 0
-            nti = row_x[y];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
-            nti = row_xm1[y];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
-            nti = row_xp1[y];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
-            nti = row_x[ym1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
-            nti = row_x[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
-            nti = row_xm1[ym1]; cnt += nti is not None and nti.has_bot and nti.is_bot_ally
-            nti = row_xp1[ym1]; cnt += nti is not None and nti.has_bot and nti.is_bot_ally
-            nti = row_xm1[yp1]; cnt += nti is not None and nti.has_bot and nti.is_bot_ally
-            nti = row_xp1[yp1]; cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_x[y];      cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[y];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[y];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_x[ym1];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_x[yp1];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[ym1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[ym1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
             ti.allied_bots_adjacent = cnt
 
             # turret/transporter adjacency: only for harvesters
@@ -400,10 +387,8 @@ class Map:
                 ti = tile_info[x][y]
                 
                 if ti is None:
-                    # Unseen tile
                     Debug.dot(pos, Color.BLACK)
                 else:
-                    # Seen tile - only show walls and ores
                     env = ti.env
                     if env == Environment.WALL:
                         Debug.dot(pos, Color.GREEN)
@@ -457,6 +442,8 @@ class Map:
                     opp_ti.entity_type = None
                     opp_ti.target = None
                     opp_ti.allied_bots_adjacent = 0
+                    opp_ti.resource_id = None
+                    opp_ti.resource_type = None
                     orow[oy] = opp_ti
                     BfsBureau.ti_ore_adj[{{ encode_pos('ox', 'oy') }}] = BfsBureau.ti_ore_adj[{{ encode_pos('x', 'y') }}]
                     new_syms.append(Position(ox, oy))

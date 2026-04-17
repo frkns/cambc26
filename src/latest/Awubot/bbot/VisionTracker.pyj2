@@ -19,21 +19,12 @@ from Generated import *
 
 
 class TransporterInfo:
-    ti: TileInfo
-    position: Position
-    target: Position
-    easily_reachable: bool
-    bfs_dist: int
-    bfs_dist_target: int
-    flow: int
-    entity_type: EntityType
-    harvester_adjacent: bool
-    is_ally: bool
-    node_kind: int
-    flowing_into_ally: bool
-    # dist_ally_core: int
-    # dist_enemy_core: int
-    on_ally_side: bool
+    __slots__ = (
+        'ti', 'position', 'target', 'easily_reachable', 'easily_reachable_adj',
+        'bfs_dist', 'bfs_dist_target', 'flow', 'entity_type',
+        'harvester_adjacent', 'is_ally', 'node_kind', 'flowing_into_ally',
+        'on_ally_side', 'easily_buildable', 'sight_flowing'
+    )
 
     @staticmethod
     def is_better_trans_atk_target_than(a: TransporterInfo, b: TransporterInfo) -> bool:
@@ -67,6 +58,8 @@ class TransporterInfo:
 
         if a.flow != b.flow:
             return a.flow > b.flow
+        if a.sight_flowing != b.sight_flowing:
+            return a.sight_flowing
 
         return a.bfs_dist_target < b.bfs_dist_target
 
@@ -108,9 +101,7 @@ class BotInfo(NamedTuple):
 
 
 class RoadInfo:
-    position: Position
-    hp: int
-    bfs_dist: int
+    __slots__ = ('position', 'hp', 'bfs_dist')
 
     def is_better_road_atk_target_than(a: RoadInfo, b: RoadInfo) -> bool:
         if a.bfs_dist != b.bfs_dist:
@@ -154,11 +145,13 @@ class VisionTracker:
                 trans.position = pos
                 trans.target = ti.target
                 trans.easily_reachable = BfsBureau.bfs20_dist[idx] < 20
+                trans.easily_reachable_adj = BfsBureau.bfs20_dist_adj[idx] < 20
                 trans.bfs_dist = BfsBureau.bfs20_dist[idx]
                 trans.flow = DarkForest.flow[idx]
                 trans.entity_type = ti.entity_type
                 trans.harvester_adjacent = ti.harvester_adjacent
                 trans.is_ally = ti.is_building_ally
+                trans.sight_flowing = DarkForest.sight_flowing[idx]
 
                 trans.node_kind = DarkForest.node_kind[idx]
                 trans.flowing_into_ally = trans.node_kind in \
@@ -184,10 +177,11 @@ class VisionTracker:
                 else:
                     cls.enemy_transporters.append(trans)
 
-                if DarkForest.node_kind[idx] == 0 and DarkForest.flow[idx] > 0:
+                if DarkForest.node_kind[idx] == 0 and (DarkForest.flow[idx] > 0 or DarkForest.sight_flowing[idx]):
                     if DarkForest.nodes[idx].up is None:
                         if Globals.ct.get_stored_resource(trans.ti.building_id) in (ResourceType.TITANIUM, ResourceType.REFINED_AXIONITE):
                             cls.disconnected_roots.append(trans)
+                            Globals.ct.draw_indicator_dot(trans.position,255,0,0)
 
 
 
@@ -281,7 +275,7 @@ class VisionTracker:
             if TransporterInfo.is_better_misrouted_than(cand, best):
                 best = cand
 
-        if not best.easily_reachable:
+        if not best.easily_reachable_adj:
             return None
 
         if not best.on_ally_side:

@@ -31,6 +31,7 @@ class RouteToCore:
         if {{ encode_pos('pos.x', 'pos.y') }} in DarkForest.core_sink_set:  # was sink_set
             cls.is_active = False
             cls.prevRoute.clear()
+            cls.backTracking = False
             return
 
         if fullReset:
@@ -124,6 +125,7 @@ class RouteToCore:
             print("RouteToCore: giving up, no previous route to backtrack to or finished")
             if Pathfinder.given_up:
                 cls.pathFindingKill.add(enc)
+            cls.backTracking = False
             return True
         else:
             cls.killed.add(from_pos)

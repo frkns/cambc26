@@ -40,7 +40,9 @@ class DarkForest:
     sink_set: set[int]
     leaf_set: set[int]   # titanium leaf nodes — valid foundry sites
     core_sink_set: set[int] = set()  # sink_set filtered to ALLY_CORE only
-
+    sight_last_id: list[int]     # last resource-ID seen at this position; -1 = never
+    sight_last_round: list[int]  # game-round when that ID was last observed
+    sight_flowing: list[bool]    # sight-based flow: True if fresh valid resource seen recently
 
     @classmethod
     def init(cls):
@@ -212,14 +214,14 @@ class DarkForest:
                 {% endfor %}
 
 
-        # ── fix dead parents, indegree, collect active ──  
+        # ── fix dead parents, indegree, collect active ──
         active = []
         aa = active.append
         {% for i in pos2500 %}
         if (t := ns[{{ i }}]) is not None:
             aa({{ i }})
             if (p := t.up) is not None:
-                if ns[p] is not None and p not in harvesters:  # only change
+                if ns[p] is not None and p not in harvesters:
                     cc[p] += 1
                 else:
                     t.up = None
@@ -255,15 +257,12 @@ class DarkForest:
         for u in reversed(q):
             p = ns[u].up
             if p is None:
-                # root — use own kind
                 pressure[u] = flow[u]
                 k = kind[u]
             elif kind[p]:
-                # direct child of a sink — per-branch pressure reset
                 pressure[u] = flow[u]
                 k = kind[p]
             else:
-                # interior — inherit from parent
                 pressure[u] = pressure[p]
                 k = nk[p]
             nk[u] = k
@@ -276,13 +275,72 @@ class DarkForest:
         cls.sink_set = sink_set
 
         # ── titanium leaf set ──
-        # Leaves in the ally-core subtree are the only valid foundry sites.
-        # Exclude the cores themselves (isolated core with no children would
-        # pass the cc==0 test but is obviously not a foundry site).
         _ti_leaves: set[int] = set()
         for u in _initial_leaves:
             if nk[u] == {{ Kind.ALLY_CORE }} and u not in core_pos_set:
                 _ti_leaves.add(u)
         cls.leaf_set = _ti_leaves
         cls.compute_core_sink_set()
+
+        # ════════════════════════════════════════════════════════════════
+        # ── sight-based flow tracking (independent of pressure system) ──
+        # A position is sight_flowing if the SAME valid resource ID has
+        # been observed there within the last SIGHT_WINDOW calls to fcompute.
+        # Seeing a different ID resets the window for that position.
+        # sight_flowing propagates leaf→root along existing tree edges,
+        # matching the physical direction resources travel on conveyors/bridges.
+        # ════════════════════════════════════════════════════════════════
+
+        _SIGHT_WINDOW = 4
+        _valid_rt = (ResourceType.TITANIUM, ResourceType.REFINED_AXIONITE)
+
+        # Lazy-init persistent arrays (survive across fcompute calls).
+        # sight_last_round uses -_SIGHT_WINDOW - 1 so any position that has
+        # never been seen is already expired on the very first call.
+        if not hasattr(cls, 'sight_last_id'):
+            cls.sight_last_id    = [-1]  * {{ N }}
+            cls.sight_last_round = [-_SIGHT_WINDOW - 1] * {{ N }}
+
+        _sight_last_id    = cls.sight_last_id
+        _sight_last_round = cls.sight_last_round
+
+        # Get current round once; used as the timestamp for this call.
+        _cur_round = Globals.round
+
+        # ── update sight tracking from currently visible tiles ──
+        # Only tiles in Map.proc_nearby_tiles were actually observed this turn.
+        # For all other positions we simply let the window expire naturally.
+        for _pos, _x, _y, _idx, _ti in Map.proc_nearby_tiles:
+            _rt = _ti.resource_type
+            if _rt in _valid_rt:
+                _rid = _ti.resource_id
+                if _rid is not None:
+                    if _sight_last_id[_idx] != _rid:
+                        # Different (or first) resource ID → reset window origin.
+                        # The 4-round window starts fresh from this observation.
+                        _sight_last_id[_idx] = _rid
+                    # Whether new or same ID, record that we saw it this round.
+                    _sight_last_round[_idx] = _cur_round
+            # Tiles with no valid resource are intentionally left alone so their
+            # window can expire on its own; we do NOT zero sight_last_round here
+            # because a conveyor may be momentarily empty between deliveries.
+
+        # ── base sight_flowing: is each tree node's own data still fresh? ──
+        sight_flowing = [False] * {{ N }}
+        for u in active:
+            if (
+                _sight_last_id[u] != -1
+                and (_cur_round - _sight_last_round[u]) <= _SIGHT_WINDOW
+            ):
+                sight_flowing[u] = True
+
+        # ── propagate sight_flowing leaf→root (same direction resources travel) ──
+        # q is already in leaf-first topological order from the bottom-up BFS above.
+        for u in q:
+            if sight_flowing[u]:
+                p = ns[u].up
+                if p is not None:
+                    sight_flowing[p] = True
+
+        cls.sight_flowing = sight_flowing
 # ===---

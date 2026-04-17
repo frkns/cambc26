@@ -22,7 +22,7 @@ class BuildManager:
     {% set ti_reserve_map = {
         EntityType.GUNNER: 0,
         EntityType.SENTINEL: 20,
-        EntityType.LAUNCHER: 20,
+        EntityType.LAUNCHER: 0,
     } %}
     {% set ti_reserve_default = 20 %}
 
@@ -131,7 +131,7 @@ class BuildManager:
         
         {% if etype in (EntityType.CONVEYOR, EntityType.BRIDGE) %}
         # est income is at least 10 almost always because of passive income
-        if MarketMaker.est_income > 10:
+        if MarketMaker.est_income > 10 and Globals.round > 50:
             ti_cost += int({{ req }} * MarketMaker.scale_ratio)
         {% else %}
         ti_cost += int({{ req }} * MarketMaker.scale_ratio)
