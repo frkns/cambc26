@@ -1,0 +1,104 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+{% from 'bbot/mode.j2' import Mode %}
+
+
+class Constants:
+    ALL_DIRECTIONS: list[Direction] = (
+        Direction.NORTH,
+        Direction.NORTHEAST,
+        Direction.EAST,
+        Direction.SOUTHEAST,
+        Direction.SOUTH,
+        Direction.SOUTHWEST,
+        Direction.WEST,
+        Direction.NORTHWEST,
+        Direction.CENTRE
+    )
+    DIRECTIONS: list[Direction] = (
+        Direction.NORTH,
+        Direction.NORTHEAST,
+        Direction.EAST,
+        Direction.SOUTHEAST,
+        Direction.SOUTH,
+        Direction.SOUTHWEST,
+        Direction.WEST,
+        Direction.NORTHWEST,
+    )
+    CARDINAL_DIRECTIONS: list[Direction] = (
+        Direction.NORTH,
+        Direction.EAST,
+        Direction.SOUTH,
+        Direction.WEST,
+    )
+    TRANSPORTERS_SET: set[EntityType] = {
+        EntityType.CONVEYOR,
+        EntityType.ARMOURED_CONVEYOR,
+        EntityType.BRIDGE,
+        EntityType.SPLITTER,
+    }
+    ATTACKABLE_TRANSPORTERS_SET: set[EntityType] = {
+        EntityType.CONVEYOR,  # sans the ARMOURED_CONVEYOR
+        EntityType.BRIDGE,
+        EntityType.SPLITTER,
+    }
+
+    PASSABLE_SET: set[EntityType] = {
+        EntityType.ROAD,
+        EntityType.CONVEYOR,
+        EntityType.ARMOURED_CONVEYOR,
+        EntityType.BRIDGE,
+        EntityType.SPLITTER,
+    }
+
+    PASSABLE_ATTACKABLE_SET: set[EntityType] = {
+        EntityType.ROAD,
+        EntityType.CONVEYOR,
+        EntityType.BRIDGE,
+        EntityType.SPLITTER,
+    }
+
+    TURRET_SET: set[EntityType] = {
+        EntityType.SENTINEL,
+        EntityType.GUNNER,
+        EntityType.LAUNCHER,
+        EntityType.BREACH,
+    }
+
+    AXIONITE_START: int = 100 # Start producing axionite at this round
+
+    RUSH_OVER: int = 500 # stop rush attempt now
+
+    MAX_HP_MAP: dict[EntityType, int] = {
+        {% for etype in EntityType %}
+        {% set ST = etype.value|upper %}
+        {{ etype }}: {{ eval('GameConstants.' ~ ST ~ '_MAX_HP') }},
+        {% endfor %}
+    }
+
+    SENTINEL_PATTERN: list[list[tuple[int, int]]] = (
+        {% for dir_row in sentinel_pattern %}
+        {{ tuple(dir_row) }},
+        {% endfor %}
+    )
+
+    SENTINEL_REVERSE: dict[tuple, tuple[int, ...]] = {
+        {% for pos, dir_indices in sentinel_reverse.items() %}
+        {{ pos }}: {{ tuple(dir_indices) }},
+        {% endfor %}
+    }

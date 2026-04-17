@@ -1,0 +1,76 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+
+class FoundryBuild:
+    @classmethod
+    def _prune_branch(cls, encoded_pos: int):
+        """
+        Prunes branch so successive foundries would not be built here. 
+        """
+        nodes = DarkForest.nodes
+        kind  = DarkForest.kind
+        planned = RouteToFoundry.planned_foundry_positions
+
+        node = nodes[encoded_pos]
+        if node is None:
+            return
+        # Capture parent BEFORE register_sink wipes .up = None
+        current = node.up
+        while current is not None:
+            if kind[current] != 0:
+                break  # hit an existing sink
+            planned.add(current)
+            n = nodes[current]
+            if n is None or n.up is None:
+                break
+            current = n.up
+
+    @classmethod
+    def build_foundry(cls, pos):
+        print("Trying to build foundry at", pos)
+        print("Foundry cost:", Globals.ct.get_foundry_cost()[0])
+
+        Pathfinder.move_to(pos, ban_target_pos=True)
+        if Globals.ct.get_global_resources()[0] > Globals.ct.get_foundry_cost()[0] \
+                and Globals.ct.can_destroy(pos) \
+                and Globals.ct.get_action_cooldown() == 0:
+            BuildManager.destroy(pos)
+        if Globals.ct.can_build_foundry(pos):
+            Globals.ct.build_foundry(pos)
+
+            encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
+
+            # Block every ancestor up to the next existing sink from being
+            # chosen as a future foundry site (they would otherwise become
+            # the new leaf on this arm after the next fcompute).
+            cls._prune_branch(encoded)
+
+            # Register the new foundry as a sink so fcompute updates the tree.
+            DarkForest.register_sink(encoded, 3)
+
+            RouteToFoundry._foundry_target = None
+
+            cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
+            if cand is not None and cand.ti.entity_type not in Constants.TRANSPORTERS_SET:
+                RouteToBreach.set_pos(cand.position) # begin breach routing
+            return True
+        return False
+
+    @classmethod
+    def _pick_target(cls):
+        if RouteToFoundry._foundry_target is None:
+            return None
+        t = ((RouteToFoundry._foundry_target) // 56 - 3), ((RouteToFoundry._foundry_target) % 56 - 3)
+        return Position(t[0], t[1])

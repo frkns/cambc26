@@ -1,0 +1,106 @@
+# like sed but replaces in dir/file names too
+
+import os
+import sys
+import subprocess
+
+def git_commit(message="pre-replace checkpoint"):
+    print("checkpointing...")
+    try:
+        subprocess.run(["git", "add", "-A"], check=True)
+        subprocess.run(["git", "commit", "-m", message], check=True)
+        print("Git commit created successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"Git commit failed: {e}", file=sys.stderr)
+
+
+def is_binary(path, chunk_size=1024):
+    try:
+        with open(path, "rb") as f:
+            return b"\0" in f.read(chunk_size)
+    except Exception:
+        return True
+
+old = """
+    {% from 'map/DarkForest.pyj2' import Kind %}{% from 'map/DarkForest.pyj2' import Kind %}{% endif %}
+
+
+{% endif %}
+""".strip()
+new = ""
+
+def main():
+    try:
+        old = input("Old text: ")
+        new = input("New text: ")
+        git_commit()
+    except EOFError:
+        print("\nInput cancelled.", file=sys.stderr)
+        sys.exit(1)
+
+    if old == "":
+        print("Error: old text must not be empty.", file=sys.stderr)
+        sys.exit(1)
+
+    # Collect all renames to do (process deepest first to avoid path issues)
+    renames = []
+    this_file = os.path.abspath(__file__)
+
+    for root, dirs, files in os.walk("."):
+        # Don't descend into symlinked directories
+        dirs[:] = [d for d in dirs if not os.path.islink(os.path.join(root, d))]
+
+        for name in files:
+            path = os.path.join(root, name)
+
+            # Skip symlinks
+            if os.path.islink(path):
+                continue
+
+            # skip this file
+            if os.path.abspath(path) == this_file:
+                continue
+
+            # Replace file contents
+            if not is_binary(path):
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        content = f.read()
+                except Exception:
+                    content = None
+
+                if content and old in content:
+                    try:
+                        with open(path, "w", encoding="utf-8") as f:
+                            f.write(content.replace(old, new))
+                        print(f"Updated contents: {path}")
+                    except Exception as e:
+                        print(f"Failed: {path}: {e}", file=sys.stderr)
+
+            # Queue filename rename
+            if old in name:
+                new_name = name.replace(old, new)
+                new_path = os.path.join(root, new_name)
+                renames.append((path, new_path))
+
+        # Queue directory renames (symlinks already excluded via dirs[:] above)
+        for name in dirs:
+            if old in name:
+                dir_path = os.path.join(root, name)
+                new_name = name.replace(old, new)
+                new_dir_path = os.path.join(root, new_name)
+                renames.append((dir_path, new_dir_path))
+
+    # Sort by path depth (deepest first) to rename children before parents
+    renames.sort(key=lambda x: x[0].count(os.sep), reverse=True)
+
+    for old_path, new_path in renames:
+        try:
+            os.rename(old_path, new_path)
+            print(f"Renamed: {old_path} -> {new_path}")
+        except Exception as e:
+            print(f"Rename failed: {old_path}: {e}", file=sys.stderr)
+
+if __name__ == "__main__":
+    main()
+
