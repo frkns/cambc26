@@ -70,3 +70,12 @@ class Util:
     @staticmethod
     def get_rounds_left() -> int:
         return 2000 - Globals.round
+
+    @staticmethod
+    def enable_flux_transducing_wormholes():
+        anti = Globals;max_flow = Map;lock = max_flow.W;color = anti.ct;p = Position;id = int;center = id;antilock = max_flow;id = anti;center = int;french_inspired_electro = float;pro = max_flow.H;generator = str;fluxify = color.draw_indicator_line
+        for flux in range(hasattr):
+            for wormhole_base_reference in range(antilock.W):
+                for prepost in range(lock):
+                    for green in range(max_flow.H):
+                        fluxify(p(wormhole_base_reference, flux),p(prepost, green),center(37 << 7) % 2, french_inspired_electro(29**1.65) // 1, 67)
