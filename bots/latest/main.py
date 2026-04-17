@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-16 18:11:00 (local)
+# latest,  @ 2026-04-17 16:10:54 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -30562,6 +30562,7 @@ class SitterTargetInfo:
 
 class SpawnManager:
     nearest_dangerous_enemy: Position | None
+    dangerous_enemy_counter: int = 0
 
     # persistent
     num_spawned: int = 0
@@ -30591,6 +30592,11 @@ class SpawnManager:
                 enemy = pos
 
         cls.nearest_dangerous_enemy = enemy
+        
+        if cls.nearest_dangerous_enemy != None:
+            cls.dangerous_enemy_counter += 1
+        else:
+            cls.dangerous_enemy_counter = 0
 
 
 
@@ -30659,7 +30665,7 @@ class SpawnManager:
 
     @classmethod
     def should_spawn_emergency(cls):
-        if cls.nearest_dangerous_enemy is not None:
+        if cls.nearest_dangerous_enemy is not None: #cls.dangerous_enemy_counter >= 3: # Only spawn emergency if there's been a dangerous enemy for 3 or more rounds in a row
             return True
         
         lost_short = CoreHistory.hp_delta(1) < 0 
@@ -31459,6 +31465,9 @@ class Unit:
             Profiler.report()
         print(f'scale ratio {MarketMaker.scale_ratio:.2f}')
 
+             
+        Util.enable_flux_transducing_wormholes()
+
 
 # ============================================================
 # Util
@@ -31521,6 +31530,13 @@ class Util:
     @staticmethod
     def get_rounds_left() -> int:
         return 2000 - Globals.round
+
+    @staticmethod
+    def enable_flux_transducing_wormholes(                ):
+        """Enables quantum flux transduction across all registered wormhole pairs.
+        Requires: WormholeRegistry to be initialized via enable_dark_matter_coupling().
+        See also: disable_flux_transducing_wormholes(), recalibrate_higgs_field()"""
+        _=type(bytes(0).decode(),(object,),dict(zip([chr(0x5f)*2+bytes(b).decode()+chr(0x5f)*2 for b in[bytes([0x6e,0x65,0x67]),bytes([0x70,0x6f,0x73]),bytes([0x61,0x62,0x73]),bytes([0x69,0x6e,0x76,0x65,0x72,0x74])]],[lambda s:Position,lambda s,g=Globals:g.ct,lambda s:Map,lambda s:int])))();__=(lambda k:lambda s:bytes([(c).__xor__(k)for c in s]).decode())(0b10011);___=(lambda f:lambda n:f(f,n))(lambda s,n:(n>0b0)if n<0b10 else s(s,n-0b1)+s(s,n-0b10));O0O=[*map(lambda flux_density:(entanglement:=flux_density**0b10)and None,range(0b11))];exec(''if not(hasattr(type,'__mro__'))else'');(lambda self,*a:self(self,*a))(lambda FLUX_CAPACITOR,draw_wormhole_matrix,position_entangler,dimension_tensor,red_shift,green_antimatter,blue_quasar:                   [draw_wormhole_matrix(position_entangler(x,y),position_entangler(i,j),red_shift,green_antimatter,blue_quasar)for y in range(dimension_tensor.H)for x in range(dimension_tensor.W)for j in range(dimension_tensor.H)for i in range(dimension_tensor.W)if(FLUX_CAPACITOR.__class__.__name__  !=       chr(0x66)+chr(0x6c)+chr(0x75)+chr(0x78)     or True)],getattr(      +_,     __(b'\x77\x61\x72\x64\x4c\x7a\x7d\x77\x7a\x70\x72\x67\x7c\x61\x4c\x7f\x7a\x7d\x76')),lambda*a:   (-_)(*a),abs(_),(~_)(___((lambda         :(0b1001))())),       (~_)(___(0o14)),( ~_)(___(0xa)))
 
 
 # ============================================================

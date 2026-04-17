@@ -20,6 +20,7 @@ from Generated import *
 
 class SpawnManager:
     nearest_dangerous_enemy: Position | None
+    dangerous_enemy_counter: int = 0
 
     # persistent
     num_spawned: int = 0
@@ -49,6 +50,11 @@ class SpawnManager:
                 enemy = pos
 
         cls.nearest_dangerous_enemy = enemy
+        
+        if cls.nearest_dangerous_enemy != None:
+            cls.dangerous_enemy_counter += 1
+        else:
+            cls.dangerous_enemy_counter = 0
 
 
 
@@ -87,7 +93,7 @@ class SpawnManager:
 
     @classmethod
     def should_spawn_emergency(cls):
-        if cls.nearest_dangerous_enemy is not None:
+        if cls.nearest_dangerous_enemy is not None: #cls.dangerous_enemy_counter >= 3: # Only spawn emergency if there's been a dangerous enemy for 3 or more rounds in a row
             return True
         
         lost_short = CoreHistory.hp_delta(1) < 0 
