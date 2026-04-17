@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-16 17:54:11 (local)
+# latest,  @ 2026-04-16 17:58:47 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -27658,6 +27658,11 @@ class OreExecutive:
             return
 
         cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
+        if cand == None:
+            Debug.line(pos, Color.RED)
+            Debug.diamond(Color.RED)
+            cls.state[pos] = 2
+            return
         ti = Map.tile_info[cand.position.x][cand.position.y]
         if ti.entity_type in Constants.TRANSPORTERS_SET:
             cls.state[pos] = 2
