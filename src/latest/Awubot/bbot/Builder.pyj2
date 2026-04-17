@@ -245,7 +245,7 @@ class Builder({{ super() }}):
 
         rushTarget = RushTargeter.get_best_target()
         if rushTarget is not None:
-            return 'MoveTo', rushTarget, 'Rush'
+            return 'Rush', rushTarget
 
         patrolTarget = PatrolTargeter.get_best_target()
         if patrolTarget is not None:

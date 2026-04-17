@@ -90,6 +90,15 @@ class StateMoveTo:
         {% endif %}
         Pathfinder.move_to(pos)
 
+class StateRush:
+    @classmethod
+    def run(cls, targ):
+        pos = targ[0]
+        type = targ[1]
+        if type == 'M': #move
+            Pathfinder.move_to(pos)
+        else: #build
+            OreExecutive.go_build_harvester(pos)
 
 class StateBuildSentinel:
     @classmethod
