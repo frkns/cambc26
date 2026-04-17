@@ -215,7 +215,6 @@ class Builder({{ super() }}):
                 return 'MoveTo', tpos, 'InitRoute'
 
         apos = Attacker.get_target()
-        print("final targ",apos)
         if apos is not None:
             return 'Attack', apos
 
