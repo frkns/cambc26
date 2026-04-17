@@ -730,15 +730,21 @@ class BfsBureau:
         cls._bfs20_touched_indices = touched_indices
 
         # Post-process: for each touched tile AND its neighbors, update dist_adj
-        dist_adj_touched = set()
+        _seen = [False] * {{ PADDED_GRID_SIZE }}
+        adj_list = []
+        _ala = adj_list.append
         for idx in touched_indices:
+            if not _seen[idx]:
+                _seen[idx] = True
+                _ala(idx)
             {% for dir in range(8) %}
             ni = idx + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
-            dist_adj_touched.add(ni)
+            if not _seen[ni]:
+                _seen[ni] = True
+                _ala(ni)
             {% endfor %}
-            dist_adj_touched.add(idx)
 
-        for idx in dist_adj_touched:
+        for idx in adj_list:
             best = IMPASSABLE
             {% for dir in range(8) %}
             d = distances[idx + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}]

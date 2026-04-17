@@ -19,11 +19,7 @@ from Generated import *
 
 
 class SentinelDirectionInfo:
-    direction: Direction
-    banned: bool
-    enemy_building_hp: int  # sum of all in attack range
-    enemy_bot_hp: int
-    cosine_sim: float  # normalised dot product of vector to enemy core
+    __slots__ = ('direction', 'banned', 'enemy_building_hp', 'enemy_bot_hp', 'cosine_sim')
 
     @staticmethod
     def is_better_than(a: SentinelDirectionInfo, b: SentinelDirectionInfo) -> bool:

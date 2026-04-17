@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-16 17:58:47 (local)
+# latest,  @ 2026-04-16 18:11:00 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -19,24 +19,13 @@ from itertools import chain
 # ============================================================
 
 class AdjacentInfo:
-    position: Position
-    bfs_dist: int
-    bfs_dist_adj: int
-    is_harvester_ally: bool
-    ti: TileInfo
-    consider_route: bool
-    dist_to_ally_core: int
-    has_ally_transporter: bool
-    easily_buildable: bool  # nothing or ally road
-    
-    is_canonical_ally_harvester: bool # if we're the canonical ally to the harvester
-    is_working_shield: bool 
-
-    harvester_ally_turrets_adjacent: int  # harvester tile, 4 dirs
-    harvester_enemy_turrets_adjacent: int 
-
-    enemy_turrets_adjacent: int  # this tile, 8 dirs
-    ally_turrets_adjacent: int
+    __slots__ = (
+        'position', 'bfs_dist', 'bfs_dist_adj', 'is_harvester_ally', 'ti',
+        'consider_route', 'dist_to_ally_core', 'has_ally_transporter',
+        'easily_buildable', 'is_canonical_ally_harvester', 'is_working_shield',
+        'harvester_ally_turrets_adjacent', 'harvester_enemy_turrets_adjacent',
+        'enemy_turrets_adjacent', 'ally_turrets_adjacent',
+    )
 
 
     @staticmethod
@@ -2485,27 +2474,47 @@ class BfsBureau:
         cls._bfs20_touched_indices = touched_indices
 
         # Post-process: for each touched tile AND its neighbors, update dist_adj
-        dist_adj_touched = set()
+        _seen = [False] * 3136
+        adj_list = []
+        _ala = adj_list.append
         for idx in touched_indices:
+            if not _seen[idx]:
+                _seen[idx] = True
+                _ala(idx)
             ni = idx + -1
-            dist_adj_touched.add(ni)
+            if not _seen[ni]:
+                _seen[ni] = True
+                _ala(ni)
             ni = idx + 55
-            dist_adj_touched.add(ni)
+            if not _seen[ni]:
+                _seen[ni] = True
+                _ala(ni)
             ni = idx + 56
-            dist_adj_touched.add(ni)
+            if not _seen[ni]:
+                _seen[ni] = True
+                _ala(ni)
             ni = idx + 57
-            dist_adj_touched.add(ni)
+            if not _seen[ni]:
+                _seen[ni] = True
+                _ala(ni)
             ni = idx + 1
-            dist_adj_touched.add(ni)
+            if not _seen[ni]:
+                _seen[ni] = True
+                _ala(ni)
             ni = idx + -55
-            dist_adj_touched.add(ni)
+            if not _seen[ni]:
+                _seen[ni] = True
+                _ala(ni)
             ni = idx + -56
-            dist_adj_touched.add(ni)
+            if not _seen[ni]:
+                _seen[ni] = True
+                _ala(ni)
             ni = idx + -57
-            dist_adj_touched.add(ni)
-            dist_adj_touched.add(idx)
+            if not _seen[ni]:
+                _seen[ni] = True
+                _ala(ni)
 
-        for idx in dist_adj_touched:
+        for idx in adj_list:
             best = IMPASSABLE
             d = distances[idx + -1]
             if d < best:
@@ -4576,24 +4585,10 @@ class BuildManager:
 # ============================================================
 
 class Building:
-    passableBuildings = [
-        EntityType.CONVEYOR,
-        EntityType.SPLITTER,
-        EntityType.ARMOURED_CONVEYOR,
-        EntityType.BRIDGE,
-        EntityType.ROAD,
-    ]
-    def __init__(self, ct: Controller, id: int, tile):
+    __slots__ = ('team', 'entityType')
+    def __init__(self, ct: Controller, id: int):
         self.team = ct.get_team(id)
         self.entityType = ct.get_entity_type(id)
-        try:
-            self.direction = ct.get_direction(id)
-        except Exception as e:
-            self.direction = None
-        if(self.entityType == self.entityType.BRIDGE):
-            self.target = ct.get_bridge_target(id)
-        else:
-            self.target= None
 
 
 # ============================================================
@@ -23119,11 +23114,7 @@ class Globals:
 # ============================================================
 
 class GunnerDirectionInfo:
-    direction: Direction
-    banned: bool
-    enemy_building_hp: int  # sum of all in attack range
-    enemy_bot_hp: int
-    cosine_sim: float  # normalised dot product of vector to enemy core
+    __slots__ = ('direction', 'banned', 'enemy_building_hp', 'enemy_bot_hp', 'cosine_sim')
 
     @staticmethod
     def is_better_than(a: GunnerDirectionInfo, b: GunnerDirectionInfo) -> bool:
@@ -23790,17 +23781,16 @@ class GunnerSupervisor:
 
         if not skip:
             for pos in ct.get_attackable_tiles_from(my_pos, Direction.NORTH, EntityType.GUNNER):
-                if not ct.can_fire_from(my_pos, Direction.NORTH, EntityType.GUNNER, pos):
-                    continue
-
                 x, y = pos.x, pos.y
                 ti = tile_info[x][y]
-                
+
                 if ti is None:
                     continue
                 if not ti.has_building:
                     continue
                 if ti.is_building_ally:
+                    continue
+                if not ct.can_fire_from(my_pos, Direction.NORTH, EntityType.GUNNER, pos):
                     continue
 
 
@@ -23869,17 +23859,16 @@ class GunnerSupervisor:
 
         if not skip:
             for pos in ct.get_attackable_tiles_from(my_pos, Direction.NORTHEAST, EntityType.GUNNER):
-                if not ct.can_fire_from(my_pos, Direction.NORTHEAST, EntityType.GUNNER, pos):
-                    continue
-
                 x, y = pos.x, pos.y
                 ti = tile_info[x][y]
-                
+
                 if ti is None:
                     continue
                 if not ti.has_building:
                     continue
                 if ti.is_building_ally:
+                    continue
+                if not ct.can_fire_from(my_pos, Direction.NORTHEAST, EntityType.GUNNER, pos):
                     continue
 
 
@@ -23948,17 +23937,16 @@ class GunnerSupervisor:
 
         if not skip:
             for pos in ct.get_attackable_tiles_from(my_pos, Direction.EAST, EntityType.GUNNER):
-                if not ct.can_fire_from(my_pos, Direction.EAST, EntityType.GUNNER, pos):
-                    continue
-
                 x, y = pos.x, pos.y
                 ti = tile_info[x][y]
-                
+
                 if ti is None:
                     continue
                 if not ti.has_building:
                     continue
                 if ti.is_building_ally:
+                    continue
+                if not ct.can_fire_from(my_pos, Direction.EAST, EntityType.GUNNER, pos):
                     continue
 
 
@@ -24027,17 +24015,16 @@ class GunnerSupervisor:
 
         if not skip:
             for pos in ct.get_attackable_tiles_from(my_pos, Direction.SOUTHEAST, EntityType.GUNNER):
-                if not ct.can_fire_from(my_pos, Direction.SOUTHEAST, EntityType.GUNNER, pos):
-                    continue
-
                 x, y = pos.x, pos.y
                 ti = tile_info[x][y]
-                
+
                 if ti is None:
                     continue
                 if not ti.has_building:
                     continue
                 if ti.is_building_ally:
+                    continue
+                if not ct.can_fire_from(my_pos, Direction.SOUTHEAST, EntityType.GUNNER, pos):
                     continue
 
 
@@ -24106,17 +24093,16 @@ class GunnerSupervisor:
 
         if not skip:
             for pos in ct.get_attackable_tiles_from(my_pos, Direction.SOUTH, EntityType.GUNNER):
-                if not ct.can_fire_from(my_pos, Direction.SOUTH, EntityType.GUNNER, pos):
-                    continue
-
                 x, y = pos.x, pos.y
                 ti = tile_info[x][y]
-                
+
                 if ti is None:
                     continue
                 if not ti.has_building:
                     continue
                 if ti.is_building_ally:
+                    continue
+                if not ct.can_fire_from(my_pos, Direction.SOUTH, EntityType.GUNNER, pos):
                     continue
 
 
@@ -24185,17 +24171,16 @@ class GunnerSupervisor:
 
         if not skip:
             for pos in ct.get_attackable_tiles_from(my_pos, Direction.SOUTHWEST, EntityType.GUNNER):
-                if not ct.can_fire_from(my_pos, Direction.SOUTHWEST, EntityType.GUNNER, pos):
-                    continue
-
                 x, y = pos.x, pos.y
                 ti = tile_info[x][y]
-                
+
                 if ti is None:
                     continue
                 if not ti.has_building:
                     continue
                 if ti.is_building_ally:
+                    continue
+                if not ct.can_fire_from(my_pos, Direction.SOUTHWEST, EntityType.GUNNER, pos):
                     continue
 
 
@@ -24264,17 +24249,16 @@ class GunnerSupervisor:
 
         if not skip:
             for pos in ct.get_attackable_tiles_from(my_pos, Direction.WEST, EntityType.GUNNER):
-                if not ct.can_fire_from(my_pos, Direction.WEST, EntityType.GUNNER, pos):
-                    continue
-
                 x, y = pos.x, pos.y
                 ti = tile_info[x][y]
-                
+
                 if ti is None:
                     continue
                 if not ti.has_building:
                     continue
                 if ti.is_building_ally:
+                    continue
+                if not ct.can_fire_from(my_pos, Direction.WEST, EntityType.GUNNER, pos):
                     continue
 
 
@@ -24343,17 +24327,16 @@ class GunnerSupervisor:
 
         if not skip:
             for pos in ct.get_attackable_tiles_from(my_pos, Direction.NORTHWEST, EntityType.GUNNER):
-                if not ct.can_fire_from(my_pos, Direction.NORTHWEST, EntityType.GUNNER, pos):
-                    continue
-
                 x, y = pos.x, pos.y
                 ti = tile_info[x][y]
-                
+
                 if ti is None:
                     continue
                 if not ti.has_building:
                     continue
                 if ti.is_building_ally:
+                    continue
+                if not ct.can_fire_from(my_pos, Direction.NORTHWEST, EntityType.GUNNER, pos):
                     continue
 
 
@@ -24423,30 +24406,13 @@ class GunnerSupervisor:
 # ============================================================
 
 class GunnerTargetInfo:
-    position: Position
-
-    has_ally_bot: bool
-
-    # enemy
-    has_enemy_bot: bool
-    has_building: bool
-    has_turret: bool  # subset of building
-    has_launcher: bool
-    can_shoot_me: bool
-    is_road: bool
-    is_core: bool
-
-    bot_hp: int
-    building_hp: int
-    iscore: int  # probably won't be used
-    ally_connected: bool
-
-    current_dir: bool # whether it's our current facing dir
-    rand_key: float  # for sake of beauty, should almost never matter
-    entity_type: EntityType
-
-    is_harvester_feeding_ally: bool
-    harvester_adjacent: bool
+    __slots__ = (
+        'position', 'has_ally_bot', 'has_enemy_bot', 'has_building',
+        'has_turret', 'has_launcher', 'can_shoot_me', 'is_road', 'is_core',
+        'bot_hp', 'building_hp', 'iscore', 'ally_connected',
+        'current_dir', 'rand_key', 'entity_type',
+        'is_harvester_feeding_ally', 'harvester_adjacent',
+    )
 
 
     @staticmethod
@@ -25626,18 +25592,11 @@ class HealExecutor:
 # ============================================================
 
 class HealTargetInfo:
-    position: Position
-    building_heal: int
-    building_hp: int
-    bot_heal: int
-    bot_hp: int
-    harvester_adjacent: bool
-    is_transporter: bool
-    is_turret: bool
-    has_enemy_bot: bool
-    bfs_dist_adj: int
-    entity_type: EntityType
-    is_turret: bool
+    __slots__ = (
+        'position', 'building_heal', 'building_hp', 'bot_heal', 'bot_hp',
+        'harvester_adjacent', 'is_transporter', 'is_turret',
+        'has_enemy_bot', 'bfs_dist_adj', 'entity_type',
+    )
 
     @staticmethod
     def is_better_than(a: HealTargetInfo, b: HealTargetInfo) -> bool:
@@ -25926,12 +25885,11 @@ class Map:
 
             ti.easily_passable = False
 
-            if etype == EntityType.MARKER:
-                ti.is_building_ally = ct.get_team(building_id) == Globals.my_team
+            if etype == EntityType.MARKER or ti.has_building:
+                _building_team = ct.get_team(building_id)
+                ti.is_building_ally = _building_team == Globals.my_team
 
             if ti.has_building:
-                ti.is_building_ally = ct.get_team(building_id) == Globals.my_team
-
                 ti.building_hp = ct.get_hp(building_id)
                 if (etype in Constants.PASSABLE_SET or (
                         etype == EntityType.CORE
@@ -26198,12 +26156,11 @@ class Map:
 
             ti.easily_passable = False
 
-            if etype == EntityType.MARKER:
-                ti.is_building_ally = ct.get_team(building_id) == Globals.my_team
+            if etype == EntityType.MARKER or ti.has_building:
+                _building_team = ct.get_team(building_id)
+                ti.is_building_ally = _building_team == Globals.my_team
 
             if ti.has_building:
-                ti.is_building_ally = ct.get_team(building_id) == Globals.my_team
-
                 ti.building_hp = ct.get_hp(building_id)
                 if (etype in Constants.PASSABLE_SET or (
                         etype == EntityType.CORE
@@ -26470,12 +26427,11 @@ class Map:
 
             ti.easily_passable = False
 
-            if etype == EntityType.MARKER:
-                ti.is_building_ally = ct.get_team(building_id) == Globals.my_team
+            if etype == EntityType.MARKER or ti.has_building:
+                _building_team = ct.get_team(building_id)
+                ti.is_building_ally = _building_team == Globals.my_team
 
             if ti.has_building:
-                ti.is_building_ally = ct.get_team(building_id) == Globals.my_team
-
                 ti.building_hp = ct.get_hp(building_id)
                 if (etype in Constants.PASSABLE_SET or (
                         etype == EntityType.CORE
@@ -26721,12 +26677,11 @@ class Map:
 
             ti.easily_passable = False
 
-            if etype == EntityType.MARKER:
-                ti.is_building_ally = ct.get_team(building_id) == Globals.my_team
+            if etype == EntityType.MARKER or ti.has_building:
+                _building_team = ct.get_team(building_id)
+                ti.is_building_ally = _building_team == Globals.my_team
 
             if ti.has_building:
-                ti.is_building_ally = ct.get_team(building_id) == Globals.my_team
-
                 ti.building_hp = ct.get_hp(building_id)
                 if (etype in Constants.PASSABLE_SET or (
                         etype == EntityType.CORE
@@ -28057,9 +28012,7 @@ class Profiler:
 # ============================================================
 
 class RoadInfo:
-    position: Position
-    hp: int
-    bfs_dist: int
+    __slots__ = ('position', 'hp', 'bfs_dist')
 
     def is_better_road_atk_target_than(a: RoadInfo, b: RoadInfo) -> bool:
         if a.bfs_dist != b.bfs_dist:
@@ -28757,11 +28710,7 @@ class RushTargeter:
 # ============================================================
 
 class SentinelDirectionInfo:
-    direction: Direction
-    banned: bool
-    enemy_building_hp: int  # sum of all in attack range
-    enemy_bot_hp: int
-    cosine_sim: float  # normalised dot product of vector to enemy core
+    __slots__ = ('direction', 'banned', 'enemy_building_hp', 'enemy_bot_hp', 'cosine_sim')
 
     @staticmethod
     def is_better_than(a: SentinelDirectionInfo, b: SentinelDirectionInfo) -> bool:
@@ -30585,12 +30534,10 @@ class SitterTakedown:
 # ============================================================
 
 class SitterTargetInfo:
-    position: Position
-    dist_enemy_core: int # distance to the enemy core
-    has_ally_transporter: bool # whether the tile has an allied transporter
-    enemy_bots_nearby: int # enemy turrets on nearby tiles
-    harvester_nearby: int # if there is a harvesters within distance sqrt(8)
-    launchers_adjacent: int # number of adjacent allied launchers
+    __slots__ = (
+        'position', 'dist_enemy_core', 'has_ally_transporter',
+        'enemy_bots_nearby', 'harvester_nearby', 'launchers_adjacent',
+    )
 
     @staticmethod
     def is_better_than(a: SitterTargetInfo, b: SitterTargetInfo):
@@ -31354,41 +31301,17 @@ class Symmetry:
 # ============================================================
 
 class TileInfo:
-
-    env: Environment
-    round: int
-
-    easily_passable: bool  # (allied core)/road/conveyor/bridge/splitter, maybe deprecated?
-    harvester_adjacent: bool  # specifically titanium harvester_adjacent, don't care about ax
-
-    has_building: bool  # non-marker building
-    building_hp: int
-    building_id: int
-    is_building_ally: bool  # lol, includes markers
-    entity_type: EntityType | None
-    target: Position | None  # for transporters
-
-    has_bot: bool  # non-self builder bot
-    bot_hp: int
-    bot_id: int
-    is_bot_ally: bool
-    
-    allied_bots_adjacent: int # number of adjacent allied bots
-
-    has_turret: bool
-    turret_direction: Direction
-
-    # turret
-    turrets_adjacent: int
-    ally_turrets_adjacent: int
-    enemy_turrets_adjacent: int
-
-    # harvester stuff
-    ally_transporters_adjacent: int
-    enemy_transporters_adjacent: int
-
-    resource_id: int | None #if it has a resource in/on it
-    resource_type: ResourceType | None
+    __slots__ = (
+        'env', 'round', 'easily_passable', 'harvester_adjacent',
+        'has_building', 'building_hp', 'building_id', 'is_building_ally',
+        'entity_type', 'target', 'resource_type',
+        'has_bot', 'bot_hp', 'bot_id', 'is_bot_ally',
+        'allied_bots_adjacent',
+        'has_turret', 'turret_direction',
+        'turrets_adjacent', 'ally_turrets_adjacent', 'enemy_turrets_adjacent',
+        'ally_transporters_adjacent', 'enemy_transporters_adjacent', 
+        'resource_id', 'resource_type'
+    )
 
 
 # ============================================================
@@ -31396,23 +31319,12 @@ class TileInfo:
 # ============================================================
 
 class TransporterInfo:
-    ti: TileInfo
-    position: Position
-    target: Position
-    easily_reachable: bool
-    easily_reachable_adj: bool
-    bfs_dist: int
-    bfs_dist_target: int
-    flow: int
-    entity_type: EntityType
-    harvester_adjacent: bool
-    is_ally: bool
-    node_kind: int
-    flowing_into_ally: bool
-    # dist_ally_core: int
-    # dist_enemy_core: int
-    on_ally_side: bool
-    sight_flowing: bool
+    __slots__ = (
+        'ti', 'position', 'target', 'easily_reachable', 'easily_reachable_adj',
+        'bfs_dist', 'bfs_dist_target', 'flow', 'entity_type',
+        'harvester_adjacent', 'is_ally', 'node_kind', 'flowing_into_ally',
+        'on_ally_side', 'easily_buildable', 'sight_flowing'
+    )
 
     @staticmethod
     def is_better_trans_atk_target_than(a: TransporterInfo, b: TransporterInfo) -> bool:
@@ -32161,45 +32073,58 @@ class Launcher(Unit):
         my_pos = ct.get_position()
         tiles = ct.get_nearby_tiles()
 
+        BUILDER_BOT = EntityType.BUILDER_BOT
         nearby_bot = None
+        get_etype = ct.get_entity_type
+        get_team = ct.get_team
         for unit in ct.get_nearby_units(2):
-            if ct.get_entity_type(unit) == EntityType.BUILDER_BOT and ct.get_team(unit) != my_team:
+            if get_etype(unit) == BUILDER_BOT and get_team(unit) != my_team:
                 nearby_bot = ct.get_position(unit)
                 break
 
         print("Oh no! Nearby Enemy Bot:", nearby_bot)
         print("Time Elapsed:", ct.get_cpu_time_elapsed())
 
+        ROUTING = cls.ROUTING_SET
+        LAUNCHER = EntityType.LAUNCHER
+        DIRECTIONS = Constants.DIRECTIONS
+        map_w = ct.get_map_width()
+        map_h = ct.get_map_height()
+
         building_cache = {}
+        get_bid = ct.get_tile_building_id
+        _bc_get = building_cache.get
         scores = []
+        _sa = scores.append
 
         for tile in tiles:
-            building_id = ct.get_tile_building_id(tile)
+            building_id = get_bid(tile)
             if building_id is not None:
-                building_cache[tile] = Building(ct, building_id, tile)
+                building_cache[tile] = Building(ct, building_id)
 
             if not ct.is_tile_passable(tile):
                 continue
 
-            building = building_cache.get(tile)
-            if building is not None and building.team == my_team and building.entityType in cls.ROUTING_SET:
+            building = _bc_get(tile)
+            if building is not None and building.team == my_team and building.entityType in ROUTING:
                 continue
 
             score = my_pos.distance_squared(tile)
 
-            for d in Constants.DIRECTIONS:
+            for d in DIRECTIONS:
                 new_loc = tile.add(d)
-                if not cls.on_map(ct, new_loc) or not ct.is_in_vision(new_loc):
+                nx, ny = new_loc.x, new_loc.y
+                if not (0 <= nx < map_w and 0 <= ny < map_h) or not ct.is_in_vision(new_loc):
                     continue
-                adj_building = building_cache.get(new_loc)
+                adj_building = _bc_get(new_loc)
                 if adj_building is None:
                     continue
-                if adj_building.team != my_team and adj_building.entityType == EntityType.LAUNCHER:
+                if adj_building.team != my_team and adj_building.entityType == LAUNCHER:
                     score -= 50
-                elif adj_building.team == my_team and adj_building.entityType in cls.ROUTING_SET:
+                elif adj_building.team == my_team and adj_building.entityType in ROUTING:
                     score -= 50
 
-            scores.append((score, tile))
+            _sa((score, tile))
             if ct.get_cpu_time_elapsed() > 1920:
                 break
 

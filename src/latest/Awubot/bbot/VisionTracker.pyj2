@@ -19,23 +19,12 @@ from Generated import *
 
 
 class TransporterInfo:
-    ti: TileInfo
-    position: Position
-    target: Position
-    easily_reachable: bool
-    easily_reachable_adj: bool
-    bfs_dist: int
-    bfs_dist_target: int
-    flow: int
-    entity_type: EntityType
-    harvester_adjacent: bool
-    is_ally: bool
-    node_kind: int
-    flowing_into_ally: bool
-    # dist_ally_core: int
-    # dist_enemy_core: int
-    on_ally_side: bool
-    sight_flowing: bool
+    __slots__ = (
+        'ti', 'position', 'target', 'easily_reachable', 'easily_reachable_adj',
+        'bfs_dist', 'bfs_dist_target', 'flow', 'entity_type',
+        'harvester_adjacent', 'is_ally', 'node_kind', 'flowing_into_ally',
+        'on_ally_side', 'easily_buildable', 'sight_flowing'
+    )
 
     @staticmethod
     def is_better_trans_atk_target_than(a: TransporterInfo, b: TransporterInfo) -> bool:
@@ -112,9 +101,7 @@ class BotInfo(NamedTuple):
 
 
 class RoadInfo:
-    position: Position
-    hp: int
-    bfs_dist: int
+    __slots__ = ('position', 'hp', 'bfs_dist')
 
     def is_better_road_atk_target_than(a: RoadInfo, b: RoadInfo) -> bool:
         if a.bfs_dist != b.bfs_dist:

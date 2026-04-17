@@ -19,30 +19,13 @@ from Generated import *
 
 
 class GunnerTargetInfo:
-    position: Position
-
-    has_ally_bot: bool
-
-    # enemy
-    has_enemy_bot: bool
-    has_building: bool
-    has_turret: bool  # subset of building
-    has_launcher: bool
-    can_shoot_me: bool
-    is_road: bool
-    is_core: bool
-
-    bot_hp: int
-    building_hp: int
-    iscore: int  # probably won't be used
-    ally_connected: bool
-
-    current_dir: bool # whether it's our current facing dir
-    rand_key: float  # for sake of beauty, should almost never matter
-    entity_type: EntityType
-
-    is_harvester_feeding_ally: bool
-    harvester_adjacent: bool
+    __slots__ = (
+        'position', 'has_ally_bot', 'has_enemy_bot', 'has_building',
+        'has_turret', 'has_launcher', 'can_shoot_me', 'is_road', 'is_core',
+        'bot_hp', 'building_hp', 'iscore', 'ally_connected',
+        'current_dir', 'rand_key', 'entity_type',
+        'is_harvester_feeding_ally', 'harvester_adjacent',
+    )
 
 
     @staticmethod
@@ -215,17 +198,16 @@ class GunnerSupervisor:
 
         if not skip:
             for pos in ct.get_attackable_tiles_from(my_pos, {{ dir }}, EntityType.GUNNER):
-                if not ct.can_fire_from(my_pos, {{ dir }}, EntityType.GUNNER, pos):
-                    continue
-
                 x, y = pos.x, pos.y
                 ti = tile_info[x][y]
-                
+
                 if ti is None:
                     continue
                 if not ti.has_building:
                     continue
                 if ti.is_building_ally:
+                    continue
+                if not ct.can_fire_from(my_pos, {{ dir }}, EntityType.GUNNER, pos):
                     continue
 
                 {# /* Debug.dot(pos, Color.GREEN) */ #}
