@@ -143,7 +143,7 @@ class Builder({{ super() }}):
             Debug.dot(takedownpos, Color.PURPLE)
             return 'BuildGunner', takedownpos, None
 
-        if mispos is not None:
+        if mispos is not None and not (RouteToCore.backTracking or RouteToFoundry.backTracking):
             return 'Reroute', mispos
             
 

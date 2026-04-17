@@ -28171,6 +28171,7 @@ class RouteToCore:
         if (((pos.x) + 3) * 56 + ((pos.y) + 3)) in DarkForest.core_sink_set:  # was sink_set
             cls.is_active = False
             cls.prevRoute.clear()
+            cls.backTracking = False
             return
 
         if fullReset:
@@ -28264,6 +28265,7 @@ class RouteToCore:
             print("RouteToCore: giving up, no previous route to backtrack to or finished")
             if Pathfinder.given_up:
                 cls.pathFindingKill.add(enc)
+            cls.backTracking = False
             return True
         else:
             cls.killed.add(from_pos)
@@ -28397,6 +28399,7 @@ class RouteToFoundry:
         if cls._foundry_target is not None and encoded == cls._foundry_target:
             cls.is_active = False
             cls.prevRoute.clear()
+            cls.backTracking = False
             return
 
         if fullReset:
@@ -28485,6 +28488,7 @@ class RouteToFoundry:
                 RouteToCore.pathFindingKill.add((((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3)))
             Debug.diamond(Color.PURPLE)
             print("RouteToFoundry: giving up from", cls.from_pos)
+            cls.backTracking = False
             return True
         else:
             cls.killed.add(cls.from_pos)
@@ -31746,7 +31750,7 @@ class Builder(Unit):
             Debug.dot(takedownpos, Color.PURPLE)
             return 'BuildGunner', takedownpos, None
 
-        if mispos is not None:
+        if mispos is not None and not (RouteToCore.backTracking or RouteToFoundry.backTracking):
             return 'Reroute', mispos
             
 
