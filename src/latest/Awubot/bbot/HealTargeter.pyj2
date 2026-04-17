@@ -118,10 +118,6 @@ class HealTargeter:
         # count canonical allies between us and the target
         ally_index = VisionTracker.canonical_ally_index(best.position)
         
-        # if best.entity_type == EntityType.ROAD:
-        #     totalHeal += 2 # add some buffer for flanking and stuf
-        # else:
-        #     totalHeal += 4 # add some buffer for flanking and stuf
 
         # if there are already enough canonical healers, ignore the target
         if ally_index * GameConstants.HEAL_AMOUNT > total_heal:

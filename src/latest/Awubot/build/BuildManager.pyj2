@@ -129,8 +129,9 @@ class BuildManager:
         {% set req = ti_reserve_map.get(etype, ti_reserve_default) %}
         {% if req > 0 %}
         
-        {% if etype == EntityType.CONVEYOR %}
-        if MarketMaker.est_income > 4:
+        {% if etype in (EntityType.CONVEYOR, EntityType.BRIDGE) %}
+        # est income is at least 10 almost always because of passive income
+        if MarketMaker.est_income > 10:
             ti_cost += int({{ req }} * MarketMaker.scale_ratio)
         {% else %}
         ti_cost += int({{ req }} * MarketMaker.scale_ratio)

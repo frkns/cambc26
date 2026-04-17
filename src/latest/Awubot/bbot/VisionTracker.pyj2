@@ -173,7 +173,8 @@ class VisionTracker:
                     target_ti is not None and \
                     not target_ti.has_bot and \
                     ((not target_ti.has_building) or 
-                    (target_ti.entity_type == EntityType.ROAD and target_ti.is_building_ally))
+                    (target_ti.entity_type == EntityType.ROAD and target_ti.is_building_ally)) and \
+                    trans.bfs_dist_target < 100
 
                 trans.on_ally_side = pos.distance_squared(Unit.core_pos) < pos.distance_squared(Symmetry.enemy_core_pos)
 
@@ -194,7 +195,7 @@ class VisionTracker:
     def canonical_ally(cls, from_pos: Position) -> BotInfo:
         {{ P.start() }}
         ret = min(cls.allies, key=
-            lambda x: (Util.linf(from_pos, x.position) << 16) + x.id
+            lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )
         {{ P.end('canonical_ally') }}
         return ret
@@ -203,7 +204,7 @@ class VisionTracker:
     def canonical_ally_index(cls, from_pos: Position) -> int:
         {{ P.start() }}
         allyIndex = list(map(lambda x: x.position, sorted(cls.allies, key=
-            lambda x: (Util.linf(from_pos, x.position) << 16) + x.id
+            lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )))
         if Globals.my_pos in allyIndex:
             i = allyIndex.index(Globals.my_pos)

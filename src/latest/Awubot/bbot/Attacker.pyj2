@@ -99,6 +99,9 @@ class Attacker:
 
     @classmethod
     def should_fire(cls, pos):
+        if MarketMaker.est_income <= 10 and MarketMaker.ti <= 50:
+            return False
+
         x, y = pos.x, pos.y
         tile_info = Map.tile_info
         ti = tile_info[x][y]
