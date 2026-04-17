@@ -35,9 +35,7 @@ class Attacker:
             return None
         if trans.flowing_into_ally:
             return None
-        if trans.flow == 0:
-            return None
-        if not VisionTracker.me_is_canonical_ally(trans.position):
+        if trans.flow == 0 and not trans.sight_flowing:
             return None
         if not cls.should_fire(trans.position):
             return None

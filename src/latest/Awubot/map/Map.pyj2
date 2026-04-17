@@ -57,6 +57,9 @@ class TileInfo:
     ally_transporters_adjacent: int
     enemy_transporters_adjacent: int
 
+    resource_id: int | None #if it has a resource in/on it
+    resource_type: ResourceType | None
+
 class Map:
     W: int
     H: int
@@ -73,6 +76,7 @@ class Map:
     harvester_set: set[int] = set()
     ti_harvester_set: set[int] = set()
     ax_harvester_set: set[int] = set()
+    enemy_route_set: set[int] = set()
 
     # cleared every turn
     new_syms: list[Position] = []
@@ -133,6 +137,7 @@ class Map:
                 ti.has_building = False
                 ti.has_turret = False
                 ti.entity_type = None
+                ti.resource_id = None
                 ti.resource_type = None
             cls.proc_nearby_tiles.append(
                 (pos, x, y, idx, ti)
@@ -167,6 +172,8 @@ class Map:
                 opp_ti.entity_type = None
                 opp_ti.target = None
                 opp_ti.allied_bots_adjacent = 0
+                opp_ti.resource_id = None
+                opp_ti.resource_type = None
                 tile_info[ox][oy] = opp_ti
                 new_syms.append(Position(ox, oy))
                 BfsBureau.ti_ore_adj[ {{ encode_pos('ox', 'oy') }}] = BfsBureau.ti_ore_adj[ {{ encode_pos('x', 'y') }}]
@@ -225,12 +232,24 @@ class Map:
                 tpos = pos.add(ct.get_direction(building_id))
                 ti.target = tpos
                 DarkForest.add_edge(pos_idx, {{ encode_pos('tpos.x', 'tpos.y') }})
+                ti.resource_id = ct.get_stored_resource_id(building_id)
+                if ti.resource_id != None:
+                    ti.resource_type = ct.get_stored_resource(building_id)
+                else:
+                    ti.resource_type = None
             elif etype == EntityType.BRIDGE:
                 tpos = ct.get_bridge_target(building_id)
                 ti.target = tpos
                 DarkForest.add_edge(pos_idx, {{ encode_pos('tpos.x', 'tpos.y') }})
+                ti.resource_id = ct.get_stored_resource_id(building_id)
+                if ti.resource_id != None:
+                    ti.resource_type = ct.get_stored_resource(building_id)
+                else:
+                    ti.resource_type = None
             else:
                 ti.target = None
+                ti.resource_id = None
+                ti.resource_type = None
 
                 if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.BREACH, EntityType.FOUNDRY):
                     if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.BREACH):
@@ -404,6 +423,8 @@ class Map:
                     opp_ti.entity_type = None
                     opp_ti.target = None
                     opp_ti.allied_bots_adjacent = 0
+                    opp_ti.resource_id = None
+                    opp_ti.resource_type = None
                     orow[oy] = opp_ti
                     BfsBureau.ti_ore_adj[ {{ encode_pos('ox', 'oy') }}] = BfsBureau.ti_ore_adj[ {{ encode_pos('x', 'y') }}]
                     new_syms.append(Position(ox, oy))

@@ -55,9 +55,11 @@ class Builder({{ super() }}):
         if Globals.round >= Constants.RUSH_OVER:
             cls.mode = {{ Mode.ECON }}
             Explore.target = Explore.new_target()
+        """
         if (cls.mode == {{ Mode.EARLY_RUSH }} and Symmetry.is_sym_known and Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= 36):
             cls.mode = {{ Mode.ECON }}
             Explore.target = Explore.new_target()
+        """
         print("Mode:", cls.mode)
 
         {# /* DarkForest.debug_pressure() */ #}
@@ -199,7 +201,6 @@ class Builder({{ super() }}):
         if foundry_target is not None:
             return 'FoundryBuild', foundry_target
 
-
         trans: TransporterInfo = ConnectManager.get_connect_target_info()
         if trans is not None:
             tpos = trans.target
@@ -214,6 +215,7 @@ class Builder({{ super() }}):
                 return 'MoveTo', tpos, 'InitRoute'
 
         apos = Attacker.get_target()
+        print("final targ",apos)
         if apos is not None:
             return 'Attack', apos
 
@@ -239,7 +241,7 @@ class Builder({{ super() }}):
             RouteToCore.set_pos(route_pos)
             return ('Route',)
 
-        if stalk_target is not None:
+        if stalk_target is not None and cls.mode != {{ Mode.EARLY_RUSH }}:
             return 'MoveTo', stalk_target, 'Stalk'
 
         rushTarget = RushTargeter.get_best_target()
