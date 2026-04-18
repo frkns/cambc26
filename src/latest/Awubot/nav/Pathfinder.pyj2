@@ -37,6 +37,12 @@ class Pathfinder:
 
         Debug.line(target)
         my_pos = Globals.my_pos
+        midx = {{ encode_pos('my_pos.x', 'my_pos.y') }}
+
+        dsq = my_pos.distance_squared(target)
+        if dsq == 1 or dsq == 2 and BfsBureau.now_weight[dsq] <= 3:
+            if not MoveManager.can_fill_move(my_pos.direction_to(target)):
+                return
 
 
         {{ P.start() }}

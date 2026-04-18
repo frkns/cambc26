@@ -31,7 +31,7 @@ class MarketMaker:
     @classmethod
     def refresh(cls):
         cls.scale_ratio = Globals.ct.get_scale_percent() / 100.0
-        cls.ti, MarketMaker.ax = Globals.ct.get_global_resources()
+        cls.ti, cls.ax = Globals.ct.get_global_resources()
 
         idx = Globals.round % {{ HIST_LEN }}
         cls.ti_hist[idx] = cls.ti
@@ -89,13 +89,34 @@ class MarketMaker:
 
 
     @staticmethod
+    def should_build_ax_harvester(apos: Position) -> int:
+        if Globals.round < 500 and \
+                apos.distance_squared(Symmetry.enemy_core_pos) < apos.distance_squared(Unit.core_pos):
+            return False
+
+        n_ti = len(Map.ti_harvester_set)
+        n_ax = len(Map.ax_harvester_set)
+
+        if not (2 * n_ax <= n_ti):
+            return False
+
+        if MarketMaker.ax > 0:
+            pbt = MarketMaker.harvester_payback(apos)
+            {# /* {{ D.show('[ax]pbt') }} */ #}
+            if int(pbt * 1.5 + 100) < Util.get_rounds_left():
+                return True
+
+        return False
+
+
+    @staticmethod
     def should_build_harvester(apos: Position) -> int:
         if Globals.round < 500 and \
                 apos.distance_squared(Symmetry.enemy_core_pos) < apos.distance_squared(Unit.core_pos):
             return False
 
         pbt = MarketMaker.harvester_payback(apos)
-        {{ D.show('pbt') }}
+        {# /* {{ D.show('pbt') }} */ #}
 
         if int(pbt * 1.5 + 100) < Util.get_rounds_left():
             return True

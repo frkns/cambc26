@@ -77,6 +77,7 @@ class Builder({{ super() }}):
         {# /* BfsBureau.debug_enclosed_regions() */ #}
         {# /* BfsBureau.debug_bfs20_dist_adj() */ #}
         {# /* BfsBureau.debug_bfs20() */ #}
+        {# /* BfsBureau.debug_now_weight_inf() */ #}
 
         {{ P.start() }}
         OreExecutive.fill()
@@ -143,7 +144,7 @@ class Builder({{ super() }}):
         takedowninfo = HarvesterAdjacent.get_best_turret_takedown_info()
         takedownpos = None if takedowninfo is None else takedowninfo.position
 
-        mispos = VisionTracker.get_best_misrouted_target()
+        misinfo: TransporterInfo = VisionTracker.get_best_misrouted_target() 
         
         """
         if RouteToBreach.is_active:
@@ -154,8 +155,11 @@ class Builder({{ super() }}):
             Debug.dot(takedownpos, Color.PURPLE)
             return 'BuildGunner', takedownpos, None
 
-        if mispos is not None and not (RouteToCore.backTracking or RouteToFoundry.backTracking):
-            return 'Reroute', mispos
+        if misinfo is not None and not (RouteToCore.backTracking or RouteToFoundry.backTracking):
+            if misinfo.on_ally_side:
+                return 'Reroute', misinfo.position
+            else:
+                return 'Reroute', misinfo.position  # same
             
 
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()

@@ -130,7 +130,7 @@ class OreExecutive:
                 cls.state[pos] = {{ HAS_HARVESTER }}
                 continue
 
-            if not ti.has_bot and MarketMaker.should_build_harvester(pos):
+            if not ti.has_bot and MarketMaker.should_build_ax_harvester(pos):
                 ret = pos
                 break
             else:

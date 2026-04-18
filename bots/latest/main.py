@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-18 00:34:32 (local)
+# latest,  @ 2026-04-18 01:35:36 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -4832,7 +4832,7 @@ class Comms:
     def handle_simple1(symV, symH, symR, tix, tiy):
         Symmetry.and_sym(symV, symH, symR)
         if tix != 63:
-            OreExecutive.register_ti(Position(tix, tiy))
+            pass
 
 
     SIMPLE1 = 0
@@ -23292,12 +23292,15 @@ class Globals:
 # ============================================================
 
 class GunnerDirectionInfo:
-    __slots__ = ('direction', 'banned', 'enemy_building_hp', 'enemy_bot_hp', 'cosine_sim')
+    __slots__ = ('direction', 'banned', 'enemy_building_hp', 'enemy_bot_hp', 'has_enemy_turret')
 
     @staticmethod
     def is_better_than(a: GunnerDirectionInfo, b: GunnerDirectionInfo) -> bool:
         if a.banned: return False
         if b.banned: return True
+
+        if a.has_enemy_turret != b.has_enemy_turret:
+            return a.has_enemy_turret > b.has_enemy_turret
 
         if a.enemy_building_hp != b.enemy_building_hp:
             return a.enemy_building_hp > b.enemy_building_hp
@@ -23305,7 +23308,7 @@ class GunnerDirectionInfo:
         if a.enemy_bot_hp != b.enemy_bot_hp:
             return a.enemy_bot_hp > b.enemy_bot_hp
 
-        return a.cosine_sim > b.cosine_sim
+        return False
 
 
 # ============================================================
@@ -23370,11 +23373,6 @@ class GunnerDirectionPicker:
             info0.enemy_building_hp = 0
             info0.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info0.cosine_sim = u1 * 0.0 + u2 * -1.0
 
             infos.append(info0)
 
@@ -23384,11 +23382,6 @@ class GunnerDirectionPicker:
             info1.enemy_building_hp = 0
             info1.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info1.cosine_sim = u1 * 0.7071067811865475 + u2 * -0.7071067811865475
 
             infos.append(info1)
 
@@ -23398,11 +23391,6 @@ class GunnerDirectionPicker:
             info2.enemy_building_hp = 0
             info2.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info2.cosine_sim = u1 * 1.0 + u2 * 0.0
 
             infos.append(info2)
 
@@ -23412,11 +23400,6 @@ class GunnerDirectionPicker:
             info3.enemy_building_hp = 0
             info3.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info3.cosine_sim = u1 * 0.7071067811865475 + u2 * 0.7071067811865475
 
             infos.append(info3)
 
@@ -23426,11 +23409,6 @@ class GunnerDirectionPicker:
             info4.enemy_building_hp = 0
             info4.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info4.cosine_sim = u1 * 0.0 + u2 * 1.0
 
             infos.append(info4)
 
@@ -23440,11 +23418,6 @@ class GunnerDirectionPicker:
             info5.enemy_building_hp = 0
             info5.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info5.cosine_sim = u1 * -0.7071067811865475 + u2 * 0.7071067811865475
 
             infos.append(info5)
 
@@ -23454,11 +23427,6 @@ class GunnerDirectionPicker:
             info6.enemy_building_hp = 0
             info6.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info6.cosine_sim = u1 * -1.0 + u2 * 0.0
 
             infos.append(info6)
 
@@ -23468,11 +23436,6 @@ class GunnerDirectionPicker:
             info7.enemy_building_hp = 0
             info7.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info7.cosine_sim = u1 * -0.7071067811865475 + u2 * -0.7071067811865475
 
             infos.append(info7)
 
@@ -23484,11 +23447,6 @@ class GunnerDirectionPicker:
             info0.enemy_building_hp = 0
             info0.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info0.cosine_sim = u1 * 0.0 + u2 * -1.0
 
             infos.append(info0)
 
@@ -23498,11 +23456,6 @@ class GunnerDirectionPicker:
             info1.enemy_building_hp = 0
             info1.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info1.cosine_sim = u1 * 0.7071067811865475 + u2 * -0.7071067811865475
 
             infos.append(info1)
 
@@ -23512,11 +23465,6 @@ class GunnerDirectionPicker:
             info2.enemy_building_hp = 0
             info2.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info2.cosine_sim = u1 * 1.0 + u2 * 0.0
 
             infos.append(info2)
 
@@ -23526,11 +23474,6 @@ class GunnerDirectionPicker:
             info3.enemy_building_hp = 0
             info3.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info3.cosine_sim = u1 * 0.7071067811865475 + u2 * 0.7071067811865475
 
             infos.append(info3)
 
@@ -23540,11 +23483,6 @@ class GunnerDirectionPicker:
             info4.enemy_building_hp = 0
             info4.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info4.cosine_sim = u1 * 0.0 + u2 * 1.0
 
             infos.append(info4)
 
@@ -23554,11 +23492,6 @@ class GunnerDirectionPicker:
             info5.enemy_building_hp = 0
             info5.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info5.cosine_sim = u1 * -0.7071067811865475 + u2 * 0.7071067811865475
 
             infos.append(info5)
 
@@ -23568,11 +23501,6 @@ class GunnerDirectionPicker:
             info6.enemy_building_hp = 0
             info6.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info6.cosine_sim = u1 * -1.0 + u2 * 0.0
 
             infos.append(info6)
 
@@ -23582,11 +23510,6 @@ class GunnerDirectionPicker:
             info7.enemy_building_hp = 0
             info7.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info7.cosine_sim = u1 * -0.7071067811865475 + u2 * -0.7071067811865475
 
             infos.append(info7)
 
@@ -23815,6 +23738,23 @@ class GunnerDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info3.enemy_bot_hp += e_bot_hp
+
+        ti = tile_info[sx ][sy -1]
+        info0.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        ti = tile_info[sx +1][sy -1]
+        info1.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        ti = tile_info[sx +1][sy ]
+        info2.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        ti = tile_info[sx +1][sy +1]
+        info3.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        ti = tile_info[sx ][sy +1]
+        info4.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        ti = tile_info[sx -1][sy +1]
+        info5.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        ti = tile_info[sx -1][sy ]
+        info6.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        ti = tile_info[sx -1][sy -1]
+        info7.has_enemy_turret = ti.has_turret and not ti.is_building_ally
 
 
 # ============================================================
@@ -24781,7 +24721,9 @@ class HarvesterAdjacent:
                 continue
 
             is_harvester_ally = hti.is_building_ally
-            consider_route = hti.ally_transporters_adjacent == 0 and hti.enemy_turrets_adjacent == 0
+            consider_route = hti.ally_outward_transporters_adjacent == 0 \
+                and hti.enemy_transporters_adjacent == 0 \
+                and hti.enemy_turrets_adjacent == 0
             dist_to_ally_core = spos.distance_squared(Unit.core_pos)
             is_canonical_ally_harvester = VisionTracker.me_is_canonical_ally(spos)
             
@@ -26235,6 +26177,7 @@ class Map:
                 ally_turrets = 0
                 enemy_turrets = 0
                 ally_transporters = 0
+                ally_outward_transporters = 0  # actually useful (non-shield)
                 enemy_transporters = 0
 
                 nti = tile_info[x ][y -1]
@@ -26247,6 +26190,8 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
+                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                                ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
                 nti = tile_info[x +1][y ]
@@ -26259,6 +26204,8 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
+                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                                ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
                 nti = tile_info[x ][y +1]
@@ -26271,6 +26218,8 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
+                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                                ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
                 nti = tile_info[x -1][y ]
@@ -26283,6 +26232,8 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
+                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                                ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
 
@@ -26290,6 +26241,7 @@ class Map:
                 ti.enemy_turrets_adjacent = enemy_turrets
                 ti.turrets_adjacent = ally_turrets + enemy_turrets
                 ti.ally_transporters_adjacent = ally_transporters
+                ti.ally_outward_transporters_adjacent = ally_outward_transporters
                 ti.enemy_transporters_adjacent = enemy_transporters
 
     @classmethod
@@ -26554,6 +26506,7 @@ class Map:
                 ally_turrets = 0
                 enemy_turrets = 0
                 ally_transporters = 0
+                ally_outward_transporters = 0  # actually useful (non-shield)
                 enemy_transporters = 0
 
                 nti = tile_info[x ][y -1]
@@ -26566,6 +26519,8 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
+                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                                ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
                 nti = tile_info[x +1][y ]
@@ -26578,6 +26533,8 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
+                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                                ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
                 nti = tile_info[x ][y +1]
@@ -26590,6 +26547,8 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
+                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                                ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
                 nti = tile_info[x -1][y ]
@@ -26602,6 +26561,8 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
+                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                                ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
 
@@ -26609,6 +26570,7 @@ class Map:
                 ti.enemy_turrets_adjacent = enemy_turrets
                 ti.turrets_adjacent = ally_turrets + enemy_turrets
                 ti.ally_transporters_adjacent = ally_transporters
+                ti.ally_outward_transporters_adjacent = ally_outward_transporters
                 ti.enemy_transporters_adjacent = enemy_transporters
 
     @classmethod
@@ -26873,6 +26835,7 @@ class Map:
                 ally_turrets = 0
                 enemy_turrets = 0
                 ally_transporters = 0
+                ally_outward_transporters = 0  # actually useful (non-shield)
                 enemy_transporters = 0
 
                 nti = tile_info[x ][y -1]
@@ -26885,6 +26848,8 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
+                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                                ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
                 nti = tile_info[x +1][y ]
@@ -26897,6 +26862,8 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
+                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                                ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
                 nti = tile_info[x ][y +1]
@@ -26909,6 +26876,8 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
+                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                                ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
                 nti = tile_info[x -1][y ]
@@ -26921,6 +26890,8 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
+                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                                ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
 
@@ -26928,6 +26899,7 @@ class Map:
                 ti.enemy_turrets_adjacent = enemy_turrets
                 ti.turrets_adjacent = ally_turrets + enemy_turrets
                 ti.ally_transporters_adjacent = ally_transporters
+                ti.ally_outward_transporters_adjacent = ally_outward_transporters
                 ti.enemy_transporters_adjacent = enemy_transporters
 
     @classmethod
@@ -27171,6 +27143,7 @@ class Map:
                 ally_turrets = 0
                 enemy_turrets = 0
                 ally_transporters = 0
+                ally_outward_transporters = 0  # actually useful (non-shield)
                 enemy_transporters = 0
 
                 nti = tile_info[x ][y -1]
@@ -27183,6 +27156,8 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
+                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                                ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
                 nti = tile_info[x +1][y ]
@@ -27195,6 +27170,8 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
+                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                                ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
                 nti = tile_info[x ][y +1]
@@ -27207,6 +27184,8 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
+                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                                ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
                 nti = tile_info[x -1][y ]
@@ -27219,6 +27198,8 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
+                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                                ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
 
@@ -27226,6 +27207,7 @@ class Map:
                 ti.enemy_turrets_adjacent = enemy_turrets
                 ti.turrets_adjacent = ally_turrets + enemy_turrets
                 ti.ally_transporters_adjacent = ally_transporters
+                ti.ally_outward_transporters_adjacent = ally_outward_transporters
                 ti.enemy_transporters_adjacent = enemy_transporters
 
 
@@ -27309,13 +27291,19 @@ class Map:
 # ============================================================
 
 class Marker:
+    null_pos: Position = Position(63, 63)
+
     @classmethod
     def attempt_mark(cls):
         pos = MarkerPositionPicker.get_marker_pos()
         if pos is None:
             return
-        
-        val = Comms.pack_simple1(Symmetry.V, Symmetry.H, Symmetry.R, 63, 63)
+
+        ti_pos = cls.null_pos
+        if OreExecutive.ti_queue:
+            ti_pos = OreExecutive.ti_queue[0][1]
+        val = Comms.pack_simple1(Symmetry.V, Symmetry.H, Symmetry.R, ti_pos.x, ti_pos.y)
+
         Globals.ct.place_marker(pos, val)
 
 
@@ -27328,7 +27316,6 @@ class MarkerPositionPicker:
         position: Position
         is_accessible: bool
         has_ally_marker: bool
-        has_enemy_marker: bool
         rand_key: float
 
     cand: list[Candidate | None] = [None] * 8
@@ -27353,18 +27340,13 @@ class MarkerPositionPicker:
             if ti.entity_type == EntityType.MARKER:
                 if ti.is_building_ally:
                     cand.has_ally_marker = True
-                    cand.has_enemy_marker = False
                 else:
                     cand.has_ally_marker = False
-                    cand.has_enemy_marker = True
             else:
                 cand.has_ally_marker = False
-                cand.has_enemy_marker = False
         else:
             cand.is_accessible = False
 
-        if cand.is_accessible and cand.has_enemy_marker:
-            assert False
 
         nx, ny = my_pos.x +1, my_pos.y -1
         npos = Position(nx, ny)
@@ -27381,18 +27363,13 @@ class MarkerPositionPicker:
             if ti.entity_type == EntityType.MARKER:
                 if ti.is_building_ally:
                     cand.has_ally_marker = True
-                    cand.has_enemy_marker = False
                 else:
                     cand.has_ally_marker = False
-                    cand.has_enemy_marker = True
             else:
                 cand.has_ally_marker = False
-                cand.has_enemy_marker = False
         else:
             cand.is_accessible = False
 
-        if cand.is_accessible and cand.has_enemy_marker:
-            assert False
 
         nx, ny = my_pos.x +1, my_pos.y 
         npos = Position(nx, ny)
@@ -27409,18 +27386,13 @@ class MarkerPositionPicker:
             if ti.entity_type == EntityType.MARKER:
                 if ti.is_building_ally:
                     cand.has_ally_marker = True
-                    cand.has_enemy_marker = False
                 else:
                     cand.has_ally_marker = False
-                    cand.has_enemy_marker = True
             else:
                 cand.has_ally_marker = False
-                cand.has_enemy_marker = False
         else:
             cand.is_accessible = False
 
-        if cand.is_accessible and cand.has_enemy_marker:
-            assert False
 
         nx, ny = my_pos.x +1, my_pos.y +1
         npos = Position(nx, ny)
@@ -27437,18 +27409,13 @@ class MarkerPositionPicker:
             if ti.entity_type == EntityType.MARKER:
                 if ti.is_building_ally:
                     cand.has_ally_marker = True
-                    cand.has_enemy_marker = False
                 else:
                     cand.has_ally_marker = False
-                    cand.has_enemy_marker = True
             else:
                 cand.has_ally_marker = False
-                cand.has_enemy_marker = False
         else:
             cand.is_accessible = False
 
-        if cand.is_accessible and cand.has_enemy_marker:
-            assert False
 
         nx, ny = my_pos.x , my_pos.y +1
         npos = Position(nx, ny)
@@ -27465,18 +27432,13 @@ class MarkerPositionPicker:
             if ti.entity_type == EntityType.MARKER:
                 if ti.is_building_ally:
                     cand.has_ally_marker = True
-                    cand.has_enemy_marker = False
                 else:
                     cand.has_ally_marker = False
-                    cand.has_enemy_marker = True
             else:
                 cand.has_ally_marker = False
-                cand.has_enemy_marker = False
         else:
             cand.is_accessible = False
 
-        if cand.is_accessible and cand.has_enemy_marker:
-            assert False
 
         nx, ny = my_pos.x -1, my_pos.y +1
         npos = Position(nx, ny)
@@ -27493,18 +27455,13 @@ class MarkerPositionPicker:
             if ti.entity_type == EntityType.MARKER:
                 if ti.is_building_ally:
                     cand.has_ally_marker = True
-                    cand.has_enemy_marker = False
                 else:
                     cand.has_ally_marker = False
-                    cand.has_enemy_marker = True
             else:
                 cand.has_ally_marker = False
-                cand.has_enemy_marker = False
         else:
             cand.is_accessible = False
 
-        if cand.is_accessible and cand.has_enemy_marker:
-            assert False
 
         nx, ny = my_pos.x -1, my_pos.y 
         npos = Position(nx, ny)
@@ -27521,18 +27478,13 @@ class MarkerPositionPicker:
             if ti.entity_type == EntityType.MARKER:
                 if ti.is_building_ally:
                     cand.has_ally_marker = True
-                    cand.has_enemy_marker = False
                 else:
                     cand.has_ally_marker = False
-                    cand.has_enemy_marker = True
             else:
                 cand.has_ally_marker = False
-                cand.has_enemy_marker = False
         else:
             cand.is_accessible = False
 
-        if cand.is_accessible and cand.has_enemy_marker:
-            assert False
 
         nx, ny = my_pos.x -1, my_pos.y -1
         npos = Position(nx, ny)
@@ -27549,18 +27501,13 @@ class MarkerPositionPicker:
             if ti.entity_type == EntityType.MARKER:
                 if ti.is_building_ally:
                     cand.has_ally_marker = True
-                    cand.has_enemy_marker = False
                 else:
                     cand.has_ally_marker = False
-                    cand.has_enemy_marker = True
             else:
                 cand.has_ally_marker = False
-                cand.has_enemy_marker = False
         else:
             cand.is_accessible = False
 
-        if cand.is_accessible and cand.has_enemy_marker:
-            assert False
 
 
     @staticmethod
@@ -27568,8 +27515,6 @@ class MarkerPositionPicker:
         if not a.is_accessible: return False
         if not b.is_accessible: return True
 
-        if a.has_enemy_marker and (not b.has_enemy_marker): return True
-        if (not a.has_enemy_marker) and b.has_enemy_marker: return False
 
         if a.has_ally_marker and (not b.has_ally_marker): return False
         if (not a.has_ally_marker) and b.has_ally_marker: return True
@@ -27619,7 +27564,7 @@ class MarketMaker:
     @classmethod
     def refresh(cls):
         cls.scale_ratio = Globals.ct.get_scale_percent() / 100.0
-        cls.ti, MarketMaker.ax = Globals.ct.get_global_resources()
+        cls.ti, cls.ax = Globals.ct.get_global_resources()
 
         idx = Globals.round % 20
         cls.ti_hist[idx] = cls.ti
@@ -27667,13 +27612,32 @@ class MarketMaker:
 
 
     @staticmethod
+    def should_build_ax_harvester(apos: Position) -> int:
+        if Globals.round < 500 and \
+                apos.distance_squared(Symmetry.enemy_core_pos) < apos.distance_squared(Unit.core_pos):
+            return False
+
+        n_ti = len(Map.ti_harvester_set)
+        n_ax = len(Map.ax_harvester_set)
+
+        if not (n_ti <= 2 * n_ax):
+            return False
+
+        if MarketMaker.ax > 0:
+            pbt = MarketMaker.harvester_payback(apos)
+            if int(pbt * 1.5 + 100) < Util.get_rounds_left():
+                return True
+
+        return False
+
+
+    @staticmethod
     def should_build_harvester(apos: Position) -> int:
         if Globals.round < 500 and \
                 apos.distance_squared(Symmetry.enemy_core_pos) < apos.distance_squared(Unit.core_pos):
             return False
 
         pbt = MarketMaker.harvester_payback(apos)
-        print(f"""{pbt=}""")
 
         if int(pbt * 1.5 + 100) < Util.get_rounds_left():
             return True
@@ -27857,7 +27821,7 @@ class OreExecutive:
                 cls.state[pos] = 3
                 continue
 
-            if not ti.has_bot and MarketMaker.should_build_harvester(pos):
+            if not ti.has_bot and MarketMaker.should_build_ax_harvester(pos):
                 ret = pos
                 break
             else:
@@ -28228,6 +28192,12 @@ class Pathfinder:
 
         Debug.line(target)
         my_pos = Globals.my_pos
+        midx = (((my_pos.x) + 3) * 56 + ((my_pos.y) + 3))
+
+        dsq = my_pos.distance_squared(target)
+        if dsq == 1 or dsq == 2 and BfsBureau.now_weight[dsq] <= 3:
+            if not MoveManager.can_fill_move(my_pos.direction_to(target)):
+                return
 
 
         Profiler.start()
@@ -28280,9 +28250,12 @@ class PatrolTargeter:
             else:
                 # Choose a random one of the targets we haven't visited recently
                 i = random.choice(list(active_targets))
-                return Position(((i) // 56 - 3), ((i) % 56 - 3))
-        else:
-            return None
+                x, y = ((i) // 56 - 3), ((i) % 56 - 3)
+                ti = Map.tile_info[x][y]
+                if ti.is_building_ally:
+                    return Position(x, y)
+
+        return None
 
     @classmethod
     def get_best_target(cls) -> Position | None:
@@ -31383,13 +31356,14 @@ class StateNoOp:
 class StateReroute:  # for misrouted ally transporters
     @classmethod
     def run(cls, pos):
-        Debug.line(pos, Color.ORANGE)
+        # Debug.line(pos, Color.ORANGE)
         if Globals.my_pos.distance_squared(pos) > 2:
             Pathfinder.move_to(pos)
 
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
-            RouteToCore.set_pos(pos)
+            if pos.distance_squared(Unit.core_pos) < pos.distance_squared(Symmetry.enemy_core_pos):
+                RouteToCore.set_pos(pos)
 
 
 # ============================================================
@@ -31804,13 +31778,14 @@ class TileInfo:
     __slots__ = (
         'env', 'round', 'easily_passable', 'harvester_adjacent',
         'has_building', 'building_hp', 'building_id', 'is_building_ally',
-        'entity_type', 'target', 'resource_type',
+        'entity_type', 'target',
         'has_bot', 'bot_hp', 'bot_id', 'is_bot_ally',
         'allied_bots_adjacent',
         'has_turret', 'turret_direction',
         'turrets_adjacent', 'ally_turrets_adjacent', 'enemy_turrets_adjacent',
         'ally_transporters_adjacent', 'enemy_transporters_adjacent',
-        'resource_id', 'resource_type'
+        'resource_id', 'resource_type',
+        'ally_outward_transporters_adjacent'
     )
 
 
@@ -32189,7 +32164,7 @@ class VisionTracker:
 
 
     @classmethod
-    def get_best_misrouted_target(cls) -> Position | None:
+    def get_best_misrouted_target(cls) -> TransporterInfo | None:
         misrouted = cls.misrouted_transporters
         if not misrouted:
             return None
@@ -32202,13 +32177,10 @@ class VisionTracker:
         if not best.easily_reachable_adj:
             return None
 
-        if not best.on_ally_side:
-            return None
-
         if not VisionTracker.me_is_canonical_ally(best.position):
             return None
 
-        return best.position
+        return best
 
 
 # ============================================================
@@ -32378,7 +32350,7 @@ class Builder(Unit):
         takedowninfo = HarvesterAdjacent.get_best_turret_takedown_info()
         takedownpos = None if takedowninfo is None else takedowninfo.position
 
-        mispos = VisionTracker.get_best_misrouted_target()
+        misinfo: TransporterInfo = VisionTracker.get_best_misrouted_target() 
         
         """
         if RouteToBreach.is_active:
@@ -32389,8 +32361,11 @@ class Builder(Unit):
             Debug.dot(takedownpos, Color.PURPLE)
             return 'BuildGunner', takedownpos, None
 
-        if mispos is not None and not (RouteToCore.backTracking or RouteToFoundry.backTracking):
-            return 'Reroute', mispos
+        if misinfo is not None and not (RouteToCore.backTracking or RouteToFoundry.backTracking):
+            if misinfo.on_ally_side:
+                return 'Reroute', misinfo.position
+            else:
+                return 'Reroute', misinfo.position  # same
             
 
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()

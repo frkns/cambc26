@@ -47,13 +47,14 @@ class StateAttack:
 class StateReroute:  # for misrouted ally transporters
     @classmethod
     def run(cls, pos):
-        Debug.line(pos, Color.ORANGE)
+        # Debug.line(pos, Color.ORANGE)
         if Globals.my_pos.distance_squared(pos) > 2:
             Pathfinder.move_to(pos)
 
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
-            RouteToCore.set_pos(pos)
+            if pos.distance_squared(Unit.core_pos) < pos.distance_squared(Symmetry.enemy_core_pos):
+                RouteToCore.set_pos(pos)
 
 
 class StateRoute:

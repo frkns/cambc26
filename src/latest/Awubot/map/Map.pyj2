@@ -22,13 +22,14 @@ class TileInfo:
     __slots__ = (
         'env', 'round', 'easily_passable', 'harvester_adjacent',
         'has_building', 'building_hp', 'building_id', 'is_building_ally',
-        'entity_type', 'target', 'resource_type',
+        'entity_type', 'target',
         'has_bot', 'bot_hp', 'bot_id', 'is_bot_ally',
         'allied_bots_adjacent',
         'has_turret', 'turret_direction',
         'turrets_adjacent', 'ally_turrets_adjacent', 'enemy_turrets_adjacent',
         'ally_transporters_adjacent', 'enemy_transporters_adjacent',
-        'resource_id', 'resource_type'
+        'resource_id', 'resource_type',
+        'ally_outward_transporters_adjacent'
     )
 
 class Map:
@@ -294,12 +295,13 @@ class Map:
             # --- harvester set tracking ---
             if etype == HARVESTER:
                 harvester_set.add(pos_idx)
-                if tile_env == ORE_TITANIUM:
-                    ti_harvester_set.add(pos_idx)
-                    ax_harvester_set.discard(pos_idx)
-                else:
-                    ax_harvester_set.add(pos_idx)
-                    ti_harvester_set.discard(pos_idx)
+                if is_building_ally:
+                    if tile_env == ORE_TITANIUM:
+                        ti_harvester_set.add(pos_idx)
+                        ax_harvester_set.discard(pos_idx)
+                    else:
+                        ax_harvester_set.add(pos_idx)
+                        ti_harvester_set.discard(pos_idx)
                 harvester_proc.append((x, y, ti))
             else:
                 if pos_idx in harvester_set:
@@ -351,6 +353,7 @@ class Map:
                 ally_turrets = 0
                 enemy_turrets = 0
                 ally_transporters = 0
+                ally_outward_transporters = 0  # actually useful (non-shield)
                 enemy_transporters = 0
 
                 {% for dir in cardinal_directions %}
@@ -365,6 +368,8 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
+                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                                ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
                 {% endfor %}
@@ -373,6 +378,7 @@ class Map:
                 ti.enemy_turrets_adjacent = enemy_turrets
                 ti.turrets_adjacent = ally_turrets + enemy_turrets
                 ti.ally_transporters_adjacent = ally_transporters
+                ti.ally_outward_transporters_adjacent = ally_outward_transporters
                 ti.enemy_transporters_adjacent = enemy_transporters
 
     {% endfor %}

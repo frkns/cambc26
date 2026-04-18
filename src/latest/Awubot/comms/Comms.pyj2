@@ -23,7 +23,7 @@ class Comms:
     def handle_simple1(symV, symH, symR, tix, tiy):
         Symmetry.and_sym(symV, symH, symR)
         if tix != 63:
-            OreExecutive.register_ti(Position(tix, tiy))
+            pass
 
 
     {% for e in comms_entries %}

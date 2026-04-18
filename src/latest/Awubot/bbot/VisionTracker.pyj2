@@ -265,7 +265,7 @@ class VisionTracker:
 
 
     @classmethod
-    def get_best_misrouted_target(cls) -> Position | None:
+    def get_best_misrouted_target(cls) -> TransporterInfo | None:
         misrouted = cls.misrouted_transporters
         if not misrouted:
             return None
@@ -278,10 +278,7 @@ class VisionTracker:
         if not best.easily_reachable_adj:
             return None
 
-        if not best.on_ally_side:
-            return None
-
         if not VisionTracker.me_is_canonical_ally(best.position):
             return None
 
-        return best.position
+        return best

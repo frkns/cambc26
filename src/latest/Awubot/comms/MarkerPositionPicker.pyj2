@@ -23,7 +23,6 @@ class MarkerPositionPicker:
         position: Position
         is_accessible: bool
         has_ally_marker: bool
-        has_enemy_marker: bool
         rand_key: float
 
     cand: list[Candidate | None] = [None] * 8
@@ -51,18 +50,13 @@ class MarkerPositionPicker:
             if ti.entity_type == EntityType.MARKER:
                 if ti.is_building_ally:
                     cand.has_ally_marker = True
-                    cand.has_enemy_marker = False
                 else:
                     cand.has_ally_marker = False
-                    cand.has_enemy_marker = True
             else:
                 cand.has_ally_marker = False
-                cand.has_enemy_marker = False
         else:
             cand.is_accessible = False
 
-        if cand.is_accessible and cand.has_enemy_marker:
-            assert False
         {% endfor %}
 
 
@@ -71,8 +65,6 @@ class MarkerPositionPicker:
         if not a.is_accessible: return False
         if not b.is_accessible: return True
 
-        if a.has_enemy_marker and (not b.has_enemy_marker): return True
-        if (not a.has_enemy_marker) and b.has_enemy_marker: return False
 
         if a.has_ally_marker and (not b.has_ally_marker): return False
         if (not a.has_ally_marker) and b.has_ally_marker: return True

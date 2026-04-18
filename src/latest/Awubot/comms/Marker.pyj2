@@ -19,11 +19,18 @@ from Generated import *
 
 
 class Marker:
+    null_pos: Position = Position(63, 63)
+
     @classmethod
     def attempt_mark(cls):
         pos = MarkerPositionPicker.get_marker_pos()
         if pos is None:
             return
-        
-        val = Comms.pack_simple1(Symmetry.V, Symmetry.H, Symmetry.R, 63, 63)
+
+        ti_pos = cls.null_pos
+        if OreExecutive.ti_queue:
+            ti_pos = OreExecutive.ti_queue[0][1]
+        val = Comms.pack_simple1(Symmetry.V, Symmetry.H, Symmetry.R, ti_pos.x, ti_pos.y)
+
         Globals.ct.place_marker(pos, val)
+
