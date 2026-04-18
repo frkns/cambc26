@@ -217,7 +217,7 @@ class OreExecutive:
 
 
     @classmethod
-    def go_build_harvester(cls, pos):
+    def go_build_harvester(cls, pos, isAttack = False):
         Pathfinder.move_to(pos, ban_target_pos=True, orbit=(not BuildManager.can_afford_harvester()))
 
         if Pathfinder.given_up:
@@ -234,6 +234,7 @@ class OreExecutive:
             cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
             if cand is not None:
                 RouteToCore.set_pos(cand.position)
+                RouteToCore.isAttack = isAttack
 
     @classmethod
     def go_build_ax_harvester(cls, pos):

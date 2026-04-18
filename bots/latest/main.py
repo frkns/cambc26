@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # latest,  @ 2026-04-17 21:38:03 (local)
+=======
+# latest,  @ 2026-04-17 23:03:08 (local)
+>>>>>>> attackRoute
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -2314,9 +2318,10 @@ class BfsBureau:
     
 
     # bfs20
-
     bfs20_dist: list[int] = [1000000] * 3136
+    bfs20_dist_adj: list[int] = [1000000] * 3136
     _bfs20_touched_indices: list[int] = []
+    _bfs20_dist_adj_touched: list[int] = []
     _BFS20_VALID_OFFSETS = frozenset({
         -226,
         -225,
@@ -2389,7 +2394,6 @@ class BfsBureau:
         226,
     })
 
-    bfs20_dist_adj: list[int] = [1000000] * 3136
 
     @classmethod
     def bfs20(cls):
@@ -2402,6 +2406,7 @@ class BfsBureau:
         # Reset tiles touched by the previous call
         for touched_index in cls._bfs20_touched_indices:
             distances[touched_index] = IMPASSABLE
+        for touched_index in cls._bfs20_dist_adj_touched:
             distances_adj[touched_index] = IMPASSABLE
 
         pos = Globals.my_pos
@@ -2416,7 +2421,7 @@ class BfsBureau:
         push_to_queue = heapq.heappush
         pop_from_queue = heapq.heappop
 
-        # Seed immediate neighbours (all within r²≤2, no bounds check needed)
+        # Seed immediate neighbours
         neighbor_index = start_index + -1
         tile_weight = weight[neighbor_index]
         if tile_weight < IMPASSABLE:
@@ -2546,50 +2551,52 @@ class BfsBureau:
 
         cls._bfs20_touched_indices = touched_indices
 
-            # Post-process: dist_adj[idx] = min dist of neighbours within r²≤20
+        # Post-process: dist_adj[idx] = min(dist[self], dist[neighbors within r²≤20])
+        dist_adj_touched_set = set()
         for idx in touched_indices:
-            best = IMPASSABLE
+            d = distances[idx]
+            if d >= IMPASSABLE:
+                continue
+            # self
+            if d < distances_adj[idx]:
+                distances_adj[idx] = d
+                dist_adj_touched_set.add(idx)
+            # neighbors
             ni = idx + -1
-            if (ni - start_index) in valid_offsets:
-                d = distances[ni]
-                if d < best:
-                    best = d
+            if (ni - start_index) in valid_offsets and d < distances_adj[ni]:
+                distances_adj[ni] = d
+                dist_adj_touched_set.add(ni)
             ni = idx + 55
-            if (ni - start_index) in valid_offsets:
-                d = distances[ni]
-                if d < best:
-                    best = d
+            if (ni - start_index) in valid_offsets and d < distances_adj[ni]:
+                distances_adj[ni] = d
+                dist_adj_touched_set.add(ni)
             ni = idx + 56
-            if (ni - start_index) in valid_offsets:
-                d = distances[ni]
-                if d < best:
-                    best = d
+            if (ni - start_index) in valid_offsets and d < distances_adj[ni]:
+                distances_adj[ni] = d
+                dist_adj_touched_set.add(ni)
             ni = idx + 57
-            if (ni - start_index) in valid_offsets:
-                d = distances[ni]
-                if d < best:
-                    best = d
+            if (ni - start_index) in valid_offsets and d < distances_adj[ni]:
+                distances_adj[ni] = d
+                dist_adj_touched_set.add(ni)
             ni = idx + 1
-            if (ni - start_index) in valid_offsets:
-                d = distances[ni]
-                if d < best:
-                    best = d
+            if (ni - start_index) in valid_offsets and d < distances_adj[ni]:
+                distances_adj[ni] = d
+                dist_adj_touched_set.add(ni)
             ni = idx + -55
-            if (ni - start_index) in valid_offsets:
-                d = distances[ni]
-                if d < best:
-                    best = d
+            if (ni - start_index) in valid_offsets and d < distances_adj[ni]:
+                distances_adj[ni] = d
+                dist_adj_touched_set.add(ni)
             ni = idx + -56
-            if (ni - start_index) in valid_offsets:
-                d = distances[ni]
-                if d < best:
-                    best = d
+            if (ni - start_index) in valid_offsets and d < distances_adj[ni]:
+                distances_adj[ni] = d
+                dist_adj_touched_set.add(ni)
             ni = idx + -57
-            if (ni - start_index) in valid_offsets:
-                d = distances[ni]
-                if d < best:
-                    best = d
-            distances_adj[idx] = best
+            if (ni - start_index) in valid_offsets and d < distances_adj[ni]:
+                distances_adj[ni] = d
+                dist_adj_touched_set.add(ni)
+
+        cls._bfs20_dist_adj_touched = list(dist_adj_touched_set)
+
 
 
     @classmethod
@@ -23143,7 +23150,7 @@ class Explore:
         if Builder.mode == 2:
             pos = Symmetry.sym_pos(Unit.core_pos)
             dx, dy = random.choice([(dx, dy) for dx in range(-6, 6) for dy in range(-6, 6) if abs(dx) > 1 or abs(dy) > 1])
-            return Position(pos.x + dx, pos.y + dy)
+            return Position(max(0,min(pos.x + dx,Map.W)), max(0,min(pos.y + dy,Map.H)))
         else:
             return Util.rand_pos()
 
@@ -25813,6 +25820,7 @@ class HealTargeter:
             if HealTargetInfo.is_better_than(cand, best):
                 best = cand
 
+
         total_heal = best.building_heal + best.bot_heal
         if total_heal < 4:
             # Still heal buildings next to harvesters for shielding
@@ -25848,6 +25856,10 @@ class HealTargeter:
 
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             ti: TileInfo
+            has_ally_building = ti.has_building and ti.is_building_ally
+            has_ally_bot = ti.has_bot and ti.is_bot_ally
+            if not has_ally_building and not has_ally_bot:
+                continue
 
             info = HealTargetInfo()
             info.position = pos
@@ -25856,14 +25868,15 @@ class HealTargeter:
             info.building_hp = 1000000
             info.bot_hp = 1000000
             info.is_transporter = (ti.entity_type is not None and ti.entity_type in Constants.TRANSPORTERS_SET)
-            info.is_turret = (ti.entity_type is not None and ti.entity_type in Constants.TURRET_SET)
+            # info.is_turret = (ti.entity_type is not None and ti.entity_type in Constants.TURRET_SET)
+            info.is_turret = ti.has_turret
             info.has_enemy_bot = False
             info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
             info.entity_type = ti.entity_type
             info.is_turret = ti.has_turret
             info.harvester_adjacent = ti.harvester_adjacent
 
-            if ti.has_building and ti.is_building_ally:
+            if has_ally_building:
                 info.building_heal = min(
                     4,
                     Constants.MAX_HP_MAP[ti.entity_type] - ti.building_hp
@@ -27946,8 +27959,13 @@ class OreExecutive:
 
 
     @classmethod
+<<<<<<< HEAD
     def go_build_harvester(cls, pos):
         Pathfinder.move_to(pos, ban_target_pos=True, orbit=(not BuildManager.can_afford_harvester()))
+=======
+    def go_build_harvester(cls, pos, isAttack = False):
+        Pathfinder.move_to(pos, ban_target_pos=True)
+>>>>>>> attackRoute
 
         if Pathfinder.given_up:
             Debug.line(pos, Color.RED)
@@ -27963,6 +27981,7 @@ class OreExecutive:
             cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
             if cand is not None:
                 RouteToCore.set_pos(cand.position)
+                RouteToCore.isAttack = isAttack
 
     @classmethod
     def go_build_ax_harvester(cls, pos):
@@ -28607,6 +28626,7 @@ class RouteToCore:
     prevRoute = []
     backTracking = False
     pathFindingKill: set[int] = set()
+    isAttack = False
 
     @classmethod
     def set_pos(cls, pos: Position, fullReset = True):
@@ -28629,27 +28649,40 @@ class RouteToCore:
     @classmethod
     def try_build_route(cls):
         assert cls.is_active
-
-        # short search to core in case it's close
-        bridge_dist, first_target = BfsBureau.find_bridge_route(
-            cls.from_pos,
-            Unit.core_pos_set,
-            max_iter=0,
-            avoid_pos = cls.pathFindingKill
-        )
-        # otherwise allow all sinks
-        if first_target is None:
+        bridge_dist = 0
+        first_target = None
+        if cls.isAttack:
+            coolPos = RushTargeter.enemy_core_turret_target(GameConstants.SENTINEL_VISION_RADIUS_SQ)
+            if coolPos == None:
+                cls.give_up(True)
+                StateMoveTo.run(Explore.get_target()) # new
+            valid_pos_set = set([coolPos]) 
             bridge_dist, first_target = BfsBureau.find_bridge_route(
                 cls.from_pos,
-                DarkForest.core_sink_set,  # was sink_set
+                valid_pos_set,
                 avoid_pos = cls.pathFindingKill
             )
+        else:
+            # short search to core in case it's close
+            bridge_dist, first_target = BfsBureau.find_bridge_route(
+                cls.from_pos,
+                Unit.core_pos_set,
+                max_iter=0,
+                avoid_pos = cls.pathFindingKill
+            )
+            # otherwise allow all sinks
+            if first_target is None:
+                bridge_dist, first_target = BfsBureau.find_bridge_route(
+                    cls.from_pos,
+                    DarkForest.core_sink_set,  # was sink_set
+                    avoid_pos = cls.pathFindingKill
+                )
 
         
 
         if first_target is None:
             Debug.tee("first_target is None: giving up")
-            if cls.give_up():
+            if cls.give_up(True):
                 StateMoveTo.run(Explore.get_target()) # new
             return
 
@@ -28696,10 +28729,10 @@ class RouteToCore:
 
 
     @classmethod
-    def give_up(cls):
+    def give_up(cls, hard = False):
         from_pos = cls.from_pos
         enc = (((from_pos.x) + 3) * 56 + ((from_pos.y) + 3))
-        if len(cls.prevRoute) == 0 or DarkForest.node_kind[enc] in \
+        if hard or len(cls.prevRoute) == 0 or DarkForest.node_kind[enc] in \
                 (3, 1):
             cls.is_active = False
             cls.killed.add(from_pos)
@@ -28721,7 +28754,7 @@ class RouteToCore:
 
     @classmethod
     def do_routing(cls):
-        print("RouteToCore: doing routing from", cls.from_pos)
+        print("RouteToCore: doing routing from", cls.from_pos,"Attack route",cls.isAttack)
         if cls.should_give_up():
             if cls.give_up():
                 StateMoveTo.run(Explore.get_target()) # new
@@ -28982,6 +29015,7 @@ class RouteToFoundry:
 
 class RushTargeter:
     persistentOre = None
+    beenNearbyEnemyCore = False
 
     @classmethod
     def enemy_core_turret_target(cls, attack_r_sq) -> Position | None:
@@ -29010,6 +29044,8 @@ class RushTargeter:
                     continue
                 if tile.has_building and tile.entity_type in Constants.TURRET_SET:
                     continue
+                if tile.has_building and tile.entity_type in Constants.TRANSPORTERS_SET:
+                    continue
                 d = currLoc.distance_squared(candidate)
                 if d < best_attack_dist:
                     best_attack_dist = d
@@ -29025,7 +29061,7 @@ class RushTargeter:
     def nearest_titanium_to_enemy(cls) -> Position | None:
         if not Symmetry.is_sym_known:
             return None
-        maxr = max(Map.W,Map.H)
+        maxr = 10
         cx = Symmetry.enemy_core_pos.x
         cy = Symmetry.enemy_core_pos.y
         for r in range(1, maxr + 1):
@@ -29043,30 +29079,38 @@ class RushTargeter:
                         continue
 
                     ti = Map.tile_info[x][y]
+                    if ti is None:
+                        continue
                     env = ti.env
+                    thepos = Position(x, y)
+                    if OreExecutive.state[thepos] == 2: #killed
+                        continue
+                    if ti.entity_type in [EntityType.HARVESTER,EntityType.FOUNDRY]:
+                        continue
+                    if ti.has_building and not ti.is_building_ally and ti.entity_type != EntityType.MARKER:
+                        continue
                     if env == Environment.ORE_TITANIUM:
-                        return x, y
+                        return thepos
 
         return None  # Nothing found
 
     @classmethod
-    def get_best_target(cls) -> Position | None:
+    def get_best_target(cls):
         if Symmetry.is_sym_known:
-            if (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100) or Builder.mode == 2:
-                """
-                if Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) < 36: #sufficiently near
-                    validPos = cls.enemy_core_turret_target(GameConstants.SENTINEL_VISION_RADIUS_SQ)
-                    if validPos == None:
-                        return Symmetry.enemy_core_pos
-                    coolTitanium = cls.nearest_titanium_to_enemy()
-                    if coolTitanium == None:
-                        return Symmetry.enemy_core_pos
-                    cls.persistentOre = coolTitanium
-                """
-
-                return Symmetry.enemy_core_pos
+            if Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) < 25: #sufficiently near
+                cls.beenNearbyEnemyCore = True
+            if Builder.mode == 2:
+                if cls.beenNearbyEnemyCore:
+                    funPos = cls.nearest_titanium_to_enemy()
+                    if funPos == None:
+                        return Explore.get_target(),'M' #move
+                    return funPos,'B' #build harvester
+                else:
+                    return Explore.get_target(),'M' #move
+            if (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
+                return Symmetry.enemy_core_pos,'M' #move
         elif Builder.mode == 2:
-                return Symmetry.sym_pos(Unit.core_pos)
+            return Symmetry.sym_pos(Unit.core_pos),'M' #move
         return None
 
 
@@ -31156,20 +31200,6 @@ class StateBuildLauncher:
 
 
 # ============================================================
-# StateBuildSentinel
-# ============================================================
-
-class StateBuildSentinel:
-    @classmethod
-    def run(cls, pos, banned_dir: Direction | None = None):
-        Pathfinder.move_to(pos, ban_target_pos=True)
-
-        if BuildManager.can_dbuild_sentinel(pos):
-            dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
-            BuildManager.dbuild_sentinel(pos, dir)
-
-
-# ============================================================
 # StateBuildShield
 # ============================================================
 
@@ -31240,6 +31270,55 @@ class StateBuildShield:
             else:
                 if BuildManager.can_mbuild_road():
                     BuildManager.dbuild_road(pos)
+
+
+# ============================================================
+# StateBuildTurret
+# ============================================================
+
+class StateBuildTurret:
+    @classmethod
+    def gunner_can_hit_core(cls, gunner_pos: MapLocation) -> Direction | None:
+        direction = gunner_pos.direction_to(Symmetry.enemy_core_pos)
+        dx, dy = direction.delta()    # unit step for this direction
+
+        x, y = gunner_pos.x + dx, gunner_pos.y + dy      # start one step ahead
+
+        while x >= 0 and y >= 0 and x <= Map.W and y <= Map.H:
+            if (x - gunner_pos.x) ** 2 + (y - gunner_pos.y) ** 2 > GameConstants.GUNNER_VISION_RADIUS_SQ:
+                break                                         # out of range — stop ray
+
+            ti = Map.tile_info[x][y]
+            if ti == None:
+                continue
+            if ti.env == Environment.WALL:
+                break
+            if ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                break
+
+            if (((x) + 3) * 56 + ((y) + 3)) in Symmetry.enemy_core_pos_set:
+                return direction
+
+            x += dx
+            y += dy
+
+        return None
+    @classmethod
+    def run(cls, pos, banned_dir: Direction | None = None):
+        Pathfinder.move_to(pos, ban_target_pos=True)
+
+        core_dir = None
+        if Symmetry.is_sym_known:
+            core_dir = cls.gunner_can_hit_core(pos)
+            
+        if BuildManager.can_dbuild_gunner(pos) and core_dir is not None:
+            # who cares all turrets are the same anyways
+            BuildManager.dbuild_gunner(pos, core_dir)
+        elif BuildManager.can_dbuild_sentinel(pos):
+            dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
+            BuildManager.dbuild_sentinel(pos, dir)
+        elif Globals.ct.can_build_road(pos):
+            Globals.ct.build_road(pos)
 
 
 # ============================================================
@@ -31316,6 +31395,21 @@ class StateRouteFoundry:
     @classmethod
     def run(cls):
         RouteToFoundry.do_routing()
+
+
+# ============================================================
+# StateRush
+# ============================================================
+
+class StateRush:
+    @classmethod
+    def run(cls, targ):
+        pos = targ[0]
+        type = targ[1]
+        if type == 'M': #move
+            Pathfinder.move_to(pos)
+        else: #build
+            OreExecutive.go_build_harvester(pos,True)
 
 
 # ============================================================
@@ -32032,7 +32126,7 @@ class VisionTracker:
             return True
 
         stored_round = canon_map[from_pos]
-        if stored_round == round or round - stored_round >= 2:
+        if stored_round == round or round - stored_round >= 1:
             return True
 
         return False
@@ -32276,7 +32370,7 @@ class Builder(Unit):
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
         if sentinelpos is not None:
             Debug.dot(sentinelpos, Color.PURPLE)
-            return 'BuildSentinel', sentinelpos, None
+            return 'BuildTurret', sentinelpos, None
 
         # disable for now
         sitterpos = SitterTakedown.get_best_launcher_position()
@@ -32331,8 +32425,8 @@ class Builder(Unit):
 
             if Util.dist_sq(tpos, Symmetry.enemy_core_pos) \
                     < Util.dist_sq(tpos, Unit.core_pos) \
-                    and BfsBureau.bfs20_dist[(((tpos.x) + 3) * 56 + ((tpos.y) + 3))] < 100:
-                return 'BuildSentinel', tpos 
+                    and BfsBureau.bfs20_dist_adj[(((tpos.x) + 3) * 56 + ((tpos.y) + 3))] < 100:
+                return 'BuildTurret', tpos 
 
             if tpos not in RouteToCore.killed:
                 RouteToCore.set_pos(tpos)
@@ -32350,7 +32444,7 @@ class Builder(Unit):
         dist_ax = 1000000 if ax_target is None else my_pos.distance_squared(ax_target)
         dist_stalk = 1000000 if stalk_target is None else my_pos.distance_squared(stalk_target)
 
-        if dist_stalk <= 4 or (dist_stalk < dist_ti and dist_stalk < dist_ax):
+        if (dist_stalk <= 4 or (dist_stalk < dist_ti and dist_stalk < dist_ax)) and cls.mode != 2:
             return 'MoveTo', stalk_target, 'Stalk'
 
         if ti_target is not None and cls.mode != 2:
@@ -32369,7 +32463,7 @@ class Builder(Unit):
 
         rushTarget = RushTargeter.get_best_target()
         if rushTarget is not None:
-            return 'MoveTo', rushTarget, 'Rush'
+            return 'Rush', rushTarget
 
         patrolTarget = PatrolTargeter.get_best_target()
         if patrolTarget is not None:

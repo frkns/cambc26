@@ -161,7 +161,7 @@ class Builder({{ super() }}):
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
         if sentinelpos is not None:
             Debug.dot(sentinelpos, Color.PURPLE)
-            return 'BuildSentinel', sentinelpos, None
+            return 'BuildTurret', sentinelpos, None
 
         # disable for now
         sitterpos = SitterTakedown.get_best_launcher_position()
@@ -216,8 +216,8 @@ class Builder({{ super() }}):
 
             if Util.dist_sq(tpos, Symmetry.enemy_core_pos) \
                     < Util.dist_sq(tpos, Unit.core_pos) \
-                    and BfsBureau.bfs20_dist[{{ encode_pos('tpos.x', 'tpos.y') }}] < 100:
-                return 'BuildSentinel', tpos 
+                    and BfsBureau.bfs20_dist_adj[{{ encode_pos('tpos.x', 'tpos.y') }}] < 100:
+                return 'BuildTurret', tpos 
 
             if tpos not in RouteToCore.killed:
                 RouteToCore.set_pos(tpos)
@@ -235,7 +235,7 @@ class Builder({{ super() }}):
         dist_ax = {{ INF }} if ax_target is None else my_pos.distance_squared(ax_target)
         dist_stalk = {{ INF }} if stalk_target is None else my_pos.distance_squared(stalk_target)
 
-        if dist_stalk <= 4 or (dist_stalk < dist_ti and dist_stalk < dist_ax):
+        if (dist_stalk <= 4 or (dist_stalk < dist_ti and dist_stalk < dist_ax)) and cls.mode != {{ Mode.EARLY_RUSH }}:
             return 'MoveTo', stalk_target, 'Stalk'
 
         if ti_target is not None and cls.mode != {{ Mode.EARLY_RUSH }}:
@@ -254,7 +254,7 @@ class Builder({{ super() }}):
 
         rushTarget = RushTargeter.get_best_target()
         if rushTarget is not None:
-            return 'MoveTo', rushTarget, 'Rush'
+            return 'Rush', rushTarget
 
         patrolTarget = PatrolTargeter.get_best_target()
         if patrolTarget is not None:
