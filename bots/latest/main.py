@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-# latest,  @ 2026-04-17 21:38:03 (local)
-=======
-# latest,  @ 2026-04-17 23:03:08 (local)
->>>>>>> attackRoute
+# latest,  @ 2026-04-17 23:20:14 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -27959,13 +27955,8 @@ class OreExecutive:
 
 
     @classmethod
-<<<<<<< HEAD
-    def go_build_harvester(cls, pos):
-        Pathfinder.move_to(pos, ban_target_pos=True, orbit=(not BuildManager.can_afford_harvester()))
-=======
     def go_build_harvester(cls, pos, isAttack = False):
-        Pathfinder.move_to(pos, ban_target_pos=True)
->>>>>>> attackRoute
+        Pathfinder.move_to(pos, ban_target_pos=True, orbit=(not BuildManager.can_afford_harvester()))
 
         if Pathfinder.given_up:
             Debug.line(pos, Color.RED)
