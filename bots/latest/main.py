@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-17 16:10:54 (local)
+# latest,  @ 2026-04-17 21:31:27 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -25675,7 +25675,7 @@ class HealExecutor:
         if not a.is_accessible: return False
         if not b.is_accessible: return True
 
-        if a.building_heal != b.building_heal:
+        if bool(a.building_heal) != bool(b.building_heal):
             return a.building_heal > b.building_heal
 
         if a.is_turret and (not b.is_turret): return True
@@ -27947,7 +27947,7 @@ class OreExecutive:
 
     @classmethod
     def go_build_harvester(cls, pos):
-        Pathfinder.move_to(pos, ban_target_pos=True)
+        Pathfinder.move_to(pos, ban_target_pos=True, orbit=(not BuildManager.can_afford_harvester()))
 
         if Pathfinder.given_up:
             Debug.line(pos, Color.RED)
@@ -28178,7 +28178,7 @@ class Pathfinder:
         cls.given_up = False
 
     @classmethod
-    def move_to(cls, target: Position, ban_target_pos: bool = False):
+    def move_to(cls, target: Position, ban_target_pos: bool = False, orbit: bool = False):
         if Globals.ct.get_move_cooldown() != 0:
             return
 
@@ -28196,6 +28196,8 @@ class Pathfinder:
 
         print('pf', dir, dist)
 
+        if orbit and 0 < target.distance_squared(Globals.my_pos) <= 2:
+            dir = Globals.my_pos.direction_to(target).rotate_left()
 
         if dir is None or dist >= 1000000:
             cls.given_up = True
@@ -31028,7 +31030,7 @@ class SpawnManager:
 
     @classmethod
     def should_spawn_emergency(cls):
-        if cls.nearest_dangerous_enemy is not None: #cls.dangerous_enemy_counter >= 3: # Only spawn emergency if there's been a dangerous enemy for 3 or more rounds in a row
+        if cls.dangerous_enemy_counter >= 3: # Only spawn emergency if there's been a dangerous enemy for 3 or more rounds in a row
             return True
         
         lost_short = CoreHistory.hp_delta(1) < 0 
@@ -31055,7 +31057,7 @@ class StalkTargeter:
         if my_pos.distance_squared(Unit.core_pos) > my_pos.distance_squared(Symmetry.enemy_core_pos):
             return None
 
-        if not Map.harvester_set:
+        if MarketMaker.est_income < 10:
             return None
 
         bfs20_dist_adj = BfsBureau.bfs20_dist_adj
@@ -31837,9 +31839,6 @@ class Unit:
         if Globals.round == 1999:
             Profiler.report()
         print(f'scale ratio {MarketMaker.scale_ratio:.2f}')
-
-             
-        Util.enable_flux_transducing_wormholes()
 
 
 # ============================================================

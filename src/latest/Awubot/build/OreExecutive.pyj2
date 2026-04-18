@@ -218,7 +218,7 @@ class OreExecutive:
 
     @classmethod
     def go_build_harvester(cls, pos):
-        Pathfinder.move_to(pos, ban_target_pos=True)
+        Pathfinder.move_to(pos, ban_target_pos=True, orbit=(not BuildManager.can_afford_harvester()))
 
         if Pathfinder.given_up:
             Debug.line(pos, Color.RED)

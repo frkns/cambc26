@@ -95,7 +95,7 @@ class HealExecutor:
         if not a.is_accessible: return False
         if not b.is_accessible: return True
 
-        if a.building_heal != b.building_heal:
+        if bool(a.building_heal) != bool(b.building_heal):
             return a.building_heal > b.building_heal
 
         if a.is_turret and (not b.is_turret): return True

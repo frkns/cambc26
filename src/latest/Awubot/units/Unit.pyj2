@@ -79,5 +79,3 @@ class Unit:
 
         {# /* if Globals.round == 330: */ #}
             {# /* Globals.ct.resign() */ #}
-             
-        Util.enable_flux_transducing_wormholes()

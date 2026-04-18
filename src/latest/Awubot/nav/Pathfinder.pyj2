@@ -27,7 +27,7 @@ class Pathfinder:
         cls.given_up = False
 
     @classmethod
-    def move_to(cls, target: Position, ban_target_pos: bool = False):
+    def move_to(cls, target: Position, ban_target_pos: bool = False, orbit: bool = False):
         if Globals.ct.get_move_cooldown() != 0:
             return
 
@@ -45,6 +45,8 @@ class Pathfinder:
 
         print('pf', dir, dist)
 
+        if orbit and 0 < target.distance_squared(Globals.my_pos) <= 2:
+            dir = Globals.my_pos.direction_to(target).rotate_left()
 
         if dir is None or dist >= {{ INF }}:
             cls.given_up = True
@@ -54,4 +56,3 @@ class Pathfinder:
             elif MoveManager.can_fill_move(dir):
                 Globals.ct.build_road(my_pos.add(dir))
                 MoveManager.move(dir)
-
