@@ -100,12 +100,19 @@ class StateRush:
         else: #build
             OreExecutive.go_build_harvester(pos,True)
 
-class StateBuildSentinel:
+class StateBuildTurret:
     @classmethod
     def run(cls, pos, banned_dir: Direction | None = None):
         Pathfinder.move_to(pos, ban_target_pos=True)
 
-        if BuildManager.can_dbuild_sentinel(pos):
+        nearbyEnemyCore = False
+        if Symmetry.is_sym_known and Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= GameConstants.GUNNER_VISION_RADIUS_SQ:
+            nearbyEnemyCore = True
+        if BuildManager.can_dbuild_gunner(pos) and nearbyEnemyCore:
+            dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
+            # who cares all turrets are the same anyways
+            BuildManager.dbuild_gunner(pos, dir)
+        elif BuildManager.can_dbuild_sentinel(pos):
             dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
             BuildManager.dbuild_sentinel(pos, dir)
         elif Globals.ct.can_build_road(pos):

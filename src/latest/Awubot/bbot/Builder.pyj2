@@ -161,7 +161,7 @@ class Builder({{ super() }}):
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
         if sentinelpos is not None:
             Debug.dot(sentinelpos, Color.PURPLE)
-            return 'BuildSentinel', sentinelpos, None
+            return 'BuildTurret', sentinelpos, None
 
         # disable for now
         sitterpos = SitterTakedown.get_best_launcher_position()
@@ -217,7 +217,7 @@ class Builder({{ super() }}):
             if Util.dist_sq(tpos, Symmetry.enemy_core_pos) \
                     < Util.dist_sq(tpos, Unit.core_pos) \
                     and BfsBureau.bfs20_dist_adj[{{ encode_pos('tpos.x', 'tpos.y') }}] < 100:
-                return 'BuildSentinel', tpos 
+                return 'BuildTurret', tpos 
 
             if tpos not in RouteToCore.killed:
                 RouteToCore.set_pos(tpos)

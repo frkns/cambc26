@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-17 19:34:14 (local)
+# latest,  @ 2026-04-17 19:41:47 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -29039,7 +29039,7 @@ class RushTargeter:
     def nearest_titanium_to_enemy(cls) -> Position | None:
         if not Symmetry.is_sym_known:
             return None
-        maxr = 8
+        maxr = 10
         cx = Symmetry.enemy_core_pos.x
         cy = Symmetry.enemy_core_pos.y
         for r in range(1, maxr + 1):
@@ -31172,22 +31172,6 @@ class StateBuildLauncher:
 
 
 # ============================================================
-# StateBuildSentinel
-# ============================================================
-
-class StateBuildSentinel:
-    @classmethod
-    def run(cls, pos, banned_dir: Direction | None = None):
-        Pathfinder.move_to(pos, ban_target_pos=True)
-
-        if BuildManager.can_dbuild_sentinel(pos):
-            dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
-            BuildManager.dbuild_sentinel(pos, dir)
-        elif Globals.ct.can_build_road(pos):
-            Globals.ct.build_road(pos)
-
-
-# ============================================================
 # StateBuildShield
 # ============================================================
 
@@ -31258,6 +31242,29 @@ class StateBuildShield:
             else:
                 if BuildManager.can_mbuild_road():
                     BuildManager.dbuild_road(pos)
+
+
+# ============================================================
+# StateBuildTurret
+# ============================================================
+
+class StateBuildTurret:
+    @classmethod
+    def run(cls, pos, banned_dir: Direction | None = None):
+        Pathfinder.move_to(pos, ban_target_pos=True)
+
+        nearbyEnemyCore = False
+        if Symmetry.is_sym_known and Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= GameConstants.GUNNER_VISION_RADIUS_SQ:
+            nearbyEnemyCore = True
+        if BuildManager.can_dbuild_gunner(pos) and nearbyEnemyCore:
+            dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
+            # who cares all turrets are the same anyways
+            BuildManager.dbuild_gunner(pos, dir)
+        elif BuildManager.can_dbuild_sentinel(pos):
+            dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
+            BuildManager.dbuild_sentinel(pos, dir)
+        elif Globals.ct.can_build_road(pos):
+            Globals.ct.build_road(pos)
 
 
 # ============================================================
@@ -32311,7 +32318,7 @@ class Builder(Unit):
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
         if sentinelpos is not None:
             Debug.dot(sentinelpos, Color.PURPLE)
-            return 'BuildSentinel', sentinelpos, None
+            return 'BuildTurret', sentinelpos, None
 
         # disable for now
         sitterpos = SitterTakedown.get_best_launcher_position()
@@ -32367,7 +32374,7 @@ class Builder(Unit):
             if Util.dist_sq(tpos, Symmetry.enemy_core_pos) \
                     < Util.dist_sq(tpos, Unit.core_pos) \
                     and BfsBureau.bfs20_dist_adj[(((tpos.x) + 3) * 56 + ((tpos.y) + 3))] < 100:
-                return 'BuildSentinel', tpos 
+                return 'BuildTurret', tpos 
 
             if tpos not in RouteToCore.killed:
                 RouteToCore.set_pos(tpos)

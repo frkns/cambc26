@@ -64,7 +64,7 @@ class RushTargeter:
     def nearest_titanium_to_enemy(cls) -> Position | None:
         if not Symmetry.is_sym_known:
             return None
-        maxr = 8
+        maxr = 10
         cx = Symmetry.enemy_core_pos.x
         cy = Symmetry.enemy_core_pos.y
         for r in range(1, maxr + 1):
