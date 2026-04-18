@@ -134,7 +134,6 @@ class StateBuildTurret:
         core_dir = None
         if Symmetry.is_sym_known:
             core_dir = cls.gunner_can_hit_core(pos)
-            pass
             
         if BuildManager.can_dbuild_gunner(pos) and core_dir is not None:
             # who cares all turrets are the same anyways
