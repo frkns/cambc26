@@ -12,6 +12,11 @@ import traceback
 from itertools import chain
 from Awubot import *
 from Generated import *
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+{% from 'bbot/mode.j2' import Mode %}
+
 
 class MoveManager:
     @staticmethod
@@ -47,3 +52,17 @@ class MoveManager:
             return
         Globals.ct.move(direction)
         Globals.my_pos = Globals.ct.get_position()
+
+
+    @classmethod
+    def debug_moves(cls):
+        print('can_move')
+        {% for dir in directions %}
+        print(f'{{ short_directions[loop.index0] }}:{cls.can_move({{ dir }})}', end=' ')
+        {% endfor %}
+        print()
+        print('can_fill_move')
+        {% for dir in directions %}
+        print(f'{{ short_directions[loop.index0] }}:{cls.can_move({{ dir }})}', end=' ')
+        {% endfor %}
+        print()

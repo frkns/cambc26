@@ -57,17 +57,17 @@ class MarketMaker:
     hround: int = -1000
     hres: int = -1000
 
-    @staticmethod
-    def harvester_cost(apos: Position) -> int:
+    @classmethod
+    def harvester_cost(cls, apos: Position) -> int:
         {% set INVALIDATION_TIME = 5 %}
         {% set INVALIDATION_RSQ = 50 %}
 
         if (
-            MarketMaker.hpos is not None 
-            and Globals.round - MarketMaker.hround < {{ INVALIDATION_TIME }}
-            and apos.distance_squared(MarketMaker.hpos) < {{ INVALIDATION_RSQ }}
+            cls.hpos is not None 
+            and Globals.round - cls.hround < {{ INVALIDATION_TIME }}
+            and apos.distance_squared(cls.hpos) < {{ INVALIDATION_RSQ }}
         ):
-            return MarketMaker.hres
+            return cls.hres
 
         
         {{ P.start() }}
@@ -75,7 +75,10 @@ class MarketMaker:
         {{ P.end('BfsBureau.find_bridge_route') }}
         h_cost, _ = Globals.ct.get_harvester_cost()
         b_cost, _ = Globals.ct.get_bridge_cost()
-        return h_cost + b_cost * bridges
+        cls.hres = h_cost + b_cost * bridges 
+        cls.hpos = apos
+        cls.hround = Globals.round
+        return cls.hres
 
     @staticmethod
     def harvester_payback(apos: Position, cost: int = None) -> int:

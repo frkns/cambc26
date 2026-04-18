@@ -214,6 +214,9 @@ class Attacker:
 
     @classmethod
     def should_fire(cls, pos):
+        if MarketMaker.est_income <= 10 and MarketMaker.ti <= 50:
+            return False
+
         x, y = pos.x, pos.y
         tile_info = Map.tile_info
         ti = tile_info[x][y]
@@ -434,7 +437,7 @@ class BfsBureau:
 
     @classmethod
     def find_bridge_route_avoid_ti_adj(
-            cls, start: Position, sink_set: set[int], max_iter: int = 1000, avoid_pos: set[int] = set()
+            cls, start: Position, sink_set: set[int], max_iter: int = 500, avoid_pos: set[int] = set()
         ):
 
 
@@ -444,6 +447,8 @@ class BfsBureau:
         dist = [0] * 3136
 
         ti_ore_adj = cls.ti_ore_adj
+
+        enclosed_region = cls.enclosed_region
 
 
         sx, sy = start.x, start.y
@@ -464,6 +469,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -478,6 +484,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -492,6 +499,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -506,6 +514,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -526,6 +535,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -540,6 +550,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -554,6 +565,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -568,6 +580,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -587,6 +600,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -601,6 +615,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -615,6 +630,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -629,6 +645,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -648,6 +665,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -662,6 +680,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -676,6 +695,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -690,6 +710,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -714,6 +735,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -730,6 +752,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -746,6 +769,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -762,6 +786,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -778,6 +803,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -794,6 +820,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -810,6 +837,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -826,6 +854,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -842,6 +871,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -858,6 +888,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -874,6 +905,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -890,6 +922,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -906,6 +939,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -922,6 +956,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -938,6 +973,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -954,6 +990,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -978,6 +1015,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -994,6 +1032,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -1010,6 +1049,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -1026,6 +1066,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -1042,6 +1083,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -1058,6 +1100,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -1074,6 +1117,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -1090,6 +1134,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
                 and not ti_ore_adj[ni]
@@ -1108,7 +1153,7 @@ class BfsBureau:
 
     @classmethod
     def find_bridge_route(
-            cls, start: Position, sink_set: set[int], max_iter: int = 1000, avoid_pos: set[int] = set()
+            cls, start: Position, sink_set: set[int], max_iter: int = 500, avoid_pos: set[int] = set()
         ):
 
 
@@ -1117,6 +1162,8 @@ class BfsBureau:
         first_hop = [None] * 3136
         dist = [0] * 3136
 
+
+        enclosed_region = cls.enclosed_region
 
 
         sx, sy = start.x, start.y
@@ -1137,6 +1184,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1149,6 +1197,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1161,6 +1210,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1173,6 +1223,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1191,6 +1242,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1203,6 +1255,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1215,6 +1268,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1227,6 +1281,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1244,6 +1299,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1256,6 +1312,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1268,6 +1325,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1280,6 +1338,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1297,6 +1356,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1309,6 +1369,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1321,6 +1382,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1333,6 +1395,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1355,6 +1418,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1369,6 +1433,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1383,6 +1448,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1397,6 +1463,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1411,6 +1478,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1425,6 +1493,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1439,6 +1508,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1453,6 +1523,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1467,6 +1538,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1481,6 +1553,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1495,6 +1568,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1509,6 +1583,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1523,6 +1598,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1537,6 +1613,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1551,6 +1628,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1565,6 +1643,7 @@ class BfsBureau:
         if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1587,6 +1666,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1601,6 +1681,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1615,6 +1696,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1629,6 +1711,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1643,6 +1726,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1657,6 +1741,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1671,6 +1756,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1685,6 +1771,7 @@ class BfsBureau:
             if (
             not visited[ni] and
             ni not in avoid_pos and
+            not enclosed_region[ni] and  # new
             (ni in sink_set or (
                 passable[ni]
             ))
@@ -1703,7 +1790,8 @@ class BfsBureau:
     
     @classmethod
     def find_route(cls, start: Position, target: Position,
-                   ban_target: bool = False) -> tuple[int, Direction | None]:
+                   ban_target: bool = False,
+                   max_iter: int = 200) -> tuple[int, Direction | None]:
 
         sx, sy = start.x, start.y
         _tx, _ty = target.x, target.y
@@ -1719,6 +1807,7 @@ class BfsBureau:
 
         # ── Same-tile: CENTRE competes with neighbors ──
         if si == ti:
+            
             if ban_target:
                 _best_c = 1000000
                 _best_d = None
@@ -1727,41 +1816,49 @@ class BfsBureau:
                 _best_d = Direction.CENTRE if center_weight < 1000000 else None
             ni = si + -1
             w = weight[ni]
+            # print(0, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.NORTH):
                 _best_c = w
                 _best_d = Direction.NORTH
             ni = si + 55
             w = weight[ni]
+            # print(1, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.NORTHEAST):
                 _best_c = w
                 _best_d = Direction.NORTHEAST
             ni = si + 56
             w = weight[ni]
+            # print(2, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.EAST):
                 _best_c = w
                 _best_d = Direction.EAST
             ni = si + 57
             w = weight[ni]
+            # print(3, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.SOUTHEAST):
                 _best_c = w
                 _best_d = Direction.SOUTHEAST
             ni = si + 1
             w = weight[ni]
+            # print(4, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.SOUTH):
                 _best_c = w
                 _best_d = Direction.SOUTH
             ni = si + -55
             w = weight[ni]
+            # print(5, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.SOUTHWEST):
                 _best_c = w
                 _best_d = Direction.SOUTHWEST
             ni = si + -56
             w = weight[ni]
+            # print(6, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.WEST):
                 _best_c = w
                 _best_d = Direction.WEST
             ni = si + -57
             w = weight[ni]
+            # print(7, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.NORTHWEST):
                 _best_c = w
                 _best_d = Direction.NORTHWEST
@@ -1832,7 +1929,7 @@ class BfsBureau:
 
         # we do this because try...finally is banned by engine
 
-        # ── Phase 1: weighted Dijkstra up to 10 ──
+        # ── Phase 1: weighted Dijkstra up to 5 ──
         dist = [1000000] * 3136
         fhd  = [0]       * 3136
         dist[si] = 0
@@ -1927,7 +2024,7 @@ class BfsBureau:
 
             _sa(idx)
 
-            if d >= 10:
+            if d >= 5:
                 _p2a(idx)
                 while heap:
                     _dd, _idx = _hpop(heap)
@@ -2099,7 +2196,8 @@ class BfsBureau:
                     _md7 = dist[_ci]
 
         _bfs_d = 0
-        while True:
+        it = 0
+        while (it := it + 1) <= max_iter:
             _any = False
 
             _f = _fh0
@@ -2214,31 +2312,6 @@ class BfsBureau:
         # don't need to save anymore!
         return 1000000, None
     
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     # bfs20
 
@@ -2473,73 +2546,49 @@ class BfsBureau:
 
         cls._bfs20_touched_indices = touched_indices
 
-        # Post-process: for each touched tile AND its neighbors, update dist_adj
-        _seen = [False] * 3136
-        adj_list = []
-        _ala = adj_list.append
+            # Post-process: dist_adj[idx] = min dist of neighbours within r²≤20
         for idx in touched_indices:
-            if not _seen[idx]:
-                _seen[idx] = True
-                _ala(idx)
-            ni = idx + -1
-            if not _seen[ni]:
-                _seen[ni] = True
-                _ala(ni)
-            ni = idx + 55
-            if not _seen[ni]:
-                _seen[ni] = True
-                _ala(ni)
-            ni = idx + 56
-            if not _seen[ni]:
-                _seen[ni] = True
-                _ala(ni)
-            ni = idx + 57
-            if not _seen[ni]:
-                _seen[ni] = True
-                _ala(ni)
-            ni = idx + 1
-            if not _seen[ni]:
-                _seen[ni] = True
-                _ala(ni)
-            ni = idx + -55
-            if not _seen[ni]:
-                _seen[ni] = True
-                _ala(ni)
-            ni = idx + -56
-            if not _seen[ni]:
-                _seen[ni] = True
-                _ala(ni)
-            ni = idx + -57
-            if not _seen[ni]:
-                _seen[ni] = True
-                _ala(ni)
-
-        for idx in adj_list:
             best = IMPASSABLE
-            d = distances[idx + -1]
-            if d < best:
-                best = d
-            d = distances[idx + 55]
-            if d < best:
-                best = d
-            d = distances[idx + 56]
-            if d < best:
-                best = d
-            d = distances[idx + 57]
-            if d < best:
-                best = d
-            d = distances[idx + 1]
-            if d < best:
-                best = d
-            d = distances[idx + -55]
-            if d < best:
-                best = d
-            d = distances[idx + -56]
-            if d < best:
-                best = d
-            d = distances[idx + -57]
-            if d < best:
-                best = d
+            ni = idx + -1
+            if (ni - start_index) in valid_offsets:
+                d = distances[ni]
+                if d < best:
+                    best = d
+            ni = idx + 55
+            if (ni - start_index) in valid_offsets:
+                d = distances[ni]
+                if d < best:
+                    best = d
+            ni = idx + 56
+            if (ni - start_index) in valid_offsets:
+                d = distances[ni]
+                if d < best:
+                    best = d
+            ni = idx + 57
+            if (ni - start_index) in valid_offsets:
+                d = distances[ni]
+                if d < best:
+                    best = d
+            ni = idx + 1
+            if (ni - start_index) in valid_offsets:
+                d = distances[ni]
+                if d < best:
+                    best = d
+            ni = idx + -55
+            if (ni - start_index) in valid_offsets:
+                d = distances[ni]
+                if d < best:
+                    best = d
+            ni = idx + -56
+            if (ni - start_index) in valid_offsets:
+                d = distances[ni]
+                if d < best:
+                    best = d
+            ni = idx + -57
+            if (ni - start_index) in valid_offsets:
+                d = distances[ni]
+                if d < best:
+                    best = d
             distances_adj[idx] = best
 
 
@@ -3723,6 +3772,102 @@ class BfsBureau:
                     Debug.dot(Position(x, y), Color.PINK)
 
 
+
+    enclosed_region: list[bool] = [True] * 3136
+
+
+    @classmethod
+    def enclosed_init(cls):
+        cidx = (((Unit.core_pos.x) + 3) * 56 + ((Unit.core_pos.y) + 3))
+        cls.enclosed_region[cidx -1] = False
+        cls.enclosed_region[cidx +55] = False
+        cls.enclosed_region[cidx +56] = False
+        cls.enclosed_region[cidx +57] = False
+        cls.enclosed_region[cidx +1] = False
+        cls.enclosed_region[cidx -55] = False
+        cls.enclosed_region[cidx -56] = False
+        cls.enclosed_region[cidx -57] = False
+        cls.enclosed_region[cidx ] = False
+
+
+    @classmethod
+    def update_enclosed_regions(cls):
+        """
+        Multi-source BFS seeded from ally things in vision,
+        limited to r²≤20 from current position (same bound as bfs20).
+        Once a tile is proven not-enclosed (False) it stays False forever.
+        """
+        enclosed = cls.enclosed_region
+        valid_offsets = cls._BFS20_VALID_OFFSETS
+
+        pos = Globals.my_pos
+        start_index = (((pos.x) + 3) * 56 + ((pos.y) + 3))
+
+        q = deque()
+        _qa = q.append
+
+        passable = set()
+
+        # ── Build local passable set and seed from ally buildings ──
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            if ti.env != Environment.WALL and (not ti.has_building or ti.entity_type in Constants.PASSABLE_SET):
+                passable.add(idx)
+
+            if enclosed[idx] and ti.has_building and ti.is_building_ally and ti.entity_type in Constants.PASSABLE_SET:
+                enclosed[idx] = False
+                _qa(idx)
+
+        # ── 8-directional BFS, capped at r²≤20 ──
+        while q:
+            idx = q.popleft()
+            ni = idx + 1
+            if enclosed[ni] and ni in passable and (ni - start_index) in valid_offsets:
+                enclosed[ni] = False
+                _qa(ni)
+            ni = idx + -1
+            if enclosed[ni] and ni in passable and (ni - start_index) in valid_offsets:
+                enclosed[ni] = False
+                _qa(ni)
+            ni = idx + 56
+            if enclosed[ni] and ni in passable and (ni - start_index) in valid_offsets:
+                enclosed[ni] = False
+                _qa(ni)
+            ni = idx + -56
+            if enclosed[ni] and ni in passable and (ni - start_index) in valid_offsets:
+                enclosed[ni] = False
+                _qa(ni)
+            ni = idx + 57
+            if enclosed[ni] and ni in passable and (ni - start_index) in valid_offsets:
+                enclosed[ni] = False
+                _qa(ni)
+            ni = idx + 55
+            if enclosed[ni] and ni in passable and (ni - start_index) in valid_offsets:
+                enclosed[ni] = False
+                _qa(ni)
+            ni = idx + -55
+            if enclosed[ni] and ni in passable and (ni - start_index) in valid_offsets:
+                enclosed[ni] = False
+                _qa(ni)
+            ni = idx + -57
+            if enclosed[ni] and ni in passable and (ni - start_index) in valid_offsets:
+                enclosed[ni] = False
+                _qa(ni)
+
+
+    @classmethod
+    def is_enclosed(cls, pos: Position) -> bool:
+        return cls.enclosed_region[(((pos.x) + 3) * 56 + ((pos.y) + 3))]
+
+
+    @classmethod
+    def debug_enclosed_regions(cls):
+        """RED = enclosed (unreachable from visible ally buildings)."""
+        enclosed = cls.enclosed_region
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            if enclosed[idx]:
+                Debug.dot(Position(x, y), Color.RED)
+
+
 # ============================================================
 # BotInfo
 # ============================================================
@@ -4178,7 +4323,8 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_conveyor_cost()
         
         
-        if MarketMaker.est_income > 4 and Globals.round > 50:
+        # est income is at least 10 almost always because of passive income
+        if MarketMaker.est_income > 10 and Globals.round > 50:
             ti_cost += int(20 * MarketMaker.scale_ratio)
         
 
@@ -4344,7 +4490,8 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_bridge_cost()
         
         
-        if MarketMaker.est_income > 4 and Globals.round > 50:
+        # est income is at least 10 almost always because of passive income
+        if MarketMaker.est_income > 10 and Globals.round > 50:
             ti_cost += int(20 * MarketMaker.scale_ratio)
         
 
@@ -25685,10 +25832,6 @@ class HealTargeter:
         # count canonical allies between us and the target
         ally_index = VisionTracker.canonical_ally_index(best.position)
         
-        # if best.entity_type == EntityType.ROAD:
-        #     totalHeal += 2 # add some buffer for flanking and stuf
-        # else:
-        #     totalHeal += 4 # add some buffer for flanking and stuf
 
         # if there are already enough canonical healers, ignore the target
         if ally_index * GameConstants.HEAL_AMOUNT > max(best.building_heal, best.bot_heal):
@@ -25793,21 +25936,60 @@ class Map:
 
     @classmethod
     def fill_tile_infoV(cls):
+        # --- cache all globals/methods up front ---
         ct = Globals.ct
         my_pos = Globals.my_pos
         my_type = Globals.my_type
+        my_id = Globals.my_id
+        my_team = Globals.my_team
         round = ct.get_current_round()
         tile_info = cls.tile_info
 
-        cls.num_allies = 0
-        cls.num_enemies = 0
+        # cache ct method lookups
+        get_tile_env = ct.get_tile_env
+        get_tile_building_id = ct.get_tile_building_id
+        get_tile_builder_bot_id = ct.get_tile_builder_bot_id
+        get_entity_type = ct.get_entity_type
+        get_team = ct.get_team
+        get_hp = ct.get_hp
+        get_direction = ct.get_direction
+        get_bridge_target = ct.get_bridge_target
+        get_marker_value = ct.get_marker_value
+        get_stored_resource_id = ct.get_stored_resource_id
+        get_stored_resource = ct.get_stored_resource
+
+        # cache constants
+        PASSABLE_SET = Constants.PASSABLE_SET
+        TRANSPORTERS_SET = Constants.TRANSPORTERS_SET
+        HARVESTER = EntityType.HARVESTER
+        MARKER = EntityType.MARKER
+        SENTINEL = EntityType.SENTINEL
+        GUNNER = EntityType.GUNNER
+        BREACH = EntityType.BREACH
+        FOUNDRY = EntityType.FOUNDRY
+        LAUNCHER = EntityType.LAUNCHER
+        CONVEYOR = EntityType.CONVEYOR
+        ARMOURED_CONVEYOR = EntityType.ARMOURED_CONVEYOR
+        BRIDGE = EntityType.BRIDGE
+        CORE = EntityType.CORE
+        BUILDER_BOT = EntityType.BUILDER_BOT
+        ORE_TITANIUM = Environment.ORE_TITANIUM
+        WALL = Environment.WALL
+
+        messages_read = 0
+        num_allies = 0
+        num_enemies = 0
         cls.nearby_tiles = ct.get_nearby_tiles()
 
         maxX, maxY = cls.maxX, cls.maxY
         new_syms = cls.new_syms
         new_syms.clear()
 
-        cls.proc_nearby_tiles = []
+        harvester_set = cls.harvester_set
+        ti_harvester_set = cls.ti_harvester_set
+        ax_harvester_set = cls.ax_harvester_set
+
+        proc_nearby_tiles = []
         for pos in cls.nearby_tiles:
             x, y = pos.x, pos.y
             idx = (((x) + 3) * 56 + ((y) + 3))
@@ -25820,13 +26002,16 @@ class Map:
                 ti.entity_type = None
                 ti.resource_id = None
                 ti.resource_type = None
-            cls.proc_nearby_tiles.append(
+            proc_nearby_tiles.append(
                 (pos, x, y, idx, ti)
             )
+        cls.proc_nearby_tiles = proc_nearby_tiles
 
+        # track harvester tiles for second pass adjacency
+        harvester_proc = []
 
-        for pos, x, y, pos_idx, ti in cls.proc_nearby_tiles:
-            tile_env: Environment = ct.get_tile_env(pos)
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            tile_env = get_tile_env(pos)
             old_etype = ti.entity_type
             old_is_building_ally = ti.has_building and ti.is_building_ally
             if ti.has_turret:
@@ -25850,235 +26035,280 @@ class Map:
                 opp_ti.resource_type = None
                 tile_info[ox][oy] = opp_ti
                 new_syms.append(Position(ox, oy))
-                BfsBureau.ti_ore_adj[ (((ox) + 3) * 56 + ((oy) + 3))] = BfsBureau.ti_ore_adj[ (((x) + 3) * 56 + ((y) + 3))]
+                BfsBureau.ti_ore_adj[(((ox) + 3) * 56 + ((oy) + 3))] = BfsBureau.ti_ore_adj[pos_idx]
 
             ti.env = tile_env
             ti.round = round
 
-            building_id: int | None = ct.get_tile_building_id(pos)
-            bot_id: int | None = ct.get_tile_builder_bot_id(pos)
+            building_id = get_tile_building_id(pos)
+            bot_id = get_tile_builder_bot_id(pos)
             ti.building_id = building_id
             ti.bot_id = bot_id
 
-            if building_id is None:
-                etype = None
+            # --- entity type + team in one block, no redundant get_team calls ---
+            if building_id is not None:
+                etype = get_entity_type(building_id)
+                is_building_ally = get_team(building_id) == my_team
+                ti.is_building_ally = is_building_ally
             else:
-                etype = ct.get_entity_type(building_id)
-
-
-            ti.has_building = (
-                building_id is not None and 
-                etype != EntityType.MARKER
-            ) or (pos == my_pos and my_type != EntityType.BUILDER_BOT)
+                etype = None
+                is_building_ally = False
 
             ti.entity_type = etype
-            ti.has_bot = bot_id is not None and bot_id != Globals.my_id
 
-            if ti.has_bot:
-                ti.bot_hp = ct.get_hp(bot_id)
-                ti.is_bot_ally = ct.get_team(bot_id) == Globals.my_team
+            ti.has_building = (
+                building_id is not None and etype != MARKER
+            ) or (pos == my_pos and my_type != BUILDER_BOT)
 
-                if ti.is_bot_ally:
-                    cls.num_allies += 1
+            # --- bot ---
+            has_bot = bot_id is not None and bot_id != my_id
+            ti.has_bot = has_bot
+            if has_bot:
+                is_bot_ally = get_team(bot_id) == my_team
+                ti.bot_hp = get_hp(bot_id)
+                ti.is_bot_ally = is_bot_ally
+                if is_bot_ally:
+                    num_allies += 1
                 else:
-                    cls.num_enemies += 1
+                    num_enemies += 1
 
             ti.easily_passable = False
 
-            if etype == EntityType.MARKER or ti.has_building:
-                _building_team = ct.get_team(building_id)
-                ti.is_building_ally = _building_team == Globals.my_team
-
+            # --- building details ---
             if ti.has_building:
-                ti.building_hp = ct.get_hp(building_id)
-                if (etype in Constants.PASSABLE_SET or (
-                        etype == EntityType.CORE
-                        and ti.is_building_ally
-                )):
+                ti.building_hp = get_hp(building_id)
+                if etype in PASSABLE_SET or (etype == CORE and is_building_ally):
                     ti.easily_passable = True
 
-
             ti.has_turret = False
-                    
-            if etype == EntityType.CONVEYOR or etype == EntityType.ARMOURED_CONVEYOR:
-                tpos = pos.add(ct.get_direction(building_id))
+
+            if etype == CONVEYOR or etype == ARMOURED_CONVEYOR:
+                tpos = pos.add(get_direction(building_id))
                 ti.target = tpos
                 DarkForest.add_edge(pos_idx, (((tpos.x) + 3) * 56 + ((tpos.y) + 3)))
-                ti.resource_id = ct.get_stored_resource_id(building_id)
-                if ti.resource_id != None:
-                    ti.resource_type = ct.get_stored_resource(building_id)
-                else:
-                    ti.resource_type = None
-            elif etype == EntityType.BRIDGE:
-                tpos = ct.get_bridge_target(building_id)
+                # resource tracking added from main
+                rid = get_stored_resource_id(building_id)
+                ti.resource_id = rid
+                ti.resource_type = get_stored_resource(building_id) if rid is not None else None
+            elif etype == BRIDGE:
+                tpos = get_bridge_target(building_id)
                 ti.target = tpos
                 DarkForest.add_edge(pos_idx, (((tpos.x) + 3) * 56 + ((tpos.y) + 3)))
-                ti.resource_id = ct.get_stored_resource_id(building_id)
-                if ti.resource_id != None:
-                    ti.resource_type = ct.get_stored_resource(building_id)
-                else:
-                    ti.resource_type = None
+                # resource tracking added from main
+                rid = get_stored_resource_id(building_id)
+                ti.resource_id = rid
+                ti.resource_type = get_stored_resource(building_id) if rid is not None else None
             else:
                 ti.target = None
                 ti.resource_id = None
                 ti.resource_type = None
 
-                if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.BREACH, EntityType.FOUNDRY):
-                    if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.BREACH):
+                if etype in (SENTINEL, GUNNER, BREACH, FOUNDRY):
+                    if etype in (SENTINEL, GUNNER, BREACH):
                         ti.has_turret = True
-                        ti.turret_direction = ct.get_direction(building_id)
+                        ti.turret_direction = get_direction(building_id)
 
-                        if ti.is_building_ally:
+                        if is_building_ally:
                             DarkForest.register_sink(
-                              pos_idx,
-                              3)
-
+                                pos_idx,
+                                3)
                 else:
                     DarkForest.remove_node(pos_idx)
 
-            is_fresh_enemy_tower = old_etype != etype and \
-                (not ti.is_building_ally or not old_is_building_ally) and \
-                (etype in (EntityType.SENTINEL, EntityType.LAUNCHER) or
-                 old_etype in (EntityType.SENTINEL, EntityType.LAUNCHER))
+            is_fresh_enemy_tower = (
+                old_etype != etype and
+                (not is_building_ally or not old_is_building_ally) and
+                (
+                    (etype in (SENTINEL, LAUNCHER) and not is_building_ally) or
+                    (old_etype in (SENTINEL, LAUNCHER) and not old_is_building_ally)
+                )
+            )
 
-            # remove check
             if is_fresh_enemy_tower:
-                if old_etype == EntityType.SENTINEL:
+                if old_etype == SENTINEL:
                     BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
-                elif old_etype == EntityType.LAUNCHER:
+                elif old_etype == LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
 
-            # add check
             if is_fresh_enemy_tower:
-                if etype == EntityType.SENTINEL:
+                if etype == SENTINEL:
                     BfsBureau.add_enemy_sentinel(pos, ti)
-                elif etype == EntityType.LAUNCHER:
+                elif etype == LAUNCHER:
                     BfsBureau.add_enemy_launcher(pos_idx)
 
-
-            # maybe check ti/ax?
-            if etype == EntityType.HARVESTER:
-                cls.harvester_set.add(pos_idx)
-                if tile_env == Environment.ORE_TITANIUM:
-                    cls.ti_harvester_set.add(pos_idx)
+            # --- harvester set tracking ---
+            if etype == HARVESTER:
+                harvester_set.add(pos_idx)
+                if tile_env == ORE_TITANIUM:
+                    ti_harvester_set.add(pos_idx)
+                    ax_harvester_set.discard(pos_idx)
                 else:
-                    cls.ax_harvester_set.add(pos_idx)
+                    ax_harvester_set.add(pos_idx)
+                    ti_harvester_set.discard(pos_idx)
+                harvester_proc.append((x, y, ti))
             else:
-                cls.harvester_set.discard(pos_idx)
-                if tile_env == Environment.ORE_TITANIUM:
-                    cls.ti_harvester_set.discard(pos_idx)
-                else:
-                    cls.ax_harvester_set.discard(pos_idx)
+                if pos_idx in harvester_set:
+                    harvester_set.discard(pos_idx)
+                    ti_harvester_set.discard(pos_idx)
+                    ax_harvester_set.discard(pos_idx)
 
-            if etype == EntityType.MARKER and ti.is_building_ally:
-                Comms.handle_message(ct.get_marker_value(building_id))
-
-
-        HARVESTER = EntityType.HARVESTER
-
-        for pos, x, y, idx, ti in cls.proc_nearby_tiles:
-            ti.harvester_adjacent = \
-                ((nti := tile_info[x-1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x+1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x][y-1]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x][y+1]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM)
+            if etype == MARKER and is_building_ally and messages_read < 3:
+                messages_read += 1
                 
-            ti.allied_bots_adjacent = \
-                ((nti := tile_info[x][y]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x-1][y]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x+1][y]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x][y-1]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x][y+1]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x-1][y-1]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x+1][y-1]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x-1][y+1]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x+1][y+1]) is not None and nti.has_bot and nti.is_bot_ally)
-
-            
-
-            if ti.entity_type == EntityType.HARVESTER:
-                ti.ally_turrets_adjacent = 0
-                ti.enemy_turrets_adjacent = 0
-                ti.turrets_adjacent = 0
-                ti.ally_transporters_adjacent = 0
-                ti.enemy_transporters_adjacent = 0
-
-
-                if (nti := tile_info[x ][y -1]) is not None:
-                    if nti.has_turret:
-                        if nti.is_building_ally:
-                            ti.ally_turrets_adjacent += 1
-                        else:
-                            ti.enemy_turrets_adjacent += 1
-
-                    if nti.entity_type in Constants.TRANSPORTERS_SET:
-                        if nti.is_building_ally:
-                            ti.ally_transporters_adjacent += 1
-                        else:
-                            ti.enemy_transporters_adjacent += 1
-
-
-                if (nti := tile_info[x +1][y ]) is not None:
-                    if nti.has_turret:
-                        if nti.is_building_ally:
-                            ti.ally_turrets_adjacent += 1
-                        else:
-                            ti.enemy_turrets_adjacent += 1
-
-                    if nti.entity_type in Constants.TRANSPORTERS_SET:
-                        if nti.is_building_ally:
-                            ti.ally_transporters_adjacent += 1
-                        else:
-                            ti.enemy_transporters_adjacent += 1
-
-
-                if (nti := tile_info[x ][y +1]) is not None:
-                    if nti.has_turret:
-                        if nti.is_building_ally:
-                            ti.ally_turrets_adjacent += 1
-                        else:
-                            ti.enemy_turrets_adjacent += 1
-
-                    if nti.entity_type in Constants.TRANSPORTERS_SET:
-                        if nti.is_building_ally:
-                            ti.ally_transporters_adjacent += 1
-                        else:
-                            ti.enemy_transporters_adjacent += 1
-
-
-                if (nti := tile_info[x -1][y ]) is not None:
-                    if nti.has_turret:
-                        if nti.is_building_ally:
-                            ti.ally_turrets_adjacent += 1
-                        else:
-                            ti.enemy_turrets_adjacent += 1
-
-                    if nti.entity_type in Constants.TRANSPORTERS_SET:
-                        if nti.is_building_ally:
-                            ti.ally_transporters_adjacent += 1
-                        else:
-                            ti.enemy_transporters_adjacent += 1
-
-                ti.turrets_adjacent = ti.ally_turrets_adjacent + ti.enemy_turrets_adjacent
+                Comms.handle_message(get_marker_value(building_id))
                 
+
+        cls.num_allies = num_allies
+        cls.num_enemies = num_enemies
+
+        # --- second pass: harvester_adjacent + allied_bots_adjacent ---
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
+            row_xm1 = tile_info[x - 1]
+            row_x   = tile_info[x]
+            row_xp1 = tile_info[x + 1]
+
+            # harvester_adjacent: cardinal only, titanium harvesters
+            nti = row_xm1[y];   h1 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_xp1[y];   h2 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_x[y - 1]; h3 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_x[y + 1]; h4 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            ti.harvester_adjacent = h1 or h2 or h3 or h4
+
+            # allied_bots_adjacent: 8-neighbors + self
+            ym1 = y - 1
+            yp1 = y + 1
+
+            cnt = 0
+            nti = row_x[y];      cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[y];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[y];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_x[ym1];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_x[yp1];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[ym1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[ym1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            ti.allied_bots_adjacent = cnt
+
+            # turret/transporter adjacency: only for harvesters
+            if ti.entity_type == HARVESTER:
+                ally_turrets = 0
+                enemy_turrets = 0
+                ally_transporters = 0
+                enemy_transporters = 0
+
+                nti = tile_info[x ][y -1]
+                if nti is not None:
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+                    if nti.entity_type in TRANSPORTERS_SET:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                nti = tile_info[x +1][y ]
+                if nti is not None:
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+                    if nti.entity_type in TRANSPORTERS_SET:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                nti = tile_info[x ][y +1]
+                if nti is not None:
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+                    if nti.entity_type in TRANSPORTERS_SET:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                nti = tile_info[x -1][y ]
+                if nti is not None:
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+                    if nti.entity_type in TRANSPORTERS_SET:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                        else:
+                            enemy_transporters += 1
+
+                ti.ally_turrets_adjacent = ally_turrets
+                ti.enemy_turrets_adjacent = enemy_turrets
+                ti.turrets_adjacent = ally_turrets + enemy_turrets
+                ti.ally_transporters_adjacent = ally_transporters
+                ti.enemy_transporters_adjacent = enemy_transporters
 
     @classmethod
     def fill_tile_infoH(cls):
+        # --- cache all globals/methods up front ---
         ct = Globals.ct
         my_pos = Globals.my_pos
         my_type = Globals.my_type
+        my_id = Globals.my_id
+        my_team = Globals.my_team
         round = ct.get_current_round()
         tile_info = cls.tile_info
 
-        cls.num_allies = 0
-        cls.num_enemies = 0
+        # cache ct method lookups
+        get_tile_env = ct.get_tile_env
+        get_tile_building_id = ct.get_tile_building_id
+        get_tile_builder_bot_id = ct.get_tile_builder_bot_id
+        get_entity_type = ct.get_entity_type
+        get_team = ct.get_team
+        get_hp = ct.get_hp
+        get_direction = ct.get_direction
+        get_bridge_target = ct.get_bridge_target
+        get_marker_value = ct.get_marker_value
+        get_stored_resource_id = ct.get_stored_resource_id
+        get_stored_resource = ct.get_stored_resource
+
+        # cache constants
+        PASSABLE_SET = Constants.PASSABLE_SET
+        TRANSPORTERS_SET = Constants.TRANSPORTERS_SET
+        HARVESTER = EntityType.HARVESTER
+        MARKER = EntityType.MARKER
+        SENTINEL = EntityType.SENTINEL
+        GUNNER = EntityType.GUNNER
+        BREACH = EntityType.BREACH
+        FOUNDRY = EntityType.FOUNDRY
+        LAUNCHER = EntityType.LAUNCHER
+        CONVEYOR = EntityType.CONVEYOR
+        ARMOURED_CONVEYOR = EntityType.ARMOURED_CONVEYOR
+        BRIDGE = EntityType.BRIDGE
+        CORE = EntityType.CORE
+        BUILDER_BOT = EntityType.BUILDER_BOT
+        ORE_TITANIUM = Environment.ORE_TITANIUM
+        WALL = Environment.WALL
+
+        messages_read = 0
+        num_allies = 0
+        num_enemies = 0
         cls.nearby_tiles = ct.get_nearby_tiles()
 
         maxX, maxY = cls.maxX, cls.maxY
         new_syms = cls.new_syms
         new_syms.clear()
 
-        cls.proc_nearby_tiles = []
+        harvester_set = cls.harvester_set
+        ti_harvester_set = cls.ti_harvester_set
+        ax_harvester_set = cls.ax_harvester_set
+
+        proc_nearby_tiles = []
         for pos in cls.nearby_tiles:
             x, y = pos.x, pos.y
             idx = (((x) + 3) * 56 + ((y) + 3))
@@ -26091,19 +26321,22 @@ class Map:
                 ti.entity_type = None
                 ti.resource_id = None
                 ti.resource_type = None
-            cls.proc_nearby_tiles.append(
+            proc_nearby_tiles.append(
                 (pos, x, y, idx, ti)
             )
+        cls.proc_nearby_tiles = proc_nearby_tiles
 
+        # track harvester tiles for second pass adjacency
+        harvester_proc = []
 
-        for pos, x, y, pos_idx, ti in cls.proc_nearby_tiles:
-            tile_env: Environment = ct.get_tile_env(pos)
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            tile_env = get_tile_env(pos)
             old_etype = ti.entity_type
             old_is_building_ally = ti.has_building and ti.is_building_ally
             if ti.has_turret:
                 old_turret_direction = ti.turret_direction
 
-            ox, oy = x, maxY - y 
+            ox, oy = x, maxY - y
 
             opp_ti = tile_info[ox][oy]
             if opp_ti is None:
@@ -26121,235 +26354,280 @@ class Map:
                 opp_ti.resource_type = None
                 tile_info[ox][oy] = opp_ti
                 new_syms.append(Position(ox, oy))
-                BfsBureau.ti_ore_adj[ (((ox) + 3) * 56 + ((oy) + 3))] = BfsBureau.ti_ore_adj[ (((x) + 3) * 56 + ((y) + 3))]
+                BfsBureau.ti_ore_adj[(((ox) + 3) * 56 + ((oy) + 3))] = BfsBureau.ti_ore_adj[pos_idx]
 
             ti.env = tile_env
             ti.round = round
 
-            building_id: int | None = ct.get_tile_building_id(pos)
-            bot_id: int | None = ct.get_tile_builder_bot_id(pos)
+            building_id = get_tile_building_id(pos)
+            bot_id = get_tile_builder_bot_id(pos)
             ti.building_id = building_id
             ti.bot_id = bot_id
 
-            if building_id is None:
-                etype = None
+            # --- entity type + team in one block, no redundant get_team calls ---
+            if building_id is not None:
+                etype = get_entity_type(building_id)
+                is_building_ally = get_team(building_id) == my_team
+                ti.is_building_ally = is_building_ally
             else:
-                etype = ct.get_entity_type(building_id)
-
-
-            ti.has_building = (
-                building_id is not None and 
-                etype != EntityType.MARKER
-            ) or (pos == my_pos and my_type != EntityType.BUILDER_BOT)
+                etype = None
+                is_building_ally = False
 
             ti.entity_type = etype
-            ti.has_bot = bot_id is not None and bot_id != Globals.my_id
 
-            if ti.has_bot:
-                ti.bot_hp = ct.get_hp(bot_id)
-                ti.is_bot_ally = ct.get_team(bot_id) == Globals.my_team
+            ti.has_building = (
+                building_id is not None and etype != MARKER
+            ) or (pos == my_pos and my_type != BUILDER_BOT)
 
-                if ti.is_bot_ally:
-                    cls.num_allies += 1
+            # --- bot ---
+            has_bot = bot_id is not None and bot_id != my_id
+            ti.has_bot = has_bot
+            if has_bot:
+                is_bot_ally = get_team(bot_id) == my_team
+                ti.bot_hp = get_hp(bot_id)
+                ti.is_bot_ally = is_bot_ally
+                if is_bot_ally:
+                    num_allies += 1
                 else:
-                    cls.num_enemies += 1
+                    num_enemies += 1
 
             ti.easily_passable = False
 
-            if etype == EntityType.MARKER or ti.has_building:
-                _building_team = ct.get_team(building_id)
-                ti.is_building_ally = _building_team == Globals.my_team
-
+            # --- building details ---
             if ti.has_building:
-                ti.building_hp = ct.get_hp(building_id)
-                if (etype in Constants.PASSABLE_SET or (
-                        etype == EntityType.CORE
-                        and ti.is_building_ally
-                )):
+                ti.building_hp = get_hp(building_id)
+                if etype in PASSABLE_SET or (etype == CORE and is_building_ally):
                     ti.easily_passable = True
 
-
             ti.has_turret = False
-                    
-            if etype == EntityType.CONVEYOR or etype == EntityType.ARMOURED_CONVEYOR:
-                tpos = pos.add(ct.get_direction(building_id))
+
+            if etype == CONVEYOR or etype == ARMOURED_CONVEYOR:
+                tpos = pos.add(get_direction(building_id))
                 ti.target = tpos
                 DarkForest.add_edge(pos_idx, (((tpos.x) + 3) * 56 + ((tpos.y) + 3)))
-                ti.resource_id = ct.get_stored_resource_id(building_id)
-                if ti.resource_id != None:
-                    ti.resource_type = ct.get_stored_resource(building_id)
-                else:
-                    ti.resource_type = None
-            elif etype == EntityType.BRIDGE:
-                tpos = ct.get_bridge_target(building_id)
+                # resource tracking added from main
+                rid = get_stored_resource_id(building_id)
+                ti.resource_id = rid
+                ti.resource_type = get_stored_resource(building_id) if rid is not None else None
+            elif etype == BRIDGE:
+                tpos = get_bridge_target(building_id)
                 ti.target = tpos
                 DarkForest.add_edge(pos_idx, (((tpos.x) + 3) * 56 + ((tpos.y) + 3)))
-                ti.resource_id = ct.get_stored_resource_id(building_id)
-                if ti.resource_id != None:
-                    ti.resource_type = ct.get_stored_resource(building_id)
-                else:
-                    ti.resource_type = None
+                # resource tracking added from main
+                rid = get_stored_resource_id(building_id)
+                ti.resource_id = rid
+                ti.resource_type = get_stored_resource(building_id) if rid is not None else None
             else:
                 ti.target = None
                 ti.resource_id = None
                 ti.resource_type = None
 
-                if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.BREACH, EntityType.FOUNDRY):
-                    if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.BREACH):
+                if etype in (SENTINEL, GUNNER, BREACH, FOUNDRY):
+                    if etype in (SENTINEL, GUNNER, BREACH):
                         ti.has_turret = True
-                        ti.turret_direction = ct.get_direction(building_id)
+                        ti.turret_direction = get_direction(building_id)
 
-                        if ti.is_building_ally:
+                        if is_building_ally:
                             DarkForest.register_sink(
-                              pos_idx,
-                              3)
-
+                                pos_idx,
+                                3)
                 else:
                     DarkForest.remove_node(pos_idx)
 
-            is_fresh_enemy_tower = old_etype != etype and \
-                (not ti.is_building_ally or not old_is_building_ally) and \
-                (etype in (EntityType.SENTINEL, EntityType.LAUNCHER) or
-                 old_etype in (EntityType.SENTINEL, EntityType.LAUNCHER))
+            is_fresh_enemy_tower = (
+                old_etype != etype and
+                (not is_building_ally or not old_is_building_ally) and
+                (
+                    (etype in (SENTINEL, LAUNCHER) and not is_building_ally) or
+                    (old_etype in (SENTINEL, LAUNCHER) and not old_is_building_ally)
+                )
+            )
 
-            # remove check
             if is_fresh_enemy_tower:
-                if old_etype == EntityType.SENTINEL:
+                if old_etype == SENTINEL:
                     BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
-                elif old_etype == EntityType.LAUNCHER:
+                elif old_etype == LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
 
-            # add check
             if is_fresh_enemy_tower:
-                if etype == EntityType.SENTINEL:
+                if etype == SENTINEL:
                     BfsBureau.add_enemy_sentinel(pos, ti)
-                elif etype == EntityType.LAUNCHER:
+                elif etype == LAUNCHER:
                     BfsBureau.add_enemy_launcher(pos_idx)
 
-
-            # maybe check ti/ax?
-            if etype == EntityType.HARVESTER:
-                cls.harvester_set.add(pos_idx)
-                if tile_env == Environment.ORE_TITANIUM:
-                    cls.ti_harvester_set.add(pos_idx)
+            # --- harvester set tracking ---
+            if etype == HARVESTER:
+                harvester_set.add(pos_idx)
+                if tile_env == ORE_TITANIUM:
+                    ti_harvester_set.add(pos_idx)
+                    ax_harvester_set.discard(pos_idx)
                 else:
-                    cls.ax_harvester_set.add(pos_idx)
+                    ax_harvester_set.add(pos_idx)
+                    ti_harvester_set.discard(pos_idx)
+                harvester_proc.append((x, y, ti))
             else:
-                cls.harvester_set.discard(pos_idx)
-                if tile_env == Environment.ORE_TITANIUM:
-                    cls.ti_harvester_set.discard(pos_idx)
-                else:
-                    cls.ax_harvester_set.discard(pos_idx)
+                if pos_idx in harvester_set:
+                    harvester_set.discard(pos_idx)
+                    ti_harvester_set.discard(pos_idx)
+                    ax_harvester_set.discard(pos_idx)
 
-            if etype == EntityType.MARKER and ti.is_building_ally:
-                Comms.handle_message(ct.get_marker_value(building_id))
-
-
-        HARVESTER = EntityType.HARVESTER
-
-        for pos, x, y, idx, ti in cls.proc_nearby_tiles:
-            ti.harvester_adjacent = \
-                ((nti := tile_info[x-1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x+1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x][y-1]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x][y+1]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM)
+            if etype == MARKER and is_building_ally and messages_read < 3:
+                messages_read += 1
                 
-            ti.allied_bots_adjacent = \
-                ((nti := tile_info[x][y]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x-1][y]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x+1][y]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x][y-1]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x][y+1]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x-1][y-1]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x+1][y-1]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x-1][y+1]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x+1][y+1]) is not None and nti.has_bot and nti.is_bot_ally)
-
-            
-
-            if ti.entity_type == EntityType.HARVESTER:
-                ti.ally_turrets_adjacent = 0
-                ti.enemy_turrets_adjacent = 0
-                ti.turrets_adjacent = 0
-                ti.ally_transporters_adjacent = 0
-                ti.enemy_transporters_adjacent = 0
-
-
-                if (nti := tile_info[x ][y -1]) is not None:
-                    if nti.has_turret:
-                        if nti.is_building_ally:
-                            ti.ally_turrets_adjacent += 1
-                        else:
-                            ti.enemy_turrets_adjacent += 1
-
-                    if nti.entity_type in Constants.TRANSPORTERS_SET:
-                        if nti.is_building_ally:
-                            ti.ally_transporters_adjacent += 1
-                        else:
-                            ti.enemy_transporters_adjacent += 1
-
-
-                if (nti := tile_info[x +1][y ]) is not None:
-                    if nti.has_turret:
-                        if nti.is_building_ally:
-                            ti.ally_turrets_adjacent += 1
-                        else:
-                            ti.enemy_turrets_adjacent += 1
-
-                    if nti.entity_type in Constants.TRANSPORTERS_SET:
-                        if nti.is_building_ally:
-                            ti.ally_transporters_adjacent += 1
-                        else:
-                            ti.enemy_transporters_adjacent += 1
-
-
-                if (nti := tile_info[x ][y +1]) is not None:
-                    if nti.has_turret:
-                        if nti.is_building_ally:
-                            ti.ally_turrets_adjacent += 1
-                        else:
-                            ti.enemy_turrets_adjacent += 1
-
-                    if nti.entity_type in Constants.TRANSPORTERS_SET:
-                        if nti.is_building_ally:
-                            ti.ally_transporters_adjacent += 1
-                        else:
-                            ti.enemy_transporters_adjacent += 1
-
-
-                if (nti := tile_info[x -1][y ]) is not None:
-                    if nti.has_turret:
-                        if nti.is_building_ally:
-                            ti.ally_turrets_adjacent += 1
-                        else:
-                            ti.enemy_turrets_adjacent += 1
-
-                    if nti.entity_type in Constants.TRANSPORTERS_SET:
-                        if nti.is_building_ally:
-                            ti.ally_transporters_adjacent += 1
-                        else:
-                            ti.enemy_transporters_adjacent += 1
-
-                ti.turrets_adjacent = ti.ally_turrets_adjacent + ti.enemy_turrets_adjacent
+                Comms.handle_message(get_marker_value(building_id))
                 
+
+        cls.num_allies = num_allies
+        cls.num_enemies = num_enemies
+
+        # --- second pass: harvester_adjacent + allied_bots_adjacent ---
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
+            row_xm1 = tile_info[x - 1]
+            row_x   = tile_info[x]
+            row_xp1 = tile_info[x + 1]
+
+            # harvester_adjacent: cardinal only, titanium harvesters
+            nti = row_xm1[y];   h1 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_xp1[y];   h2 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_x[y - 1]; h3 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_x[y + 1]; h4 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            ti.harvester_adjacent = h1 or h2 or h3 or h4
+
+            # allied_bots_adjacent: 8-neighbors + self
+            ym1 = y - 1
+            yp1 = y + 1
+
+            cnt = 0
+            nti = row_x[y];      cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[y];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[y];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_x[ym1];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_x[yp1];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[ym1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[ym1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            ti.allied_bots_adjacent = cnt
+
+            # turret/transporter adjacency: only for harvesters
+            if ti.entity_type == HARVESTER:
+                ally_turrets = 0
+                enemy_turrets = 0
+                ally_transporters = 0
+                enemy_transporters = 0
+
+                nti = tile_info[x ][y -1]
+                if nti is not None:
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+                    if nti.entity_type in TRANSPORTERS_SET:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                nti = tile_info[x +1][y ]
+                if nti is not None:
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+                    if nti.entity_type in TRANSPORTERS_SET:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                nti = tile_info[x ][y +1]
+                if nti is not None:
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+                    if nti.entity_type in TRANSPORTERS_SET:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                nti = tile_info[x -1][y ]
+                if nti is not None:
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+                    if nti.entity_type in TRANSPORTERS_SET:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                        else:
+                            enemy_transporters += 1
+
+                ti.ally_turrets_adjacent = ally_turrets
+                ti.enemy_turrets_adjacent = enemy_turrets
+                ti.turrets_adjacent = ally_turrets + enemy_turrets
+                ti.ally_transporters_adjacent = ally_transporters
+                ti.enemy_transporters_adjacent = enemy_transporters
 
     @classmethod
     def fill_tile_infoR(cls):
+        # --- cache all globals/methods up front ---
         ct = Globals.ct
         my_pos = Globals.my_pos
         my_type = Globals.my_type
+        my_id = Globals.my_id
+        my_team = Globals.my_team
         round = ct.get_current_round()
         tile_info = cls.tile_info
 
-        cls.num_allies = 0
-        cls.num_enemies = 0
+        # cache ct method lookups
+        get_tile_env = ct.get_tile_env
+        get_tile_building_id = ct.get_tile_building_id
+        get_tile_builder_bot_id = ct.get_tile_builder_bot_id
+        get_entity_type = ct.get_entity_type
+        get_team = ct.get_team
+        get_hp = ct.get_hp
+        get_direction = ct.get_direction
+        get_bridge_target = ct.get_bridge_target
+        get_marker_value = ct.get_marker_value
+        get_stored_resource_id = ct.get_stored_resource_id
+        get_stored_resource = ct.get_stored_resource
+
+        # cache constants
+        PASSABLE_SET = Constants.PASSABLE_SET
+        TRANSPORTERS_SET = Constants.TRANSPORTERS_SET
+        HARVESTER = EntityType.HARVESTER
+        MARKER = EntityType.MARKER
+        SENTINEL = EntityType.SENTINEL
+        GUNNER = EntityType.GUNNER
+        BREACH = EntityType.BREACH
+        FOUNDRY = EntityType.FOUNDRY
+        LAUNCHER = EntityType.LAUNCHER
+        CONVEYOR = EntityType.CONVEYOR
+        ARMOURED_CONVEYOR = EntityType.ARMOURED_CONVEYOR
+        BRIDGE = EntityType.BRIDGE
+        CORE = EntityType.CORE
+        BUILDER_BOT = EntityType.BUILDER_BOT
+        ORE_TITANIUM = Environment.ORE_TITANIUM
+        WALL = Environment.WALL
+
+        messages_read = 0
+        num_allies = 0
+        num_enemies = 0
         cls.nearby_tiles = ct.get_nearby_tiles()
 
         maxX, maxY = cls.maxX, cls.maxY
         new_syms = cls.new_syms
         new_syms.clear()
 
-        cls.proc_nearby_tiles = []
+        harvester_set = cls.harvester_set
+        ti_harvester_set = cls.ti_harvester_set
+        ax_harvester_set = cls.ax_harvester_set
+
+        proc_nearby_tiles = []
         for pos in cls.nearby_tiles:
             x, y = pos.x, pos.y
             idx = (((x) + 3) * 56 + ((y) + 3))
@@ -26362,19 +26640,22 @@ class Map:
                 ti.entity_type = None
                 ti.resource_id = None
                 ti.resource_type = None
-            cls.proc_nearby_tiles.append(
+            proc_nearby_tiles.append(
                 (pos, x, y, idx, ti)
             )
+        cls.proc_nearby_tiles = proc_nearby_tiles
 
+        # track harvester tiles for second pass adjacency
+        harvester_proc = []
 
-        for pos, x, y, pos_idx, ti in cls.proc_nearby_tiles:
-            tile_env: Environment = ct.get_tile_env(pos)
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            tile_env = get_tile_env(pos)
             old_etype = ti.entity_type
             old_is_building_ally = ti.has_building and ti.is_building_ally
             if ti.has_turret:
                 old_turret_direction = ti.turret_direction
 
-            ox, oy = maxX - x, maxY - y 
+            ox, oy = maxX - x, maxY - y
 
             opp_ti = tile_info[ox][oy]
             if opp_ti is None:
@@ -26392,232 +26673,277 @@ class Map:
                 opp_ti.resource_type = None
                 tile_info[ox][oy] = opp_ti
                 new_syms.append(Position(ox, oy))
-                BfsBureau.ti_ore_adj[ (((ox) + 3) * 56 + ((oy) + 3))] = BfsBureau.ti_ore_adj[ (((x) + 3) * 56 + ((y) + 3))]
+                BfsBureau.ti_ore_adj[(((ox) + 3) * 56 + ((oy) + 3))] = BfsBureau.ti_ore_adj[pos_idx]
 
             ti.env = tile_env
             ti.round = round
 
-            building_id: int | None = ct.get_tile_building_id(pos)
-            bot_id: int | None = ct.get_tile_builder_bot_id(pos)
+            building_id = get_tile_building_id(pos)
+            bot_id = get_tile_builder_bot_id(pos)
             ti.building_id = building_id
             ti.bot_id = bot_id
 
-            if building_id is None:
-                etype = None
+            # --- entity type + team in one block, no redundant get_team calls ---
+            if building_id is not None:
+                etype = get_entity_type(building_id)
+                is_building_ally = get_team(building_id) == my_team
+                ti.is_building_ally = is_building_ally
             else:
-                etype = ct.get_entity_type(building_id)
-
-
-            ti.has_building = (
-                building_id is not None and 
-                etype != EntityType.MARKER
-            ) or (pos == my_pos and my_type != EntityType.BUILDER_BOT)
+                etype = None
+                is_building_ally = False
 
             ti.entity_type = etype
-            ti.has_bot = bot_id is not None and bot_id != Globals.my_id
 
-            if ti.has_bot:
-                ti.bot_hp = ct.get_hp(bot_id)
-                ti.is_bot_ally = ct.get_team(bot_id) == Globals.my_team
+            ti.has_building = (
+                building_id is not None and etype != MARKER
+            ) or (pos == my_pos and my_type != BUILDER_BOT)
 
-                if ti.is_bot_ally:
-                    cls.num_allies += 1
+            # --- bot ---
+            has_bot = bot_id is not None and bot_id != my_id
+            ti.has_bot = has_bot
+            if has_bot:
+                is_bot_ally = get_team(bot_id) == my_team
+                ti.bot_hp = get_hp(bot_id)
+                ti.is_bot_ally = is_bot_ally
+                if is_bot_ally:
+                    num_allies += 1
                 else:
-                    cls.num_enemies += 1
+                    num_enemies += 1
 
             ti.easily_passable = False
 
-            if etype == EntityType.MARKER or ti.has_building:
-                _building_team = ct.get_team(building_id)
-                ti.is_building_ally = _building_team == Globals.my_team
-
+            # --- building details ---
             if ti.has_building:
-                ti.building_hp = ct.get_hp(building_id)
-                if (etype in Constants.PASSABLE_SET or (
-                        etype == EntityType.CORE
-                        and ti.is_building_ally
-                )):
+                ti.building_hp = get_hp(building_id)
+                if etype in PASSABLE_SET or (etype == CORE and is_building_ally):
                     ti.easily_passable = True
 
-
             ti.has_turret = False
-                    
-            if etype == EntityType.CONVEYOR or etype == EntityType.ARMOURED_CONVEYOR:
-                tpos = pos.add(ct.get_direction(building_id))
+
+            if etype == CONVEYOR or etype == ARMOURED_CONVEYOR:
+                tpos = pos.add(get_direction(building_id))
                 ti.target = tpos
                 DarkForest.add_edge(pos_idx, (((tpos.x) + 3) * 56 + ((tpos.y) + 3)))
-                ti.resource_id = ct.get_stored_resource_id(building_id)
-                if ti.resource_id != None:
-                    ti.resource_type = ct.get_stored_resource(building_id)
-                else:
-                    ti.resource_type = None
-            elif etype == EntityType.BRIDGE:
-                tpos = ct.get_bridge_target(building_id)
+                # resource tracking added from main
+                rid = get_stored_resource_id(building_id)
+                ti.resource_id = rid
+                ti.resource_type = get_stored_resource(building_id) if rid is not None else None
+            elif etype == BRIDGE:
+                tpos = get_bridge_target(building_id)
                 ti.target = tpos
                 DarkForest.add_edge(pos_idx, (((tpos.x) + 3) * 56 + ((tpos.y) + 3)))
-                ti.resource_id = ct.get_stored_resource_id(building_id)
-                if ti.resource_id != None:
-                    ti.resource_type = ct.get_stored_resource(building_id)
-                else:
-                    ti.resource_type = None
+                # resource tracking added from main
+                rid = get_stored_resource_id(building_id)
+                ti.resource_id = rid
+                ti.resource_type = get_stored_resource(building_id) if rid is not None else None
             else:
                 ti.target = None
                 ti.resource_id = None
                 ti.resource_type = None
 
-                if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.BREACH, EntityType.FOUNDRY):
-                    if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.BREACH):
+                if etype in (SENTINEL, GUNNER, BREACH, FOUNDRY):
+                    if etype in (SENTINEL, GUNNER, BREACH):
                         ti.has_turret = True
-                        ti.turret_direction = ct.get_direction(building_id)
+                        ti.turret_direction = get_direction(building_id)
 
-                        if ti.is_building_ally:
+                        if is_building_ally:
                             DarkForest.register_sink(
-                              pos_idx,
-                              3)
-
+                                pos_idx,
+                                3)
                 else:
                     DarkForest.remove_node(pos_idx)
 
-            is_fresh_enemy_tower = old_etype != etype and \
-                (not ti.is_building_ally or not old_is_building_ally) and \
-                (etype in (EntityType.SENTINEL, EntityType.LAUNCHER) or
-                 old_etype in (EntityType.SENTINEL, EntityType.LAUNCHER))
+            is_fresh_enemy_tower = (
+                old_etype != etype and
+                (not is_building_ally or not old_is_building_ally) and
+                (
+                    (etype in (SENTINEL, LAUNCHER) and not is_building_ally) or
+                    (old_etype in (SENTINEL, LAUNCHER) and not old_is_building_ally)
+                )
+            )
 
-            # remove check
             if is_fresh_enemy_tower:
-                if old_etype == EntityType.SENTINEL:
+                if old_etype == SENTINEL:
                     BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
-                elif old_etype == EntityType.LAUNCHER:
+                elif old_etype == LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
 
-            # add check
             if is_fresh_enemy_tower:
-                if etype == EntityType.SENTINEL:
+                if etype == SENTINEL:
                     BfsBureau.add_enemy_sentinel(pos, ti)
-                elif etype == EntityType.LAUNCHER:
+                elif etype == LAUNCHER:
                     BfsBureau.add_enemy_launcher(pos_idx)
 
-
-            # maybe check ti/ax?
-            if etype == EntityType.HARVESTER:
-                cls.harvester_set.add(pos_idx)
-                if tile_env == Environment.ORE_TITANIUM:
-                    cls.ti_harvester_set.add(pos_idx)
+            # --- harvester set tracking ---
+            if etype == HARVESTER:
+                harvester_set.add(pos_idx)
+                if tile_env == ORE_TITANIUM:
+                    ti_harvester_set.add(pos_idx)
+                    ax_harvester_set.discard(pos_idx)
                 else:
-                    cls.ax_harvester_set.add(pos_idx)
+                    ax_harvester_set.add(pos_idx)
+                    ti_harvester_set.discard(pos_idx)
+                harvester_proc.append((x, y, ti))
             else:
-                cls.harvester_set.discard(pos_idx)
-                if tile_env == Environment.ORE_TITANIUM:
-                    cls.ti_harvester_set.discard(pos_idx)
-                else:
-                    cls.ax_harvester_set.discard(pos_idx)
+                if pos_idx in harvester_set:
+                    harvester_set.discard(pos_idx)
+                    ti_harvester_set.discard(pos_idx)
+                    ax_harvester_set.discard(pos_idx)
 
-            if etype == EntityType.MARKER and ti.is_building_ally:
-                Comms.handle_message(ct.get_marker_value(building_id))
-
-
-        HARVESTER = EntityType.HARVESTER
-
-        for pos, x, y, idx, ti in cls.proc_nearby_tiles:
-            ti.harvester_adjacent = \
-                ((nti := tile_info[x-1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x+1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x][y-1]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x][y+1]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM)
+            if etype == MARKER and is_building_ally and messages_read < 3:
+                messages_read += 1
                 
-            ti.allied_bots_adjacent = \
-                ((nti := tile_info[x][y]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x-1][y]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x+1][y]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x][y-1]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x][y+1]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x-1][y-1]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x+1][y-1]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x-1][y+1]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x+1][y+1]) is not None and nti.has_bot and nti.is_bot_ally)
-
-            
-
-            if ti.entity_type == EntityType.HARVESTER:
-                ti.ally_turrets_adjacent = 0
-                ti.enemy_turrets_adjacent = 0
-                ti.turrets_adjacent = 0
-                ti.ally_transporters_adjacent = 0
-                ti.enemy_transporters_adjacent = 0
-
-
-                if (nti := tile_info[x ][y -1]) is not None:
-                    if nti.has_turret:
-                        if nti.is_building_ally:
-                            ti.ally_turrets_adjacent += 1
-                        else:
-                            ti.enemy_turrets_adjacent += 1
-
-                    if nti.entity_type in Constants.TRANSPORTERS_SET:
-                        if nti.is_building_ally:
-                            ti.ally_transporters_adjacent += 1
-                        else:
-                            ti.enemy_transporters_adjacent += 1
-
-
-                if (nti := tile_info[x +1][y ]) is not None:
-                    if nti.has_turret:
-                        if nti.is_building_ally:
-                            ti.ally_turrets_adjacent += 1
-                        else:
-                            ti.enemy_turrets_adjacent += 1
-
-                    if nti.entity_type in Constants.TRANSPORTERS_SET:
-                        if nti.is_building_ally:
-                            ti.ally_transporters_adjacent += 1
-                        else:
-                            ti.enemy_transporters_adjacent += 1
-
-
-                if (nti := tile_info[x ][y +1]) is not None:
-                    if nti.has_turret:
-                        if nti.is_building_ally:
-                            ti.ally_turrets_adjacent += 1
-                        else:
-                            ti.enemy_turrets_adjacent += 1
-
-                    if nti.entity_type in Constants.TRANSPORTERS_SET:
-                        if nti.is_building_ally:
-                            ti.ally_transporters_adjacent += 1
-                        else:
-                            ti.enemy_transporters_adjacent += 1
-
-
-                if (nti := tile_info[x -1][y ]) is not None:
-                    if nti.has_turret:
-                        if nti.is_building_ally:
-                            ti.ally_turrets_adjacent += 1
-                        else:
-                            ti.enemy_turrets_adjacent += 1
-
-                    if nti.entity_type in Constants.TRANSPORTERS_SET:
-                        if nti.is_building_ally:
-                            ti.ally_transporters_adjacent += 1
-                        else:
-                            ti.enemy_transporters_adjacent += 1
-
-                ti.turrets_adjacent = ti.ally_turrets_adjacent + ti.enemy_turrets_adjacent
+                Comms.handle_message(get_marker_value(building_id))
                 
+
+        cls.num_allies = num_allies
+        cls.num_enemies = num_enemies
+
+        # --- second pass: harvester_adjacent + allied_bots_adjacent ---
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
+            row_xm1 = tile_info[x - 1]
+            row_x   = tile_info[x]
+            row_xp1 = tile_info[x + 1]
+
+            # harvester_adjacent: cardinal only, titanium harvesters
+            nti = row_xm1[y];   h1 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_xp1[y];   h2 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_x[y - 1]; h3 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_x[y + 1]; h4 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            ti.harvester_adjacent = h1 or h2 or h3 or h4
+
+            # allied_bots_adjacent: 8-neighbors + self
+            ym1 = y - 1
+            yp1 = y + 1
+
+            cnt = 0
+            nti = row_x[y];      cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[y];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[y];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_x[ym1];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_x[yp1];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[ym1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[ym1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            ti.allied_bots_adjacent = cnt
+
+            # turret/transporter adjacency: only for harvesters
+            if ti.entity_type == HARVESTER:
+                ally_turrets = 0
+                enemy_turrets = 0
+                ally_transporters = 0
+                enemy_transporters = 0
+
+                nti = tile_info[x ][y -1]
+                if nti is not None:
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+                    if nti.entity_type in TRANSPORTERS_SET:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                nti = tile_info[x +1][y ]
+                if nti is not None:
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+                    if nti.entity_type in TRANSPORTERS_SET:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                nti = tile_info[x ][y +1]
+                if nti is not None:
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+                    if nti.entity_type in TRANSPORTERS_SET:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                nti = tile_info[x -1][y ]
+                if nti is not None:
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+                    if nti.entity_type in TRANSPORTERS_SET:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                        else:
+                            enemy_transporters += 1
+
+                ti.ally_turrets_adjacent = ally_turrets
+                ti.enemy_turrets_adjacent = enemy_turrets
+                ti.turrets_adjacent = ally_turrets + enemy_turrets
+                ti.ally_transporters_adjacent = ally_transporters
+                ti.enemy_transporters_adjacent = enemy_transporters
 
     @classmethod
     def fill_tile_infoUNKNOWN(cls):
+        # --- cache all globals/methods up front ---
         ct = Globals.ct
         my_pos = Globals.my_pos
         my_type = Globals.my_type
+        my_id = Globals.my_id
+        my_team = Globals.my_team
         round = ct.get_current_round()
         tile_info = cls.tile_info
 
-        cls.num_allies = 0
-        cls.num_enemies = 0
+        # cache ct method lookups
+        get_tile_env = ct.get_tile_env
+        get_tile_building_id = ct.get_tile_building_id
+        get_tile_builder_bot_id = ct.get_tile_builder_bot_id
+        get_entity_type = ct.get_entity_type
+        get_team = ct.get_team
+        get_hp = ct.get_hp
+        get_direction = ct.get_direction
+        get_bridge_target = ct.get_bridge_target
+        get_marker_value = ct.get_marker_value
+        get_stored_resource_id = ct.get_stored_resource_id
+        get_stored_resource = ct.get_stored_resource
+
+        # cache constants
+        PASSABLE_SET = Constants.PASSABLE_SET
+        TRANSPORTERS_SET = Constants.TRANSPORTERS_SET
+        HARVESTER = EntityType.HARVESTER
+        MARKER = EntityType.MARKER
+        SENTINEL = EntityType.SENTINEL
+        GUNNER = EntityType.GUNNER
+        BREACH = EntityType.BREACH
+        FOUNDRY = EntityType.FOUNDRY
+        LAUNCHER = EntityType.LAUNCHER
+        CONVEYOR = EntityType.CONVEYOR
+        ARMOURED_CONVEYOR = EntityType.ARMOURED_CONVEYOR
+        BRIDGE = EntityType.BRIDGE
+        CORE = EntityType.CORE
+        BUILDER_BOT = EntityType.BUILDER_BOT
+        ORE_TITANIUM = Environment.ORE_TITANIUM
+        WALL = Environment.WALL
+
+        messages_read = 0
+        num_allies = 0
+        num_enemies = 0
         cls.nearby_tiles = ct.get_nearby_tiles()
 
 
-        cls.proc_nearby_tiles = []
+        harvester_set = cls.harvester_set
+        ti_harvester_set = cls.ti_harvester_set
+        ax_harvester_set = cls.ax_harvester_set
+
+        proc_nearby_tiles = []
         for pos in cls.nearby_tiles:
             x, y = pos.x, pos.y
             idx = (((x) + 3) * 56 + ((y) + 3))
@@ -26630,13 +26956,16 @@ class Map:
                 ti.entity_type = None
                 ti.resource_id = None
                 ti.resource_type = None
-            cls.proc_nearby_tiles.append(
+            proc_nearby_tiles.append(
                 (pos, x, y, idx, ti)
             )
+        cls.proc_nearby_tiles = proc_nearby_tiles
 
+        # track harvester tiles for second pass adjacency
+        harvester_proc = []
 
-        for pos, x, y, pos_idx, ti in cls.proc_nearby_tiles:
-            tile_env: Environment = ct.get_tile_env(pos)
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            tile_env = get_tile_env(pos)
             old_etype = ti.entity_type
             old_is_building_ally = ti.has_building and ti.is_building_ally
             if ti.has_turret:
@@ -26647,212 +26976,218 @@ class Map:
             ti.env = tile_env
             ti.round = round
 
-            building_id: int | None = ct.get_tile_building_id(pos)
-            bot_id: int | None = ct.get_tile_builder_bot_id(pos)
+            building_id = get_tile_building_id(pos)
+            bot_id = get_tile_builder_bot_id(pos)
             ti.building_id = building_id
             ti.bot_id = bot_id
 
-            if building_id is None:
-                etype = None
+            # --- entity type + team in one block, no redundant get_team calls ---
+            if building_id is not None:
+                etype = get_entity_type(building_id)
+                is_building_ally = get_team(building_id) == my_team
+                ti.is_building_ally = is_building_ally
             else:
-                etype = ct.get_entity_type(building_id)
-
-
-            ti.has_building = (
-                building_id is not None and 
-                etype != EntityType.MARKER
-            ) or (pos == my_pos and my_type != EntityType.BUILDER_BOT)
+                etype = None
+                is_building_ally = False
 
             ti.entity_type = etype
-            ti.has_bot = bot_id is not None and bot_id != Globals.my_id
 
-            if ti.has_bot:
-                ti.bot_hp = ct.get_hp(bot_id)
-                ti.is_bot_ally = ct.get_team(bot_id) == Globals.my_team
+            ti.has_building = (
+                building_id is not None and etype != MARKER
+            ) or (pos == my_pos and my_type != BUILDER_BOT)
 
-                if ti.is_bot_ally:
-                    cls.num_allies += 1
+            # --- bot ---
+            has_bot = bot_id is not None and bot_id != my_id
+            ti.has_bot = has_bot
+            if has_bot:
+                is_bot_ally = get_team(bot_id) == my_team
+                ti.bot_hp = get_hp(bot_id)
+                ti.is_bot_ally = is_bot_ally
+                if is_bot_ally:
+                    num_allies += 1
                 else:
-                    cls.num_enemies += 1
+                    num_enemies += 1
 
             ti.easily_passable = False
 
-            if etype == EntityType.MARKER or ti.has_building:
-                _building_team = ct.get_team(building_id)
-                ti.is_building_ally = _building_team == Globals.my_team
-
+            # --- building details ---
             if ti.has_building:
-                ti.building_hp = ct.get_hp(building_id)
-                if (etype in Constants.PASSABLE_SET or (
-                        etype == EntityType.CORE
-                        and ti.is_building_ally
-                )):
+                ti.building_hp = get_hp(building_id)
+                if etype in PASSABLE_SET or (etype == CORE and is_building_ally):
                     ti.easily_passable = True
 
-
             ti.has_turret = False
-                    
-            if etype == EntityType.CONVEYOR or etype == EntityType.ARMOURED_CONVEYOR:
-                tpos = pos.add(ct.get_direction(building_id))
+
+            if etype == CONVEYOR or etype == ARMOURED_CONVEYOR:
+                tpos = pos.add(get_direction(building_id))
                 ti.target = tpos
                 DarkForest.add_edge(pos_idx, (((tpos.x) + 3) * 56 + ((tpos.y) + 3)))
-                ti.resource_id = ct.get_stored_resource_id(building_id)
-                if ti.resource_id != None:
-                    ti.resource_type = ct.get_stored_resource(building_id)
-                else:
-                    ti.resource_type = None
-            elif etype == EntityType.BRIDGE:
-                tpos = ct.get_bridge_target(building_id)
+                # resource tracking added from main
+                rid = get_stored_resource_id(building_id)
+                ti.resource_id = rid
+                ti.resource_type = get_stored_resource(building_id) if rid is not None else None
+            elif etype == BRIDGE:
+                tpos = get_bridge_target(building_id)
                 ti.target = tpos
                 DarkForest.add_edge(pos_idx, (((tpos.x) + 3) * 56 + ((tpos.y) + 3)))
-                ti.resource_id = ct.get_stored_resource_id(building_id)
-                if ti.resource_id != None:
-                    ti.resource_type = ct.get_stored_resource(building_id)
-                else:
-                    ti.resource_type = None
+                # resource tracking added from main
+                rid = get_stored_resource_id(building_id)
+                ti.resource_id = rid
+                ti.resource_type = get_stored_resource(building_id) if rid is not None else None
             else:
                 ti.target = None
                 ti.resource_id = None
                 ti.resource_type = None
 
-                if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.BREACH, EntityType.FOUNDRY):
-                    if etype in (EntityType.SENTINEL, EntityType.GUNNER, EntityType.BREACH):
+                if etype in (SENTINEL, GUNNER, BREACH, FOUNDRY):
+                    if etype in (SENTINEL, GUNNER, BREACH):
                         ti.has_turret = True
-                        ti.turret_direction = ct.get_direction(building_id)
+                        ti.turret_direction = get_direction(building_id)
 
-                        if ti.is_building_ally:
+                        if is_building_ally:
                             DarkForest.register_sink(
-                              pos_idx,
-                              3)
-
+                                pos_idx,
+                                3)
                 else:
                     DarkForest.remove_node(pos_idx)
 
-            is_fresh_enemy_tower = old_etype != etype and \
-                (not ti.is_building_ally or not old_is_building_ally) and \
-                (etype in (EntityType.SENTINEL, EntityType.LAUNCHER) or
-                 old_etype in (EntityType.SENTINEL, EntityType.LAUNCHER))
+            is_fresh_enemy_tower = (
+                old_etype != etype and
+                (not is_building_ally or not old_is_building_ally) and
+                (
+                    (etype in (SENTINEL, LAUNCHER) and not is_building_ally) or
+                    (old_etype in (SENTINEL, LAUNCHER) and not old_is_building_ally)
+                )
+            )
 
-            # remove check
             if is_fresh_enemy_tower:
-                if old_etype == EntityType.SENTINEL:
+                if old_etype == SENTINEL:
                     BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
-                elif old_etype == EntityType.LAUNCHER:
+                elif old_etype == LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
 
-            # add check
             if is_fresh_enemy_tower:
-                if etype == EntityType.SENTINEL:
+                if etype == SENTINEL:
                     BfsBureau.add_enemy_sentinel(pos, ti)
-                elif etype == EntityType.LAUNCHER:
+                elif etype == LAUNCHER:
                     BfsBureau.add_enemy_launcher(pos_idx)
 
-
-            # maybe check ti/ax?
-            if etype == EntityType.HARVESTER:
-                cls.harvester_set.add(pos_idx)
-                if tile_env == Environment.ORE_TITANIUM:
-                    cls.ti_harvester_set.add(pos_idx)
+            # --- harvester set tracking ---
+            if etype == HARVESTER:
+                harvester_set.add(pos_idx)
+                if tile_env == ORE_TITANIUM:
+                    ti_harvester_set.add(pos_idx)
+                    ax_harvester_set.discard(pos_idx)
                 else:
-                    cls.ax_harvester_set.add(pos_idx)
+                    ax_harvester_set.add(pos_idx)
+                    ti_harvester_set.discard(pos_idx)
+                harvester_proc.append((x, y, ti))
             else:
-                cls.harvester_set.discard(pos_idx)
-                if tile_env == Environment.ORE_TITANIUM:
-                    cls.ti_harvester_set.discard(pos_idx)
-                else:
-                    cls.ax_harvester_set.discard(pos_idx)
+                if pos_idx in harvester_set:
+                    harvester_set.discard(pos_idx)
+                    ti_harvester_set.discard(pos_idx)
+                    ax_harvester_set.discard(pos_idx)
 
-            if etype == EntityType.MARKER and ti.is_building_ally:
-                Comms.handle_message(ct.get_marker_value(building_id))
-
-
-        HARVESTER = EntityType.HARVESTER
-
-        for pos, x, y, idx, ti in cls.proc_nearby_tiles:
-            ti.harvester_adjacent = \
-                ((nti := tile_info[x-1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x+1][y]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x][y-1]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM) or \
-                ((nti := tile_info[x][y+1]) is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == Environment.ORE_TITANIUM)
+            if etype == MARKER and is_building_ally and messages_read < 3:
+                messages_read += 1
                 
-            ti.allied_bots_adjacent = \
-                ((nti := tile_info[x][y]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x-1][y]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x+1][y]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x][y-1]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x][y+1]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x-1][y-1]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x+1][y-1]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x-1][y+1]) is not None and nti.has_bot and nti.is_bot_ally) + \
-                ((nti := tile_info[x+1][y+1]) is not None and nti.has_bot and nti.is_bot_ally)
-
-            
-
-            if ti.entity_type == EntityType.HARVESTER:
-                ti.ally_turrets_adjacent = 0
-                ti.enemy_turrets_adjacent = 0
-                ti.turrets_adjacent = 0
-                ti.ally_transporters_adjacent = 0
-                ti.enemy_transporters_adjacent = 0
-
-
-                if (nti := tile_info[x ][y -1]) is not None:
-                    if nti.has_turret:
-                        if nti.is_building_ally:
-                            ti.ally_turrets_adjacent += 1
-                        else:
-                            ti.enemy_turrets_adjacent += 1
-
-                    if nti.entity_type in Constants.TRANSPORTERS_SET:
-                        if nti.is_building_ally:
-                            ti.ally_transporters_adjacent += 1
-                        else:
-                            ti.enemy_transporters_adjacent += 1
-
-
-                if (nti := tile_info[x +1][y ]) is not None:
-                    if nti.has_turret:
-                        if nti.is_building_ally:
-                            ti.ally_turrets_adjacent += 1
-                        else:
-                            ti.enemy_turrets_adjacent += 1
-
-                    if nti.entity_type in Constants.TRANSPORTERS_SET:
-                        if nti.is_building_ally:
-                            ti.ally_transporters_adjacent += 1
-                        else:
-                            ti.enemy_transporters_adjacent += 1
-
-
-                if (nti := tile_info[x ][y +1]) is not None:
-                    if nti.has_turret:
-                        if nti.is_building_ally:
-                            ti.ally_turrets_adjacent += 1
-                        else:
-                            ti.enemy_turrets_adjacent += 1
-
-                    if nti.entity_type in Constants.TRANSPORTERS_SET:
-                        if nti.is_building_ally:
-                            ti.ally_transporters_adjacent += 1
-                        else:
-                            ti.enemy_transporters_adjacent += 1
-
-
-                if (nti := tile_info[x -1][y ]) is not None:
-                    if nti.has_turret:
-                        if nti.is_building_ally:
-                            ti.ally_turrets_adjacent += 1
-                        else:
-                            ti.enemy_turrets_adjacent += 1
-
-                    if nti.entity_type in Constants.TRANSPORTERS_SET:
-                        if nti.is_building_ally:
-                            ti.ally_transporters_adjacent += 1
-                        else:
-                            ti.enemy_transporters_adjacent += 1
-
-                ti.turrets_adjacent = ti.ally_turrets_adjacent + ti.enemy_turrets_adjacent
+                Comms.handle_message(get_marker_value(building_id))
                 
+
+        cls.num_allies = num_allies
+        cls.num_enemies = num_enemies
+
+        # --- second pass: harvester_adjacent + allied_bots_adjacent ---
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
+            row_xm1 = tile_info[x - 1]
+            row_x   = tile_info[x]
+            row_xp1 = tile_info[x + 1]
+
+            # harvester_adjacent: cardinal only, titanium harvesters
+            nti = row_xm1[y];   h1 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_xp1[y];   h2 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_x[y - 1]; h3 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_x[y + 1]; h4 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            ti.harvester_adjacent = h1 or h2 or h3 or h4
+
+            # allied_bots_adjacent: 8-neighbors + self
+            ym1 = y - 1
+            yp1 = y + 1
+
+            cnt = 0
+            nti = row_x[y];      cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[y];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[y];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_x[ym1];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_x[yp1];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[ym1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[ym1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            ti.allied_bots_adjacent = cnt
+
+            # turret/transporter adjacency: only for harvesters
+            if ti.entity_type == HARVESTER:
+                ally_turrets = 0
+                enemy_turrets = 0
+                ally_transporters = 0
+                enemy_transporters = 0
+
+                nti = tile_info[x ][y -1]
+                if nti is not None:
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+                    if nti.entity_type in TRANSPORTERS_SET:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                nti = tile_info[x +1][y ]
+                if nti is not None:
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+                    if nti.entity_type in TRANSPORTERS_SET:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                nti = tile_info[x ][y +1]
+                if nti is not None:
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+                    if nti.entity_type in TRANSPORTERS_SET:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                nti = tile_info[x -1][y ]
+                if nti is not None:
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+                    if nti.entity_type in TRANSPORTERS_SET:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                        else:
+                            enemy_transporters += 1
+
+                ti.ally_turrets_adjacent = ally_turrets
+                ti.enemy_turrets_adjacent = enemy_turrets
+                ti.turrets_adjacent = ally_turrets + enemy_turrets
+                ti.ally_transporters_adjacent = ally_transporters
+                ti.enemy_transporters_adjacent = enemy_transporters
 
 
 
@@ -26868,10 +27203,8 @@ class Map:
                 ti = tile_info[x][y]
                 
                 if ti is None:
-                    # Unseen tile
                     Debug.dot(pos, Color.BLACK)
                 else:
-                    # Seen tile - only show walls and ores
                     env = ti.env
                     if env == Environment.WALL:
                         Debug.dot(pos, Color.GREEN)
@@ -26928,7 +27261,7 @@ class Map:
                     opp_ti.resource_id = None
                     opp_ti.resource_type = None
                     orow[oy] = opp_ti
-                    BfsBureau.ti_ore_adj[ (((ox) + 3) * 56 + ((oy) + 3))] = BfsBureau.ti_ore_adj[ (((x) + 3) * 56 + ((y) + 3))]
+                    BfsBureau.ti_ore_adj[(((ox) + 3) * 56 + ((oy) + 3))] = BfsBureau.ti_ore_adj[(((x) + 3) * 56 + ((y) + 3))]
                     new_syms.append(Position(ox, oy))
 
 
@@ -27265,15 +27598,15 @@ class MarketMaker:
     hround: int = -1000
     hres: int = -1000
 
-    @staticmethod
-    def harvester_cost(apos: Position) -> int:
+    @classmethod
+    def harvester_cost(cls, apos: Position) -> int:
 
         if (
-            MarketMaker.hpos is not None 
-            and Globals.round - MarketMaker.hround < 5
-            and apos.distance_squared(MarketMaker.hpos) < 50
+            cls.hpos is not None 
+            and Globals.round - cls.hround < 5
+            and apos.distance_squared(cls.hpos) < 50
         ):
-            return MarketMaker.hres
+            return cls.hres
 
         
         
@@ -27281,7 +27614,10 @@ class MarketMaker:
         
         h_cost, _ = Globals.ct.get_harvester_cost()
         b_cost, _ = Globals.ct.get_bridge_cost()
-        return h_cost + b_cost * bridges
+        cls.hres = h_cost + b_cost * bridges 
+        cls.hpos = apos
+        cls.hround = Globals.round
+        return cls.hres
 
     @staticmethod
     def harvester_payback(apos: Position, cost: int = None) -> int:
@@ -27343,6 +27679,32 @@ class MoveManager:
             return
         Globals.ct.move(direction)
         Globals.my_pos = Globals.ct.get_position()
+
+
+    @classmethod
+    def debug_moves(cls):
+        print('can_move')
+        print(f'N:{cls.can_move(Direction.NORTH)}', end=' ')
+        print(f'NE:{cls.can_move(Direction.NORTHEAST)}', end=' ')
+        print(f'E:{cls.can_move(Direction.EAST)}', end=' ')
+        print(f'SE:{cls.can_move(Direction.SOUTHEAST)}', end=' ')
+        print(f'S:{cls.can_move(Direction.SOUTH)}', end=' ')
+        print(f'SW:{cls.can_move(Direction.SOUTHWEST)}', end=' ')
+        print(f'W:{cls.can_move(Direction.WEST)}', end=' ')
+        print(f'NW:{cls.can_move(Direction.NORTHWEST)}', end=' ')
+        print(f'C:{cls.can_move(Direction.CENTRE)}', end=' ')
+        print()
+        print('can_fill_move')
+        print(f'N:{cls.can_move(Direction.NORTH)}', end=' ')
+        print(f'NE:{cls.can_move(Direction.NORTHEAST)}', end=' ')
+        print(f'E:{cls.can_move(Direction.EAST)}', end=' ')
+        print(f'SE:{cls.can_move(Direction.SOUTHEAST)}', end=' ')
+        print(f'S:{cls.can_move(Direction.SOUTH)}', end=' ')
+        print(f'SW:{cls.can_move(Direction.SOUTHWEST)}', end=' ')
+        print(f'W:{cls.can_move(Direction.WEST)}', end=' ')
+        print(f'NW:{cls.can_move(Direction.NORTHWEST)}', end=' ')
+        print(f'C:{cls.can_move(Direction.CENTRE)}', end=' ')
+        print()
 
 
 # ============================================================
@@ -27828,10 +28190,11 @@ class Pathfinder:
         my_pos = Globals.my_pos
 
 
-
         
         dist, dir = BfsBureau.find_route(Globals.my_pos, target, ban_target_pos)
         
+
+        print('pf', dir, dist)
 
 
         if dir is None or dist >= 1000000:
@@ -30655,7 +31018,7 @@ class SpawnManager:
         if Globals.round <= 10 and cls.num_spawned < 5:
             return True
 
-        mass = 50 if cls.num_spawned < 10 else 100
+        mass = 80 if cls.num_spawned < 10 else 200
 
         if ti - bot_ti >= num_units * mass:
             return True
@@ -30895,6 +31258,16 @@ class StateMoveTo:
     @classmethod
     def run(cls, pos, tag='_'):
         Pathfinder.move_to(pos)
+
+
+# ============================================================
+# StateNoOp
+# ============================================================
+
+class StateNoOp:
+    @staticmethod
+    def run(*a, **kw):
+        pass
 
 
 # ============================================================
@@ -31315,7 +31688,7 @@ class TileInfo:
         'allied_bots_adjacent',
         'has_turret', 'turret_direction',
         'turrets_adjacent', 'ally_turrets_adjacent', 'enemy_turrets_adjacent',
-        'ally_transporters_adjacent', 'enemy_transporters_adjacent', 
+        'ally_transporters_adjacent', 'enemy_transporters_adjacent',
         'resource_id', 'resource_type'
     )
 
@@ -31600,7 +31973,8 @@ class VisionTracker:
                     target_ti is not None and \
                     not target_ti.has_bot and \
                     ((not target_ti.has_building) or 
-                    (target_ti.entity_type == EntityType.ROAD and target_ti.is_building_ally))
+                    (target_ti.entity_type == EntityType.ROAD and target_ti.is_building_ally)) and \
+                    trans.bfs_dist_target < 100
 
                 trans.on_ally_side = pos.distance_squared(Unit.core_pos) < pos.distance_squared(Symmetry.enemy_core_pos)
 
@@ -31622,7 +31996,7 @@ class VisionTracker:
     def canonical_ally(cls, from_pos: Position) -> BotInfo:
         
         ret = min(cls.allies, key=
-            lambda x: (Util.linf(from_pos, x.position) << 16) + x.id
+            lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )
         
         return ret
@@ -31631,7 +32005,7 @@ class VisionTracker:
     def canonical_ally_index(cls, from_pos: Position) -> int:
         
         allyIndex = list(map(lambda x: x.position, sorted(cls.allies, key=
-            lambda x: (Util.linf(from_pos, x.position) << 16) + x.id
+            lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )))
         if Globals.my_pos in allyIndex:
             i = allyIndex.index(Globals.my_pos)
@@ -31780,6 +32154,7 @@ class Builder(Unit):
         Unit.init()
         Explore.init()
         DarkForest.init()
+        BfsBureau.enclosed_init()
         cls.state = 'Explore'
 
 
@@ -31817,6 +32192,11 @@ class Builder(Unit):
         
         BfsBureau.bfs20()
         
+
+        
+        BfsBureau.update_enclosed_regions()
+        
+
 
         
         OreExecutive.fill()

@@ -83,7 +83,7 @@ class SpawnManager:
         if Globals.round <= 10 and cls.num_spawned < 5:
             return True
 
-        mass = 50 if cls.num_spawned < 10 else 100
+        mass = 80 if cls.num_spawned < 10 else 200
 
         if ti - bot_ti >= num_units * mass:
             return True
