@@ -505,9 +505,10 @@ class BfsBureau:
     # ===---
 
     # bfs20
-# ---===
     bfs20_dist: list[int] = [{{ INF }}] * {{ PADDED_GRID_SIZE }}
+    bfs20_dist_adj: list[int] = [{{ INF }}] * {{ PADDED_GRID_SIZE }}
     _bfs20_touched_indices: list[int] = []
+    _bfs20_dist_adj_touched: list[int] = []
     _BFS20_VALID_OFFSETS = frozenset({
         {% for dx in range(-4, 5) %}
         {% for dy in range(-4, 5) %}
@@ -517,8 +518,7 @@ class BfsBureau:
         {% endfor %}
         {% endfor %}
     })
-# ===---
-    bfs20_dist_adj: list[int] = [{{ INF }}] * {{ PADDED_GRID_SIZE }}
+
 # ---===
     @classmethod
     def bfs20(cls):
@@ -531,6 +531,7 @@ class BfsBureau:
         # Reset tiles touched by the previous call
         for touched_index in cls._bfs20_touched_indices:
             distances[touched_index] = IMPASSABLE
+        for touched_index in cls._bfs20_dist_adj_touched:
             distances_adj[touched_index] = IMPASSABLE
 
         pos = Globals.my_pos
@@ -545,7 +546,7 @@ class BfsBureau:
         push_to_queue = heapq.heappush
         pop_from_queue = heapq.heappop
 
-        # Seed immediate neighbours (all within r²≤2, no bounds check needed)
+        # Seed immediate neighbours
         {% for dir in range(8) %}
         neighbor_index = start_index + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
         tile_weight = weight[neighbor_index]
@@ -574,18 +575,27 @@ class BfsBureau:
 
         cls._bfs20_touched_indices = touched_indices
 
-            # Post-process: dist_adj[idx] = min dist of neighbours within r²≤20
+        # Post-process: dist_adj[idx] = min(dist[self], dist[neighbors within r²≤20])
+        dist_adj_touched_set = set()
         for idx in touched_indices:
-            best = IMPASSABLE
+            d = distances[idx]
+            if d >= IMPASSABLE:
+                continue
+            # self
+            if d < distances_adj[idx]:
+                distances_adj[idx] = d
+                dist_adj_touched_set.add(idx)
+            # neighbors
             {% for dir in range(8) %}
             ni = idx + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
-            if (ni - start_index) in valid_offsets:
-                d = distances[ni]
-                if d < best:
-                    best = d
+            if (ni - start_index) in valid_offsets and d < distances_adj[ni]:
+                distances_adj[ni] = d
+                dist_adj_touched_set.add(ni)
             {% endfor %}
-            distances_adj[idx] = best
+
+        cls._bfs20_dist_adj_touched = list(dist_adj_touched_set)
 # ===---
+
 # ---===
     @classmethod
     def get_bfs20_dist(cls, pos: Position):

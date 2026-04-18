@@ -89,6 +89,10 @@ class HealTargeter:
             if HealTargetInfo.is_better_than(cand, best):
                 best = cand
 
+        {% if LOCAL %}
+        print(f'(possible) heal target {best.position=} {best.building_heal=} {best.building_hp=}')
+        {% endif %}
+
         total_heal = best.building_heal + best.bot_heal
         if total_heal < {{ GameConstants.HEAL_AMOUNT }}:
             {% if LOCAL %}
@@ -116,9 +120,6 @@ class HealTargeter:
         if ally_index * GameConstants.HEAL_AMOUNT > max(best.building_heal, best.bot_heal):
             return None
 
-        {% if LOCAL %}
-        print(f'HealTargeter {best.position=} {best.building_heal=} {best.building_hp=}')
-        {% endif %}
 
         return best
 
@@ -130,6 +131,10 @@ class HealTargeter:
 
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             ti: TileInfo
+            has_ally_building = ti.has_building and ti.is_building_ally
+            has_ally_bot = ti.has_bot and ti.is_bot_ally
+            if not has_ally_building and not has_ally_bot:
+                continue
 
             info = HealTargetInfo()
             info.position = pos
@@ -138,14 +143,15 @@ class HealTargeter:
             info.building_hp = {{ INF }}
             info.bot_hp = {{ INF }}
             info.is_transporter = (ti.entity_type is not None and ti.entity_type in Constants.TRANSPORTERS_SET)
-            info.is_turret = (ti.entity_type is not None and ti.entity_type in Constants.TURRET_SET)
+            # info.is_turret = (ti.entity_type is not None and ti.entity_type in Constants.TURRET_SET)
+            info.is_turret = ti.has_turret
             info.has_enemy_bot = False
             info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
             info.entity_type = ti.entity_type
             info.is_turret = ti.has_turret
             info.harvester_adjacent = ti.harvester_adjacent
 
-            if ti.has_building and ti.is_building_ally:
+            if has_ally_building:
                 info.building_heal = min(
                     {{ GameConstants.HEAL_AMOUNT }},
                     Constants.MAX_HP_MAP[ti.entity_type] - ti.building_hp

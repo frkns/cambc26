@@ -213,7 +213,7 @@ class VisionTracker:
 
     @classmethod
     def me_is_canonical_ally(cls, from_pos: Position) -> bool:
-        {% set RESET_CANON_ROUNDS = 2 %}
+        {% set RESET_CANON_ROUNDS = 1 %}
 
         canon_map = cls.canon_map
         round = Globals.round
