@@ -130,7 +130,8 @@ class BuildManager:
         {% if req > 0 %}
         
         {% if etype in (EntityType.CONVEYOR, EntityType.BRIDGE) %}
-        if MarketMaker.est_income > 4 and Globals.round > 50:
+        # est income is at least 10 almost always because of passive income
+        if MarketMaker.est_income > 10 and Globals.round > 50:
             ti_cost += int({{ req }} * MarketMaker.scale_ratio)
         {% else %}
         ti_cost += int({{ req }} * MarketMaker.scale_ratio)

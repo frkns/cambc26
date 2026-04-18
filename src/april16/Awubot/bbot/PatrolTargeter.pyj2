@@ -1,0 +1,77 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+{% from 'bbot/mode.j2' import Mode %}
+
+
+class PatrolTargeter:
+    target: Position
+    target = None
+    recentHits: set[int] = set()
+    lastHitRound: int = 0
+
+    @classmethod
+    def init(cls) -> None:
+        cls.target = cls.new_target()
+        
+    @classmethod
+    def new_target(cls) -> Position:
+        if Map.harvester_set:
+            # Check which targets we haven't visited recently
+            active_targets = Map.harvester_set.difference(cls.recentHits)
+            
+            # If there are no active targets, we'll either wait, or if it's been a while since our last hit, reset
+            if not active_targets:
+                # If it's been a while since we hit the last target, reset our visited set and consider all targets again
+                if Globals.round - cls.lastHitRound > 10:
+                    cls.recentHits.clear()
+                    active_targets = Map.harvester_set
+                    
+                return None
+            else:
+                # Choose a random one of the targets we haven't visited recently
+                i = random.choice(list(active_targets))
+                {% set x, y = decode_pos('i') %}
+                return Position({{ x }}, {{ y }})
+        else:
+            return None
+
+    @classmethod
+    def get_best_target(cls) -> Position | None:
+        if not Map.harvester_set:
+            return None
+        
+        if BuildManager.can_afford_harvester():
+            return None
+        
+        if cls.target is None:
+            cls.target = cls.new_target()
+        else:
+            {% set cond1 -%}
+                (Globals.my_pos.distance_squared(cls.target) <= 2)
+            {%- endset %}
+            {% set cond2 -%}
+                (Pathfinder.cur_target == cls.target and Pathfinder.given_up)
+            {%- endset %}
+            if {{ cond1 }} or {{ cond2 }}:
+                # Add the position to our set of recently visited targets
+                cls.recentHits.add({{ encode_pos('cls.target.x', 'cls.target.y') }})
+                cls.lastHitRound = Globals.round
+                
+                cls.target = cls.new_target()
+                
+        return cls.target

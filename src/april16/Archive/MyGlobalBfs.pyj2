@@ -1,0 +1,92 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+from Awubot.Constants import Constants
+from Awubot.Core import Core
+from Awubot.Globals import Globals, MarketMaker
+from Awubot.Map import LocalMask, MapMask, TileInfo, Map
+from Awubot.MoveManager import MoveManager
+from Awubot.RobotPlayer import Entrypoint, Player
+from Awubot.Util import Util
+from Awubot.build.Builder import BuilderState, Builder
+from Awubot.debug.Profiler import Profiler
+from Awubot.explore.Explore import Explore
+from Awubot.nav.Pathfinder import Pathfinder
+from Generated.Unit import Unit
+from Generated.build.BuildManager import BuildManager
+from Generated.build.OreExecutive import OreExecutive
+from Generated.build.RouteToCore import RouteToCore
+from Generated.debug.Debug import Color, Debug
+from Generated.nav.ClaudeGlobalBfs import ClaudeGlobalBfs
+from Generated.nav.DirectionPicker import DirectionPicker
+from Generated.nav.EgoBridgeBfs import EgoBridgeBfs
+from Generated.nav.MyGlobalBfs import MyGlobalBfs
+from Generated.nav.UnrolledGlobalBfs import UnrolledGlobalBfs
+
+
+class MyGlobalBfs:
+    # still slower...
+
+    @classmethod
+    def dists_from_pos(cls, pos: Position):
+        W, H = Map.W, Map.H
+        WALL = Environment.WALL
+        tile_info = Map.tile_info
+        cur_round = Globals.ct.get_current_round()
+
+        PH = H + 2
+        SIZE = (W + 2) * PH
+        INF = {{ INF }}
+        BLK = INF + 1
+
+        # flat array: index = x * PH + y
+        # borders default to BLK; passable interior set to INF (unvisited)
+        dist = [BLK] * SIZE
+
+        for x in range(W):
+            col = tile_info[x]
+            base = (x + 1) * PH + 1
+            for y in range(H):
+                ti = col[y]
+                if ti is None or (
+                    ti.env != WALL
+                    and not (ti.has_bot and ti.round == cur_round)
+                ):
+                    # passable
+                    dist[base + y] = INF
+
+        si = (pos.x + 1) * PH + (pos.y + 1)
+        dist[si] = 0
+
+        # flat direction offsets
+        {% for dir in range(8) %}
+        {% set dx = Dir.dx[dir] %}
+        {% set dy = Dir.dy[dir] %}
+        _o{{ dir }} = {{ dx }} * PH + ({{ dy }})
+        {% endfor %}
+
+        # wavefront BFS: no deque, no tuples, shared d per layer
+        frontier = [si]
+        d = 1
+        while frontier:
+            nxt = []
+            _a = nxt.append
+            for idx in frontier:
+                {% for dir in range(8) %}
+                ni = idx + _o{{ dir }}
+                if dist[ni] == INF:
+                    dist[ni] = d
+                    _a(ni)
+                {% endfor %}
+            frontier = nxt
+            d += 1
+
+        # intentional W+1, H+1 padding to match original interface
+        return [[min(dist[(x + 1) * PH + (y + 1)], INF) for y in range(H + 1)] for x in range(W + 1)]

@@ -29,6 +29,7 @@ class Builder({{ super() }}):
         {{ super() }}.init()
         Explore.init()
         DarkForest.init()
+        BfsBureau.enclosed_init()
         cls.state = 'Explore'
 
 
@@ -68,6 +69,14 @@ class Builder({{ super() }}):
         {{ P.start() }}
         BfsBureau.bfs20()
         {{ P.end('BfsBureau.bfs20') }}
+
+        {{ P.start() }}
+        BfsBureau.update_enclosed_regions()
+        {{ P.end('BfsBureau.update_enclosed_regions') }}
+
+        {# /* BfsBureau.debug_enclosed_regions() */ #}
+        {# /* BfsBureau.debug_bfs20_dist_adj() */ #}
+        {# /* BfsBureau.debug_bfs20() */ #}
 
         {{ P.start() }}
         OreExecutive.fill()
