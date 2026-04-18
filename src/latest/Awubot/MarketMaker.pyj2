@@ -94,8 +94,8 @@ class MarketMaker:
                 apos.distance_squared(Symmetry.enemy_core_pos) < apos.distance_squared(Unit.core_pos):
             return False
 
-        n_ti = len(Map.ti_harvester_set)
-        n_ax = len(Map.ax_harvester_set)
+        n_ti = len(Map.ti_ally_harvester_set)
+        n_ax = len(Map.ax_ally_harvester_set)
 
         if not (2 * n_ax <= n_ti):
             return False

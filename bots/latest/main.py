@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-18 01:35:36 (local)
+# latest,  @ 2026-04-18 01:39:55 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -25882,8 +25882,8 @@ class Map:
     num_allies: int
     num_enemies: int
     harvester_set: set[int] = set()
-    ti_harvester_set: set[int] = set()
-    ax_harvester_set: set[int] = set()
+    ti_ally_harvester_set: set[int] = set()
+    ax_ally_harvester_set: set[int] = set()
     enemy_route_set: set[int] = set()
 
     # cleared every turn
@@ -25967,8 +25967,8 @@ class Map:
         new_syms.clear()
 
         harvester_set = cls.harvester_set
-        ti_harvester_set = cls.ti_harvester_set
-        ax_harvester_set = cls.ax_harvester_set
+        ti_ally_harvester_set = cls.ti_ally_harvester_set
+        ax_ally_harvester_set = cls.ax_ally_harvester_set
 
         proc_nearby_tiles = []
         for pos in cls.nearby_tiles:
@@ -26120,18 +26120,19 @@ class Map:
             # --- harvester set tracking ---
             if etype == HARVESTER:
                 harvester_set.add(pos_idx)
-                if tile_env == ORE_TITANIUM:
-                    ti_harvester_set.add(pos_idx)
-                    ax_harvester_set.discard(pos_idx)
-                else:
-                    ax_harvester_set.add(pos_idx)
-                    ti_harvester_set.discard(pos_idx)
+                if is_building_ally:
+                    if tile_env == ORE_TITANIUM:
+                        ti_ally_harvester_set.add(pos_idx)
+                        ax_ally_harvester_set.discard(pos_idx)
+                    else:
+                        ax_ally_harvester_set.add(pos_idx)
+                        ti_ally_harvester_set.discard(pos_idx)
                 harvester_proc.append((x, y, ti))
             else:
                 if pos_idx in harvester_set:
                     harvester_set.discard(pos_idx)
-                    ti_harvester_set.discard(pos_idx)
-                    ax_harvester_set.discard(pos_idx)
+                    ti_ally_harvester_set.discard(pos_idx)
+                    ax_ally_harvester_set.discard(pos_idx)
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
@@ -26296,8 +26297,8 @@ class Map:
         new_syms.clear()
 
         harvester_set = cls.harvester_set
-        ti_harvester_set = cls.ti_harvester_set
-        ax_harvester_set = cls.ax_harvester_set
+        ti_ally_harvester_set = cls.ti_ally_harvester_set
+        ax_ally_harvester_set = cls.ax_ally_harvester_set
 
         proc_nearby_tiles = []
         for pos in cls.nearby_tiles:
@@ -26449,18 +26450,19 @@ class Map:
             # --- harvester set tracking ---
             if etype == HARVESTER:
                 harvester_set.add(pos_idx)
-                if tile_env == ORE_TITANIUM:
-                    ti_harvester_set.add(pos_idx)
-                    ax_harvester_set.discard(pos_idx)
-                else:
-                    ax_harvester_set.add(pos_idx)
-                    ti_harvester_set.discard(pos_idx)
+                if is_building_ally:
+                    if tile_env == ORE_TITANIUM:
+                        ti_ally_harvester_set.add(pos_idx)
+                        ax_ally_harvester_set.discard(pos_idx)
+                    else:
+                        ax_ally_harvester_set.add(pos_idx)
+                        ti_ally_harvester_set.discard(pos_idx)
                 harvester_proc.append((x, y, ti))
             else:
                 if pos_idx in harvester_set:
                     harvester_set.discard(pos_idx)
-                    ti_harvester_set.discard(pos_idx)
-                    ax_harvester_set.discard(pos_idx)
+                    ti_ally_harvester_set.discard(pos_idx)
+                    ax_ally_harvester_set.discard(pos_idx)
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
@@ -26625,8 +26627,8 @@ class Map:
         new_syms.clear()
 
         harvester_set = cls.harvester_set
-        ti_harvester_set = cls.ti_harvester_set
-        ax_harvester_set = cls.ax_harvester_set
+        ti_ally_harvester_set = cls.ti_ally_harvester_set
+        ax_ally_harvester_set = cls.ax_ally_harvester_set
 
         proc_nearby_tiles = []
         for pos in cls.nearby_tiles:
@@ -26778,18 +26780,19 @@ class Map:
             # --- harvester set tracking ---
             if etype == HARVESTER:
                 harvester_set.add(pos_idx)
-                if tile_env == ORE_TITANIUM:
-                    ti_harvester_set.add(pos_idx)
-                    ax_harvester_set.discard(pos_idx)
-                else:
-                    ax_harvester_set.add(pos_idx)
-                    ti_harvester_set.discard(pos_idx)
+                if is_building_ally:
+                    if tile_env == ORE_TITANIUM:
+                        ti_ally_harvester_set.add(pos_idx)
+                        ax_ally_harvester_set.discard(pos_idx)
+                    else:
+                        ax_ally_harvester_set.add(pos_idx)
+                        ti_ally_harvester_set.discard(pos_idx)
                 harvester_proc.append((x, y, ti))
             else:
                 if pos_idx in harvester_set:
                     harvester_set.discard(pos_idx)
-                    ti_harvester_set.discard(pos_idx)
-                    ax_harvester_set.discard(pos_idx)
+                    ti_ally_harvester_set.discard(pos_idx)
+                    ax_ally_harvester_set.discard(pos_idx)
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
@@ -26951,8 +26954,8 @@ class Map:
 
 
         harvester_set = cls.harvester_set
-        ti_harvester_set = cls.ti_harvester_set
-        ax_harvester_set = cls.ax_harvester_set
+        ti_ally_harvester_set = cls.ti_ally_harvester_set
+        ax_ally_harvester_set = cls.ax_ally_harvester_set
 
         proc_nearby_tiles = []
         for pos in cls.nearby_tiles:
@@ -27086,18 +27089,19 @@ class Map:
             # --- harvester set tracking ---
             if etype == HARVESTER:
                 harvester_set.add(pos_idx)
-                if tile_env == ORE_TITANIUM:
-                    ti_harvester_set.add(pos_idx)
-                    ax_harvester_set.discard(pos_idx)
-                else:
-                    ax_harvester_set.add(pos_idx)
-                    ti_harvester_set.discard(pos_idx)
+                if is_building_ally:
+                    if tile_env == ORE_TITANIUM:
+                        ti_ally_harvester_set.add(pos_idx)
+                        ax_ally_harvester_set.discard(pos_idx)
+                    else:
+                        ax_ally_harvester_set.add(pos_idx)
+                        ti_ally_harvester_set.discard(pos_idx)
                 harvester_proc.append((x, y, ti))
             else:
                 if pos_idx in harvester_set:
                     harvester_set.discard(pos_idx)
-                    ti_harvester_set.discard(pos_idx)
-                    ax_harvester_set.discard(pos_idx)
+                    ti_ally_harvester_set.discard(pos_idx)
+                    ax_ally_harvester_set.discard(pos_idx)
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
@@ -27617,10 +27621,10 @@ class MarketMaker:
                 apos.distance_squared(Symmetry.enemy_core_pos) < apos.distance_squared(Unit.core_pos):
             return False
 
-        n_ti = len(Map.ti_harvester_set)
-        n_ax = len(Map.ax_harvester_set)
+        n_ti = len(Map.ti_ally_harvester_set)
+        n_ax = len(Map.ax_ally_harvester_set)
 
-        if not (n_ti <= 2 * n_ax):
+        if not (2 * n_ax <= n_ti):
             return False
 
         if MarketMaker.ax > 0:
