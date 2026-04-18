@@ -74,7 +74,7 @@ class Explore:
         if Builder.mode == {{ Mode.EARLY_RUSH }}:
             pos = Symmetry.sym_pos(Unit.core_pos)
             dx, dy = random.choice([(dx, dy) for dx in range(-6, 6) for dy in range(-6, 6) if abs(dx) > 1 or abs(dy) > 1])
-            return Position(pos.x + dx, pos.y + dy)
+            return Position(max(0,min(pos.x + dx,Map.W)), max(0,min(pos.y + dy,Map.H)))
         else:
             return Util.rand_pos()
 

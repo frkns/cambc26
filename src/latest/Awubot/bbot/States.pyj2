@@ -108,6 +108,8 @@ class StateBuildSentinel:
         if BuildManager.can_dbuild_sentinel(pos):
             dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
             BuildManager.dbuild_sentinel(pos, dir)
+        elif Globals.ct.can_build_road(pos):
+            Globals.ct.build_road(pos)
 
 class StateBuildGunner:
     @classmethod
