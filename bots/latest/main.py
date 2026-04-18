@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-17 21:31:27 (local)
+# latest,  @ 2026-04-17 21:38:03 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -31057,7 +31057,7 @@ class StalkTargeter:
         if my_pos.distance_squared(Unit.core_pos) > my_pos.distance_squared(Symmetry.enemy_core_pos):
             return None
 
-        if MarketMaker.est_income < 10:
+        if MarketMaker.est_income < 3:
             return None
 
         bfs20_dist_adj = BfsBureau.bfs20_dist_adj
