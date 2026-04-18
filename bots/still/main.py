@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-18 00:34:32 (local)
+# latest,  @ 2026-04-18 00:33:52 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -23174,7 +23174,7 @@ class Explore:
         if Builder.mode == 2:
             pos = Symmetry.sym_pos(Unit.core_pos)
             dx, dy = random.choice([(dx, dy) for dx in range(-6, 6) for dy in range(-6, 6) if abs(dx) > 1 or abs(dy) > 1])
-            return Position(max(0,min(pos.x + dx,Map.W)), max(0,min(pos.y + dy,Map.H)))
+            return Position(pos.x + dx, pos.y + dy)
         else:
             return Util.rand_pos()
 
@@ -23292,12 +23292,15 @@ class Globals:
 # ============================================================
 
 class GunnerDirectionInfo:
-    __slots__ = ('direction', 'banned', 'enemy_building_hp', 'enemy_bot_hp', 'cosine_sim')
+    __slots__ = ('direction', 'banned', 'enemy_building_hp', 'enemy_bot_hp', 'has_enemy_turret')
 
     @staticmethod
     def is_better_than(a: GunnerDirectionInfo, b: GunnerDirectionInfo) -> bool:
         if a.banned: return False
         if b.banned: return True
+
+        if a.has_enemy_turret != b.has_enemy_turret:
+            return a.has_enemy_turret > b.has_enemy_turret
 
         if a.enemy_building_hp != b.enemy_building_hp:
             return a.enemy_building_hp > b.enemy_building_hp
@@ -23305,7 +23308,7 @@ class GunnerDirectionInfo:
         if a.enemy_bot_hp != b.enemy_bot_hp:
             return a.enemy_bot_hp > b.enemy_bot_hp
 
-        return a.cosine_sim > b.cosine_sim
+        return False
 
 
 # ============================================================
@@ -23370,11 +23373,6 @@ class GunnerDirectionPicker:
             info0.enemy_building_hp = 0
             info0.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info0.cosine_sim = u1 * 0.0 + u2 * -1.0
 
             infos.append(info0)
 
@@ -23384,11 +23382,6 @@ class GunnerDirectionPicker:
             info1.enemy_building_hp = 0
             info1.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info1.cosine_sim = u1 * 0.7071067811865475 + u2 * -0.7071067811865475
 
             infos.append(info1)
 
@@ -23398,11 +23391,6 @@ class GunnerDirectionPicker:
             info2.enemy_building_hp = 0
             info2.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info2.cosine_sim = u1 * 1.0 + u2 * 0.0
 
             infos.append(info2)
 
@@ -23412,11 +23400,6 @@ class GunnerDirectionPicker:
             info3.enemy_building_hp = 0
             info3.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info3.cosine_sim = u1 * 0.7071067811865475 + u2 * 0.7071067811865475
 
             infos.append(info3)
 
@@ -23426,11 +23409,6 @@ class GunnerDirectionPicker:
             info4.enemy_building_hp = 0
             info4.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info4.cosine_sim = u1 * 0.0 + u2 * 1.0
 
             infos.append(info4)
 
@@ -23440,11 +23418,6 @@ class GunnerDirectionPicker:
             info5.enemy_building_hp = 0
             info5.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info5.cosine_sim = u1 * -0.7071067811865475 + u2 * 0.7071067811865475
 
             infos.append(info5)
 
@@ -23454,11 +23427,6 @@ class GunnerDirectionPicker:
             info6.enemy_building_hp = 0
             info6.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info6.cosine_sim = u1 * -1.0 + u2 * 0.0
 
             infos.append(info6)
 
@@ -23468,11 +23436,6 @@ class GunnerDirectionPicker:
             info7.enemy_building_hp = 0
             info7.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info7.cosine_sim = u1 * -0.7071067811865475 + u2 * -0.7071067811865475
 
             infos.append(info7)
 
@@ -23484,11 +23447,6 @@ class GunnerDirectionPicker:
             info0.enemy_building_hp = 0
             info0.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info0.cosine_sim = u1 * 0.0 + u2 * -1.0
 
             infos.append(info0)
 
@@ -23498,11 +23456,6 @@ class GunnerDirectionPicker:
             info1.enemy_building_hp = 0
             info1.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info1.cosine_sim = u1 * 0.7071067811865475 + u2 * -0.7071067811865475
 
             infos.append(info1)
 
@@ -23512,11 +23465,6 @@ class GunnerDirectionPicker:
             info2.enemy_building_hp = 0
             info2.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info2.cosine_sim = u1 * 1.0 + u2 * 0.0
 
             infos.append(info2)
 
@@ -23526,11 +23474,6 @@ class GunnerDirectionPicker:
             info3.enemy_building_hp = 0
             info3.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info3.cosine_sim = u1 * 0.7071067811865475 + u2 * 0.7071067811865475
 
             infos.append(info3)
 
@@ -23540,11 +23483,6 @@ class GunnerDirectionPicker:
             info4.enemy_building_hp = 0
             info4.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info4.cosine_sim = u1 * 0.0 + u2 * 1.0
 
             infos.append(info4)
 
@@ -23554,11 +23492,6 @@ class GunnerDirectionPicker:
             info5.enemy_building_hp = 0
             info5.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info5.cosine_sim = u1 * -0.7071067811865475 + u2 * 0.7071067811865475
 
             infos.append(info5)
 
@@ -23568,11 +23501,6 @@ class GunnerDirectionPicker:
             info6.enemy_building_hp = 0
             info6.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info6.cosine_sim = u1 * -1.0 + u2 * 0.0
 
             infos.append(info6)
 
@@ -23582,11 +23510,6 @@ class GunnerDirectionPicker:
             info7.enemy_building_hp = 0
             info7.enemy_bot_hp = 0
 
-            u1, u2 = ecore.x - sx, ecore.y - sy
-            mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info7.cosine_sim = u1 * -0.7071067811865475 + u2 * -0.7071067811865475
 
             infos.append(info7)
 
@@ -23815,6 +23738,23 @@ class GunnerDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info3.enemy_bot_hp += e_bot_hp
+
+        ti = tile_info[sx ][sy -1]
+        info0.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        ti = tile_info[sx +1][sy -1]
+        info1.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        ti = tile_info[sx +1][sy ]
+        info2.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        ti = tile_info[sx +1][sy +1]
+        info3.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        ti = tile_info[sx ][sy +1]
+        info4.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        ti = tile_info[sx -1][sy +1]
+        info5.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        ti = tile_info[sx -1][sy ]
+        info6.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        ti = tile_info[sx -1][sy -1]
+        info7.has_enemy_turret = ti.has_turret and not ti.is_building_ally
 
 
 # ============================================================
@@ -24781,7 +24721,8 @@ class HarvesterAdjacent:
                 continue
 
             is_harvester_ally = hti.is_building_ally
-            consider_route = hti.ally_transporters_adjacent == 0 and hti.enemy_turrets_adjacent == 0
+            consider_route = hti.ally_transporters_adjacent == 0 and hti.enemy_transporters_adjacent == 0 \
+                and hti.enemy_turrets_adjacent == 0
             dist_to_ally_core = spos.distance_squared(Unit.core_pos)
             is_canonical_ally_harvester = VisionTracker.me_is_canonical_ally(spos)
             
@@ -25706,7 +25647,7 @@ class HealExecutor:
         if not a.is_accessible: return False
         if not b.is_accessible: return True
 
-        if bool(a.building_heal) != bool(b.building_heal):
+        if a.building_heal != b.building_heal:
             return a.building_heal > b.building_heal
 
         if a.is_turret and (not b.is_turret): return True
@@ -27619,7 +27560,7 @@ class MarketMaker:
     @classmethod
     def refresh(cls):
         cls.scale_ratio = Globals.ct.get_scale_percent() / 100.0
-        cls.ti, MarketMaker.ax = Globals.ct.get_global_resources()
+        cls.ti, cls.ax = Globals.ct.get_global_resources()
 
         idx = Globals.round % 20
         cls.ti_hist[idx] = cls.ti
@@ -27667,13 +27608,26 @@ class MarketMaker:
 
 
     @staticmethod
+    def should_build_ax_harvester(apos: Position) -> int:
+        if Globals.round < 500 and \
+                apos.distance_squared(Symmetry.enemy_core_pos) < apos.distance_squared(Unit.core_pos):
+            return False
+
+        if MarketMaker.ax > 0:
+            pbt = MarketMaker.harvester_payback(apos)
+            if int(pbt) < Util.get_rounds_left():
+                return True
+
+        return False
+
+
+    @staticmethod
     def should_build_harvester(apos: Position) -> int:
         if Globals.round < 500 and \
                 apos.distance_squared(Symmetry.enemy_core_pos) < apos.distance_squared(Unit.core_pos):
             return False
 
         pbt = MarketMaker.harvester_payback(apos)
-        print(f"""{pbt=}""")
 
         if int(pbt * 1.5 + 100) < Util.get_rounds_left():
             return True
@@ -27857,7 +27811,7 @@ class OreExecutive:
                 cls.state[pos] = 3
                 continue
 
-            if not ti.has_bot and MarketMaker.should_build_harvester(pos):
+            if not ti.has_bot and MarketMaker.should_build_ax_harvester(pos):
                 ret = pos
                 break
             else:
@@ -27985,8 +27939,8 @@ class OreExecutive:
 
 
     @classmethod
-    def go_build_harvester(cls, pos, isAttack = False):
-        Pathfinder.move_to(pos, ban_target_pos=True, orbit=(not BuildManager.can_afford_harvester()))
+    def go_build_harvester(cls, pos):
+        Pathfinder.move_to(pos, ban_target_pos=True)
 
         if Pathfinder.given_up:
             Debug.line(pos, Color.RED)
@@ -28002,7 +27956,6 @@ class OreExecutive:
             cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
             if cand is not None:
                 RouteToCore.set_pos(cand.position)
-                RouteToCore.isAttack = isAttack
 
     @classmethod
     def go_build_ax_harvester(cls, pos):
@@ -28218,7 +28171,7 @@ class Pathfinder:
         cls.given_up = False
 
     @classmethod
-    def move_to(cls, target: Position, ban_target_pos: bool = False, orbit: bool = False):
+    def move_to(cls, target: Position, ban_target_pos: bool = False):
         if Globals.ct.get_move_cooldown() != 0:
             return
 
@@ -28228,6 +28181,12 @@ class Pathfinder:
 
         Debug.line(target)
         my_pos = Globals.my_pos
+        midx = (((my_pos.x) + 3) * 56 + ((my_pos.y) + 3))
+
+        dsq = my_pos.distance_squared(target)
+        if dsq == 1 or dsq == 2 and BfsBureau.now_weight[dsq] <= 3:
+            if not MoveManager.can_fill_move(my_pos.direction_to(target)):
+                return
 
 
         Profiler.start()
@@ -28236,8 +28195,6 @@ class Pathfinder:
 
         print('pf', dir, dist)
 
-        if orbit and 0 < target.distance_squared(Globals.my_pos) <= 2:
-            dir = Globals.my_pos.direction_to(target).rotate_left()
 
         if dir is None or dist >= 1000000:
             cls.given_up = True
@@ -28280,9 +28237,12 @@ class PatrolTargeter:
             else:
                 # Choose a random one of the targets we haven't visited recently
                 i = random.choice(list(active_targets))
-                return Position(((i) // 56 - 3), ((i) % 56 - 3))
-        else:
-            return None
+                x, y = ((i) // 56 - 3), ((i) % 56 - 3)
+                ti = Map.tile_info[x][y]
+                if ti.is_building_ally:
+                    return Position(x, y)
+
+        return None
 
     @classmethod
     def get_best_target(cls) -> Position | None:
@@ -28649,7 +28609,6 @@ class RouteToCore:
     prevRoute = []
     backTracking = False
     pathFindingKill: set[int] = set()
-    isAttack = False
 
     @classmethod
     def set_pos(cls, pos: Position, fullReset = True):
@@ -28672,40 +28631,27 @@ class RouteToCore:
     @classmethod
     def try_build_route(cls):
         assert cls.is_active
-        bridge_dist = 0
-        first_target = None
-        if cls.isAttack:
-            coolPos = RushTargeter.enemy_core_turret_target(GameConstants.SENTINEL_VISION_RADIUS_SQ)
-            if coolPos == None:
-                cls.give_up(True)
-                StateMoveTo.run(Explore.get_target()) # new
-            valid_pos_set = set([coolPos]) 
+
+        # short search to core in case it's close
+        bridge_dist, first_target = BfsBureau.find_bridge_route(
+            cls.from_pos,
+            Unit.core_pos_set,
+            max_iter=0,
+            avoid_pos = cls.pathFindingKill
+        )
+        # otherwise allow all sinks
+        if first_target is None:
             bridge_dist, first_target = BfsBureau.find_bridge_route(
                 cls.from_pos,
-                valid_pos_set,
+                DarkForest.core_sink_set,  # was sink_set
                 avoid_pos = cls.pathFindingKill
             )
-        else:
-            # short search to core in case it's close
-            bridge_dist, first_target = BfsBureau.find_bridge_route(
-                cls.from_pos,
-                Unit.core_pos_set,
-                max_iter=0,
-                avoid_pos = cls.pathFindingKill
-            )
-            # otherwise allow all sinks
-            if first_target is None:
-                bridge_dist, first_target = BfsBureau.find_bridge_route(
-                    cls.from_pos,
-                    DarkForest.core_sink_set,  # was sink_set
-                    avoid_pos = cls.pathFindingKill
-                )
 
         print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("first_target is None: giving up")
-            if cls.give_up(True):
+            if cls.give_up():
                 StateMoveTo.run(Explore.get_target()) # new
             return
 
@@ -28752,10 +28698,10 @@ class RouteToCore:
 
 
     @classmethod
-    def give_up(cls, hard = False):
+    def give_up(cls):
         from_pos = cls.from_pos
         enc = (((from_pos.x) + 3) * 56 + ((from_pos.y) + 3))
-        if hard or len(cls.prevRoute) == 0 or DarkForest.node_kind[enc] in \
+        if len(cls.prevRoute) == 0 or DarkForest.node_kind[enc] in \
                 (3, 1):
             cls.is_active = False
             cls.killed.add(from_pos)
@@ -28777,7 +28723,7 @@ class RouteToCore:
 
     @classmethod
     def do_routing(cls):
-        print("RouteToCore: doing routing from", cls.from_pos,"Attack route",cls.isAttack)
+        print("RouteToCore: doing routing from", cls.from_pos)
         if cls.should_give_up():
             if cls.give_up():
                 StateMoveTo.run(Explore.get_target()) # new
@@ -29038,7 +28984,6 @@ class RouteToFoundry:
 
 class RushTargeter:
     persistentOre = None
-    beenNearbyEnemyCore = False
 
     @classmethod
     def enemy_core_turret_target(cls, attack_r_sq) -> Position | None:
@@ -29067,8 +29012,6 @@ class RushTargeter:
                     continue
                 if tile.has_building and tile.entity_type in Constants.TURRET_SET:
                     continue
-                if tile.has_building and tile.entity_type in Constants.TRANSPORTERS_SET:
-                    continue
                 d = currLoc.distance_squared(candidate)
                 if d < best_attack_dist:
                     best_attack_dist = d
@@ -29084,7 +29027,7 @@ class RushTargeter:
     def nearest_titanium_to_enemy(cls) -> Position | None:
         if not Symmetry.is_sym_known:
             return None
-        maxr = 10
+        maxr = max(Map.W,Map.H)
         cx = Symmetry.enemy_core_pos.x
         cy = Symmetry.enemy_core_pos.y
         for r in range(1, maxr + 1):
@@ -29102,38 +29045,30 @@ class RushTargeter:
                         continue
 
                     ti = Map.tile_info[x][y]
-                    if ti is None:
-                        continue
                     env = ti.env
-                    thepos = Position(x, y)
-                    if OreExecutive.state[thepos] == 2: #killed
-                        continue
-                    if ti.entity_type in [EntityType.HARVESTER,EntityType.FOUNDRY]:
-                        continue
-                    if ti.has_building and not ti.is_building_ally and ti.entity_type != EntityType.MARKER:
-                        continue
                     if env == Environment.ORE_TITANIUM:
-                        return thepos
+                        return x, y
 
         return None  # Nothing found
 
     @classmethod
-    def get_best_target(cls):
+    def get_best_target(cls) -> Position | None:
         if Symmetry.is_sym_known:
-            if Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) < 25: #sufficiently near
-                cls.beenNearbyEnemyCore = True
-            if Builder.mode == 2:
-                if cls.beenNearbyEnemyCore:
-                    funPos = cls.nearest_titanium_to_enemy()
-                    if funPos == None:
-                        return Explore.get_target(),'M' #move
-                    return funPos,'B' #build harvester
-                else:
-                    return Explore.get_target(),'M' #move
-            if (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
-                return Symmetry.enemy_core_pos,'M' #move
+            if (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100) or Builder.mode == 2:
+                """
+                if Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) < 36: #sufficiently near
+                    validPos = cls.enemy_core_turret_target(GameConstants.SENTINEL_VISION_RADIUS_SQ)
+                    if validPos == None:
+                        return Symmetry.enemy_core_pos
+                    coolTitanium = cls.nearest_titanium_to_enemy()
+                    if coolTitanium == None:
+                        return Symmetry.enemy_core_pos
+                    cls.persistentOre = coolTitanium
+                """
+
+                return Symmetry.enemy_core_pos
         elif Builder.mode == 2:
-            return Symmetry.sym_pos(Unit.core_pos),'M' #move
+                return Symmetry.sym_pos(Unit.core_pos)
         return None
 
 
@@ -30994,7 +30929,6 @@ class SitterTargetInfo:
 
 class SpawnManager:
     nearest_dangerous_enemy: Position | None
-    dangerous_enemy_counter: int = 0
 
     # persistent
     num_spawned: int = 0
@@ -31024,11 +30958,6 @@ class SpawnManager:
                 enemy = pos
 
         cls.nearest_dangerous_enemy = enemy
-        
-        if cls.nearest_dangerous_enemy != None:
-            cls.dangerous_enemy_counter += 1
-        else:
-            cls.dangerous_enemy_counter = 0
 
 
 
@@ -31097,7 +31026,7 @@ class SpawnManager:
 
     @classmethod
     def should_spawn_emergency(cls):
-        if cls.dangerous_enemy_counter >= 3: # Only spawn emergency if there's been a dangerous enemy for 3 or more rounds in a row
+        if cls.nearest_dangerous_enemy is not None:
             return True
         
         lost_short = CoreHistory.hp_delta(1) < 0 
@@ -31124,7 +31053,7 @@ class StalkTargeter:
         if my_pos.distance_squared(Unit.core_pos) > my_pos.distance_squared(Symmetry.enemy_core_pos):
             return None
 
-        if MarketMaker.est_income < 3:
+        if not Map.harvester_set:
             return None
 
         bfs20_dist_adj = BfsBureau.bfs20_dist_adj
@@ -31223,6 +31152,20 @@ class StateBuildLauncher:
 
 
 # ============================================================
+# StateBuildSentinel
+# ============================================================
+
+class StateBuildSentinel:
+    @classmethod
+    def run(cls, pos, banned_dir: Direction | None = None):
+        Pathfinder.move_to(pos, ban_target_pos=True)
+
+        if BuildManager.can_dbuild_sentinel(pos):
+            dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
+            BuildManager.dbuild_sentinel(pos, dir)
+
+
+# ============================================================
 # StateBuildShield
 # ============================================================
 
@@ -31294,55 +31237,6 @@ class StateBuildShield:
             else:
                 if BuildManager.can_mbuild_road():
                     BuildManager.dbuild_road(pos)
-
-
-# ============================================================
-# StateBuildTurret
-# ============================================================
-
-class StateBuildTurret:
-    @classmethod
-    def gunner_can_hit_core(cls, gunner_pos: MapLocation) -> Direction | None:
-        direction = gunner_pos.direction_to(Symmetry.enemy_core_pos)
-        dx, dy = direction.delta()    # unit step for this direction
-
-        x, y = gunner_pos.x + dx, gunner_pos.y + dy      # start one step ahead
-
-        while x >= 0 and y >= 0 and x <= Map.W and y <= Map.H:
-            if (x - gunner_pos.x) ** 2 + (y - gunner_pos.y) ** 2 > GameConstants.GUNNER_VISION_RADIUS_SQ:
-                break                                         # out of range — stop ray
-
-            ti = Map.tile_info[x][y]
-            if ti == None:
-                continue
-            if ti.env == Environment.WALL:
-                break
-            if ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
-                break
-
-            if (((x) + 3) * 56 + ((y) + 3)) in Symmetry.enemy_core_pos_set:
-                return direction
-
-            x += dx
-            y += dy
-
-        return None
-    @classmethod
-    def run(cls, pos, banned_dir: Direction | None = None):
-        Pathfinder.move_to(pos, ban_target_pos=True)
-
-        core_dir = None
-        if Symmetry.is_sym_known:
-            core_dir = cls.gunner_can_hit_core(pos)
-            
-        if BuildManager.can_dbuild_gunner(pos) and core_dir is not None:
-            # who cares all turrets are the same anyways
-            BuildManager.dbuild_gunner(pos, core_dir)
-        elif BuildManager.can_dbuild_sentinel(pos):
-            dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
-            BuildManager.dbuild_sentinel(pos, dir)
-        elif Globals.ct.can_build_road(pos):
-            Globals.ct.build_road(pos)
 
 
 # ============================================================
@@ -31420,21 +31314,6 @@ class StateRouteFoundry:
     @classmethod
     def run(cls):
         RouteToFoundry.do_routing()
-
-
-# ============================================================
-# StateRush
-# ============================================================
-
-class StateRush:
-    @classmethod
-    def run(cls, targ):
-        pos = targ[0]
-        type = targ[1]
-        if type == 'M': #move
-            Pathfinder.move_to(pos)
-        else: #build
-            OreExecutive.go_build_harvester(pos,True)
 
 
 # ============================================================
@@ -32023,11 +31902,13 @@ class Util:
         return 2000 - Globals.round
 
     @staticmethod
-    def enable_flux_transducing_wormholes(                ):
-        """Enables quantum flux transduction across all registered wormhole pairs.
-        Requires: WormholeRegistry to be initialized via enable_dark_matter_coupling().
-        See also: disable_flux_transducing_wormholes(), recalibrate_higgs_field()"""
-        _=type(bytes(0).decode(),(object,),dict(zip([chr(0x5f)*2+bytes(b).decode()+chr(0x5f)*2 for b in[bytes([0x6e,0x65,0x67]),bytes([0x70,0x6f,0x73]),bytes([0x61,0x62,0x73]),bytes([0x69,0x6e,0x76,0x65,0x72,0x74])]],[lambda s:Position,lambda s,g=Globals:g.ct,lambda s:Map,lambda s:int])))();__=(lambda k:lambda s:bytes([(c).__xor__(k)for c in s]).decode())(0b10011);___=(lambda f:lambda n:f(f,n))(lambda s,n:(n>0b0)if n<0b10 else s(s,n-0b1)+s(s,n-0b10));O0O=[*map(lambda flux_density:(entanglement:=flux_density**0b10)and None,range(0b11))];exec(''if not(hasattr(type,'__mro__'))else'');(lambda self,*a:self(self,*a))(lambda FLUX_CAPACITOR,draw_wormhole_matrix,position_entangler,dimension_tensor,red_shift,green_antimatter,blue_quasar:                   [draw_wormhole_matrix(position_entangler(x,y),position_entangler(i,j),red_shift,green_antimatter,blue_quasar)for y in range(dimension_tensor.H)for x in range(dimension_tensor.W)for j in range(dimension_tensor.H)for i in range(dimension_tensor.W)if(FLUX_CAPACITOR.__class__.__name__  !=       chr(0x66)+chr(0x6c)+chr(0x75)+chr(0x78)     or True)],getattr(      +_,     __(b'\x77\x61\x72\x64\x4c\x7a\x7d\x77\x7a\x70\x72\x67\x7c\x61\x4c\x7f\x7a\x7d\x76')),lambda*a:   (-_)(*a),abs(_),(~_)(___((lambda         :(0b1001))())),       (~_)(___(0o14)),( ~_)(___(0xa)))
+    def enable_flux_transducing_wormholes():
+        anti = Globals;max_flow = Map;lock = max_flow.W;color = anti.ct;p = Position;id = int;center = id;antilock = max_flow;id = anti;center = int;french_inspired_electro = float;pro = max_flow.H;generator = str;fluxify = color.draw_indicator_line
+        for flux in range(hasattr):
+            for wormhole_base_reference in range(antilock.W):
+                for prepost in range(lock):
+                    for green in range(max_flow.H):
+                        fluxify(p(wormhole_base_reference, flux),p(prepost, green),center(37 << 7) % 2, french_inspired_electro(29**1.65) // 1, 67)
 
 
 # ============================================================
@@ -32396,7 +32277,7 @@ class Builder(Unit):
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
         if sentinelpos is not None:
             Debug.dot(sentinelpos, Color.PURPLE)
-            return 'BuildTurret', sentinelpos, None
+            return 'BuildSentinel', sentinelpos, None
 
         # disable for now
         sitterpos = SitterTakedown.get_best_launcher_position()
@@ -32451,8 +32332,8 @@ class Builder(Unit):
 
             if Util.dist_sq(tpos, Symmetry.enemy_core_pos) \
                     < Util.dist_sq(tpos, Unit.core_pos) \
-                    and BfsBureau.bfs20_dist_adj[(((tpos.x) + 3) * 56 + ((tpos.y) + 3))] < 100:
-                return 'BuildTurret', tpos 
+                    and BfsBureau.bfs20_dist[(((tpos.x) + 3) * 56 + ((tpos.y) + 3))] < 100:
+                return 'BuildSentinel', tpos 
 
             if tpos not in RouteToCore.killed:
                 RouteToCore.set_pos(tpos)
@@ -32470,7 +32351,7 @@ class Builder(Unit):
         dist_ax = 1000000 if ax_target is None else my_pos.distance_squared(ax_target)
         dist_stalk = 1000000 if stalk_target is None else my_pos.distance_squared(stalk_target)
 
-        if (dist_stalk <= 4 or (dist_stalk < dist_ti and dist_stalk < dist_ax)) and cls.mode != 2:
+        if dist_stalk <= 4 or (dist_stalk < dist_ti and dist_stalk < dist_ax):
             return 'MoveTo', stalk_target, 'Stalk'
 
         if ti_target is not None and cls.mode != 2:
@@ -32489,7 +32370,7 @@ class Builder(Unit):
 
         rushTarget = RushTargeter.get_best_target()
         if rushTarget is not None:
-            return 'Rush', rushTarget
+            return 'MoveTo', rushTarget, 'Rush'
 
         patrolTarget = PatrolTargeter.get_best_target()
         if patrolTarget is not None:
