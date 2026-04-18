@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-18 01:39:55 (local)
+# latest,  @ 2026-04-18 01:42:33 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -222,7 +222,6 @@ class Attacker:
         ti = tile_info[x][y]
 
         # assume caller passes in position with enemy building
-        assert not ti.is_building_ally
         
         hp = ti.building_hp
         max_hp = Constants.MAX_HP_MAP[ti.entity_type]
@@ -392,7 +391,6 @@ class BfsBureau:
         cls.weight[idx + -56] += 1000000
         cls.weight[idx + -57] += 1000000
 
-        Debug.dot(Position(x, y), Color.YELLOW)
 
     @classmethod
     def remove_enemy_launcher(cls, idx):
@@ -433,7 +431,6 @@ class BfsBureau:
         if cls.weight[i] < 1:
             cls.weight[i] = 1
 
-        Debug.dot(Position(x, y), Color.GREEN)
 
 
 
@@ -1810,7 +1807,6 @@ class BfsBureau:
 
         # ── Same-tile: CENTRE competes with neighbors ──
         if si == ti:
-            print(f'[on top of find_route target with {ban_target=}]')
             
             if ban_target:
                 _best_c = 1000000
@@ -2132,7 +2128,7 @@ class BfsBureau:
             return 1000000, None
 
         # ── Phase 2: bitmask BFS from Dijkstra frontier ──
-        Profiler.start()
+        
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = (cls.now_passable_int | _tm) & cls.board_mask
@@ -4010,7 +4006,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_builder_bot() -> bool:
-        assert EntityType.BUILDER_BOT in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4052,7 +4047,6 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4070,7 +4064,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_gunner() -> bool:
-        assert EntityType.GUNNER in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4126,7 +4119,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_sentinel() -> bool:
-        assert EntityType.SENTINEL in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4168,7 +4160,6 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4186,7 +4177,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_breach() -> bool:
-        assert EntityType.BREACH in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4228,7 +4218,6 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4246,7 +4235,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_launcher() -> bool:
-        assert EntityType.LAUNCHER in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4302,7 +4290,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_conveyor() -> bool:
-        assert EntityType.CONVEYOR in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4343,7 +4330,6 @@ class BuildManager:
         if MarketMaker.est_income > 10 and Globals.round > 50:
             ti_cost += int(20 * MarketMaker.scale_ratio)
         
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4361,7 +4347,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_splitter() -> bool:
-        assert EntityType.SPLITTER in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4400,7 +4385,6 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4418,7 +4402,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_armoured_conveyor() -> bool:
-        assert EntityType.ARMOURED_CONVEYOR in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4457,7 +4440,6 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4475,7 +4457,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_bridge() -> bool:
-        assert EntityType.BRIDGE in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4516,7 +4497,6 @@ class BuildManager:
         if MarketMaker.est_income > 10 and Globals.round > 50:
             ti_cost += int(20 * MarketMaker.scale_ratio)
         
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4534,7 +4514,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_harvester() -> bool:
-        assert EntityType.HARVESTER in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4574,7 +4553,6 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4592,7 +4570,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_foundry() -> bool:
-        assert EntityType.FOUNDRY in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4632,7 +4609,6 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4650,7 +4626,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_road() -> bool:
-        assert EntityType.ROAD in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4689,7 +4664,6 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4707,7 +4681,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_barrier() -> bool:
-        assert EntityType.BARRIER in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4747,7 +4720,6 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
-        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -25786,11 +25758,9 @@ class HealTargeter:
             if HealTargetInfo.is_better_than(cand, best):
                 best = cand
 
-        print(f'(possible) heal target {best.position=} {best.building_heal=} {best.building_hp=}')
 
         total_heal = best.building_heal + best.bot_heal
         if total_heal < 4:
-            print(f'{total_heal=}')
             # Still heal buildings next to harvesters for shielding
             if not best.harvester_adjacent or total_heal == 0:
                 return None
@@ -26136,9 +26106,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                Profiler.start()
+                
                 Comms.handle_message(get_marker_value(building_id))
-                Profiler.end(f"""Comms.handle_message""")
+                
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
@@ -26466,9 +26436,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                Profiler.start()
+                
                 Comms.handle_message(get_marker_value(building_id))
-                Profiler.end(f"""Comms.handle_message""")
+                
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
@@ -26796,9 +26766,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                Profiler.start()
+                
                 Comms.handle_message(get_marker_value(building_id))
-                Profiler.end(f"""Comms.handle_message""")
+                
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
@@ -27105,9 +27075,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                Profiler.start()
+                
                 Comms.handle_message(get_marker_value(building_id))
-                Profiler.end(f"""Comms.handle_message""")
+                
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
@@ -27597,9 +27567,9 @@ class MarketMaker:
             return cls.hres
 
         
-        Profiler.start()
+        
         bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.sink_set)
-        Profiler.end(f"""BfsBureau.find_bridge_route""")
+        
         h_cost, _ = Globals.ct.get_harvester_cost()
         b_cost, _ = Globals.ct.get_bridge_cost()
         cls.hres = h_cost + b_cost * bridges 
@@ -28204,9 +28174,9 @@ class Pathfinder:
                 return
 
 
-        Profiler.start()
+        
         dist, dir = BfsBureau.find_route(Globals.my_pos, target, ban_target_pos)
-        Profiler.end(f"""BfsBureau.find_route""")
+        
 
         print('pf', dir, dist)
 
@@ -28296,8 +28266,6 @@ class Player:
             err = traceback.format_exc()
             Debug.tee(err)
             Debug.tee(f'(I am a {Globals.my_type})')
-
-            ct.resign()
 
 
 # ============================================================
@@ -28491,7 +28459,7 @@ class RouteToBreach:
             avoid_pos = RouteToCore.pathFindingKill
         )
 
-        print(f"""{bridge_dist=}""")
+        
 
         if first_target is None:
             Debug.tee("RouteToBreach: first_target is None, giving up")
@@ -28678,7 +28646,7 @@ class RouteToCore:
                     avoid_pos = cls.pathFindingKill
                 )
 
-        print(f"""{bridge_dist=}""")
+        
 
         if first_target is None:
             Debug.tee("first_target is None: giving up")
@@ -28898,7 +28866,7 @@ class RouteToFoundry:
             avoid_pos = RouteToCore.pathFindingKill 
         )
 
-        print(f"""{bridge_dist=}""")
+        
 
         if first_target is None:
             Debug.tee("RouteToFoundry: first_target is None, giving up")
@@ -31094,7 +31062,7 @@ class SpawnManager:
 class StalkTargeter:
     @classmethod
     def get_best_target(cls) -> Position | None:
-        Profiler.start()
+        
 
         my_pos = Globals.my_pos
 
@@ -31118,7 +31086,7 @@ class StalkTargeter:
                     best_dist = dist
                     best = pos
                 
-        Profiler.end(f"""StalkTargeter.get_best_target""")
+        
                 
         return best
 
@@ -31247,7 +31215,6 @@ class StateBuildShield:
                     if ti.is_building_ally:
                         found_ally_harvester = True
         
-        print(f'{target_dir=}, {found_ally_harvester=}')
 
         if pos != Globals.my_pos:
             if target_dir is not None:
@@ -31339,7 +31306,6 @@ class StateFoundryBuild:
 class StateMoveTo:
     @classmethod
     def run(cls, pos, tag='_'):
-        print(f'{tag=}')
         Pathfinder.move_to(pos)
 
 
@@ -31510,9 +31476,9 @@ class Symmetry:
         cls.predict_enemy_core()
         DarkForest.register_enemy_core()
 
-        Profiler.start()
+        
         Map.sync_tile_infos()
-        Profiler.end_now(f"""Map.sync_tile_infos""")
+        
         RouteToCore.pathFindingKill.update(cls.enemy_core_pos_set) # don't route to core anymore
 
 
@@ -31923,9 +31889,9 @@ class Unit:
         MarketMaker.refresh()
 
         if Globals.ct.get_entity_type() != EntityType.LAUNCHER:
-            Profiler.start()
+            
             Map.fill_tile_info()
-            Profiler.end(f"""Map.fill_tile_info""")
+            
 
     @classmethod
     def run_turn(cls):
@@ -31934,7 +31900,7 @@ class Unit:
     @classmethod
     def end_turn(cls):
 
-        if Globals.round == 667:
+        if Globals.round == 1999:
             Profiler.report()
         print(f'scale ratio {MarketMaker.scale_ratio:.2f}')
 
@@ -32091,16 +32057,16 @@ class VisionTracker:
 
     @classmethod
     def canonical_ally(cls, from_pos: Position) -> BotInfo:
-        Profiler.start()
+        
         ret = min(cls.allies, key=
             lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )
-        Profiler.end(f"""canonical_ally""")
+        
         return ret
     
     @classmethod
     def canonical_ally_index(cls, from_pos: Position) -> int:
-        Profiler.start()
+        
         allyIndex = list(map(lambda x: x.position, sorted(cls.allies, key=
             lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )))
@@ -32109,7 +32075,7 @@ class VisionTracker:
         else:
             Debug.warn("my_pos not found in canonical ally list!")
             i = 0
-        Profiler.end(f"""canonical_ally""")
+        
         return i
 
 
@@ -32256,13 +32222,13 @@ class Builder(Unit):
     def start_turn(cls):
         Unit.start_turn()
 
-        Profiler.start()
+        
         DarkForest.fcompute()
-        Profiler.end(f"""DarkForest.fcompute""")
+        
 
-        Profiler.start()
+        
         BfsBureau.update()
-        Profiler.end(f"""BfsBureau.update""")
+        
 
         Symmetry.run_sym_check()
 
@@ -32283,34 +32249,34 @@ class Builder(Unit):
         print("Mode:", cls.mode)
 
 
-        Profiler.start()
+        
         BfsBureau.bfs20()
-        Profiler.end(f"""BfsBureau.bfs20""")
+        
 
-        Profiler.start()
+        
         BfsBureau.update_enclosed_regions()
-        Profiler.end(f"""BfsBureau.update_enclosed_regions""")
+        
 
 
-        Profiler.start()
+        
         OreExecutive.fill()
-        Profiler.end(f"""OreExecutive.fill""")
+        
 
-        Profiler.start()
+        
         VisionTracker.fill()
-        Profiler.end(f"""VisionTracker.fill""")
+        
 
-        Profiler.start()
+        
         SitterTakedown.fill()
-        Profiler.end(f"""SitterTakedown.fill""")
+        
 
-        Profiler.start()
+        
         HarvesterAdjacent.fill()
-        Profiler.end(f"""HarvesterAdjacent.fill""")
+        
 
-        Profiler.start()
+        
         HealTargeter.fill()
-        Profiler.end(f"""HealTargeter.fill""")
+        
 
 
 
@@ -32318,24 +32284,23 @@ class Builder(Unit):
     def run_turn(cls):
         cls.state, *args = cls.determine_state()
 
-        print(f'running: {cls.state}  @', *args, sep=' ')
 
-        Profiler.start()
+        
         globals()[f'State{cls.state}'].run(*args)
-        Profiler.end(f"""State{cls.state}""")
+        
 
 
     @classmethod
     def end_turn(cls):
         Unit.end_turn()
 
-        Profiler.start()
+        
         HealExecutor.execute_heal_attempt()
-        Profiler.end(f"""HealExecutor.execute_heal_attempt""")
+        
 
-        Profiler.start()
+        
         Marker.attempt_mark()
-        Profiler.end(f"""Marker.attempt_mark""")
+        
 
         # BfsBureau.debug_enemy_launcher_zone()
         # if Globals.round & 1:
@@ -32512,10 +32477,6 @@ class Core(Unit):
     @classmethod
     def end_turn(cls):
         Unit.end_turn()
-
-        if Globals.round > 666:
-            Globals.ct.resign()
-            raise Exception
 
 
 # ============================================================
