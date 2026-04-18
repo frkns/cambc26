@@ -152,5 +152,18 @@ class BuildManager:
         Debug.diamond(Color.RED, pos)
         Globals.ct.destroy(pos)
 
+    @staticmethod
+    def should_build_armoured(pos):
+
+        {% set cond1 -%}
+            (min(pos.distance_squared(Unit.core_pos), pos.distance_squared(Symmetry.enemy_core_pos)) <= 20)
+        {%- endset %}
+
+        {% set cond2 -%}
+            Map.tile_info[pos.x][pos.y].harvester_adjacent
+        {%- endset %}
+
+        return {{ cond1 }} or {{ cond2 }}
+
 
 

@@ -49,8 +49,6 @@ class Pathfinder:
         dist, dir = BfsBureau.find_route(Globals.my_pos, target, ban_target_pos)
         {{ P.end('BfsBureau.find_route') }}
 
-        print('pf', dir, dist)
-
         if orbit and 0 < target.distance_squared(Globals.my_pos) <= 2:
             dir = Globals.my_pos.direction_to(target).rotate_left()
 

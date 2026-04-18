@@ -50,14 +50,6 @@ class GunnerTargetInfo:
             if a_is_gunner and (not b_is_gunner): return True
             if (not a_is_gunner) and b_is_gunner: return False
 
-        # if there is a bot on top of the tile, nothing underneath gets hit
-        if a.current_dir == b.current_dir:
-            if a.has_enemy_bot and (not b.has_enemy_bot): return True
-            if (not a.has_enemy_bot) and b.has_enemy_bot: return False
-
-        if a.has_enemy_bot and b.has_enemy_bot:
-            if a.bot_hp != b.bot_hp:
-                return a.bot_hp < b.bot_hp
 
         if a.ally_connected and (not b.ally_connected): return False  # don't target allied routes
         if (not a.ally_connected) and b.ally_connected: return True
@@ -74,10 +66,20 @@ class GunnerTargetInfo:
         if a.has_building and b.has_building:
             if a.building_hp != b.building_hp:
                 return a.building_hp < b.building_hp
-            
+
+        # if there is a bot on top of the tile, nothing underneath gets hit
+        if a.current_dir == b.current_dir:
+            if a.has_enemy_bot and (not b.has_enemy_bot): return True
+            if (not a.has_enemy_bot) and b.has_enemy_bot: return False
+
         # prefer the direction we're currently facing
         if a.current_dir != b.current_dir:
             return a.current_dir > b.current_dir
+
+        if a.has_enemy_bot and b.has_enemy_bot:
+            if a.bot_hp != b.bot_hp:
+                return a.bot_hp < b.bot_hp
+            
 
         return a.rand_key < b.rand_key
 

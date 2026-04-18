@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-18 01:42:33 (local)
+# latest,  @ 2026-04-18 17:01:42 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -3868,7 +3868,7 @@ class BfsBureau:
         enclosed = cls.enclosed_region
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             if enclosed[idx]:
-                Debug.dot(Position(x, y), Color.RED)
+                Debug.dot(Position(x, y), Color.BLUE)
 
 
 # ============================================================
@@ -4729,6 +4729,13 @@ class BuildManager:
         Debug.diamond(Color.RED, pos)
         Globals.ct.destroy(pos)
 
+    @staticmethod
+    def should_build_armoured(pos):
+
+
+
+        return (min(pos.distance_squared(Unit.core_pos), pos.distance_squared(Symmetry.enemy_core_pos)) <= 20) or Map.tile_info[pos.x][pos.y].harvester_adjacent
+
 
 # ============================================================
 # Building
@@ -5080,12 +5087,13 @@ class DarkForest:
     flow: list[int]        # flow in subtree (bottom-up)
     pressure: list[int]    # pressure at node (top-down, reset at sink boundaries)
     node_kind: list[int]   # propagated kind per node (top-down)
-    sink_set: set[int]
-    leaf_set: set[int]   # titanium leaf nodes — valid foundry sites
-    core_sink_set: set[int] = set()  # sink_set filtered to ALLY_CORE only
-    sight_last_id: list[int]     # last resource-ID seen at this position; -1 = never
-    sight_last_round: list[int]  # game-round when that ID was last observed
-    sight_flowing: list[bool]    # sight-based flow: True if fresh valid resource seen recently
+    core_sink_set: set[int] = set()  # titanium-only ALLY_CORE reachable nodes below pressure threshold
+    sink_set: set[int]               # alias for core_sink_set (backward compat)
+    leaf_set: set[int]               # titanium leaf nodes — valid foundry sites
+    ax_tagged: list[bool]            # True if node has any axionite flow in subtree
+    sight_last_id: list[int]         # last resource-ID seen at this position; -1 = never
+    sight_last_round: list[int]      # game-round when that ID was last observed
+    sight_flowing: list[bool]        # sight-based flow: True if fresh valid resource seen recently
 
     @classmethod
     def init(cls):
@@ -5100,23 +5108,18 @@ class DarkForest:
 
     @classmethod
     def compute_core_sink_set(cls):
-        """Call this immediately after fcompute(). No changes to fcompute needed."""
-        cls.core_sink_set = {
-            u for u in cls.sink_set
-            if cls.node_kind[u] == 1 or u in Unit.core_pos_set
-        }
+        """No-op: core_sink_set is now computed directly in fcompute."""
+        pass
 
     @classmethod
     def register_enemy_core(cls):
-        for p in Symmetry.enemy_core_pos_set:  # from sym
+        for p in Symmetry.enemy_core_pos_set:
             cls.register_sink(p, 2)
 
     @classmethod
     def remove_node(cls, u: int):
-        # Destroy node u. Any node with up=u will be severed automagically in compute func.
         if cls.kind[u] == 1 or cls.kind[u] == 2:
-            return 
-
+            return
         cls.nodes[u] = None
         cls.kind[u] = 0
 
@@ -5132,7 +5135,6 @@ class DarkForest:
         else:
             ns[u].up = None  # sinks are roots
 
-
     @classmethod
     def add_edge(cls, u: int, v: int):
         # register (u,v) edge: u.up = v
@@ -5140,8 +5142,6 @@ class DarkForest:
         if ns[u] is None:
             ns[u] = TreeNode()
         ns[u].up = v
-
-
 
 
 
@@ -5168,7 +5168,7 @@ class DarkForest:
 
     @classmethod
     def debug_sink_set(cls):
-        for i in cls.sink_set:
+        for i in cls.core_sink_set:
             Globals.ct.draw_indicator_dot(Position(((i) // 56 - 3), ((i) % 56 - 3)), 0, 255, 255)
 
 
@@ -5187,21 +5187,21 @@ class DarkForest:
 
     @classmethod
     def debug_kind(cls):
-        """Draw dots colored by propagated node_kind. Extends to any number of kinds."""
+        """Draw dots colored by propagated node_kind."""
         ns = cls.nodes
         nk = cls.node_kind
         ct = Globals.ct
         _palette = (
-            (128, 128, 128),  # 0: Kind.NONE (grey, never drawn)
-            (0,   255, 0  ),  # 1: Kind.ALLY_CORE (green)
-            (255, 0,   0  ),  # 2: Kind.ENEMY_CORE (red)
-            (0,   128, 255),  # 3: (blue)
-            (255, 255, 0  ),  # 4: (yellow)
-            (255, 0,   255),  # 5: (magenta)
-            (0,   255, 255),  # 6: (cyan)
-            (255, 128, 0  ),  # 7: (orange)
-            (128, 0,   255),  # 8: (purple)
-            (128, 255, 0  ),  # 9: (lime)
+            (128, 128, 128),
+            (0,   255, 0  ),
+            (255, 0,   0  ),
+            (0,   128, 255),
+            (255, 255, 0  ),
+            (255, 0,   255),
+            (0,   255, 255),
+            (255, 128, 0  ),
+            (128, 0,   255),
+            (128, 255, 0  ),
         )
         _plen = len(_palette)
         for x in range(50):
@@ -5225,23 +5225,40 @@ class DarkForest:
                         ct.draw_indicator_dot(Position(x, y), r, g, b)
 
 
+    @classmethod
+    def debug_ax_tagged(cls):
+        """Draw orange dots on nodes tagged as carrying axionite flow."""
+        ns = cls.nodes
+        ax = cls.ax_tagged
+        ct = Globals.ct
+        for x in range(50):
+            for y in range(50):
+                i = (((x) + 3) * 56 + ((y) + 3))
+                if ns[i] is not None and ax[i]:
+                    ct.draw_indicator_dot(Position(x, y), 255, 128, 0)
+
+
 
 
     @classmethod
     def fcompute(cls):
 
-        ns = cls.nodes
-        kind = cls.kind
+        ns       = cls.nodes
+        kind     = cls.kind
         core_pos_set = Unit.core_pos_set
-        harvesters = Map.harvester_set
+        harvesters   = Map.harvester_set
+        ax_harvesters = Map.ax_ally_harvester_set   # axionite harvesters
 
-        flow = [0] * 3136
-        cc   = [0] * 3136
+        flow     = [0] * 3136
+        cc       = [0] * 3136
+        ax_tagged = [False] * 3136   # True if node sits on an axionite-fed subtree
 
-        # ── harvest → flow directly ──
+        # ── harvest → flow; seed ax_tagged for axionite harvester neighbours ──
         _sh = (0, 12, 6,
                4, 3)
+
         for h in harvesters:
+            _is_ax = h in ax_harvesters
             _n0 = h -1
             _t0 = ns[_n0]
             _e0 = _t0 is not None and _t0.up != h
@@ -5257,11 +5274,22 @@ class DarkForest:
             cnt = _e0 + _e1 + _e2 + _e3
             if cnt:
                 s = _sh[cnt]
-                if _e0: flow[_n0] += s
-                if _e1: flow[_n1] += s
-                if _e2: flow[_n2] += s
-                if _e3: flow[_n3] += s
-
+                if _e0:
+                    flow[_n0] += s
+                    if _is_ax:
+                        ax_tagged[_n0] = True
+                if _e1:
+                    flow[_n1] += s
+                    if _is_ax:
+                        ax_tagged[_n1] = True
+                if _e2:
+                    flow[_n2] += s
+                    if _is_ax:
+                        ax_tagged[_n2] = True
+                if _e3:
+                    flow[_n3] += s
+                    if _is_ax:
+                        ax_tagged[_n3] = True
 
         # ── fix dead parents, indegree, collect active ──
         active = []
@@ -22767,7 +22795,7 @@ class DarkForest:
                 else:
                     t.up = None
 
-        # ── find leaves ──
+        # ── find leaves (zero in-degree) ──
         q = []
         qa = q.append
         for i in active:
@@ -22776,22 +22804,28 @@ class DarkForest:
 
         _initial_leaves = list(q)
 
-        # ── bottom-up BFS ──
+        # ── bottom-up BFS: propagate flow AND ax_tagged leaf→root ──
         qi = 0
         while qi < len(q):
             u = q[qi]; qi += 1
             p = ns[u].up
             if p is not None:
                 flow[p] += flow[u]
+                # propagate ax taint upward
+                if ax_tagged[u]:
+                    ax_tagged[p] = True
                 cc[p] -= 1
                 if not cc[p]:
                     qa(p)
 
-        # ── top-down ──
+        # ── top-down pass: pressure, node_kind, core_sink_set ──
         pressure = [0] * 3136
-        nk = [0] * 3136
-        sink_set = core_pos_set.copy()
-        sink_add = sink_set.add
+        nk       = [0] * 3136
+
+        # core_sink_set: ALLY_CORE-reachable nodes, below pressure threshold,
+        # with NO axionite taint anywhere in their subtree.
+        core_sink_set: set[int] = set()
+        cs_add = core_sink_set.add
         THR = 24
 
         for u in reversed(q):
@@ -22806,66 +22840,52 @@ class DarkForest:
                 pressure[u] = pressure[p]
                 k = nk[p]
             nk[u] = k
-            if k == 1 and pressure[u] <= THR:
-                sink_add(u)
+            if (k == 1
+                    and pressure[u] <= THR
+                    and not ax_tagged[u]):
+                cs_add(u)
 
-        cls.flow = flow
-        cls.pressure = pressure
-        cls.node_kind = nk
-        cls.sink_set = sink_set
+        # cores themselves are always valid sinks regardless of taint/pressure
+        core_sink_set |= core_pos_set
+
+        cls.flow          = flow
+        cls.pressure      = pressure
+        cls.node_kind     = nk
+        cls.ax_tagged     = ax_tagged
+        cls.core_sink_set = core_sink_set
+        cls.sink_set      = core_sink_set   # backward-compat alias
 
         # ── titanium leaf set ──
         _ti_leaves: set[int] = set()
         for u in _initial_leaves:
-            if nk[u] == 1 and u not in core_pos_set:
+            if nk[u] == 1 and u not in core_pos_set and not ax_tagged[u]:
                 _ti_leaves.add(u)
         cls.leaf_set = _ti_leaves
-        cls.compute_core_sink_set()
 
         # ════════════════════════════════════════════════════════════════
-        # ── sight-based flow tracking (independent of pressure system) ──
-        # A position is sight_flowing if the SAME valid resource ID has
-        # been observed there within the last SIGHT_WINDOW calls to fcompute.
-        # Seeing a different ID resets the window for that position.
-        # sight_flowing propagates leaf→root along existing tree edges,
-        # matching the physical direction resources travel on conveyors/bridges.
+        # ── sight-based flow tracking ──
         # ════════════════════════════════════════════════════════════════
 
         _SIGHT_WINDOW = 4
         _valid_rt = (ResourceType.TITANIUM, ResourceType.REFINED_AXIONITE)
 
-        # Lazy-init persistent arrays (survive across fcompute calls).
-        # sight_last_round uses -_SIGHT_WINDOW - 1 so any position that has
-        # never been seen is already expired on the very first call.
         if not hasattr(cls, 'sight_last_id'):
-            cls.sight_last_id    = [-1]  * 3136
+            cls.sight_last_id    = [-1]            * 3136
             cls.sight_last_round = [-_SIGHT_WINDOW - 1] * 3136
 
         _sight_last_id    = cls.sight_last_id
         _sight_last_round = cls.sight_last_round
+        _cur_round        = Globals.round
 
-        # Get current round once; used as the timestamp for this call.
-        _cur_round = Globals.round
-
-        # ── update sight tracking from currently visible tiles ──
-        # Only tiles in Map.proc_nearby_tiles were actually observed this turn.
-        # For all other positions we simply let the window expire naturally.
         for _pos, _x, _y, _idx, _ti in Map.proc_nearby_tiles:
             _rt = _ti.resource_type
             if _rt in _valid_rt:
                 _rid = _ti.resource_id
                 if _rid is not None:
                     if _sight_last_id[_idx] != _rid:
-                        # Different (or first) resource ID → reset window origin.
-                        # The 4-round window starts fresh from this observation.
                         _sight_last_id[_idx] = _rid
-                    # Whether new or same ID, record that we saw it this round.
                     _sight_last_round[_idx] = _cur_round
-            # Tiles with no valid resource are intentionally left alone so their
-            # window can expire on its own; we do NOT zero sight_last_round here
-            # because a conveyor may be momentarily empty between deliveries.
 
-        # ── base sight_flowing: is each tree node's own data still fresh? ──
         sight_flowing = [False] * 3136
         for u in active:
             if (
@@ -22874,8 +22894,7 @@ class DarkForest:
             ):
                 sight_flowing[u] = True
 
-        # ── propagate sight_flowing leaf→root (same direction resources travel) ──
-        # q is already in leaf-first topological order from the bottom-up BFS above.
+        # propagate leaf→root
         for u in q:
             if sight_flowing[u]:
                 p = ns[u].up
@@ -24526,14 +24545,6 @@ class GunnerTargetInfo:
             if a_is_gunner and (not b_is_gunner): return True
             if (not a_is_gunner) and b_is_gunner: return False
 
-        # if there is a bot on top of the tile, nothing underneath gets hit
-        if a.current_dir == b.current_dir:
-            if a.has_enemy_bot and (not b.has_enemy_bot): return True
-            if (not a.has_enemy_bot) and b.has_enemy_bot: return False
-
-        if a.has_enemy_bot and b.has_enemy_bot:
-            if a.bot_hp != b.bot_hp:
-                return a.bot_hp < b.bot_hp
 
         if a.ally_connected and (not b.ally_connected): return False  # don't target allied routes
         if (not a.ally_connected) and b.ally_connected: return True
@@ -24550,10 +24561,20 @@ class GunnerTargetInfo:
         if a.has_building and b.has_building:
             if a.building_hp != b.building_hp:
                 return a.building_hp < b.building_hp
-            
+
+        # if there is a bot on top of the tile, nothing underneath gets hit
+        if a.current_dir == b.current_dir:
+            if a.has_enemy_bot and (not b.has_enemy_bot): return True
+            if (not a.has_enemy_bot) and b.has_enemy_bot: return False
+
         # prefer the direction we're currently facing
         if a.current_dir != b.current_dir:
             return a.current_dir > b.current_dir
+
+        if a.has_enemy_bot and b.has_enemy_bot:
+            if a.bot_hp != b.bot_hp:
+                return a.bot_hp < b.bot_hp
+            
 
         return a.rand_key < b.rand_key
 
@@ -24687,6 +24708,7 @@ class HarvesterAdjacent:
     def fill(cls):
         cls.infos = []
         tile_info = Map.tile_info
+        my_pos = Globals.my_pos
 
         for spos, sx, sy, _, hti in Map.proc_nearby_tiles:
             if hti.entity_type != EntityType.HARVESTER or hti.env == Environment.ORE_AXIONITE:
@@ -24695,7 +24717,8 @@ class HarvesterAdjacent:
             is_harvester_ally = hti.is_building_ally
             consider_route = hti.ally_outward_transporters_adjacent == 0 \
                 and hti.enemy_transporters_adjacent == 0 \
-                and hti.enemy_turrets_adjacent == 0
+                and hti.enemy_turrets_adjacent == 0 \
+                and my_pos.distance_squared(spos) <= 15  # can see all adjacent
             dist_to_ally_core = spos.distance_squared(Unit.core_pos)
             is_canonical_ally_harvester = VisionTracker.me_is_canonical_ally(spos)
             
@@ -25851,6 +25874,7 @@ class Map:
     proc_nearby_tiles: list[tuple[Position, int, int, int, TileInfo]]
     num_allies: int
     num_enemies: int
+    num_enemy_buildings: int
     harvester_set: set[int] = set()
     ti_ally_harvester_set: set[int] = set()
     ax_ally_harvester_set: set[int] = set()
@@ -25930,6 +25954,7 @@ class Map:
         messages_read = 0
         num_allies = 0
         num_enemies = 0
+        num_enemy_buildings = 0
         cls.nearby_tiles = ct.get_nearby_tiles()
 
         maxX, maxY = cls.maxX, cls.maxY
@@ -26001,6 +26026,8 @@ class Map:
                 etype = get_entity_type(building_id)
                 is_building_ally = get_team(building_id) == my_team
                 ti.is_building_ally = is_building_ally
+                if not is_building_ally:
+                    num_enemy_buildings += 1
             else:
                 etype = None
                 is_building_ally = False
@@ -26112,6 +26139,7 @@ class Map:
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
+        cls.num_enemy_buildings = num_enemy_buildings
 
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
@@ -26161,7 +26189,7 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos):
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
@@ -26175,7 +26203,7 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos):
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
@@ -26189,7 +26217,7 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos):
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
@@ -26203,7 +26231,7 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos):
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
@@ -26260,6 +26288,7 @@ class Map:
         messages_read = 0
         num_allies = 0
         num_enemies = 0
+        num_enemy_buildings = 0
         cls.nearby_tiles = ct.get_nearby_tiles()
 
         maxX, maxY = cls.maxX, cls.maxY
@@ -26331,6 +26360,8 @@ class Map:
                 etype = get_entity_type(building_id)
                 is_building_ally = get_team(building_id) == my_team
                 ti.is_building_ally = is_building_ally
+                if not is_building_ally:
+                    num_enemy_buildings += 1
             else:
                 etype = None
                 is_building_ally = False
@@ -26442,6 +26473,7 @@ class Map:
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
+        cls.num_enemy_buildings = num_enemy_buildings
 
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
@@ -26491,7 +26523,7 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos):
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
@@ -26505,7 +26537,7 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos):
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
@@ -26519,7 +26551,7 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos):
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
@@ -26533,7 +26565,7 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos):
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
@@ -26590,6 +26622,7 @@ class Map:
         messages_read = 0
         num_allies = 0
         num_enemies = 0
+        num_enemy_buildings = 0
         cls.nearby_tiles = ct.get_nearby_tiles()
 
         maxX, maxY = cls.maxX, cls.maxY
@@ -26661,6 +26694,8 @@ class Map:
                 etype = get_entity_type(building_id)
                 is_building_ally = get_team(building_id) == my_team
                 ti.is_building_ally = is_building_ally
+                if not is_building_ally:
+                    num_enemy_buildings += 1
             else:
                 etype = None
                 is_building_ally = False
@@ -26772,6 +26807,7 @@ class Map:
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
+        cls.num_enemy_buildings = num_enemy_buildings
 
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
@@ -26821,7 +26857,7 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos):
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
@@ -26835,7 +26871,7 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos):
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
@@ -26849,7 +26885,7 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos):
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
@@ -26863,7 +26899,7 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos):
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
@@ -26920,6 +26956,7 @@ class Map:
         messages_read = 0
         num_allies = 0
         num_enemies = 0
+        num_enemy_buildings = 0
         cls.nearby_tiles = ct.get_nearby_tiles()
 
 
@@ -26970,6 +27007,8 @@ class Map:
                 etype = get_entity_type(building_id)
                 is_building_ally = get_team(building_id) == my_team
                 ti.is_building_ally = is_building_ally
+                if not is_building_ally:
+                    num_enemy_buildings += 1
             else:
                 etype = None
                 is_building_ally = False
@@ -27081,6 +27120,7 @@ class Map:
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
+        cls.num_enemy_buildings = num_enemy_buildings
 
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
@@ -27130,7 +27170,7 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos):
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
@@ -27144,7 +27184,7 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos):
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
@@ -27158,7 +27198,7 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos):
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
@@ -27172,7 +27212,7 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos):
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
@@ -27568,7 +27608,7 @@ class MarketMaker:
 
         
         
-        bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.sink_set)
+        bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.core_sink_set)
         
         h_cost, _ = Globals.ct.get_harvester_cost()
         b_cost, _ = Globals.ct.get_bridge_cost()
@@ -27689,10 +27729,10 @@ class MoveManager:
 # ============================================================
 
 class OreExecutive:
-    state: dict[Position, int] = defaultdict(int)  
+    state: dict[Position, int] = defaultdict(int)
     ti_queue: list[tuple[int, Position]] = []
     ax_queue: list[tuple[int, Position]] = []
-    nearby_ti_queue: list[tuple[int, Position]] = []
+    # nearby_ti_queue removed (reverted c187f820)
 
 
     @classmethod
@@ -27705,7 +27745,6 @@ class OreExecutive:
 
     @classmethod
     def fill(cls):
-        cls.nearby_ti_queue.clear()
         for pos in Map.nearby_tiles:
             # not using Map.harvester_set..?
 
@@ -27716,23 +27755,19 @@ class OreExecutive:
             if ti.entity_type == EntityType.FOUNDRY:
                 RouteToFoundry.planned_foundry_positions.add((((pos.x) + 3) * 56 + ((pos.y) + 3)))
                 continue
-            
+
             if ti.entity_type == EntityType.HARVESTER:
                 continue
-            
-            
+
+
             if ti.has_building and not ti.is_building_ally:
                 continue
 
             if env == Environment.ORE_TITANIUM:
-                if BfsBureau.bfs20_dist[(((pos.x) + 3) * 56 + ((pos.y) + 3))] < 100:
-                    dist = pos.distance_squared(Unit.core_pos)
-                    heapq.heappush(cls.nearby_ti_queue, (dist, pos))
                 if cls.state[pos] != 1:  # intended: can potentially requeue
                     dist = pos.distance_squared(Unit.core_pos)
                     heapq.heappush(cls.ti_queue, (dist, pos))
                     cls.state[pos] = 1
-
 
             if env == Environment.ORE_AXIONITE:
                 if cls.state[pos] != 4:  # intended: can potentially requeue
@@ -27744,35 +27779,7 @@ class OreExecutive:
     @classmethod
     def get_titanium_target(cls) -> Position | None:
         ret = None
-        while cls.nearby_ti_queue:
-            dist, pos = cls.nearby_ti_queue[0]
-
-            if cls.state[pos] == 2:
-                heapq.heappop(cls.nearby_ti_queue)
-                continue
-
-            ti = Map.tile_info[pos.x][pos.y]
-
-            if ti.entity_type == EntityType.HARVESTER:
-                heapq.heappop(cls.nearby_ti_queue)
-                cls.state[pos] = 3
-                continue
-            if ti.entity_type == EntityType.FOUNDRY:
-                heapq.heappop(cls.nearby_ti_queue)
-                cls.state[pos] = 3 # just to prevent requeuing, doesn't matter much
-                continue
-            
-            if ti.has_building and not ti.is_building_ally:
-                heapq.heappop(cls.nearby_ti_queue)
-                cls.state[pos] = 3
-                continue
-
-            if not ti.has_bot and MarketMaker.should_build_harvester(pos):
-                ret = pos
-                break
-            else:
-                break
-        while ret == None and cls.ti_queue:
+        while cls.ti_queue:
             dist, pos = cls.ti_queue[0]
 
             if cls.state[pos] == 2:
@@ -27787,15 +27794,15 @@ class OreExecutive:
                 continue
             if ti.entity_type == EntityType.FOUNDRY:
                 heapq.heappop(cls.ti_queue)
-                cls.state[pos] = 3 # just to prevent requeuing, doesn't matter much
+                cls.state[pos] = 3  # just to prevent requeuing, doesn't matter much
                 continue
-            
+
             if ti.has_building and not ti.is_building_ally:
                 heapq.heappop(cls.ti_queue)
                 cls.state[pos] = 3
                 continue
 
-            if not ti.has_bot and MarketMaker.should_build_ax_harvester(pos):
+            if not ti.has_bot and MarketMaker.should_build_harvester(pos):  # fixed: was should_build_ax_harvester
                 ret = pos
                 break
             else:
@@ -27808,46 +27815,46 @@ class OreExecutive:
             # just kill?
             return None
 
-        
+
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + -1]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
                 cls.state[ret] = 2
                 return None
-                
-        
+
+
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + 1][ret.y + 0]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
                 cls.state[ret] = 2
                 return None
-                
-        
+
+
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + 1]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
                 cls.state[ret] = 2
                 return None
-                
-        
+
+
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + -1][ret.y + 0]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
                 cls.state[ret] = 2
                 return None
-                
+
 
         return ret
 
     @classmethod
     def get_axionite_target(cls) -> Position | None:
         if Globals.round < Constants.AXIONITE_START:
-            return None # don't want to waste resources on axionite early on
-            
+            return None  # don't want to waste resources on axionite early on
+
         ret = None
         while cls.ax_queue:
             dist, pos = cls.ax_queue[0]
@@ -27864,9 +27871,9 @@ class OreExecutive:
                 continue
             if ti.entity_type == EntityType.FOUNDRY:
                 heapq.heappop(cls.ax_queue)
-                cls.state[pos] = 3 # just to prevent requeuing, doesn't matter much
+                cls.state[pos] = 3  # just to prevent requeuing, doesn't matter much
                 continue
-            
+
             if ti.has_building and not ti.is_building_ally:
                 heapq.heappop(cls.ax_queue)
                 cls.state[pos] = 3
@@ -27886,38 +27893,38 @@ class OreExecutive:
             cls.state[ret] = 2
             return None
 
-        
+
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + -1]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
                 cls.state[ret] = 2
                 return None
-                
-        
+
+
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + 1][ret.y + 0]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
                 cls.state[ret] = 2
                 return None
-                
-        
+
+
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + 1]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
                 cls.state[ret] = 2
                 return None
-                
-        
+
+
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + -1][ret.y + 0]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
                 cls.state[ret] = 2
                 return None
-                
+
 
         return ret
 
@@ -27936,7 +27943,6 @@ class OreExecutive:
             Debug.line(pos, Color.YELLOW)
             BuildManager.dbuild_harvester(pos)
 
-            
             cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
             if cand is not None:
                 RouteToCore.set_pos(cand.position)
@@ -27965,7 +27971,6 @@ class OreExecutive:
             Debug.diamond(Color.RED)
             return
 
-
         RouteToFoundry.set_pos(cand.position)
         RouteToFoundry.try_claim_target()
         foundry_enc = RouteToFoundry._foundry_target
@@ -27982,10 +27987,10 @@ class OreExecutive:
             for d in Constants.CARDINAL_DIRECTIONS:
                 newPos = pos.add(d)
                 ti = Map.tile_info[newPos.x][newPos.y]
-                if ti is None: # off-map, ignore
+                if ti is None:  # off-map, ignore
                     continue
                 if ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET:
-                    break # If already routed ignore
+                    break  # If already routed ignore
             else:
                 RouteToFoundry.set_pos(cand.position)
                 return
@@ -28177,8 +28182,6 @@ class Pathfinder:
         
         dist, dir = BfsBureau.find_route(Globals.my_pos, target, ban_target_pos)
         
-
-        print('pf', dir, dist)
 
         if orbit and 0 < target.distance_squared(Globals.my_pos) <= 2:
             dir = Globals.my_pos.direction_to(target).rotate_left()
@@ -28659,11 +28662,12 @@ class RouteToCore:
 
         if cls.from_pos.distance_squared(target) == 1:
             if BuildManager.can_dbuild_conveyor(cls.from_pos):
-                if BuildManager.can_dbuild_armoured_conveyor(cls.from_pos):
+                if BuildManager.should_build_armoured(cls.from_pos) and BuildManager.can_dbuild_armoured_conveyor(cls.from_pos):
                     BuildManager.dbuild_armoured_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
                 else:
                     BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
                 cls.set_pos(target,False)
+
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
             cls.set_pos(target,False)
@@ -31216,10 +31220,15 @@ class StateBuildShield:
                         found_ally_harvester = True
         
 
+
         if pos != Globals.my_pos:
             if target_dir is not None:
                 if found_ally_harvester:
-                    if BuildManager.can_dbuild_conveyor(pos):
+                    if (
+            Map.num_enemy_buildings > 0
+        ) and BuildManager.can_dbuild_armoured_conveyor(pos):
+                        BuildManager.dbuild_armoured_conveyor(pos, target_dir)
+                    elif BuildManager.can_dbuild_conveyor(pos):
                         BuildManager.dbuild_conveyor(pos, target_dir)
                 else:
                     if BuildManager.can_build_road(pos):
@@ -31230,7 +31239,11 @@ class StateBuildShield:
         else:
             if target_dir is not None:
                 if found_ally_harvester:
-                    if BuildManager.can_mbuild_conveyor():
+                    if (
+            Map.num_enemy_buildings > 0
+        ) and BuildManager.can_mbuild_armoured_conveyor():
+                        BuildManager.dbuild_armoured_conveyor(pos, target_dir)
+                    elif BuildManager.can_mbuild_conveyor():
                         BuildManager.dbuild_conveyor(pos, target_dir)  # mbuild check but dbuild
                 else:
                     if BuildManager.can_mbuild_road():
@@ -31324,8 +31337,13 @@ class StateNoOp:
 # ============================================================
 
 class StateReroute:  # for misrouted ally transporters
+    # is_active: bool = False
+    # pos: Position = None
+
     @classmethod
     def run(cls, pos):
+        # cls.pos = pos
+
         # Debug.line(pos, Color.ORANGE)
         if Globals.my_pos.distance_squared(pos) > 2:
             Pathfinder.move_to(pos)
@@ -31379,29 +31397,6 @@ class StateRush:
             Pathfinder.move_to(pos)
         else: #build
             OreExecutive.go_build_harvester(pos,True)
-
-
-# ============================================================
-# SuicideExecutor
-# ============================================================
-
-class SuicideExecutor:
-    @staticmethod
-    def execute_suicide_attempt():
-        cond = MarketMaker.scale_ratio > 3
-        strong_cond = MarketMaker.ti > 800 and MarketMaker.scale_ratio > 3 and Map.nearby_ally_bots > 5
-
-        my_pos = Globals.my_pos
-        ti = Map.tile_info[my_pos.x][my_pos.y]
-
-        if not (ti.has_building and not ti.is_building_ally):
-            return
-
-        if ti.entity_type in Constants.TRANSPORTERS_SET and cond:
-            Globals.ct.self_destruct()
-
-        if ti.entity_type == EntityType.ROAD and strong_cond:
-            Globals.ct.self_destruct()
 
 
 # ============================================================
@@ -31766,7 +31761,7 @@ class TileInfo:
 class TransporterInfo:
     __slots__ = (
         'ti', 'position', 'target', 'easily_reachable', 'easily_reachable_adj',
-        'bfs_dist', 'bfs_dist_target', 'flow', 'entity_type',
+        'bfs_dist', 'bfs_dist_adj', 'bfs_dist_target', 'flow', 'entity_type',
         'harvester_adjacent', 'is_ally', 'node_kind', 'flowing_into_ally',
         'on_ally_side', 'easily_buildable', 'sight_flowing'
     )
@@ -31811,11 +31806,11 @@ class TransporterInfo:
 
     @staticmethod
     def is_better_misrouted_than(a: TransporterInfo, b: TransporterInfo) -> bool:
-        if a.easily_reachable and (not b.easily_reachable): return True
-        if (not a.easily_reachable) and b.easily_reachable: return False
+        if a.easily_reachable_adj and (not b.easily_reachable_adj): return True
+        if (not a.easily_reachable_adj) and b.easily_reachable_adj: return False
         if a.on_ally_side and (not b.on_ally_side): return True
         if (not a.on_ally_side) and b.on_ally_side: return False
-        return a.bfs_dist < b.bfs_dist
+        return a.bfs_dist_adj < b.bfs_dist_adj
 
 
 # ============================================================
@@ -31829,6 +31824,58 @@ class TreeNode:
 
 # total flow/harvester is set to 12 (LCM of 1,2,3,4)
 # bottleneck of a route is 4 harvesters = 4 * 12 = 48 pressure
+
+
+# ============================================================
+# TurretSuicide
+# ============================================================
+
+class TurretSuicide:
+    has_ammo_history: list[bool]
+    enemy_core_visible: bool
+    post_init_completed: bool
+    
+
+    @classmethod
+    def init(cls):
+        cls.has_ammo_history = [True] * 20
+        cls.enemy_core_visible = False
+        cls.post_init_completed = False
+
+
+    @classmethod
+    def post_init(cls):
+        # hack
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            ti: TileInfo
+            if ti.entity_type == EntityType.CORE and not ti.is_building_ally:
+                cls.enemy_core_visible = True
+                break
+        cls.post_init_completed = True
+
+
+    @classmethod
+    def update_and_check(cls):
+        if not cls.post_init_completed:
+            cls.post_init()
+
+        my_pos = Globals.my_pos
+        sx, sy = my_pos.x, my_pos.y
+
+        r = Globals.round % 20
+        cls.has_ammo_history[r] = Globals.ct.get_ammo_amount() > 0
+
+        has_feeder = Map.tile_info[sx][sy].harvester_adjacent
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            ti: TileInfo
+            if ti.target == my_pos:
+                has_feeder = True
+                break
+
+        if not has_feeder and not cls.enemy_core_visible and not any(cls.has_ammo_history):
+            Debug.diamond(Color.ORANGE)
+            Debug.log(f'This {Globals.my_type} is self-destructing :(')
+            Globals.ct.self_destruct()
 
 
 # ============================================================
@@ -32017,6 +32064,7 @@ class VisionTracker:
                 trans.easily_reachable = BfsBureau.bfs20_dist[idx] < 20
                 trans.easily_reachable_adj = BfsBureau.bfs20_dist_adj[idx] < 20
                 trans.bfs_dist = BfsBureau.bfs20_dist[idx]
+                trans.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
                 trans.flow = DarkForest.flow[idx]
                 trans.entity_type = ti.entity_type
                 trans.harvester_adjacent = ti.harvester_adjacent
@@ -32050,8 +32098,9 @@ class VisionTracker:
                 if DarkForest.node_kind[idx] == 0 and (DarkForest.flow[idx] > 0 or DarkForest.sight_flowing[idx]):
                     if DarkForest.nodes[idx].up is None:
                         if Globals.ct.get_stored_resource(trans.ti.building_id) in (ResourceType.TITANIUM, ResourceType.REFINED_AXIONITE):
-                            cls.disconnected_roots.append(trans)
-                            Globals.ct.draw_indicator_dot(trans.position,255,0,0)
+                            if target_ti is not None and target_ti.entity_type in (None, EntityType.ROAD):
+                                cls.disconnected_roots.append(trans)
+                                Debug.dot(trans.position, Color.PINK)
 
 
 
@@ -32330,12 +32379,6 @@ class Builder(Unit):
             Debug.dot(takedownpos, Color.PURPLE)
             return 'BuildGunner', takedownpos, None
 
-        if misinfo is not None and not (RouteToCore.backTracking or RouteToFoundry.backTracking):
-            if misinfo.on_ally_side:
-                return 'Reroute', misinfo.position
-            else:
-                return 'Reroute', misinfo.position  # same
-            
 
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
         if sentinelpos is not None:
@@ -32373,6 +32416,12 @@ class Builder(Unit):
 
         if RouteToCore.is_active:
             return ('Route',)
+
+        if misinfo is not None and not (RouteToCore.backTracking or RouteToFoundry.backTracking and not RouteToCore.is_active and not RouteToFoundry.is_active):
+            if misinfo.on_ally_side:
+                return 'Reroute', misinfo.position
+            else:
+                return 'Reroute', misinfo.position  # same
             
         if buildingFirstConveyor:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
@@ -32417,6 +32466,9 @@ class Builder(Unit):
         if (dist_stalk <= 4 or (dist_stalk < dist_ti and dist_stalk < dist_ax)) and cls.mode != 2:
             return 'MoveTo', stalk_target, 'Stalk'
 
+        if ax_target is not None and MarketMaker.ax == 0 and cls.mode != 2:
+            return 'BuildHarvesterAx', ax_target
+
         if ti_target is not None and cls.mode != 2:
             return 'BuildHarvester', ti_target
 
@@ -32426,7 +32478,9 @@ class Builder(Unit):
         route_pos = HarvesterAdjacent.get_best_route_position()
         if route_pos is not None and cls.mode != 2:
             RouteToCore.set_pos(route_pos)
-            return ('Route',)
+            if RouteToCore.is_active:
+                
+                return ('Route',)
 
         if stalk_target is not None and cls.mode != 2:
             return 'MoveTo', stalk_target, 'Stalk'
@@ -32488,10 +32542,13 @@ class Gunner(Unit):
     def init(cls):
         Unit.init()
         DarkForest.init()
+        TurretSuicide.init()
 
     @classmethod
     def start_turn(cls):
         Unit.start_turn()
+        TurretSuicide.update_and_check()
+
         DarkForest.fcompute()
 
         GunnerSupervisor.fill()
@@ -32612,10 +32669,13 @@ class Sentinel(Unit):
     def init(cls):
         Unit.init()
         DarkForest.init()
+        TurretSuicide.init()
 
     @classmethod
     def start_turn(cls):
         Unit.start_turn()
+        TurretSuicide.update_and_check()
+
         DarkForest.fcompute()
 
         SentinelSupervisor.fill()

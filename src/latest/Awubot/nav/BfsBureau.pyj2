@@ -764,5 +764,5 @@ class BfsBureau:
         enclosed = cls.enclosed_region
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             if enclosed[idx]:
-                Debug.dot(Position(x, y), Color.RED)
+                Debug.dot(Position(x, y), Color.BLUE)
 # ===---

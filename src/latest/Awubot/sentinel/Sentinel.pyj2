@@ -26,10 +26,13 @@ class Sentinel({{ super() }}):
     def init(cls):
         {{ super() }}.init()
         DarkForest.init()
+        TurretSuicide.init()
 
     @classmethod
     def start_turn(cls):
         {{ super() }}.start_turn()
+        TurretSuicide.update_and_check()
+
         DarkForest.fcompute()
         {# /* DarkForest.debug_kind() */ #}
 

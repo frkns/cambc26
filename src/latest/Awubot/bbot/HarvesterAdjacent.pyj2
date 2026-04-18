@@ -243,6 +243,7 @@ class HarvesterAdjacent:
     def fill(cls):
         cls.infos = []
         tile_info = Map.tile_info
+        my_pos = Globals.my_pos
 
         for spos, sx, sy, _, hti in Map.proc_nearby_tiles:
             if hti.entity_type != EntityType.HARVESTER or hti.env == Environment.ORE_AXIONITE:
@@ -251,7 +252,8 @@ class HarvesterAdjacent:
             is_harvester_ally = hti.is_building_ally
             consider_route = hti.ally_outward_transporters_adjacent == 0 \
                 and hti.enemy_transporters_adjacent == 0 \
-                and hti.enemy_turrets_adjacent == 0
+                and hti.enemy_turrets_adjacent == 0 \
+                and my_pos.distance_squared(spos) <= 15  # can see all adjacent
             dist_to_ally_core = spos.distance_squared(Unit.core_pos)
             is_canonical_ally_harvester = VisionTracker.me_is_canonical_ally(spos)
             

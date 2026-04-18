@@ -29,19 +29,20 @@ class TreeNode:
 {% set MAX_ACCEPTABLE_PRESSURE = FLOW_PER_HARVESTER * 3 %}
 
 
+
+
 class DarkForest:
     nodes: list[TreeNode | None] = [None] * {{ PADDED_GRID_SIZE }}
     kind: list[int] = [0] * {{ PADDED_GRID_SIZE }}   # per-position sink class
     flow: list[int]        # flow in subtree (bottom-up)
     pressure: list[int]    # pressure at node (top-down, reset at sink boundaries)
     node_kind: list[int]   # propagated kind per node (top-down)
-    core_sink_set: set[int] = set()  # titanium-only ALLY_CORE reachable nodes below pressure threshold
-    sink_set: set[int]               # alias for core_sink_set (backward compat)
-    leaf_set: set[int]               # titanium leaf nodes — valid foundry sites
-    ax_tagged: list[bool]            # True if node has any axionite flow in subtree
-    sight_last_id: list[int]         # last resource-ID seen at this position; -1 = never
-    sight_last_round: list[int]      # game-round when that ID was last observed
-    sight_flowing: list[bool]        # sight-based flow: True if fresh valid resource seen recently
+    sink_set: set[int]  # unused / deprecated?
+    leaf_set: set[int]   # titanium leaf nodes — valid foundry sites
+    core_sink_set: set[int] = set()  # sink_set filtered to ALLY_CORE only
+    sight_last_id: list[int]     # last resource-ID seen at this position; -1 = never
+    sight_last_round: list[int]  # game-round when that ID was last observed
+    sight_flowing: list[bool]    # sight-based flow: True if fresh valid resource seen recently
 
     @classmethod
     def init(cls):
@@ -56,18 +57,23 @@ class DarkForest:
 
     @classmethod
     def compute_core_sink_set(cls):
-        """No-op: core_sink_set is now computed directly in fcompute."""
-        pass
+        """Call this immediately after fcompute(). No changes to fcompute needed."""
+        cls.core_sink_set = {
+            u for u in cls.sink_set
+            if cls.node_kind[u] == {{ Kind.ALLY_CORE }} or u in Unit.core_pos_set
+        }
 
     @classmethod
     def register_enemy_core(cls):
-        for p in Symmetry.enemy_core_pos_set:
+        for p in Symmetry.enemy_core_pos_set:  # from sym
             cls.register_sink(p, {{ Kind.ENEMY_CORE }})
 
     @classmethod
     def remove_node(cls, u: int):
+        # Destroy node u. Any node with up=u will be severed automagically in compute func.
         if cls.kind[u] == {{ Kind.ALLY_CORE }} or cls.kind[u] == {{ Kind.ENEMY_CORE }}:
-            return
+            return 
+
         cls.nodes[u] = None
         cls.kind[u] = {{ Kind.NONE }}
 
@@ -83,6 +89,7 @@ class DarkForest:
         else:
             ns[u].up = None  # sinks are roots
 
+
     @classmethod
     def add_edge(cls, u: int, v: int):
         # register (u,v) edge: u.up = v
@@ -90,6 +97,8 @@ class DarkForest:
         if ns[u] is None:
             ns[u] = TreeNode()
         ns[u].up = v
+
+
 
 
 # ---===
@@ -116,7 +125,7 @@ class DarkForest:
 # ---===
     @classmethod
     def debug_sink_set(cls):
-        for i in cls.core_sink_set:
+        for i in cls.sink_set:
             {% set x, y = decode_pos('i') %}
             Globals.ct.draw_indicator_dot(Position({{ x }}, {{ y }}), 0, 255, 255)
 # ===---
@@ -136,21 +145,21 @@ class DarkForest:
 # ---===
     @classmethod
     def debug_kind(cls):
-        """Draw dots colored by propagated node_kind."""
+        """Draw dots colored by propagated node_kind. Extends to any number of kinds."""
         ns = cls.nodes
         nk = cls.node_kind
         ct = Globals.ct
         _palette = (
-            (128, 128, 128),
-            (0,   255, 0  ),
-            (255, 0,   0  ),
-            (0,   128, 255),
-            (255, 255, 0  ),
-            (255, 0,   255),
-            (0,   255, 255),
-            (255, 128, 0  ),
-            (128, 0,   255),
-            (128, 255, 0  ),
+            (128, 128, 128),  # 0: Kind.NONE (grey, never drawn)
+            (0,   255, 0  ),  # 1: Kind.ALLY_CORE (green)
+            (255, 0,   0  ),  # 2: Kind.ENEMY_CORE (red)
+            (0,   128, 255),  # 3: (blue)
+            (255, 255, 0  ),  # 4: (yellow)
+            (255, 0,   255),  # 5: (magenta)
+            (0,   255, 255),  # 6: (cyan)
+            (255, 128, 0  ),  # 7: (orange)
+            (128, 0,   255),  # 8: (purple)
+            (128, 255, 0  ),  # 9: (lime)
         )
         _plen = len(_palette)
         for x in range(50):
@@ -173,19 +182,6 @@ class DarkForest:
                             else:         r, g, b = 255, 0, 255 - f
                         ct.draw_indicator_dot(Position(x, y), r, g, b)
 # ===---
-# ---===
-    @classmethod
-    def debug_ax_tagged(cls):
-        """Draw orange dots on nodes tagged as carrying axionite flow."""
-        ns = cls.nodes
-        ax = cls.ax_tagged
-        ct = Globals.ct
-        for x in range(50):
-            for y in range(50):
-                i = {{ encode_pos('x', 'y') }}
-                if ns[i] is not None and ax[i]:
-                    ct.draw_indicator_dot(Position(x, y), 255, 128, 0)
-# ===---
 
 
 # ---===
@@ -193,22 +189,18 @@ class DarkForest:
     def fcompute(cls):
         {% set N = PADDED_GRID_SIZE %}
 
-        ns       = cls.nodes
-        kind     = cls.kind
+        ns = cls.nodes
+        kind = cls.kind
         core_pos_set = Unit.core_pos_set
-        harvesters   = Map.harvester_set
-        ax_harvesters = Map.ax_ally_harvester_set   # axionite harvesters
+        harvesters = Map.harvester_set
 
-        flow     = [0] * {{ N }}
-        cc       = [0] * {{ N }}
-        ax_tagged = [False] * {{ N }}   # True if node sits on an axionite-fed subtree
+        flow = [0] * {{ N }}
+        cc   = [0] * {{ N }}
 
-        # ── harvest → flow; seed ax_tagged for axionite harvester neighbours ──
+        # ── harvest → flow directly ──
         _sh = (0, {{ FLOW_PER_HARVESTER }}, {{ FLOW_PER_HARVESTER // 2 }},
                {{ FLOW_PER_HARVESTER // 3 }}, {{ FLOW_PER_HARVESTER // 4 }})
-
         for h in harvesters:
-            _is_ax = h in ax_harvesters
             {% for d in (-1, 1, -PH, PH) %}
             _n{{ loop.index0 }} = h {{ sign0(d) }}
             _t{{ loop.index0 }} = ns[_n{{ loop.index0 }}]
@@ -218,11 +210,9 @@ class DarkForest:
             if cnt:
                 s = _sh[cnt]
                 {% for d in (-1, 1, -PH, PH) %}
-                if _e{{ loop.index0 }}:
-                    flow[_n{{ loop.index0 }}] += s
-                    if _is_ax:
-                        ax_tagged[_n{{ loop.index0 }}] = True
+                if _e{{ loop.index0 }}: flow[_n{{ loop.index0 }}] += s
                 {% endfor %}
+
 
         # ── fix dead parents, indegree, collect active ──
         active = []
@@ -237,7 +227,7 @@ class DarkForest:
                     t.up = None
         {% endfor %}
 
-        # ── find leaves (zero in-degree) ──
+        # ── find leaves ──
         q = []
         qa = q.append
         for i in active:
@@ -246,28 +236,22 @@ class DarkForest:
 
         _initial_leaves = list(q)
 
-        # ── bottom-up BFS: propagate flow AND ax_tagged leaf→root ──
+        # ── bottom-up BFS ──
         qi = 0
         while qi < len(q):
             u = q[qi]; qi += 1
             p = ns[u].up
             if p is not None:
                 flow[p] += flow[u]
-                # propagate ax taint upward
-                if ax_tagged[u]:
-                    ax_tagged[p] = True
                 cc[p] -= 1
                 if not cc[p]:
                     qa(p)
 
-        # ── top-down pass: pressure, node_kind, core_sink_set ──
+        # ── top-down ──
         pressure = [0] * {{ N }}
-        nk       = [0] * {{ N }}
-
-        # core_sink_set: ALLY_CORE-reachable nodes, below pressure threshold,
-        # with NO axionite taint anywhere in their subtree.
-        core_sink_set: set[int] = set()
-        cs_add = core_sink_set.add
+        nk = [0] * {{ N }}
+        sink_set = core_pos_set.copy()
+        sink_add = sink_set.add
         THR = {{ MAX_ACCEPTABLE_PRESSURE - FLOW_PER_HARVESTER }}
 
         for u in reversed(q):
@@ -282,52 +266,66 @@ class DarkForest:
                 pressure[u] = pressure[p]
                 k = nk[p]
             nk[u] = k
-            if (k == {{ Kind.ALLY_CORE }}
-                    and pressure[u] <= THR
-                    and not ax_tagged[u]):
-                cs_add(u)
+            if k == {{ Kind.ALLY_CORE }} and pressure[u] <= THR:
+                sink_add(u)
 
-        # cores themselves are always valid sinks regardless of taint/pressure
-        core_sink_set |= core_pos_set
-
-        cls.flow          = flow
-        cls.pressure      = pressure
-        cls.node_kind     = nk
-        cls.ax_tagged     = ax_tagged
-        cls.core_sink_set = core_sink_set
-        cls.sink_set      = core_sink_set   # backward-compat alias
+        cls.flow = flow
+        cls.pressure = pressure
+        cls.node_kind = nk
+        cls.sink_set = sink_set
 
         # ── titanium leaf set ──
         _ti_leaves: set[int] = set()
         for u in _initial_leaves:
-            if nk[u] == {{ Kind.ALLY_CORE }} and u not in core_pos_set and not ax_tagged[u]:
+            if nk[u] == {{ Kind.ALLY_CORE }} and u not in core_pos_set:
                 _ti_leaves.add(u)
         cls.leaf_set = _ti_leaves
+        cls.compute_core_sink_set()
 
         # ════════════════════════════════════════════════════════════════
-        # ── sight-based flow tracking ──
+        # ── sight-based flow tracking (independent of pressure system) ──
+        # A position is sight_flowing if the SAME valid resource ID has
+        # been observed there within the last SIGHT_WINDOW calls to fcompute.
+        # Seeing a different ID resets the window for that position.
+        # sight_flowing propagates leaf→root along existing tree edges,
+        # matching the physical direction resources travel on conveyors/bridges.
         # ════════════════════════════════════════════════════════════════
 
         _SIGHT_WINDOW = 4
         _valid_rt = (ResourceType.TITANIUM, ResourceType.REFINED_AXIONITE)
 
+        # Lazy-init persistent arrays (survive across fcompute calls).
+        # sight_last_round uses -_SIGHT_WINDOW - 1 so any position that has
+        # never been seen is already expired on the very first call.
         if not hasattr(cls, 'sight_last_id'):
-            cls.sight_last_id    = [-1]            * {{ N }}
+            cls.sight_last_id    = [-1]  * {{ N }}
             cls.sight_last_round = [-_SIGHT_WINDOW - 1] * {{ N }}
 
         _sight_last_id    = cls.sight_last_id
         _sight_last_round = cls.sight_last_round
-        _cur_round        = Globals.round
 
+        # Get current round once; used as the timestamp for this call.
+        _cur_round = Globals.round
+
+        # ── update sight tracking from currently visible tiles ──
+        # Only tiles in Map.proc_nearby_tiles were actually observed this turn.
+        # For all other positions we simply let the window expire naturally.
         for _pos, _x, _y, _idx, _ti in Map.proc_nearby_tiles:
             _rt = _ti.resource_type
             if _rt in _valid_rt:
                 _rid = _ti.resource_id
                 if _rid is not None:
                     if _sight_last_id[_idx] != _rid:
+                        # Different (or first) resource ID → reset window origin.
+                        # The 4-round window starts fresh from this observation.
                         _sight_last_id[_idx] = _rid
+                    # Whether new or same ID, record that we saw it this round.
                     _sight_last_round[_idx] = _cur_round
+            # Tiles with no valid resource are intentionally left alone so their
+            # window can expire on its own; we do NOT zero sight_last_round here
+            # because a conveyor may be momentarily empty between deliveries.
 
+        # ── base sight_flowing: is each tree node's own data still fresh? ──
         sight_flowing = [False] * {{ N }}
         for u in active:
             if (
@@ -336,7 +334,8 @@ class DarkForest:
             ):
                 sight_flowing[u] = True
 
-        # propagate leaf→root
+        # ── propagate sight_flowing leaf→root (same direction resources travel) ──
+        # q is already in leaf-first topological order from the bottom-up BFS above.
         for u in q:
             if sight_flowing[u]:
                 p = ns[u].up

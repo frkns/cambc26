@@ -45,8 +45,13 @@ class StateAttack:
 
 
 class StateReroute:  # for misrouted ally transporters
+    # is_active: bool = False
+    # pos: Position = None
+
     @classmethod
     def run(cls, pos):
+        # cls.pos = pos
+
         # Debug.line(pos, Color.ORANGE)
         if Globals.my_pos.distance_squared(pos) > 2:
             Pathfinder.move_to(pos)
@@ -60,6 +65,9 @@ class StateReroute:  # for misrouted ally transporters
 class StateRoute:
     @classmethod
     def run(cls):
+        {% if LOCAL %}
+        assert RouteToCore.is_active
+        {% endif %}
         RouteToCore.do_routing()
 
 class StateFoundryBuild:
@@ -197,10 +205,18 @@ class StateBuildShield:
         print(f'{target_dir=}, {found_ally_harvester=}')
         {% endif %}
 
+        {% set should_try_armour -%}
+        (
+            Map.num_enemy_buildings > 0
+        )
+        {%- endset %}
+
         if pos != Globals.my_pos:
             if target_dir is not None:
                 if found_ally_harvester:
-                    if BuildManager.can_dbuild_conveyor(pos):
+                    if {{ should_try_armour }} and BuildManager.can_dbuild_armoured_conveyor(pos):
+                        BuildManager.dbuild_armoured_conveyor(pos, target_dir)
+                    elif BuildManager.can_dbuild_conveyor(pos):
                         BuildManager.dbuild_conveyor(pos, target_dir)
                 else:
                     if BuildManager.can_build_road(pos):
@@ -211,7 +227,9 @@ class StateBuildShield:
         else:
             if target_dir is not None:
                 if found_ally_harvester:
-                    if BuildManager.can_mbuild_conveyor():
+                    if {{ should_try_armour }} and BuildManager.can_mbuild_armoured_conveyor():
+                        BuildManager.dbuild_armoured_conveyor(pos, target_dir)
+                    elif BuildManager.can_mbuild_conveyor():
                         BuildManager.dbuild_conveyor(pos, target_dir)  # mbuild check but dbuild
                 else:
                     if BuildManager.can_mbuild_road():
