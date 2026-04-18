@@ -28,7 +28,7 @@ class StalkTargeter:
         if my_pos.distance_squared(Unit.core_pos) > my_pos.distance_squared(Symmetry.enemy_core_pos):
             return None
 
-        if not Map.harvester_set:
+        if MarketMaker.est_income < 3:
             return None
 
         bfs20_dist_adj = BfsBureau.bfs20_dist_adj
