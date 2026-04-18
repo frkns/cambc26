@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-18 17:01:42 (local)
+# latest,  @ 2026-04-18 17:24:11 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -27736,24 +27736,15 @@ class OreExecutive:
 
 
     @classmethod
-    def register_ti(cls, pos: Position):
-        if cls.state[pos] == 0:
-            dist = pos.distance_squared(Unit.core_pos)
-            heapq.heappush(cls.ti_queue, (dist, pos))
-            cls.state[pos] = 1
-
-
-    @classmethod
     def fill(cls):
-        for pos in Map.nearby_tiles:
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             # not using Map.harvester_set..?
 
             if cls.state[pos] == 2:
                 continue
-            ti = Map.tile_info[pos.x][pos.y]
             env = ti.env
             if ti.entity_type == EntityType.FOUNDRY:
-                RouteToFoundry.planned_foundry_positions.add((((pos.x) + 3) * 56 + ((pos.y) + 3)))
+                RouteToFoundry.planned_foundry_positions.add(idx)
                 continue
 
             if ti.entity_type == EntityType.HARVESTER:
@@ -27763,17 +27754,20 @@ class OreExecutive:
             if ti.has_building and not ti.is_building_ally:
                 continue
 
-            if env == Environment.ORE_TITANIUM:
-                if cls.state[pos] != 1:  # intended: can potentially requeue
-                    dist = pos.distance_squared(Unit.core_pos)
-                    heapq.heappush(cls.ti_queue, (dist, pos))
-                    cls.state[pos] = 1
 
-            if env == Environment.ORE_AXIONITE:
-                if cls.state[pos] != 4:  # intended: can potentially requeue
-                    dist = pos.distance_squared(Unit.core_pos)
-                    heapq.heappush(cls.ax_queue, (dist, pos))
-                    cls.state[pos] = 4
+            if env == Environment.ORE_TITANIUM or env == Environment.ORE_AXIONITE:
+
+
+
+                if env == Environment.ORE_TITANIUM:
+                    if cls.state[pos] != 1:  # intended: can potentially requeue
+                        heapq.heappush(cls.ti_queue, (int(5 * math.sqrt(pos.distance_squared(Unit.core_pos)) + BfsBureau.bfs20_dist[idx]), pos))
+                        cls.state[pos] = 1
+
+                if env == Environment.ORE_AXIONITE:
+                    if cls.state[pos] != 4:  # intended: can potentially requeue
+                        heapq.heappush(cls.ax_queue, (int(5 * math.sqrt(pos.distance_squared(Unit.core_pos)) + BfsBureau.bfs20_dist[idx]), pos))
+                        cls.state[pos] = 4
 
 
     @classmethod
