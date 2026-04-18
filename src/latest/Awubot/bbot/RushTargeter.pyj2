@@ -49,6 +49,8 @@ class RushTargeter:
                     continue
                 if tile.has_building and tile.entity_type in Constants.TURRET_SET:
                     continue
+                if tile.has_building and tile.entity_type in Constants.TRANSPORTERS_SET:
+                    continue
                 d = currLoc.distance_squared(candidate)
                 if d < best_attack_dist:
                     best_attack_dist = d

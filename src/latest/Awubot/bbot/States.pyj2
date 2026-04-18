@@ -102,16 +102,43 @@ class StateRush:
 
 class StateBuildTurret:
     @classmethod
+    def gunner_can_hit_core(cls, gunner_pos: MapLocation) -> Direction | None:
+        direction = gunner_pos.direction_to(Symmetry.enemy_core_pos)
+        dx, dy = direction.delta()    # unit step for this direction
+
+        x, y = gunner_pos.x + dx, gunner_pos.y + dy      # start one step ahead
+
+        while x >= 0 and y >= 0 and x <= Map.W and y <= Map.H:
+            if (x - gunner_pos.x) ** 2 + (y - gunner_pos.y) ** 2 > GameConstants.GUNNER_VISION_RADIUS_SQ:
+                break                                         # out of range — stop ray
+
+            ti = Map.tile_info[x][y]
+            if ti == None:
+                continue
+            if ti.env == Environment.WALL:
+                break
+            if ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                break
+
+            if {{ encode_pos('x','y') }} in Symmetry.enemy_core_pos_set:
+                return direction
+
+            x += dx
+            y += dy
+
+        return None
+    @classmethod
     def run(cls, pos, banned_dir: Direction | None = None):
         Pathfinder.move_to(pos, ban_target_pos=True)
 
-        nearbyEnemyCore = False
-        if Symmetry.is_sym_known and Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= GameConstants.GUNNER_VISION_RADIUS_SQ:
-            nearbyEnemyCore = True
-        if BuildManager.can_dbuild_gunner(pos) and nearbyEnemyCore:
-            dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
+        core_dir = None
+        if Symmetry.is_sym_known:
+            core_dir = cls.gunner_can_hit_core(pos)
+            pass
+            
+        if BuildManager.can_dbuild_gunner(pos) and core_dir is not None:
             # who cares all turrets are the same anyways
-            BuildManager.dbuild_gunner(pos, dir)
+            BuildManager.dbuild_gunner(pos, core_dir)
         elif BuildManager.can_dbuild_sentinel(pos):
             dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
             BuildManager.dbuild_sentinel(pos, dir)
