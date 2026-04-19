@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-19 00:47:23 (local)
+# latest,  @ 2026-04-19 11:40:45 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -5094,6 +5094,8 @@ class DarkForest:
     sight_last_id: list[int]         # last resource-ID seen at this position; -1 = never
     sight_last_round: list[int]      # game-round when that ID was last observed
     sight_flowing: list[bool]        # sight-based flow: True if fresh valid resource seen recently
+    foundry_positions: set[int] = set()  # persistent: encoded positions of built foundries
+    refined_ax_line: set[int] = set()    # recomputed each tick: ALLY_CORE nodes on refined-axionite output paths
 
     @classmethod
     def init(cls):
@@ -5290,6 +5292,16 @@ class DarkForest:
                     flow[_n3] += s
                     if _is_ax:
                         ax_tagged[_n3] = True
+        # ── foundries as refined-axionite sources (act like titanium harvesters) ──
+        _fo = (-1, 1, -56, 56)
+        for _f in cls.foundry_positions:
+            _fn_list = [_f + _d for _d in _fo
+                        if ns[_f + _d] is not None and ns[_f + _d].up != _f]
+            _cnt = len(_fn_list)
+            if _cnt:
+                _s = _sh[_cnt]
+                for _fn in _fn_list:
+                    flow[_fn] += _s
 
         # ── fix dead parents, indegree, collect active ──
         active = []
@@ -22854,11 +22866,34 @@ class DarkForest:
         cls.ax_tagged     = ax_tagged
         cls.core_sink_set = core_sink_set
         cls.sink_set      = core_sink_set   # backward-compat alias
+        
+        # ── refined axionite lines ──
+        # For each foundry, find its ALLY_CORE-tree neighbours (output side) and
+        # trace each one upward to the root.  Every node on that path is ineligible
+        # as a future foundry site.
+        _ral: set[int] = set()
+        _ALLY_CORE_K = 1
+        _ral_off = (-1, 1, -56, 56)
+        for _f in cls.foundry_positions:
+            for _d in _ral_off:
+                _adj = _f + _d
+                if ns[_adj] is not None and nk[_adj] == _ALLY_CORE_K:
+                    _curr = _adj
+                    while True:
+                        _ral.add(_curr)
+                        _pn = ns[_curr]
+                        if _pn is None or _pn.up is None:
+                            break
+                        _curr = _pn.up
+        cls.refined_ax_line = _ral
 
         # ── titanium leaf set ──
         _ti_leaves: set[int] = set()
         for u in _initial_leaves:
-            if nk[u] == 1 and u not in core_pos_set and not ax_tagged[u]:
+            if (nk[u] == 1
+                    and u not in core_pos_set
+                    and not ax_tagged[u]
+                    and u not in _ral):          # ← new: skip refined-axionite lines
                 _ti_leaves.add(u)
         cls.leaf_set = _ti_leaves
 
@@ -23185,30 +23220,26 @@ class Explore:
 
 class FoundryBuild:
     @classmethod
-    def _prune_branch(cls, encoded_pos: int):
-        """
-        Prunes branch so successive foundries would not be built here. 
-        """
-        nodes = DarkForest.nodes
-        kind  = DarkForest.kind
-        planned = RouteToFoundry.planned_foundry_positions
+    def register_foundry(cls, pos: Position):
+        encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
+        if encoded in DarkForest.foundry_positions:
+            return  # idempotent — already registered
 
-        node = nodes[encoded_pos]
-        if node is None:
-            return
-        # Capture parent BEFORE register_sink wipes .up = None
-        current = node.up
-        while current is not None:
-            if kind[current] != 0:
-                break  # hit an existing sink
-            planned.add(current)
-            n = nodes[current]
-            if n is None or n.up is None:
-                break
-            current = n.up
+        print("New foundry at", pos, "— registering in DarkForest")
+
+        # Persist so fcompute can build refined_ax_line every tick.
+        DarkForest.foundry_positions.add(encoded)
+
+        # Root this arm of the tree at the foundry (ALLY_CONSUMER sink),
+        # so titanium/axionite flow stops here.
+        DarkForest.register_sink(encoded, 3)
+
+        # Block RouteToFoundry from routing another bot to the same leaf.
+        RouteToFoundry.planned_foundry_positions.add(encoded)
 
     @classmethod
     def build_foundry(cls, pos):
+        encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))  # fixed: was missing
         print("Trying to build foundry at", pos)
         print("Foundry cost:", Globals.ct.get_foundry_cost()[0])
 
@@ -23220,21 +23251,13 @@ class FoundryBuild:
         if Globals.ct.can_build_foundry(pos):
             Globals.ct.build_foundry(pos)
 
-            encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
-
-            # Block every ancestor up to the next existing sink from being
-            # chosen as a future foundry site (they would otherwise become
-            # the new leaf on this arm after the next fcompute).
-            cls._prune_branch(encoded)
-
-            # Register the new foundry as a sink so fcompute updates the tree.
-            DarkForest.register_sink(encoded, 3)
+            cls.register_foundry(pos)          # fixed: was register_foundry(encoded)
 
             RouteToFoundry._foundry_target = None
 
             cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
             if cand is not None and cand.ti.entity_type not in Constants.TRANSPORTERS_SET:
-                RouteToBreach.set_pos(cand.position) # begin breach routing
+                RouteToBreach.set_pos(cand.position)
             return True
         return False
 
@@ -27763,13 +27786,15 @@ class OreExecutive:
     def fill(cls):
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             # not using Map.harvester_set..?
+            
+            if ti.entity_type == EntityType.FOUNDRY:
+                if idx not in RouteToFoundry.planned_foundry_positions:
+                    FoundryBuild.register_foundry(pos)
+                continue
 
             if cls.state[pos] == 2:
                 continue
             env = ti.env
-            if ti.entity_type == EntityType.FOUNDRY:
-                RouteToFoundry.planned_foundry_positions.add(idx)
-                continue
 
             if ti.entity_type == EntityType.HARVESTER:
                 continue
@@ -28773,7 +28798,6 @@ class RouteToFoundry:
     backTracking = False
 
     # Positions that have been claimed (or built) as foundry sites.
-    # Class-level so all bots in this process see the same table.
     planned_foundry_positions: set[int] = set()
 
     # The specific titanium leaf this bot is routing toward.
@@ -28860,7 +28884,6 @@ class RouteToFoundry:
         encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
 
         # Arrived at the foundry site — deactivate so the caller can build.
-        # Keep the entry in planned_foundry_positions: the foundry is here now.
         if cls._foundry_target is not None and encoded == cls._foundry_target:
             cls.is_active = False
             cls.prevRoute.clear()
@@ -28966,16 +28989,21 @@ class RouteToFoundry:
 
     @classmethod
     def try_claim_target(cls):
-        # Claim a target on first call (or if we lost one).
-        if cls._foundry_target is None:
+        if cls._foundry_target in cls.planned_foundry_positions:
+            cls._foundry_target = cls._pick_target()
+            if cls._foundry_target is None:
+                Debug.tee("RouteToFoundry: Old leaf used, no unclaimed titanium leaf available")
+                if cls.give_up():
+                    StateMoveTo.run(Explore.get_target())
+            return
+        if cls._foundry_target is None: # Claim a target on first call (or if we lost one).
             cls._foundry_target = cls._pick_target()
             if cls._foundry_target is None:
                 Debug.tee("RouteToFoundry: no unclaimed titanium leaf available")
                 if cls.give_up():
                     StateMoveTo.run(Explore.get_target())
                 return
-            cls.planned_foundry_positions.add(cls._foundry_target)
-
+            #cls.planned_foundry_positions.add(cls._foundry_target)
     @classmethod
     def do_routing(cls):
         cls.try_claim_target()

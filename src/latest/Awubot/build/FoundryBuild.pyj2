@@ -20,30 +20,26 @@ from Generated import *
 
 class FoundryBuild:
     @classmethod
-    def _prune_branch(cls, encoded_pos: int):
-        """
-        Prunes branch so successive foundries would not be built here. 
-        """
-        nodes = DarkForest.nodes
-        kind  = DarkForest.kind
-        planned = RouteToFoundry.planned_foundry_positions
+    def register_foundry(cls, pos: Position):
+        encoded = {{ encode_pos('pos.x', 'pos.y') }}
+        if encoded in DarkForest.foundry_positions:
+            return  # idempotent — already registered
 
-        node = nodes[encoded_pos]
-        if node is None:
-            return
-        # Capture parent BEFORE register_sink wipes .up = None
-        current = node.up
-        while current is not None:
-            if kind[current] != {{ Kind.NONE }}:
-                break  # hit an existing sink
-            planned.add(current)
-            n = nodes[current]
-            if n is None or n.up is None:
-                break
-            current = n.up
+        print("New foundry at", pos, "— registering in DarkForest")
+
+        # Persist so fcompute can build refined_ax_line every tick.
+        DarkForest.foundry_positions.add(encoded)
+
+        # Root this arm of the tree at the foundry (ALLY_CONSUMER sink),
+        # so titanium/axionite flow stops here.
+        DarkForest.register_sink(encoded, {{ Kind.ALLY_CONSUMER }})
+
+        # Block RouteToFoundry from routing another bot to the same leaf.
+        RouteToFoundry.planned_foundry_positions.add(encoded)
 
     @classmethod
     def build_foundry(cls, pos):
+        encoded = {{ encode_pos('pos.x', 'pos.y') }}  # fixed: was missing
         print("Trying to build foundry at", pos)
         print("Foundry cost:", Globals.ct.get_foundry_cost()[0])
 
@@ -55,21 +51,13 @@ class FoundryBuild:
         if Globals.ct.can_build_foundry(pos):
             Globals.ct.build_foundry(pos)
 
-            encoded = {{ encode_pos('pos.x', 'pos.y') }}
-
-            # Block every ancestor up to the next existing sink from being
-            # chosen as a future foundry site (they would otherwise become
-            # the new leaf on this arm after the next fcompute).
-            cls._prune_branch(encoded)
-
-            # Register the new foundry as a sink so fcompute updates the tree.
-            DarkForest.register_sink(encoded, {{ Kind.ALLY_CONSUMER }})
+            cls.register_foundry(pos)          # fixed: was register_foundry(encoded)
 
             RouteToFoundry._foundry_target = None
 
             cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
             if cand is not None and cand.ti.entity_type not in Constants.TRANSPORTERS_SET:
-                RouteToBreach.set_pos(cand.position) # begin breach routing
+                RouteToBreach.set_pos(cand.position)
             return True
         return False
 

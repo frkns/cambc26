@@ -42,6 +42,8 @@ class DarkForest:
     sight_last_id: list[int]         # last resource-ID seen at this position; -1 = never
     sight_last_round: list[int]      # game-round when that ID was last observed
     sight_flowing: list[bool]        # sight-based flow: True if fresh valid resource seen recently
+    foundry_positions: set[int] = set()  # persistent: encoded positions of built foundries
+    refined_ax_line: set[int] = set()    # recomputed each tick: ALLY_CORE nodes on refined-axionite output paths
 
     @classmethod
     def init(cls):
@@ -223,6 +225,16 @@ class DarkForest:
                     if _is_ax:
                         ax_tagged[_n{{ loop.index0 }}] = True
                 {% endfor %}
+        # ── foundries as refined-axionite sources (act like titanium harvesters) ──
+        _fo = ({{ -1 }}, {{ 1 }}, {{ -PH }}, {{ PH }})
+        for _f in cls.foundry_positions:
+            _fn_list = [_f + _d for _d in _fo
+                        if ns[_f + _d] is not None and ns[_f + _d].up != _f]
+            _cnt = len(_fn_list)
+            if _cnt:
+                _s = _sh[_cnt]
+                for _fn in _fn_list:
+                    flow[_fn] += _s
 
         # ── fix dead parents, indegree, collect active ──
         active = []
@@ -296,11 +308,34 @@ class DarkForest:
         cls.ax_tagged     = ax_tagged
         cls.core_sink_set = core_sink_set
         cls.sink_set      = core_sink_set   # backward-compat alias
+        
+        # ── refined axionite lines ──
+        # For each foundry, find its ALLY_CORE-tree neighbours (output side) and
+        # trace each one upward to the root.  Every node on that path is ineligible
+        # as a future foundry site.
+        _ral: set[int] = set()
+        _ALLY_CORE_K = {{ Kind.ALLY_CORE }}
+        _ral_off = ({{ -1 }}, {{ 1 }}, {{ -PH }}, {{ PH }})
+        for _f in cls.foundry_positions:
+            for _d in _ral_off:
+                _adj = _f + _d
+                if ns[_adj] is not None and nk[_adj] == _ALLY_CORE_K:
+                    _curr = _adj
+                    while True:
+                        _ral.add(_curr)
+                        _pn = ns[_curr]
+                        if _pn is None or _pn.up is None:
+                            break
+                        _curr = _pn.up
+        cls.refined_ax_line = _ral
 
         # ── titanium leaf set ──
         _ti_leaves: set[int] = set()
         for u in _initial_leaves:
-            if nk[u] == {{ Kind.ALLY_CORE }} and u not in core_pos_set and not ax_tagged[u]:
+            if (nk[u] == {{ Kind.ALLY_CORE }}
+                    and u not in core_pos_set
+                    and not ax_tagged[u]
+                    and u not in _ral):          # ← new: skip refined-axionite lines
                 _ti_leaves.add(u)
         cls.leaf_set = _ti_leaves
 

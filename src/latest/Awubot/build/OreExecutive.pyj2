@@ -34,13 +34,15 @@ class OreExecutive:
     def fill(cls):
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             # not using Map.harvester_set..?
+            
+            if ti.entity_type == EntityType.FOUNDRY:
+                if idx not in RouteToFoundry.planned_foundry_positions:
+                    FoundryBuild.register_foundry(pos)
+                continue
 
             if cls.state[pos] == {{ KILLED }}:
                 continue
             env = ti.env
-            if ti.entity_type == EntityType.FOUNDRY:
-                RouteToFoundry.planned_foundry_positions.add(idx)
-                continue
 
             if ti.entity_type == EntityType.HARVESTER:
                 continue
