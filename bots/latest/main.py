@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-19 00:43:18 (local)
+# latest,  @ 2026-04-19 00:47:23 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -131,10 +131,7 @@ class Attacker:
         trans: TransporterInfo = VisionTracker.get_best_trans_atk_target()
         if trans is None:
             return None
-        print("considering trans at position",trans.position)
-        
         if not trans.bfs_dist < 10: 
-            print("HEHE")
             return None
         if trans.flowing_into_ally:
             return None
@@ -31123,7 +31120,6 @@ class StalkTargeter:
 class StateAttack:
     @classmethod
     def run(cls, pos):
-        print("Attacking at",pos)
         if Globals.my_pos != pos:
             Pathfinder.move_to(pos)
 
