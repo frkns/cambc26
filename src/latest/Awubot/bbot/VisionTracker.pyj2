@@ -37,11 +37,14 @@ class TransporterInfo:
         if a.ti.has_bot and (not b.ti.has_bot): return False
         if (not a.ti.has_bot) and b.ti.has_bot: return True
 
-        if a.harvester_adjacent and (not b.harvester_adjacent): return True
-        if (not a.harvester_adjacent) and b.harvester_adjacent: return False
+        if abs(a.bfs_dist - b.bfs_dist >2):
+            return a.bfs_dist < b.bfs_dist
 
         if a.ti.building_hp != b.ti.building_hp:
             return a.ti.building_hp < b.ti.building_hp
+
+        if a.harvester_adjacent and (not b.harvester_adjacent): return True
+        if (not a.harvester_adjacent) and b.harvester_adjacent: return False
 
         if a.flow != b.flow:
             return a.flow > b.flow

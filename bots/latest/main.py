@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-19 00:11:42 (local)
+# latest,  @ 2026-04-19 00:43:18 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -131,7 +131,10 @@ class Attacker:
         trans: TransporterInfo = VisionTracker.get_best_trans_atk_target()
         if trans is None:
             return None
+        print("considering trans at position",trans.position)
+        
         if not trans.bfs_dist < 10: 
+            print("HEHE")
             return None
         if trans.flowing_into_ally:
             return None
@@ -31120,6 +31123,7 @@ class StalkTargeter:
 class StateAttack:
     @classmethod
     def run(cls, pos):
+        print("Attacking at",pos)
         if Globals.my_pos != pos:
             Pathfinder.move_to(pos)
 
@@ -31795,11 +31799,14 @@ class TransporterInfo:
         if a.ti.has_bot and (not b.ti.has_bot): return False
         if (not a.ti.has_bot) and b.ti.has_bot: return True
 
-        if a.harvester_adjacent and (not b.harvester_adjacent): return True
-        if (not a.harvester_adjacent) and b.harvester_adjacent: return False
+        if abs(a.bfs_dist - b.bfs_dist >2):
+            return a.bfs_dist < b.bfs_dist
 
         if a.ti.building_hp != b.ti.building_hp:
             return a.ti.building_hp < b.ti.building_hp
+
+        if a.harvester_adjacent and (not b.harvester_adjacent): return True
+        if (not a.harvester_adjacent) and b.harvester_adjacent: return False
 
         if a.flow != b.flow:
             return a.flow > b.flow
