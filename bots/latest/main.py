@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-18 17:24:11 (local)
+# latest,  @ 2026-04-19 00:11:42 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -23731,21 +23731,45 @@ class GunnerDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
 
         ti = tile_info[sx ][sy -1]
-        info0.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        if ti is not None:
+            info0.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        else:
+            info0.has_enemy_turret = False
         ti = tile_info[sx +1][sy -1]
-        info1.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        if ti is not None:
+            info1.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        else:
+            info1.has_enemy_turret = False
         ti = tile_info[sx +1][sy ]
-        info2.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        if ti is not None:
+            info2.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        else:
+            info2.has_enemy_turret = False
         ti = tile_info[sx +1][sy +1]
-        info3.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        if ti is not None:
+            info3.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        else:
+            info3.has_enemy_turret = False
         ti = tile_info[sx ][sy +1]
-        info4.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        if ti is not None:
+            info4.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        else:
+            info4.has_enemy_turret = False
         ti = tile_info[sx -1][sy +1]
-        info5.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        if ti is not None:
+            info5.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        else:
+            info5.has_enemy_turret = False
         ti = tile_info[sx -1][sy ]
-        info6.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        if ti is not None:
+            info6.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        else:
+            info6.has_enemy_turret = False
         ti = tile_info[sx -1][sy -1]
-        info7.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        if ti is not None:
+            info7.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        else:
+            info7.has_enemy_turret = False
 
 
 # ============================================================
@@ -29066,9 +29090,9 @@ class RushTargeter:
             if Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) < 25: #sufficiently near
                 cls.beenNearbyEnemyCore = True
             if Builder.mode == 2:
-                if cls.beenNearbyEnemyCore:
+                if cls.beenNearbyEnemyCore and BuildManager.can_afford_harvester():
                     funPos = cls.nearest_titanium_to_enemy()
-                    if funPos == None:
+                    if funPos == None or not VisionTracker.me_is_canonical_ally(funPos):
                         return Explore.get_target(),'M' #move
                     return funPos,'B' #build harvester
                 else:
