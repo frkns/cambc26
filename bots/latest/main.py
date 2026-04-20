@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-19 21:21:50 (local)
+# latest,  @ 2026-04-20 13:06:11 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -28018,7 +28018,7 @@ class OreExecutive:
             Debug.diamond(Color.RED)
             return
 
-        RouteToFoundry.set_pos(cand.position)
+        RouteToFoundry.from_pos = pos
         RouteToFoundry.try_claim_target()
         foundry_enc = RouteToFoundry._foundry_target
         if foundry_enc is None or not RouteToFoundry.axionite_can_reach_foundry(cand.position, foundry_enc):
