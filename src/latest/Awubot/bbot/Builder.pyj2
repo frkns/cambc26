@@ -127,11 +127,16 @@ class Builder({{ super() }}):
         {{ P.end('Marker.attempt_mark') }}
 
         # BfsBureau.debug_bfs20_dist_adj()
-        BfsBureau.debug_enemy_launcher_zone()
+        # BfsBureau.debug_enemy_launcher_zone()
         # if Globals.round & 1:
         #     BfsBureau.debug_now_passable_int_impassable()
         # else:
         #     BfsBureau.debug_now_weight_inf()
+
+        my_pos = Globals.my_pos
+        if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos):
+            Globals.ct.fire(my_pos)
+
 
 
     @classmethod
@@ -140,7 +145,12 @@ class Builder({{ super() }}):
         ct = Globals.ct
 
         healinfo = HealTargeter.get_best_target_info()
-        healpos = None if healinfo is None else healinfo.position
+        healpos = None
+        if healinfo is not None:
+            if healinfo.entity_type == EntityType.CORE:
+                healpos = Unit.core_pos
+            else:
+                healpos = healinfo.position
 
         takedowninfo = HarvesterAdjacent.get_best_turret_takedown_info()
         takedownpos = None if takedowninfo is None else takedowninfo.position

@@ -28,6 +28,7 @@ class AdjacentInfo:
         'harvester_ally_turrets_adjacent', 'harvester_enemy_turrets_adjacent',
         'enemy_turrets_adjacent', 'ally_turrets_adjacent',
         'sentinel_dir_info',
+        'h_outward_adj',
     )
 
 
@@ -38,6 +39,9 @@ class AdjacentInfo:
 
         if a.is_working_shield != b.is_working_shield:
             return a.is_working_shield < b.is_working_shield
+
+        if a.h_outward_adj == 0: return False
+        if b.h_outward_adj == 0: return True
 
         if a.bfs_dist_adj >= 100: return False        
         if b.bfs_dist_adj >= 100: return True
@@ -242,6 +246,9 @@ class HarvesterAdjacent:
         if best.is_working_shield: # if there's already a shield at the target
             return None
 
+        if best.h_outward_adj == 0:
+            return None
+
         if best.bfs_dist_adj >= 100:
             return None
         
@@ -355,6 +362,7 @@ class HarvesterAdjacent:
                     {# /* info.sentinel_dir_info = SentinelDirectionPicker.compute_info(pos, pos.direction_to(Symmetry.enemy_core_pos)) */ #}
                     {# /* info.sentinel_dir_info = SentinelDirectionPicker.get_best_info(pos) */ #}
                     info.sentinel_dir_info = ZHolder.banned_sentinel_dir_info
+                    info.h_outward_adj = hti.ally_outward_transporters_adjacent
                     infos.append(info)
             {% endfor %}
 

@@ -103,12 +103,13 @@ class RouteToCore:
     @classmethod
     def move_to_next(cls):
         from_pos = cls.from_pos
-        x, y = from_pos.x, from_pos.y
+        Pathfinder.move_to(from_pos, ban_target_pos=True)
 
-        if Map.tile_info[x][y].entity_type == EntityType.ROAD:
-            Pathfinder.move_to(cls.from_pos, ban_target_pos=False)
-        else:
-            Pathfinder.move_to(cls.from_pos, ban_target_pos=True)
+        # x, y = from_pos.x, from_pos.y
+        # if Map.tile_info[x][y].entity_type == EntityType.ROAD:
+        #     Pathfinder.move_to(from_pos, ban_target_pos=False)
+        # else:
+        #     Pathfinder.move_to(from_pos, ban_target_pos=True)
 
 
     @classmethod
@@ -126,6 +127,11 @@ class RouteToCore:
             if not cls.backTracking:
                 if ti.entity_type in Constants.TRANSPORTERS_SET:
                     # Another bot already built here — they've taken over, bow out cleanly
+                    if ti.target is not None:
+                        tx, ty = ti.target.x, ti.target.y
+                        if Map.tile_info[tx][ty].entity_type == EntityType.HARVESTER:
+                            return False  # it is a shield
+
                     cls.is_active = False
                     cls.prevRoute.clear()
                     return True

@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-20 11:48:05 (local)
+# latest,  @ 2026-04-20 13:52:24 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -26,6 +26,7 @@ class AdjacentInfo:
         'harvester_ally_turrets_adjacent', 'harvester_enemy_turrets_adjacent',
         'enemy_turrets_adjacent', 'ally_turrets_adjacent',
         'sentinel_dir_info',
+        'h_outward_adj',
     )
 
 
@@ -36,6 +37,9 @@ class AdjacentInfo:
 
         if a.is_working_shield != b.is_working_shield:
             return a.is_working_shield < b.is_working_shield
+
+        if a.h_outward_adj == 0: return False
+        if b.h_outward_adj == 0: return True
 
         if a.bfs_dist_adj >= 100: return False        
         if b.bfs_dist_adj >= 100: return True
@@ -230,15 +234,14 @@ class Attacker:
         if Builder.mode != 2:
             if MarketMaker.est_income <= 10 and MarketMaker.ti <= 50:
                 return False
-        else:
-            if MarketMaker.ti <= 4:
-                return False
 
         x, y = pos.x, pos.y
         tile_info = Map.tile_info
         ti = tile_info[x][y]
 
         # assume caller passes in position with enemy building
+        if ti.is_building_ally:
+            return False
         
         hp = ti.building_hp
         max_hp = Constants.MAX_HP_MAP[ti.entity_type]
@@ -1804,6 +1807,36 @@ class BfsBureau:
 
 
     # outward depth-limited dijkstra + bitmask bfs
+
+
+
+
+
+            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    # outward depth-limited dijkstra + bitmask bfs
+    # prefers roads
     
     @classmethod
     def find_route(cls, start: Position, target: Position,
@@ -1833,49 +1866,41 @@ class BfsBureau:
                 _best_d = Direction.CENTRE if center_weight < 1000000 else None
             ni = si + -1
             w = weight[ni]
-            # print(0, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.NORTH):
                 _best_c = w
                 _best_d = Direction.NORTH
             ni = si + 55
             w = weight[ni]
-            # print(1, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.NORTHEAST):
                 _best_c = w
                 _best_d = Direction.NORTHEAST
             ni = si + 56
             w = weight[ni]
-            # print(2, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.EAST):
                 _best_c = w
                 _best_d = Direction.EAST
             ni = si + 57
             w = weight[ni]
-            # print(3, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.SOUTHEAST):
                 _best_c = w
                 _best_d = Direction.SOUTHEAST
             ni = si + 1
             w = weight[ni]
-            # print(4, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.SOUTH):
                 _best_c = w
                 _best_d = Direction.SOUTH
             ni = si + -55
             w = weight[ni]
-            # print(5, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.SOUTHWEST):
                 _best_c = w
                 _best_d = Direction.SOUTHWEST
             ni = si + -56
             w = weight[ni]
-            # print(6, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.WEST):
                 _best_c = w
                 _best_d = Direction.WEST
             ni = si + -57
             w = weight[ni]
-            # print(7, f'{w=}')
             if w < _best_c and MoveManager.can_fill_move(Direction.NORTHWEST):
                 _best_c = w
                 _best_d = Direction.NORTHWEST
@@ -1958,6 +1983,7 @@ class BfsBureau:
         _settled = [si]
         _sa = _settled.append
 
+        # Original seeding: single pass, no diagonal preference
         ni = si + -1
         if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.NORTH):
             w = weight[ni]
@@ -2131,6 +2157,570 @@ class BfsBureau:
             ni = idx + -57
             w  = weight[ni]
             if w < 1000000:
+                nd = d + w
+                if nd < dist[ni]:
+                    dist[ni] = nd
+                    fhd[ni]  = _fh
+                    if ni == ti:
+                        # don't need to save anymore!
+                        return nd, _D[_fh]
+                    _hp(heap, (nd, ni))
+
+        if not phase2_seeds:
+            # don't need to save anymore!
+            return 1000000, None
+
+        # ── Phase 2: bitmask BFS from Dijkstra frontier ──
+        
+        _tb = _tx * stride + _ty
+        _tm = 1 << _tb
+        _uc = (cls.now_passable_int | _tm) & cls.board_mask
+
+        _settled_bits = 0
+        for _ci in _settled:
+            _cx = _ci // 56 - 3
+            _cy = _ci % 56 - 3
+            _settled_bits |= 1 << (_cx * stride + _cy)
+        _uc &= ~_settled_bits
+
+        _fh0 = 0
+        _md0 = 1000000
+        _fh1 = 0
+        _md1 = 1000000
+        _fh2 = 0
+        _md2 = 1000000
+        _fh3 = 0
+        _md3 = 1000000
+        _fh4 = 0
+        _md4 = 1000000
+        _fh5 = 0
+        _md5 = 1000000
+        _fh6 = 0
+        _md6 = 1000000
+        _fh7 = 0
+        _md7 = 1000000
+
+        for _ci in phase2_seeds:
+            _cx = _ci // 56 - 3
+            _cy = _ci % 56 - 3
+            _di = fhd[_ci]
+            _bit = 1 << (_cx * stride + _cy)
+            if _di == 0:
+                _fh0 |= _bit
+                if dist[_ci] < _md0:
+                    _md0 = dist[_ci]
+            elif _di == 1:
+                _fh1 |= _bit
+                if dist[_ci] < _md1:
+                    _md1 = dist[_ci]
+            elif _di == 2:
+                _fh2 |= _bit
+                if dist[_ci] < _md2:
+                    _md2 = dist[_ci]
+            elif _di == 3:
+                _fh3 |= _bit
+                if dist[_ci] < _md3:
+                    _md3 = dist[_ci]
+            elif _di == 4:
+                _fh4 |= _bit
+                if dist[_ci] < _md4:
+                    _md4 = dist[_ci]
+            elif _di == 5:
+                _fh5 |= _bit
+                if dist[_ci] < _md5:
+                    _md5 = dist[_ci]
+            elif _di == 6:
+                _fh6 |= _bit
+                if dist[_ci] < _md6:
+                    _md6 = dist[_ci]
+            elif _di == 7:
+                _fh7 |= _bit
+                if dist[_ci] < _md7:
+                    _md7 = dist[_ci]
+
+        _bfs_d = 0
+        it = 0
+        while (it := it + 1) <= max_iter:
+            _any = False
+
+            _f = _fh0
+            if _f:
+                _v = _f | (_f << 1) | (_f >> 1)
+                _e = (_v | (_v << stride) | (_v >> stride)) & _uc
+                _e &= ~_f
+                if _e:
+                    _fh0 = _e
+                    _uc &= ~_e
+                    _any = True
+                    if _e & _tm:
+                        return _md0 + _bfs_d + 1, _D[0]
+                else:
+                    _fh0 = 0
+            _f = _fh1
+            if _f:
+                _v = _f | (_f << 1) | (_f >> 1)
+                _e = (_v | (_v << stride) | (_v >> stride)) & _uc
+                _e &= ~_f
+                if _e:
+                    _fh1 = _e
+                    _uc &= ~_e
+                    _any = True
+                    if _e & _tm:
+                        return _md1 + _bfs_d + 1, _D[1]
+                else:
+                    _fh1 = 0
+            _f = _fh2
+            if _f:
+                _v = _f | (_f << 1) | (_f >> 1)
+                _e = (_v | (_v << stride) | (_v >> stride)) & _uc
+                _e &= ~_f
+                if _e:
+                    _fh2 = _e
+                    _uc &= ~_e
+                    _any = True
+                    if _e & _tm:
+                        return _md2 + _bfs_d + 1, _D[2]
+                else:
+                    _fh2 = 0
+            _f = _fh3
+            if _f:
+                _v = _f | (_f << 1) | (_f >> 1)
+                _e = (_v | (_v << stride) | (_v >> stride)) & _uc
+                _e &= ~_f
+                if _e:
+                    _fh3 = _e
+                    _uc &= ~_e
+                    _any = True
+                    if _e & _tm:
+                        return _md3 + _bfs_d + 1, _D[3]
+                else:
+                    _fh3 = 0
+            _f = _fh4
+            if _f:
+                _v = _f | (_f << 1) | (_f >> 1)
+                _e = (_v | (_v << stride) | (_v >> stride)) & _uc
+                _e &= ~_f
+                if _e:
+                    _fh4 = _e
+                    _uc &= ~_e
+                    _any = True
+                    if _e & _tm:
+                        return _md4 + _bfs_d + 1, _D[4]
+                else:
+                    _fh4 = 0
+            _f = _fh5
+            if _f:
+                _v = _f | (_f << 1) | (_f >> 1)
+                _e = (_v | (_v << stride) | (_v >> stride)) & _uc
+                _e &= ~_f
+                if _e:
+                    _fh5 = _e
+                    _uc &= ~_e
+                    _any = True
+                    if _e & _tm:
+                        return _md5 + _bfs_d + 1, _D[5]
+                else:
+                    _fh5 = 0
+            _f = _fh6
+            if _f:
+                _v = _f | (_f << 1) | (_f >> 1)
+                _e = (_v | (_v << stride) | (_v >> stride)) & _uc
+                _e &= ~_f
+                if _e:
+                    _fh6 = _e
+                    _uc &= ~_e
+                    _any = True
+                    if _e & _tm:
+                        return _md6 + _bfs_d + 1, _D[6]
+                else:
+                    _fh6 = 0
+            _f = _fh7
+            if _f:
+                _v = _f | (_f << 1) | (_f >> 1)
+                _e = (_v | (_v << stride) | (_v >> stride)) & _uc
+                _e &= ~_f
+                if _e:
+                    _fh7 = _e
+                    _uc &= ~_e
+                    _any = True
+                    if _e & _tm:
+                        return _md7 + _bfs_d + 1, _D[7]
+                else:
+                    _fh7 = 0
+
+            if not _any:
+                break
+            _bfs_d += 1
+
+        # don't need to save anymore!
+        return 1000000, None
+    
+    # outward depth-limited dijkstra + bitmask bfs
+    # prefers empties
+    
+    @classmethod
+    def find_route_inv(cls, start: Position, target: Position,
+                   ban_target: bool = False,
+                   max_iter: int = 200) -> tuple[int, Direction | None]:
+
+        sx, sy = start.x, start.y
+        _tx, _ty = target.x, target.y
+
+        weight = cls.now_weight
+        stride = cls.STRIDE
+
+        si = (((sx) + 3) * 56 + ((sy) + 3))
+        ti = (((_tx) + 3) * 56 + ((_ty) + 3))
+        center_weight = weight[si] if weight[si] > 5 else 1
+
+        _D = (Direction.NORTH, Direction.NORTHEAST, Direction.EAST, Direction.SOUTHEAST, Direction.SOUTH, Direction.SOUTHWEST, Direction.WEST, Direction.NORTHWEST)
+
+        # ── Same-tile: CENTRE competes with neighbors ──
+        if si == ti:
+            
+            if ban_target:
+                _best_c = 1000000
+                _best_d = None
+            else:
+                _best_c = center_weight
+                _best_d = Direction.CENTRE if center_weight < 1000000 else None
+            ni = si + -1
+            w = weight[ni]
+            if w <= 2: w = 3 - w
+            if w < _best_c and MoveManager.can_fill_move(Direction.NORTH):
+                _best_c = w
+                _best_d = Direction.NORTH
+            ni = si + 55
+            w = weight[ni]
+            if w <= 2: w = 3 - w
+            if w < _best_c and MoveManager.can_fill_move(Direction.NORTHEAST):
+                _best_c = w
+                _best_d = Direction.NORTHEAST
+            ni = si + 56
+            w = weight[ni]
+            if w <= 2: w = 3 - w
+            if w < _best_c and MoveManager.can_fill_move(Direction.EAST):
+                _best_c = w
+                _best_d = Direction.EAST
+            ni = si + 57
+            w = weight[ni]
+            if w <= 2: w = 3 - w
+            if w < _best_c and MoveManager.can_fill_move(Direction.SOUTHEAST):
+                _best_c = w
+                _best_d = Direction.SOUTHEAST
+            ni = si + 1
+            w = weight[ni]
+            if w <= 2: w = 3 - w
+            if w < _best_c and MoveManager.can_fill_move(Direction.SOUTH):
+                _best_c = w
+                _best_d = Direction.SOUTH
+            ni = si + -55
+            w = weight[ni]
+            if w <= 2: w = 3 - w
+            if w < _best_c and MoveManager.can_fill_move(Direction.SOUTHWEST):
+                _best_c = w
+                _best_d = Direction.SOUTHWEST
+            ni = si + -56
+            w = weight[ni]
+            if w <= 2: w = 3 - w
+            if w < _best_c and MoveManager.can_fill_move(Direction.WEST):
+                _best_c = w
+                _best_d = Direction.WEST
+            ni = si + -57
+            w = weight[ni]
+            if w <= 2: w = 3 - w
+            if w < _best_c and MoveManager.can_fill_move(Direction.NORTHWEST):
+                _best_c = w
+                _best_d = Direction.NORTHWEST
+            if _best_d is not None:
+                return _best_c, _best_d
+            return 1000000, None
+
+        # ── Adjacent to banned target: CENTRE competes, but ti is excluded ──
+        if ban_target:
+            _d = si - ti
+            _ad = _d if _d >= 0 else -_d
+            if _ad == 1 or _ad == 55 or _ad == 56 or _ad == 57:
+                _best_c = center_weight
+                _best_d = Direction.CENTRE if center_weight < 1000000 else None
+                ni = si + -1
+                if ni != ti:
+                    w = weight[ni]
+                    if w <= 2: w = 3 - w
+                    if w < _best_c and MoveManager.can_fill_move(Direction.NORTH):
+                        _best_c = w
+                        _best_d = Direction.NORTH
+                ni = si + 55
+                if ni != ti:
+                    w = weight[ni]
+                    if w <= 2: w = 3 - w
+                    if w < _best_c and MoveManager.can_fill_move(Direction.NORTHEAST):
+                        _best_c = w
+                        _best_d = Direction.NORTHEAST
+                ni = si + 56
+                if ni != ti:
+                    w = weight[ni]
+                    if w <= 2: w = 3 - w
+                    if w < _best_c and MoveManager.can_fill_move(Direction.EAST):
+                        _best_c = w
+                        _best_d = Direction.EAST
+                ni = si + 57
+                if ni != ti:
+                    w = weight[ni]
+                    if w <= 2: w = 3 - w
+                    if w < _best_c and MoveManager.can_fill_move(Direction.SOUTHEAST):
+                        _best_c = w
+                        _best_d = Direction.SOUTHEAST
+                ni = si + 1
+                if ni != ti:
+                    w = weight[ni]
+                    if w <= 2: w = 3 - w
+                    if w < _best_c and MoveManager.can_fill_move(Direction.SOUTH):
+                        _best_c = w
+                        _best_d = Direction.SOUTH
+                ni = si + -55
+                if ni != ti:
+                    w = weight[ni]
+                    if w <= 2: w = 3 - w
+                    if w < _best_c and MoveManager.can_fill_move(Direction.SOUTHWEST):
+                        _best_c = w
+                        _best_d = Direction.SOUTHWEST
+                ni = si + -56
+                if ni != ti:
+                    w = weight[ni]
+                    if w <= 2: w = 3 - w
+                    if w < _best_c and MoveManager.can_fill_move(Direction.WEST):
+                        _best_c = w
+                        _best_d = Direction.WEST
+                ni = si + -57
+                if ni != ti:
+                    w = weight[ni]
+                    if w <= 2: w = 3 - w
+                    if w < _best_c and MoveManager.can_fill_move(Direction.NORTHWEST):
+                        _best_c = w
+                        _best_d = Direction.NORTHWEST
+                if _best_d is not None:
+                    return _best_c, _best_d
+                return 1000000, None
+
+        weight[ti] = 1  # allow target
+
+        # we do this because try...finally is banned by engine
+
+        # ── Phase 1: weighted Dijkstra up to 5 ──
+        dist = [1000000] * 3136
+        fhd  = [0]       * 3136
+        dist[si] = 0
+
+        heap  = []
+        _hp   = heapq.heappush
+        _hpop = heapq.heappop
+
+        _settled = [si]
+        _sa = _settled.append
+
+        # Inverse seeding: remap weights, cardinals first then diagonals preferred on ties
+        ni = si + -1
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.NORTH):
+            w = weight[ni]
+            if w <= 2: w = 3 - w
+            dist[ni] = w
+            fhd[ni]  = 0
+            if ni == ti:
+                # don't need to save anymore!
+                return w, Direction.NORTH
+            _hp(heap, (w, ni))
+        ni = si + 56
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.EAST):
+            w = weight[ni]
+            if w <= 2: w = 3 - w
+            dist[ni] = w
+            fhd[ni]  = 2
+            if ni == ti:
+                # don't need to save anymore!
+                return w, Direction.EAST
+            _hp(heap, (w, ni))
+        ni = si + 1
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.SOUTH):
+            w = weight[ni]
+            if w <= 2: w = 3 - w
+            dist[ni] = w
+            fhd[ni]  = 4
+            if ni == ti:
+                # don't need to save anymore!
+                return w, Direction.SOUTH
+            _hp(heap, (w, ni))
+        ni = si + -56
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.WEST):
+            w = weight[ni]
+            if w <= 2: w = 3 - w
+            dist[ni] = w
+            fhd[ni]  = 6
+            if ni == ti:
+                # don't need to save anymore!
+                return w, Direction.WEST
+            _hp(heap, (w, ni))
+        ni = si + 55
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.NORTHEAST):
+            w = weight[ni]
+            if w <= 2: w = 3 - w
+            if w < dist[ni]:
+                dist[ni] = w
+                fhd[ni]  = 1
+                if ni == ti:
+                    # don't need to save anymore!
+                    return w, Direction.NORTHEAST
+                _hp(heap, (w, ni))
+            elif w == dist[ni]:
+                fhd[ni] = 1
+        ni = si + 57
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.SOUTHEAST):
+            w = weight[ni]
+            if w <= 2: w = 3 - w
+            if w < dist[ni]:
+                dist[ni] = w
+                fhd[ni]  = 3
+                if ni == ti:
+                    # don't need to save anymore!
+                    return w, Direction.SOUTHEAST
+                _hp(heap, (w, ni))
+            elif w == dist[ni]:
+                fhd[ni] = 3
+        ni = si + -55
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.SOUTHWEST):
+            w = weight[ni]
+            if w <= 2: w = 3 - w
+            if w < dist[ni]:
+                dist[ni] = w
+                fhd[ni]  = 5
+                if ni == ti:
+                    # don't need to save anymore!
+                    return w, Direction.SOUTHWEST
+                _hp(heap, (w, ni))
+            elif w == dist[ni]:
+                fhd[ni] = 5
+        ni = si + -57
+        if weight[ni] < 1000000 and MoveManager.can_fill_move(Direction.NORTHWEST):
+            w = weight[ni]
+            if w <= 2: w = 3 - w
+            if w < dist[ni]:
+                dist[ni] = w
+                fhd[ni]  = 7
+                if ni == ti:
+                    # don't need to save anymore!
+                    return w, Direction.NORTHWEST
+                _hp(heap, (w, ni))
+            elif w == dist[ni]:
+                fhd[ni] = 7
+
+        phase2_seeds = []
+        _p2a = phase2_seeds.append
+
+        while heap:
+            d, idx = _hpop(heap)
+            if d > dist[idx]:
+                continue
+
+            _sa(idx)
+
+            if d >= 5:
+                _p2a(idx)
+                while heap:
+                    _dd, _idx = _hpop(heap)
+                    if _dd == dist[_idx]:
+                        _sa(_idx)
+                        _p2a(_idx)
+                break
+
+            _fh = fhd[idx]
+            ni = idx + -1
+            w  = weight[ni]
+            if w < 1000000:
+                if w <= 2: w = 3 - w
+                nd = d + w
+                if nd < dist[ni]:
+                    dist[ni] = nd
+                    fhd[ni]  = _fh
+                    if ni == ti:
+                        # don't need to save anymore!
+                        return nd, _D[_fh]
+                    _hp(heap, (nd, ni))
+            ni = idx + 55
+            w  = weight[ni]
+            if w < 1000000:
+                if w <= 2: w = 3 - w
+                nd = d + w
+                if nd < dist[ni]:
+                    dist[ni] = nd
+                    fhd[ni]  = _fh
+                    if ni == ti:
+                        # don't need to save anymore!
+                        return nd, _D[_fh]
+                    _hp(heap, (nd, ni))
+            ni = idx + 56
+            w  = weight[ni]
+            if w < 1000000:
+                if w <= 2: w = 3 - w
+                nd = d + w
+                if nd < dist[ni]:
+                    dist[ni] = nd
+                    fhd[ni]  = _fh
+                    if ni == ti:
+                        # don't need to save anymore!
+                        return nd, _D[_fh]
+                    _hp(heap, (nd, ni))
+            ni = idx + 57
+            w  = weight[ni]
+            if w < 1000000:
+                if w <= 2: w = 3 - w
+                nd = d + w
+                if nd < dist[ni]:
+                    dist[ni] = nd
+                    fhd[ni]  = _fh
+                    if ni == ti:
+                        # don't need to save anymore!
+                        return nd, _D[_fh]
+                    _hp(heap, (nd, ni))
+            ni = idx + 1
+            w  = weight[ni]
+            if w < 1000000:
+                if w <= 2: w = 3 - w
+                nd = d + w
+                if nd < dist[ni]:
+                    dist[ni] = nd
+                    fhd[ni]  = _fh
+                    if ni == ti:
+                        # don't need to save anymore!
+                        return nd, _D[_fh]
+                    _hp(heap, (nd, ni))
+            ni = idx + -55
+            w  = weight[ni]
+            if w < 1000000:
+                if w <= 2: w = 3 - w
+                nd = d + w
+                if nd < dist[ni]:
+                    dist[ni] = nd
+                    fhd[ni]  = _fh
+                    if ni == ti:
+                        # don't need to save anymore!
+                        return nd, _D[_fh]
+                    _hp(heap, (nd, ni))
+            ni = idx + -56
+            w  = weight[ni]
+            if w < 1000000:
+                if w <= 2: w = 3 - w
+                nd = d + w
+                if nd < dist[ni]:
+                    dist[ni] = nd
+                    fhd[ni]  = _fh
+                    if ni == ti:
+                        # don't need to save anymore!
+                        return nd, _D[_fh]
+                    _hp(heap, (nd, ni))
+            ni = idx + -57
+            w  = weight[ni]
+            if w < 1000000:
+                if w <= 2: w = 3 - w
                 nd = d + w
                 if nd < dist[ni]:
                     dist[ni] = nd
@@ -24784,6 +25374,9 @@ class HarvesterAdjacent:
         if best.is_working_shield: # if there's already a shield at the target
             return None
 
+        if best.h_outward_adj == 0:
+            return None
+
         if best.bfs_dist_adj >= 100:
             return None
         
@@ -24958,6 +25551,7 @@ class HarvesterAdjacent:
                             info.enemy_turrets_adjacent += 1
 
                     info.sentinel_dir_info = ZHolder.banned_sentinel_dir_info
+                    info.h_outward_adj = hti.ally_outward_transporters_adjacent
                     infos.append(info)
 
             x, y = sx +1, sy 
@@ -25098,6 +25692,7 @@ class HarvesterAdjacent:
                             info.enemy_turrets_adjacent += 1
 
                     info.sentinel_dir_info = ZHolder.banned_sentinel_dir_info
+                    info.h_outward_adj = hti.ally_outward_transporters_adjacent
                     infos.append(info)
 
             x, y = sx , sy +1
@@ -25238,6 +25833,7 @@ class HarvesterAdjacent:
                             info.enemy_turrets_adjacent += 1
 
                     info.sentinel_dir_info = ZHolder.banned_sentinel_dir_info
+                    info.h_outward_adj = hti.ally_outward_transporters_adjacent
                     infos.append(info)
 
             x, y = sx -1, sy 
@@ -25378,6 +25974,7 @@ class HarvesterAdjacent:
                             info.enemy_turrets_adjacent += 1
 
                     info.sentinel_dir_info = ZHolder.banned_sentinel_dir_info
+                    info.h_outward_adj = hti.ally_outward_transporters_adjacent
                     infos.append(info)
 
         
@@ -28339,10 +28936,12 @@ class OrePositionPicker:
 class Pathfinder:
     cur_target = None
     given_up: bool = False
+    near_base: bool = False  # hysteresis state: prefer empties over roads when True
 
     @classmethod
     def reset(cls):
         cls.given_up = False
+        cls.near_base = False
 
     @classmethod
     def move_to(cls, target: Position, ban_target_pos: bool = False, orbit: bool = False):
@@ -28353,7 +28952,7 @@ class Pathfinder:
             cls.reset()
             cls.cur_target = target
 
-        # Debug.line(target)
+        Debug.line(target)
         my_pos = Globals.my_pos
         midx = (((my_pos.x) + 3) * 56 + ((my_pos.y) + 3))
 
@@ -28362,13 +28961,28 @@ class Pathfinder:
             if not MoveManager.can_fill_move(my_pos.direction_to(target)):
                 return
 
+        # ── Hysteresis: switch to road-building mode near base/enemy-base ──
+        # Enter near_base when rsq <= 18, exit only when rsq > 25.
+        # The dead-band [19..25] prevents flickering at the boundary.
+        dsq_to_own_core   = my_pos.distance_squared(Unit.core_pos)
+        dsq_to_enemy_core = my_pos.distance_squared(Symmetry.enemy_core_pos) if Symmetry.is_sym_known else 1000000
+        dsq_to_nearest_base = min(dsq_to_own_core, dsq_to_enemy_core)
+
+        if dsq_to_nearest_base <= 18:
+            cls.near_base = True
+        elif dsq_to_nearest_base > 25:
+            cls.near_base = False
+        # else: in dead-band [19..25], keep previous near_base value
 
         
-        dist, dir = BfsBureau.find_route(Globals.my_pos, target, ban_target_pos)
+        if cls.near_base:
+            dist, dir = BfsBureau.find_route_inv(my_pos, target, ban_target_pos)  # prefer empties → lays roads
+        else:
+            dist, dir = BfsBureau.find_route(my_pos, target, ban_target_pos)      # prefer roads → uses existing roads
         
 
-        if orbit and 0 < target.distance_squared(Globals.my_pos) <= 2:
-            dir = Globals.my_pos.direction_to(target).rotate_left()
+        if orbit and 0 < target.distance_squared(my_pos) <= 2:
+            dir = my_pos.direction_to(target).rotate_left()
 
         if dir is None or dist >= 1000000:
             cls.given_up = True
@@ -28859,12 +29473,13 @@ class RouteToCore:
     @classmethod
     def move_to_next(cls):
         from_pos = cls.from_pos
-        x, y = from_pos.x, from_pos.y
+        Pathfinder.move_to(from_pos, ban_target_pos=True)
 
-        if Map.tile_info[x][y].entity_type == EntityType.ROAD:
-            Pathfinder.move_to(cls.from_pos, ban_target_pos=False)
-        else:
-            Pathfinder.move_to(cls.from_pos, ban_target_pos=True)
+        # x, y = from_pos.x, from_pos.y
+        # if Map.tile_info[x][y].entity_type == EntityType.ROAD:
+        #     Pathfinder.move_to(from_pos, ban_target_pos=False)
+        # else:
+        #     Pathfinder.move_to(from_pos, ban_target_pos=True)
 
 
     @classmethod
@@ -28882,6 +29497,11 @@ class RouteToCore:
             if not cls.backTracking:
                 if ti.entity_type in Constants.TRANSPORTERS_SET:
                     # Another bot already built here — they've taken over, bow out cleanly
+                    if ti.target is not None:
+                        tx, ty = ti.target.x, ti.target.y
+                        if Map.tile_info[tx][ty].entity_type == EntityType.HARVESTER:
+                            return False  # it is a shield
+
                     cls.is_active = False
                     cls.prevRoute.clear()
                     return True
@@ -33863,11 +34483,16 @@ class Builder(Unit):
         
 
         # BfsBureau.debug_bfs20_dist_adj()
-        BfsBureau.debug_enemy_launcher_zone()
+        # BfsBureau.debug_enemy_launcher_zone()
         # if Globals.round & 1:
         #     BfsBureau.debug_now_passable_int_impassable()
         # else:
         #     BfsBureau.debug_now_weight_inf()
+
+        my_pos = Globals.my_pos
+        if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos):
+            Globals.ct.fire(my_pos)
+
 
 
     @classmethod
@@ -33876,7 +34501,12 @@ class Builder(Unit):
         ct = Globals.ct
 
         healinfo = HealTargeter.get_best_target_info()
-        healpos = None if healinfo is None else healinfo.position
+        healpos = None
+        if healinfo is not None:
+            if healinfo.entity_type == EntityType.CORE:
+                healpos = Unit.core_pos
+            else:
+                healpos = healinfo.position
 
         takedowninfo = HarvesterAdjacent.get_best_turret_takedown_info()
         takedownpos = None if takedowninfo is None else takedowninfo.position

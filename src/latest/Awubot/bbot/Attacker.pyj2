@@ -100,18 +100,14 @@ class Attacker:
         if Builder.mode != {{ Mode.EARLY_RUSH }}:
             if MarketMaker.est_income <= 10 and MarketMaker.ti <= 50:
                 return False
-        else:
-            if MarketMaker.ti <= 4:
-                return False
 
         x, y = pos.x, pos.y
         tile_info = Map.tile_info
         ti = tile_info[x][y]
 
         # assume caller passes in position with enemy building
-        {% if LOCAL %}
-        assert not ti.is_building_ally
-        {% endif %}
+        if ti.is_building_ally:
+            return False
         
         hp = ti.building_hp
         max_hp = Constants.MAX_HP_MAP[ti.entity_type]
