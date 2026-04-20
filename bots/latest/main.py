@@ -29180,6 +29180,36 @@ class RoadInfo:
 
 
 # ============================================================
+# RoadspamExecutor
+# ============================================================
+
+class RoadspamExecutor:
+    @classmethod
+    def execute_roadspam_attempt(cls):
+        if Globals.ct.get_action_cooldown() != 0:
+            return
+            
+        my_pos = Globals.my_pos
+        
+        if BuildManager.can_build_road(my_pos.add(Direction.NORTH)):
+            BuildManager.build_road(my_pos.add(Direction.NORTH))
+        if BuildManager.can_build_road(my_pos.add(Direction.NORTHEAST)):
+            BuildManager.build_road(my_pos.add(Direction.NORTHEAST))
+        if BuildManager.can_build_road(my_pos.add(Direction.EAST)):
+            BuildManager.build_road(my_pos.add(Direction.EAST))
+        if BuildManager.can_build_road(my_pos.add(Direction.SOUTHEAST)):
+            BuildManager.build_road(my_pos.add(Direction.SOUTHEAST))
+        if BuildManager.can_build_road(my_pos.add(Direction.SOUTH)):
+            BuildManager.build_road(my_pos.add(Direction.SOUTH))
+        if BuildManager.can_build_road(my_pos.add(Direction.SOUTHWEST)):
+            BuildManager.build_road(my_pos.add(Direction.SOUTHWEST))
+        if BuildManager.can_build_road(my_pos.add(Direction.WEST)):
+            BuildManager.build_road(my_pos.add(Direction.WEST))
+        if BuildManager.can_build_road(my_pos.add(Direction.NORTHWEST)):
+            BuildManager.build_road(my_pos.add(Direction.NORTHWEST))
+
+
+# ============================================================
 # RouteToBreach
 # ============================================================
 
@@ -33733,10 +33763,13 @@ class StateReroute:  # for misrouted ally transporters
         if Globals.my_pos.distance_squared(pos) > 2:
             Pathfinder.move_to(pos)
 
-        if Globals.ct.can_destroy(pos):
+        if Globals.ct.get_action_cooldown() == 0 and Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
             if pos.distance_squared(Unit.core_pos) < pos.distance_squared(Symmetry.enemy_core_pos):
                 RouteToCore.set_pos(pos)
+                
+            if BuildManager.can_build_road(pos):
+                BuildManager.build_road(pos)
 
 
 # ============================================================
@@ -34512,9 +34545,12 @@ class Builder(Unit):
         # else:
         #     BfsBureau.debug_now_weight_inf()
 
-        # my_pos = Globals.my_pos
+        my_pos = Globals.my_pos
         # if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos):
         #     Globals.ct.fire(my_pos)
+        
+        if my_pos.distance_squared(Symmetry.enemy_core_pos) < my_pos.distance_squared(Unit.core_pos):
+            RoadspamExecutor.execute_roadspam_attempt()
 
 
 
