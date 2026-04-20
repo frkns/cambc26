@@ -51,9 +51,13 @@ class StateReroute:  # for misrouted ally transporters
         if Globals.my_pos.distance_squared(pos) > 2:
             Pathfinder.move_to(pos)
 
-        if Globals.ct.can_destroy(pos):
+        if Globals.ct.get_action_cooldown() == 0 and Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
-            RouteToCore.set_pos(pos)
+            if pos.distance_squared(Unit.core_pos) < pos.distance_squared(Symmetry.enemy_core_pos):
+                RouteToCore.set_pos(pos)
+                
+            if BuildManager.can_build_road(pos):
+                BuildManager.build_road(pos)
 
 
 class StateRoute:

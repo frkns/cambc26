@@ -132,6 +132,14 @@ class Builder({{ super() }}):
         # else:
         #     BfsBureau.debug_now_weight_inf()
 
+        my_pos = Globals.my_pos
+        # if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos):
+        #     Globals.ct.fire(my_pos)
+        
+        if my_pos.distance_squared(Symmetry.enemy_core_pos) < my_pos.distance_squared(Unit.core_pos):
+            RoadspamExecutor.execute_roadspam_attempt()
+
+
 
     @classmethod
     def determine_state(cls):
