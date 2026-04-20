@@ -142,8 +142,10 @@ class SentinelDirectionPicker:
         {% endfor %}
         {% endfor %}
 
+
     @staticmethod
     def compute_info(spos, dir) -> SentinelDirectionInfo:
+        # UNUSED
         dir = spos.direction_to(Symmetry.enemy_core_pos)  # test
 
         tile_info: list[list[TileInfo]] = Map.tile_info
@@ -198,7 +200,7 @@ class SentinelDirectionPicker:
         {% endfor %}
 
         {% if DEBUG %}
-        Globals.ct.resign()
+        raise Exception
         {% endif %}
 
         info.enemy_building_hp = enemy_building_hp
