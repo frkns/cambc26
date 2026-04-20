@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-20 15:09:53 (local)
+# latest,  @ 2026-04-20 19:14:58 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -34546,11 +34546,11 @@ class Builder(Unit):
         #     BfsBureau.debug_now_weight_inf()
 
         my_pos = Globals.my_pos
-        # if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos):
-        #     Globals.ct.fire(my_pos)
+        if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos) and Map.num_enemies == 0:
+            Globals.ct.fire(my_pos)
         
-        if my_pos.distance_squared(Symmetry.enemy_core_pos) < my_pos.distance_squared(Unit.core_pos):
-            RoadspamExecutor.execute_roadspam_attempt()
+        # if my_pos.distance_squared(Symmetry.enemy_core_pos) < my_pos.distance_squared(Unit.core_pos):
+        #     RoadspamExecutor.execute_roadspam_attempt()
 
 
 
@@ -34971,6 +34971,7 @@ class Util:
 
 class VisionTracker:
     allies: list[BotInfo]
+    enemy_roads: list[RoadInfo]  # roads
     enemy_roads_harvester: list[RoadInfo]  # roads adjacent to ti harvester
     enemy_transporters: list[TransporterInfo]
     disconnected_roots: list[TransporterInfo]
@@ -34979,6 +34980,7 @@ class VisionTracker:
     @classmethod
     def fill(cls):
         cls.enemy_transporters = []
+        cls.enemy_roads = []
         cls.enemy_roads_harvester = []
         cls.disconnected_roots = []
         cls.allies = [BotInfo(Globals.my_pos, Globals.my_id)]
@@ -34991,12 +34993,14 @@ class VisionTracker:
             if ti.has_bot and ti.is_bot_ally:
                 cls.allies.append(BotInfo(pos, ti.bot_id))
 
-            if ti.harvester_adjacent and ti.entity_type == EntityType.ROAD and not ti.is_building_ally:
+            if ti.entity_type == EntityType.ROAD and not ti.is_building_ally:
                 info = RoadInfo()
                 info.position = pos
                 info.hp = ti.building_hp
                 info.bfs_dist = BfsBureau.bfs20_dist[idx]
-                cls.enemy_roads_harvester.append(info)
+                cls.enemy_roads.append(info)
+                if ti.harvester_adjacent: 
+                    cls.enemy_roads_harvester.append(info)
 
 
             if ti.target is not None:
@@ -35112,7 +35116,7 @@ class VisionTracker:
 
     @classmethod
     def get_best_road_atk_target(cls) -> RoadInfo | None:
-        roads = cls.enemy_roads_harvester
+        roads = (cls.enemy_roads_harvester if Map.num_enemies > 0 else cls.enemy_roads)
         if not roads:
             return None
 
