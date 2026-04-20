@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-19 11:40:45 (local)
+# latest,  @ 2026-04-19 21:21:50 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -214,8 +214,12 @@ class Attacker:
 
     @classmethod
     def should_fire(cls, pos):
-        if MarketMaker.est_income <= 10 and MarketMaker.ti <= 50:
-            return False
+        if Builder.mode != 2:
+            if MarketMaker.est_income <= 10 and MarketMaker.ti <= 50:
+                return False
+        else:
+            if MarketMaker.ti <= 4:
+                return False
 
         x, y = pos.x, pos.y
         tile_info = Map.tile_info
