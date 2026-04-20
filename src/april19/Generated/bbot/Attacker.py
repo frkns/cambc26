@@ -117,6 +117,7 @@ class Attacker:
         ti = tile_info[x][y]
 
         # assume caller passes in position with enemy building
+        assert not ti.is_building_ally
         
         hp = ti.building_hp
         max_hp = Constants.MAX_HP_MAP[ti.entity_type]

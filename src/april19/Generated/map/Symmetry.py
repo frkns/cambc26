@@ -77,9 +77,9 @@ class Symmetry:
         cls.predict_enemy_core()
         DarkForest.register_enemy_core()
 
-        
+        Profiler.start()
         Map.sync_tile_infos()
-        
+        Profiler.end_now(f"""Map.sync_tile_infos""")
         RouteToCore.pathFindingKill.update(cls.enemy_core_pos_set) # don't route to core anymore
 
 

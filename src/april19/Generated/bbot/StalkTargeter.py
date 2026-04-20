@@ -16,7 +16,7 @@ from Generated import *
 class StalkTargeter:
     @classmethod
     def get_best_target(cls) -> Position | None:
-        
+        Profiler.start()
 
         my_pos = Globals.my_pos
 
@@ -40,7 +40,7 @@ class StalkTargeter:
                     best_dist = dist
                     best = pos
                 
-        
+        Profiler.end(f"""StalkTargeter.get_best_target""")
                 
         return best
 

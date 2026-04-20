@@ -63,6 +63,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_builder_bot() -> bool:
+        assert EntityType.BUILDER_BOT in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -104,6 +105,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -121,6 +123,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_gunner() -> bool:
+        assert EntityType.GUNNER in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -176,6 +179,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_sentinel() -> bool:
+        assert EntityType.SENTINEL in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -217,6 +221,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -234,6 +239,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_breach() -> bool:
+        assert EntityType.BREACH in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -275,6 +281,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -292,6 +299,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_launcher() -> bool:
+        assert EntityType.LAUNCHER in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -347,6 +355,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_conveyor() -> bool:
+        assert EntityType.CONVEYOR in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -387,6 +396,7 @@ class BuildManager:
         if MarketMaker.est_income > 10 and Globals.round > 50:
             ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -404,6 +414,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_splitter() -> bool:
+        assert EntityType.SPLITTER in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -442,6 +453,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -459,6 +471,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_armoured_conveyor() -> bool:
+        assert EntityType.ARMOURED_CONVEYOR in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -497,6 +510,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -514,6 +528,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_bridge() -> bool:
+        assert EntityType.BRIDGE in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -554,6 +569,7 @@ class BuildManager:
         if MarketMaker.est_income > 10 and Globals.round > 50:
             ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -571,6 +587,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_harvester() -> bool:
+        assert EntityType.HARVESTER in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -610,6 +627,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -627,6 +645,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_foundry() -> bool:
+        assert EntityType.FOUNDRY in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -666,6 +685,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -683,6 +703,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_road() -> bool:
+        assert EntityType.ROAD in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -721,6 +742,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -738,6 +760,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_barrier() -> bool:
+        assert EntityType.BARRIER in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -777,6 +800,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 

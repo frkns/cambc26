@@ -54,9 +54,9 @@ class MarketMaker:
             return cls.hres
 
         
-        
+        Profiler.start()
         bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.core_sink_set)
-        
+        Profiler.end(f"""BfsBureau.find_bridge_route""")
         h_cost, _ = Globals.ct.get_harvester_cost()
         b_cost, _ = Globals.ct.get_bridge_cost()
         cls.hres = h_cost + b_cost * bridges 

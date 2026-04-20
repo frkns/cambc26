@@ -40,9 +40,9 @@ class Pathfinder:
                 return
 
 
-        
+        Profiler.start()
         dist, dir = BfsBureau.find_route(Globals.my_pos, target, ban_target_pos)
-        
+        Profiler.end(f"""BfsBureau.find_route""")
 
         if orbit and 0 < target.distance_squared(Globals.my_pos) <= 2:
             dir = Globals.my_pos.direction_to(target).rotate_left()

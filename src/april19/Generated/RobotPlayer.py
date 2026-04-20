@@ -66,3 +66,4 @@ class Player:
             Debug.tee(err)
             Debug.tee(f'(I am a {Globals.my_type})')
 
+            ct.resign()

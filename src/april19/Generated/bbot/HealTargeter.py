@@ -84,9 +84,11 @@ class HealTargeter:
             if HealTargetInfo.is_better_than(cand, best):
                 best = cand
 
+        print(f'(possible) heal target {best.position=} {best.building_heal=} {best.building_hp=}')
 
         total_heal = best.building_heal + best.bot_heal
         if total_heal < 4:
+            print(f'{total_heal=}')
             # Still heal buildings next to harvesters for shielding
             if not best.harvester_adjacent or total_heal == 0:
                 return None

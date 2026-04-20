@@ -30,13 +30,13 @@ class Builder(Unit):
     def start_turn(cls):
         Unit.start_turn()
 
-        
+        Profiler.start()
         DarkForest.fcompute()
-        
+        Profiler.end(f"""DarkForest.fcompute""")
 
-        
+        Profiler.start()
         BfsBureau.update()
-        
+        Profiler.end(f"""BfsBureau.update""")
 
         Symmetry.run_sym_check()
 
@@ -57,34 +57,34 @@ class Builder(Unit):
         print("Mode:", cls.mode)
 
 
-        
+        Profiler.start()
         BfsBureau.bfs20()
-        
+        Profiler.end(f"""BfsBureau.bfs20""")
 
-        
+        Profiler.start()
         BfsBureau.update_enclosed_regions()
-        
+        Profiler.end(f"""BfsBureau.update_enclosed_regions""")
 
 
-        
+        Profiler.start()
         OreExecutive.fill()
-        
+        Profiler.end(f"""OreExecutive.fill""")
 
-        
+        Profiler.start()
         VisionTracker.fill()
-        
+        Profiler.end(f"""VisionTracker.fill""")
 
-        
+        Profiler.start()
         SitterTakedown.fill()
-        
+        Profiler.end(f"""SitterTakedown.fill""")
 
-        
+        Profiler.start()
         HarvesterAdjacent.fill()
-        
+        Profiler.end(f"""HarvesterAdjacent.fill""")
 
-        
+        Profiler.start()
         HealTargeter.fill()
-        
+        Profiler.end(f"""HealTargeter.fill""")
 
 
 
@@ -92,23 +92,24 @@ class Builder(Unit):
     def run_turn(cls):
         cls.state, *args = cls.determine_state()
 
+        print(f'running: {cls.state}  @', *args, sep=' ')
 
-        
+        Profiler.start()
         globals()[f'State{cls.state}'].run(*args)
-        
+        Profiler.end(f"""State{cls.state}""")
 
 
     @classmethod
     def end_turn(cls):
         Unit.end_turn()
 
-        
+        Profiler.start()
         HealExecutor.execute_heal_attempt()
-        
+        Profiler.end(f"""HealExecutor.execute_heal_attempt""")
 
-        
+        Profiler.start()
         Marker.attempt_mark()
-        
+        Profiler.end(f"""Marker.attempt_mark""")
 
         # BfsBureau.debug_enemy_launcher_zone()
         # if Globals.round & 1:
@@ -238,7 +239,7 @@ class Builder(Unit):
         if route_pos is not None and cls.mode != 2:
             RouteToCore.set_pos(route_pos)
             if RouteToCore.is_active:
-                
+                print("""[HarvesterAdjacent found route]""")
                 return ('Route',)
 
         if stalk_target is not None and cls.mode != 2:

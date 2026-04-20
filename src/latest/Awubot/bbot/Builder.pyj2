@@ -137,6 +137,7 @@ class Builder({{ super() }}):
     @classmethod
     def determine_state(cls):
         my_pos = Globals.my_pos
+        ct = Globals.ct
 
         healinfo = HealTargeter.get_best_target_info()
         healpos = None if healinfo is None else healinfo.position
@@ -155,8 +156,10 @@ class Builder({{ super() }}):
             Debug.dot(takedownpos, Color.PURPLE)
             return 'BuildGunner', takedownpos, None
 
-
+        {{ P.start() }}
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
+        {{ P.end('HarvesterAdjacent.get_best_sentinel_position') }}
+
         if sentinelpos is not None:
             Debug.dot(sentinelpos, Color.PURPLE)
             return 'BuildTurret', sentinelpos, None
@@ -265,8 +268,9 @@ class Builder({{ super() }}):
         if rushTarget is not None:
             return 'Rush', rushTarget
 
-        patrolTarget = PatrolTargeter.get_best_target()
-        if patrolTarget is not None:
-            return 'MoveTo', patrolTarget, 'Patrol'
+        if ct.get_unit_count() < 15 or Globals.my_id % 3 == 0:
+            patrolTarget = PatrolTargeter.get_best_target()
+            if patrolTarget is not None:
+                return 'MoveTo', patrolTarget, 'Patrol'
 
         return 'MoveTo', Explore.get_target(), 'Explore'

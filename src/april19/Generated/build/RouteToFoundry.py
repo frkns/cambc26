@@ -136,7 +136,7 @@ class RouteToFoundry:
             avoid_pos = RouteToCore.pathFindingKill 
         )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("RouteToFoundry: first_target is None, giving up")

@@ -149,6 +149,7 @@ class BfsBureau:
         cls.weight[idx + -56] += 1000000
         cls.weight[idx + -57] += 1000000
 
+        Debug.dot(Position(x, y), Color.YELLOW)
 
     @classmethod
     def remove_enemy_launcher(cls, idx):
@@ -189,6 +190,7 @@ class BfsBureau:
         if cls.weight[i] < 1:
             cls.weight[i] = 1
 
+        Debug.dot(Position(x, y), Color.GREEN)
 
 
 
@@ -1565,6 +1567,7 @@ class BfsBureau:
 
         # ── Same-tile: CENTRE competes with neighbors ──
         if si == ti:
+            print(f'[on top of find_route target with {ban_target=}]')
             
             if ban_target:
                 _best_c = 1000000
@@ -1886,7 +1889,7 @@ class BfsBureau:
             return 1000000, None
 
         # ── Phase 2: bitmask BFS from Dijkstra frontier ──
-        
+        Profiler.start()
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = (cls.now_passable_int | _tm) & cls.board_mask

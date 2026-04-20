@@ -67,9 +67,9 @@ class Unit:
         MarketMaker.refresh()
 
         if Globals.ct.get_entity_type() != EntityType.LAUNCHER:
-            
+            Profiler.start()
             Map.fill_tile_info()
-            
+            Profiler.end(f"""Map.fill_tile_info""")
 
     @classmethod
     def run_turn(cls):
@@ -78,7 +78,7 @@ class Unit:
     @classmethod
     def end_turn(cls):
 
-        if Globals.round == 1999:
+        if Globals.round == 667:
             Profiler.report()
         print(f'scale ratio {MarketMaker.scale_ratio:.2f}')
 

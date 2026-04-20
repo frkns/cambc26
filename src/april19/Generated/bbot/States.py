@@ -58,6 +58,7 @@ class StateReroute:  # for misrouted ally transporters
 class StateRoute:
     @classmethod
     def run(cls):
+        assert RouteToCore.is_active
         RouteToCore.do_routing()
 
 class StateFoundryBuild:
@@ -84,6 +85,7 @@ class StateRouteBreach:
 class StateMoveTo:
     @classmethod
     def run(cls, pos, tag='_'):
+        print(f'{tag=}')
         Pathfinder.move_to(pos)
 
 class StateRush:
@@ -208,6 +210,7 @@ class StateBuildShield:
                     if ti.is_building_ally:
                         found_ally_harvester = True
         
+        print(f'{target_dir=}, {found_ally_harvester=}')
 
 
         if pos != Globals.my_pos:

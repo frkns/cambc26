@@ -184,16 +184,16 @@ class VisionTracker:
 
     @classmethod
     def canonical_ally(cls, from_pos: Position) -> BotInfo:
-        
+        Profiler.start()
         ret = min(cls.allies, key=
             lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )
-        
+        Profiler.end(f"""canonical_ally""")
         return ret
     
     @classmethod
     def canonical_ally_index(cls, from_pos: Position) -> int:
-        
+        Profiler.start()
         allyIndex = list(map(lambda x: x.position, sorted(cls.allies, key=
             lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )))
@@ -202,7 +202,7 @@ class VisionTracker:
         else:
             Debug.warn("my_pos not found in canonical ally list!")
             i = 0
-        
+        Profiler.end(f"""canonical_ally""")
         return i
 
 

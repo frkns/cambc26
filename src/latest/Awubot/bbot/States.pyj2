@@ -117,8 +117,8 @@ class StateBuildTurret:
 
         x, y = gunner_pos.x + dx, gunner_pos.y + dy      # start one step ahead
 
-        while x >= 0 and y >= 0 and x <= Map.W and y <= Map.H:
-            if (x - gunner_pos.x) ** 2 + (y - gunner_pos.y) ** 2 > GameConstants.GUNNER_VISION_RADIUS_SQ:
+        while x >= 0 and y >= 0 and x < Map.W and y < Map.H:
+            if (x - gunner_pos.x) ** 2 + (y - gunner_pos.y) ** 2 > {{ GameConstants.GUNNER_VISION_RADIUS_SQ }}:
                 break                                         # out of range — stop ray
 
             ti = Map.tile_info[x][y]
@@ -136,6 +136,7 @@ class StateBuildTurret:
             y += dy
 
         return None
+
     @classmethod
     def run(cls, pos, banned_dir: Direction | None = None):
         Pathfinder.move_to(pos, ban_target_pos=True)

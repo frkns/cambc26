@@ -298,9 +298,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+                Profiler.start()
                 Comms.handle_message(get_marker_value(building_id))
-                
+                Profiler.end(f"""Comms.handle_message""")
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
@@ -632,9 +632,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+                Profiler.start()
                 Comms.handle_message(get_marker_value(building_id))
-                
+                Profiler.end(f"""Comms.handle_message""")
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
@@ -966,9 +966,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+                Profiler.start()
                 Comms.handle_message(get_marker_value(building_id))
-                
+                Profiler.end(f"""Comms.handle_message""")
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
@@ -1279,9 +1279,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+                Profiler.start()
                 Comms.handle_message(get_marker_value(building_id))
-                
+                Profiler.end(f"""Comms.handle_message""")
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
