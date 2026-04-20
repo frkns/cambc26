@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # latest,  @ 2026-04-20 15:48:37 (local)
+=======
+# latest,  @ 2026-04-20 15:04:27 (local)
+>>>>>>> foundry
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -4495,7 +4499,7 @@ class BreachBuild:
     @classmethod
     def build_breach(cls, pos):
         print("Trying to build breach at", pos)
-        print("Breach cost:", Globals.ct.get_breach_cost()[0])
+        print("Breach cost:", Globals.ct.get_breach_cost()[0],Globals.ct.get_breach_cost()[1])
         ti = Map.tile_info[pos.x][pos.y]
         if ti.has_building and not ti.is_building_ally:
             print("Can't build breach at", pos, "because of enemy building")
@@ -23873,6 +23877,11 @@ class FoundryBuild:
         print("Trying to build foundry at", pos)
         print("Foundry cost:", Globals.ct.get_foundry_cost()[0])
 
+        ti = Map.tile_info[pos.x][pos.y]
+        if not ti.is_building_ally or ti.entity_type == EntityType.FOUNDRY:    
+            RouteToFoundry._foundry_target = None
+            return
+
         Pathfinder.move_to(pos, ban_target_pos=True)
 
         # if Globals.ct.get_global_resources()[0] > Globals.ct.get_foundry_cost()[0] \
@@ -23887,10 +23896,11 @@ class FoundryBuild:
             cls.register_foundry(pos)          # fixed: was register_foundry(encoded)
 
             RouteToFoundry._foundry_target = None
-
+            """
             cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
             if cand is not None and cand.ti.entity_type not in Constants.TRANSPORTERS_SET:
                 RouteToBreach.set_pos(cand.position)
+            """
             return True
         return False
 
@@ -28752,7 +28762,7 @@ class OreExecutive:
             Debug.diamond(Color.RED)
             return
 
-        RouteToFoundry.set_pos(cand.position)
+        RouteToFoundry.from_pos = pos
         RouteToFoundry.try_claim_target()
         foundry_enc = RouteToFoundry._foundry_target
         if foundry_enc is None or not RouteToFoundry.axionite_can_reach_foundry(cand.position, foundry_enc):
@@ -29802,6 +29812,7 @@ class RouteToFoundry:
 class RushTargeter:
     persistentOre = None
     beenNearbyEnemyCore = False
+    killed: set[Position] = set()
 
     @classmethod
     def enemy_core_turret_target(cls, attack_r_sq) -> Position | None:
@@ -29844,9 +29855,9 @@ class RushTargeter:
         return (((attack_pos.x) + 3) * 56 + ((attack_pos.y) + 3))
 
     @classmethod
-    def nearest_titanium_to_enemy(cls) -> Position | None:
+    def nearest_source_to_enemy(cls):
         if not Symmetry.is_sym_known:
-            return None
+            return None, "C" # for cry
         maxr = 10
         cx = Symmetry.enemy_core_pos.x
         cy = Symmetry.enemy_core_pos.y
@@ -29871,14 +29882,18 @@ class RushTargeter:
                     thepos = Position(x, y)
                     if OreExecutive.state[thepos] == 2: #killed
                         continue
+                    if ti.entity_type in [EntityType.FOUNDRY]:
+                        if thepos in cls.killed:
+                            continue
+                        return thepos, "R" # for just Route
                     if ti.entity_type in [EntityType.HARVESTER,EntityType.FOUNDRY]:
                         continue
                     if ti.has_building and not ti.is_building_ally and ti.entity_type != EntityType.MARKER:
                         continue
                     if env == Environment.ORE_TITANIUM:
-                        return thepos
+                        return thepos, "B" # for build harvester
 
-        return None  # Nothing found
+        return None, "C"  # Nothing found
 
     @classmethod
     def get_best_target(cls):
@@ -29887,10 +29902,11 @@ class RushTargeter:
                 cls.beenNearbyEnemyCore = True
             if Builder.mode == 2:
                 if cls.beenNearbyEnemyCore and BuildManager.can_afford_harvester():
-                    funPos = cls.nearest_titanium_to_enemy()
+                    stuff = cls.nearest_source_to_enemy()
+                    funPos = stuff[0]
                     if funPos == None or not VisionTracker.me_is_canonical_ally(funPos):
                         return Explore.get_target(),'M' #move
-                    return funPos,'B' #build harvester
+                    return funPos, stuff[1] 
                 else:
                     return Explore.get_target(),'M' #move
             if (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
@@ -33768,8 +33784,19 @@ class StateRush:
         type = targ[1]
         if type == 'M': #move
             Pathfinder.move_to(pos)
-        else: #build
+        elif type == 'B': # build
             OreExecutive.go_build_harvester(pos,True)
+        elif type == 'R': #route
+            Pathfinder.move_to(pos)
+            if Pathfinder.given_up:
+                RushTargeter.killed.add(pos)
+                return
+            if Globals.my_pos.distance_squared(pos) <= 4: #sufficiently close
+                cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
+                if cand is not None and cand.ti.entity_type not in Constants.TRANSPORTERS_SET:
+                    RouteToBreach.set_pos(cand.position)
+                else:
+                    RushTargeter.killed.add(pos)
 
 
 # ============================================================
@@ -35094,8 +35121,488 @@ class VisionTracker:
 # ZHolder
 # ============================================================
 
+<<<<<<< HEAD
 class ZHolder:
     banned_sentinel_dir_info: SentinelDirectionInfo = SentinelDirectionInfo()
     banned_sentinel_dir_info.banned = True
+=======
+class Breach(Unit):
+    @classmethod
+    def init(cls):
+        Unit.init()
+        DarkForest.init()
+
+    @classmethod
+    def start_turn(cls):
+        Unit.start_turn()
+        DarkForest.fcompute()
+        DarkForest.debug_kind()
+
+    @classmethod
+    def run_turn(cls):
+        ct = Globals.ct
+        nearbyTiles = ct.get_nearby_tiles()
+        nearbyCore = False
+        for tile in nearbyTiles:
+            daBuildingID = ct.get_tile_building_id(tile)
+            if daBuildingID is not None:
+                if ct.get_team(daBuildingID) != Globals.my_team and ct.get_entity_type(daBuildingID) == EntityType.CORE:
+                    nearbyCore = True
+                    break
+        RANGE_DIST = 5
+        if nearbyCore:
+            RANGE_DIST = 2 #nearby core, shoot closer
+        print("Nearby core?", nearbyCore, "Range dist:", RANGE_DIST)
+        myDir = Globals.ct.get_direction()
+        myPos = Globals.my_pos
+        newPos = myPos
+        for _ in range(RANGE_DIST):
+            newPos =newPos.add(myDir)
+        opposite = myDir.opposite()
+        for _ in range(RANGE_DIST):
+            if Globals.ct.can_fire(newPos):
+                Globals.ct.fire(newPos)
+                print("Yo firing at", newPos)
+                return
+            newPos = newPos.add(opposite)
+    @classmethod
+    def end_turn(cls):
+        Unit.end_turn()
+
+
+# ============================================================
+# Builder
+# ============================================================
+
+class Builder(Unit):
+    state: str
+    mode: int = 0
+
+    @classmethod
+    def init(cls):
+        Unit.init()
+        Explore.init()
+        DarkForest.init()
+        BfsBureau.enclosed_init()
+        cls.state = 'Explore'
+
+
+    @classmethod
+    def start_turn(cls):
+        Unit.start_turn()
+
+        
+        DarkForest.fcompute()
+        
+
+        
+        BfsBureau.update()
+        
+
+        Symmetry.run_sym_check()
+
+        if cls.mode == 0:
+            if Globals.round in [4,5]:
+                cls.mode = 2
+                Explore.target = Explore.new_target()
+            else:
+                cls.mode = 1
+        if Globals.round >= Constants.RUSH_OVER:
+            cls.mode = 1
+            Explore.target = Explore.new_target()
+        """
+        if (cls.mode == 2 and Symmetry.is_sym_known and Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= 36):
+            cls.mode = 1
+            Explore.target = Explore.new_target()
+        """
+        print("Mode:", cls.mode)
+
+
+        
+        BfsBureau.bfs20()
+        
+
+        
+        BfsBureau.update_enclosed_regions()
+        
+
+
+        
+        OreExecutive.fill()
+        
+
+        
+        VisionTracker.fill()
+        
+
+        
+        SitterTakedown.fill()
+        
+
+        
+        HarvesterAdjacent.fill()
+        
+
+        
+        HealTargeter.fill()
+        
+
+
+
+    @classmethod
+    def run_turn(cls):
+        cls.state, *args = cls.determine_state()
+
+
+        
+        globals()[f'State{cls.state}'].run(*args)
+        
+
+
+    @classmethod
+    def end_turn(cls):
+        Unit.end_turn()
+
+        
+        HealExecutor.execute_heal_attempt()
+        
+
+        
+        Marker.attempt_mark()
+        
+
+        # BfsBureau.debug_enemy_launcher_zone()
+        # if Globals.round & 1:
+        #     BfsBureau.debug_now_passable_int_impassable()
+        # else:
+        #     BfsBureau.debug_now_weight_inf()
+
+
+    @classmethod
+    def determine_state(cls):
+        my_pos = Globals.my_pos
+
+        healinfo = HealTargeter.get_best_target_info()
+        healpos = None if healinfo is None else healinfo.position
+
+        takedowninfo = HarvesterAdjacent.get_best_turret_takedown_info()
+        takedownpos = None if takedowninfo is None else takedowninfo.position
+
+        misinfo: TransporterInfo = VisionTracker.get_best_misrouted_target() 
+        
+        if RouteToBreach.is_active:
+            return ('RouteBreach',)
+
+        if takedownpos is not None:
+            Debug.dot(takedownpos, Color.PURPLE)
+            return 'BuildGunner', takedownpos, None
+
+
+        sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
+        if sentinelpos is not None:
+            Debug.dot(sentinelpos, Color.PURPLE)
+            return 'BuildTurret', sentinelpos, None
+
+        # disable for now
+        sitterpos = SitterTakedown.get_best_launcher_position()
+        if sitterpos is not None:
+            Debug.dot(sitterpos, Color.PURPLE)
+            return 'BuildLauncher', sitterpos
+
+
+        if healpos is not None:
+            return 'MoveTo', healpos, 'Heal'
+
+        if (
+             HealExecutor.last_healed is not None 
+             and HealExecutor.last_healed.is_turret
+             and (Globals.round - HealExecutor.last_healed_round) <= 5
+        ):
+            if healpos is not None:  # redundant, OK
+                return 'MoveTo', healpos, '[lrh: move to heal]'
+            return 'MoveTo', HealExecutor.last_healed.position, '[lrh: wait for heal]'
+            
+        buildingFirstConveyor = RouteToCore.is_active and len(RouteToCore.prevRoute) == 0
+            
+        if not buildingFirstConveyor:
+            shieldpos = HarvesterAdjacent.get_best_shield_position()
+            if shieldpos is not None:
+                return 'BuildShield', shieldpos
+
+        if RouteToFoundry.is_active:
+            return ('RouteFoundry',)
+
+        if RouteToCore.is_active:
+            return ('Route',)
+
+        if misinfo is not None and not (RouteToCore.backTracking or RouteToFoundry.backTracking and not RouteToCore.is_active and not RouteToFoundry.is_active):
+            if misinfo.on_ally_side:
+                return 'Reroute', misinfo.position
+            else:
+                return 'Reroute', misinfo.position  # same
+            
+        if buildingFirstConveyor:
+            shieldpos = HarvesterAdjacent.get_best_shield_position()
+            if shieldpos is not None:
+                return 'BuildShield', shieldpos
+
+        breach_target = BreachBuild._pick_target()
+        if breach_target is not None:
+            return 'BreachBuild', breach_target
+        
+        foundry_target = FoundryBuild._pick_target()
+        if foundry_target is not None:
+            return 'FoundryBuild', foundry_target
+
+        trans: TransporterInfo = ConnectManager.get_connect_target_info()
+        if trans is not None:
+            tpos = trans.target
+
+            if Util.dist_sq(tpos, Symmetry.enemy_core_pos) \
+                    < Util.dist_sq(tpos, Unit.core_pos) \
+                    and BfsBureau.bfs20_dist_adj[(((tpos.x) + 3) * 56 + ((tpos.y) + 3))] < 100:
+                return 'BuildTurret', tpos 
+
+            if tpos not in RouteToCore.killed:
+                RouteToCore.set_pos(tpos)
+                return 'MoveTo', tpos, 'InitRoute'
+
+        apos = Attacker.get_target()
+        if apos is not None:
+            return 'Attack', apos
+
+        ax_target = OreExecutive.get_axionite_target()
+        ti_target = OreExecutive.get_titanium_target()
+        stalk_target = StalkTargeter.get_best_target()
+
+        dist_ti = 1000000 if ti_target is None else my_pos.distance_squared(ti_target)
+        dist_ax = 1000000 if ax_target is None else my_pos.distance_squared(ax_target)
+        dist_stalk = 1000000 if stalk_target is None else my_pos.distance_squared(stalk_target)
+
+        if (dist_stalk <= 4 or (dist_stalk < dist_ti and dist_stalk < dist_ax)) and cls.mode != 2:
+            return 'MoveTo', stalk_target, 'Stalk'
+
+        if ax_target is not None and MarketMaker.ax == 0 and cls.mode != 2:
+            return 'BuildHarvesterAx', ax_target
+
+        if ti_target is not None and cls.mode != 2:
+            return 'BuildHarvester', ti_target
+
+        if ax_target is not None and cls.mode != 2:
+            return 'BuildHarvesterAx', ax_target
+
+        route_pos = HarvesterAdjacent.get_best_route_position()
+        if route_pos is not None and cls.mode != 2:
+            RouteToCore.set_pos(route_pos)
+            if RouteToCore.is_active:
+                
+                return ('Route',)
+
+        if stalk_target is not None and cls.mode != 2:
+            return 'MoveTo', stalk_target, 'Stalk'
+
+        rushTarget = RushTargeter.get_best_target()
+        if rushTarget is not None:
+            return 'Rush', rushTarget
+
+        patrolTarget = PatrolTargeter.get_best_target()
+        if patrolTarget is not None:
+            return 'MoveTo', patrolTarget, 'Patrol'
+
+        return 'MoveTo', Explore.get_target(), 'Explore'
+
+
+# ============================================================
+# Core
+# ============================================================
+
+class Core(Unit):
+
+    @classmethod
+    def init(cls):
+        Unit.init()
+
+    @classmethod
+    def start_turn(cls):
+        Unit.start_turn()
+        CoreHistory.fill()
+        SpawnManager.fill()
+        print(f'est income: {MarketMaker.est_income}')
+
+    @classmethod
+    def run_turn(cls):
+        if BurnManager.should_burn_emergency(): 
+            BurnManager.burn()
+
+        # Emergyspawn tries to build a bot the moment it sees an enemy, which is pretty inefficient in most scenarios. 
+        """
+        # I think this is cleaner
+        if SpawnManager.should_spawn_emergency():
+            BurnManager.burn()
+        """
+        
+        if SpawnManager.should_spawn() or SpawnManager.should_spawn_emergency():
+            SpawnManager.spawn()
+
+    @classmethod
+    def end_turn(cls):
+        Unit.end_turn()
+
+
+# ============================================================
+# Gunner
+# ============================================================
+
+class Gunner(Unit):
+    @classmethod
+    def init(cls):
+        Unit.init()
+        DarkForest.init()
+        TurretSuicide.init()
+
+    @classmethod
+    def start_turn(cls):
+        Unit.start_turn()
+        TurretSuicide.update_and_check()
+
+        DarkForest.fcompute()
+
+        GunnerSupervisor.fill()
+
+    @classmethod
+    def run_turn(cls):
+        GunnerSupervisor.try_fire()
+
+    @classmethod
+    def end_turn(cls):
+        Unit.end_turn()
+
+
+# ============================================================
+# Launcher
+# ============================================================
+
+class Launcher(Unit):
+    @classmethod
+    def init(cls):
+        Unit.init()
+        DarkForest.init()
+        cls.ROUTING_SET.add(EntityType.HARVESTER)
+        cls.ROUTING_SET.add(EntityType.FOUNDRY)
+        cls.ROUTING_SET.add(EntityType.CORE)
+
+    @classmethod
+    def start_turn(cls):
+        Unit.start_turn()
+
+    
+    ROUTING_SET = Constants.TRANSPORTERS_SET
+
+    @classmethod
+    def run_turn(cls):
+        ct = Globals.ct
+        my_team = ct.get_team()
+        my_pos = ct.get_position()
+        tiles = ct.get_nearby_tiles()
+
+        BUILDER_BOT = EntityType.BUILDER_BOT
+        nearby_bot = None
+        get_etype = ct.get_entity_type
+        get_team = ct.get_team
+        for unit in ct.get_nearby_units(2):
+            if get_etype(unit) == BUILDER_BOT and get_team(unit) != my_team:
+                nearby_bot = ct.get_position(unit)
+                break
+
+        print("Oh no! Nearby Enemy Bot:", nearby_bot)
+        print("Time Elapsed:", ct.get_cpu_time_elapsed())
+
+        ROUTING = cls.ROUTING_SET
+        LAUNCHER = EntityType.LAUNCHER
+        DIRECTIONS = Constants.DIRECTIONS
+        map_w = ct.get_map_width()
+        map_h = ct.get_map_height()
+
+        building_cache = {}
+        get_bid = ct.get_tile_building_id
+        _bc_get = building_cache.get
+        scores = []
+        _sa = scores.append
+
+        for tile in tiles:
+            building_id = get_bid(tile)
+            if building_id is not None:
+                building_cache[tile] = Building(ct, building_id)
+
+            if not ct.is_tile_passable(tile):
+                continue
+
+            building = _bc_get(tile)
+            if building is not None and building.team == my_team and building.entityType in ROUTING:
+                continue
+
+            score = my_pos.distance_squared(tile)
+
+            for d in DIRECTIONS:
+                new_loc = tile.add(d)
+                nx, ny = new_loc.x, new_loc.y
+                if not (0 <= nx < map_w and 0 <= ny < map_h) or not ct.is_in_vision(new_loc):
+                    continue
+                adj_building = _bc_get(new_loc)
+                if adj_building is None:
+                    continue
+                if adj_building.team != my_team and adj_building.entityType == LAUNCHER:
+                    score -= 50
+                elif adj_building.team == my_team and adj_building.entityType in ROUTING:
+                    score -= 50
+
+            _sa((score, tile))
+            if ct.get_cpu_time_elapsed() > 1920:
+                break
+
+        best_pos = max(scores, key=lambda x: x[0])[1] if scores else None
+
+        print("Plausible place to throw:", best_pos)
+
+        if nearby_bot is not None and best_pos is not None and ct.can_launch(nearby_bot, best_pos):
+            ct.launch(nearby_bot, best_pos)
+
+    @classmethod
+    def on_map(cls, ct, pos):
+        return 0 <= pos.x < ct.get_map_width() and 0 <= pos.y < ct.get_map_height()
+
+    @classmethod
+    def end_turn(cls):
+        Unit.end_turn()
+
+
+# ============================================================
+# Sentinel
+# ============================================================
+
+class Sentinel(Unit):
+    @classmethod
+    def init(cls):
+        Unit.init()
+        DarkForest.init()
+        TurretSuicide.init()
+
+    @classmethod
+    def start_turn(cls):
+        Unit.start_turn()
+        TurretSuicide.update_and_check()
+
+        DarkForest.fcompute()
+
+        SentinelSupervisor.fill()
+
+    @classmethod
+    def run_turn(cls):
+        SentinelSupervisor.try_fire()
+
+    @classmethod
+    def end_turn(cls):
+        Unit.end_turn()
+>>>>>>> foundry
 
 

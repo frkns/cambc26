@@ -106,8 +106,19 @@ class StateRush:
         type = targ[1]
         if type == 'M': #move
             Pathfinder.move_to(pos)
-        else: #build
+        elif type == 'B': # build
             OreExecutive.go_build_harvester(pos,True)
+        elif type == 'R': #route
+            Pathfinder.move_to(pos)
+            if Pathfinder.given_up:
+                RushTargeter.killed.add(pos)
+                return
+            if Globals.my_pos.distance_squared(pos) <= 4: #sufficiently close
+                cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
+                if cand is not None and cand.ti.entity_type not in Constants.TRANSPORTERS_SET:
+                    RouteToBreach.set_pos(cand.position)
+                else:
+                    RushTargeter.killed.add(pos)
 
 class StateBuildTurret:
     @classmethod
