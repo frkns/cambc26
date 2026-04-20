@@ -25,6 +25,7 @@ class RouteToCore:
     prevRoute = []
     backTracking = False
     pathFindingKill: set[int] = set()
+    isAttack = False
 
     @classmethod
     def set_pos(cls, pos: Position, fullReset = True):
@@ -47,27 +48,40 @@ class RouteToCore:
     @classmethod
     def try_build_route(cls):
         assert cls.is_active
-
-        # short search to core in case it's close
-        bridge_dist, first_target = BfsBureau.find_bridge_route(
-            cls.from_pos,
-            Unit.core_pos_set,
-            max_iter=0,
-            avoid_pos = cls.pathFindingKill
-        )
-        # otherwise allow all sinks
-        if first_target is None:
+        bridge_dist = 0
+        first_target = None
+        if cls.isAttack:
+            coolPos = RushTargeter.enemy_core_turret_target(GameConstants.SENTINEL_VISION_RADIUS_SQ)
+            if coolPos == None:
+                cls.give_up(True)
+                StateMoveTo.run(Explore.get_target()) # new
+            valid_pos_set = set([coolPos]) 
             bridge_dist, first_target = BfsBureau.find_bridge_route(
                 cls.from_pos,
-                DarkForest.core_sink_set,  # was sink_set
+                valid_pos_set,
                 avoid_pos = cls.pathFindingKill
             )
+        else:
+            # short search to core in case it's close
+            bridge_dist, first_target = BfsBureau.find_bridge_route(
+                cls.from_pos,
+                Unit.core_pos_set,
+                max_iter=0,
+                avoid_pos = cls.pathFindingKill
+            )
+            # otherwise allow all sinks
+            if first_target is None:
+                bridge_dist, first_target = BfsBureau.find_bridge_route(
+                    cls.from_pos,
+                    DarkForest.core_sink_set,  # was sink_set
+                    avoid_pos = cls.pathFindingKill
+                )
 
         {{ D.show('bridge_dist') }}
 
         if first_target is None:
             Debug.tee("first_target is None: giving up")
-            if cls.give_up():
+            if cls.give_up(True):
                 StateMoveTo.run(Explore.get_target()) # new
             return
 
@@ -76,18 +90,26 @@ class RouteToCore:
 
         if cls.from_pos.distance_squared(target) == 1:
             if BuildManager.can_dbuild_conveyor(cls.from_pos):
-                if BuildManager.can_dbuild_armoured_conveyor(cls.from_pos):
+                if BuildManager.should_build_armoured(cls.from_pos) and BuildManager.can_dbuild_armoured_conveyor(cls.from_pos):
                     BuildManager.dbuild_armoured_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
                 else:
                     BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
                 cls.set_pos(target,False)
+
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
             cls.set_pos(target,False)
 
     @classmethod
     def move_to_next(cls):
-        Pathfinder.move_to(cls.from_pos, ban_target_pos=True)
+        from_pos = cls.from_pos
+        Pathfinder.move_to(from_pos, ban_target_pos=True)
+
+        # x, y = from_pos.x, from_pos.y
+        # if Map.tile_info[x][y].entity_type == EntityType.ROAD:
+        #     Pathfinder.move_to(from_pos, ban_target_pos=False)
+        # else:
+        #     Pathfinder.move_to(from_pos, ban_target_pos=True)
 
 
     @classmethod
@@ -105,6 +127,11 @@ class RouteToCore:
             if not cls.backTracking:
                 if ti.entity_type in Constants.TRANSPORTERS_SET:
                     # Another bot already built here — they've taken over, bow out cleanly
+                    if ti.target is not None:
+                        tx, ty = ti.target.x, ti.target.y
+                        if Map.tile_info[tx][ty].entity_type == EntityType.HARVESTER:
+                            return False  # it is a shield
+
                     cls.is_active = False
                     cls.prevRoute.clear()
                     return True
@@ -114,10 +141,10 @@ class RouteToCore:
 
 
     @classmethod
-    def give_up(cls):
+    def give_up(cls, hard = False):
         from_pos = cls.from_pos
         enc = {{ encode_pos('from_pos.x', 'from_pos.y') }}
-        if len(cls.prevRoute) == 0 or DarkForest.node_kind[enc] in \
+        if hard or len(cls.prevRoute) == 0 or DarkForest.node_kind[enc] in \
                 ({{ Kind.ALLY_CONSUMER }}, {{ Kind.ALLY_CORE }}):
             cls.is_active = False
             cls.killed.add(from_pos)
@@ -139,7 +166,7 @@ class RouteToCore:
 
     @classmethod
     def do_routing(cls):
-        print("RouteToCore: doing routing from", cls.from_pos)
+        print("RouteToCore: doing routing from", cls.from_pos,"Attack route",cls.isAttack)
         if cls.should_give_up():
             if cls.give_up():
                 StateMoveTo.run(Explore.get_target()) # new
@@ -147,7 +174,8 @@ class RouteToCore:
 
         dsq = Globals.my_pos.distance_squared(cls.from_pos)
         if Globals.ct.get_action_cooldown() == 0 \
-                and (dsq == 1 or dsq == 2):
+                and (dsq <= 2):
+
             cls.try_build_route()
             cls.move_to_next()
             # if Globals.ct.can_build_road(cls.from_pos):

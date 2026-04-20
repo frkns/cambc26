@@ -20,6 +20,7 @@ from Generated import *
 
 class RushTargeter:
     persistentOre = None
+    beenNearbyEnemyCore = False
 
     @classmethod
     def enemy_core_turret_target(cls, attack_r_sq) -> Position | None:
@@ -48,6 +49,8 @@ class RushTargeter:
                     continue
                 if tile.has_building and tile.entity_type in Constants.TURRET_SET:
                     continue
+                if tile.has_building and tile.entity_type in Constants.TRANSPORTERS_SET:
+                    continue
                 d = currLoc.distance_squared(candidate)
                 if d < best_attack_dist:
                     best_attack_dist = d
@@ -63,7 +66,7 @@ class RushTargeter:
     def nearest_titanium_to_enemy(cls) -> Position | None:
         if not Symmetry.is_sym_known:
             return None
-        maxr = max(Map.W,Map.H)
+        maxr = 10
         cx = Symmetry.enemy_core_pos.x
         cy = Symmetry.enemy_core_pos.y
         for r in range(1, maxr + 1):
@@ -81,28 +84,36 @@ class RushTargeter:
                         continue
 
                     ti = Map.tile_info[x][y]
+                    if ti is None:
+                        continue
                     env = ti.env
+                    thepos = Position(x, y)
+                    if OreExecutive.state[thepos] == 2: #killed
+                        continue
+                    if ti.entity_type in [EntityType.HARVESTER,EntityType.FOUNDRY]:
+                        continue
+                    if ti.has_building and not ti.is_building_ally and ti.entity_type != EntityType.MARKER:
+                        continue
                     if env == Environment.ORE_TITANIUM:
-                        return x, y
+                        return thepos
 
         return None  # Nothing found
 
     @classmethod
-    def get_best_target(cls) -> Position | None:
+    def get_best_target(cls):
         if Symmetry.is_sym_known:
-            if (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100) or Builder.mode == {{ Mode.EARLY_RUSH }}:
-                """
-                if Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) < 36: #sufficiently near
-                    validPos = cls.enemy_core_turret_target(GameConstants.SENTINEL_VISION_RADIUS_SQ)
-                    if validPos == None:
-                        return Symmetry.enemy_core_pos
-                    coolTitanium = cls.nearest_titanium_to_enemy()
-                    if coolTitanium == None:
-                        return Symmetry.enemy_core_pos
-                    cls.persistentOre = coolTitanium
-                """
-
-                return Symmetry.enemy_core_pos
+            if Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) < 25: #sufficiently near
+                cls.beenNearbyEnemyCore = True
+            if Builder.mode == {{ Mode.EARLY_RUSH }}:
+                if cls.beenNearbyEnemyCore and BuildManager.can_afford_harvester():
+                    funPos = cls.nearest_titanium_to_enemy()
+                    if funPos == None or not VisionTracker.me_is_canonical_ally(funPos):
+                        return Explore.get_target(),'M' #move
+                    return funPos,'B' #build harvester
+                else:
+                    return Explore.get_target(),'M' #move
+            if (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
+                return Symmetry.enemy_core_pos,'M' #move
         elif Builder.mode == {{ Mode.EARLY_RUSH }}:
-                return Symmetry.sym_pos(Unit.core_pos)
+            return Symmetry.sym_pos(Unit.core_pos),'M' #move
         return None

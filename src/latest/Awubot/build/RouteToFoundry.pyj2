@@ -26,7 +26,6 @@ class RouteToFoundry:
     backTracking = False
 
     # Positions that have been claimed (or built) as foundry sites.
-    # Class-level so all bots in this process see the same table.
     planned_foundry_positions: set[int] = set()
 
     # The specific titanium leaf this bot is routing toward.
@@ -113,7 +112,6 @@ class RouteToFoundry:
         encoded = {{ encode_pos('pos.x', 'pos.y') }}
 
         # Arrived at the foundry site — deactivate so the caller can build.
-        # Keep the entry in planned_foundry_positions: the foundry is here now.
         if cls._foundry_target is not None and encoded == cls._foundry_target:
             cls.is_active = False
             cls.prevRoute.clear()
@@ -219,16 +217,21 @@ class RouteToFoundry:
 
     @classmethod
     def try_claim_target(cls):
-        # Claim a target on first call (or if we lost one).
-        if cls._foundry_target is None:
+        if cls._foundry_target in cls.planned_foundry_positions:
+            cls._foundry_target = cls._pick_target()
+            if cls._foundry_target is None:
+                Debug.tee("RouteToFoundry: Old leaf used, no unclaimed titanium leaf available")
+                if cls.give_up():
+                    StateMoveTo.run(Explore.get_target())
+            return
+        if cls._foundry_target is None: # Claim a target on first call (or if we lost one).
             cls._foundry_target = cls._pick_target()
             if cls._foundry_target is None:
                 Debug.tee("RouteToFoundry: no unclaimed titanium leaf available")
                 if cls.give_up():
                     StateMoveTo.run(Explore.get_target())
                 return
-            cls.planned_foundry_positions.add(cls._foundry_target)
-
+            #cls.planned_foundry_positions.add(cls._foundry_target)
     @classmethod
     def do_routing(cls):
         cls.try_claim_target()

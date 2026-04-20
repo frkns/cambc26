@@ -58,11 +58,16 @@ class Symmetry:
         if cls.is_sym_known: 
             return
 
+        pre = cls.V + cls.H + cls.R  # new
+
         cls.check_map[cls.V + (cls.H * 2) + (cls.R * 4)]()
 
-        if cls.V + cls.H + cls.R == 1: 
-            cls.do_sym_found_stuff()
+        post = cls.V + cls.H + cls.R  # new
 
+        if post == 1: 
+            cls.do_sym_found_stuff()
+        elif post < pre and cls.R == 0:  # new
+            cls.predict_enemy_core()
 
     @classmethod
     def do_sym_found_stuff(cls):
