@@ -43,6 +43,11 @@ class FoundryBuild:
         print("Trying to build foundry at", pos)
         print("Foundry cost:", Globals.ct.get_foundry_cost()[0])
 
+        ti = Map.tile_info[pos.x][pos.y]
+        if not ti.is_building_ally or ti.entity_type == EntityType.FOUNDRY:    
+            RouteToFoundry._foundry_target = None
+            return
+
         Pathfinder.move_to(pos, ban_target_pos=True)
         if Globals.ct.get_global_resources()[0] > Globals.ct.get_foundry_cost()[0] \
                 and Globals.ct.can_destroy(pos) \
@@ -54,10 +59,11 @@ class FoundryBuild:
             cls.register_foundry(pos)          # fixed: was register_foundry(encoded)
 
             RouteToFoundry._foundry_target = None
-
+            """
             cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
             if cand is not None and cand.ti.entity_type not in Constants.TRANSPORTERS_SET:
                 RouteToBreach.set_pos(cand.position)
+            """
             return True
         return False
 

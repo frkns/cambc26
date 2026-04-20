@@ -22,7 +22,7 @@ class BreachBuild:
     @classmethod
     def build_breach(cls, pos):
         print("Trying to build breach at", pos)
-        print("Breach cost:", Globals.ct.get_breach_cost()[0])
+        print("Breach cost:", Globals.ct.get_breach_cost()[0],Globals.ct.get_breach_cost()[1])
         ti = Map.tile_info[pos.x][pos.y]
         if ti.has_building and not ti.is_building_ally:
             print("Can't build breach at", pos, "because of enemy building")

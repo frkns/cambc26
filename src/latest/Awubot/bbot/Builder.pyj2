@@ -146,10 +146,8 @@ class Builder({{ super() }}):
 
         misinfo: TransporterInfo = VisionTracker.get_best_misrouted_target() 
         
-        """
         if RouteToBreach.is_active:
             return ('RouteBreach',)
-        """
 
         if takedownpos is not None:
             Debug.dot(takedownpos, Color.PURPLE)
@@ -204,11 +202,9 @@ class Builder({{ super() }}):
             if shieldpos is not None:
                 return 'BuildShield', shieldpos
 
-        """
         breach_target = BreachBuild._pick_target()
         if breach_target is not None:
             return 'BreachBuild', breach_target
-        """
         
         foundry_target = FoundryBuild._pick_target()
         if foundry_target is not None:

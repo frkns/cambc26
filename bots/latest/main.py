@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-20 13:06:11 (local)
+# latest,  @ 2026-04-20 15:04:27 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -3892,7 +3892,7 @@ class BreachBuild:
     @classmethod
     def build_breach(cls, pos):
         print("Trying to build breach at", pos)
-        print("Breach cost:", Globals.ct.get_breach_cost()[0])
+        print("Breach cost:", Globals.ct.get_breach_cost()[0],Globals.ct.get_breach_cost()[1])
         ti = Map.tile_info[pos.x][pos.y]
         if ti.has_building and not ti.is_building_ally:
             print("Can't build breach at", pos, "because of enemy building")
@@ -23247,6 +23247,11 @@ class FoundryBuild:
         print("Trying to build foundry at", pos)
         print("Foundry cost:", Globals.ct.get_foundry_cost()[0])
 
+        ti = Map.tile_info[pos.x][pos.y]
+        if not ti.is_building_ally or ti.entity_type == EntityType.FOUNDRY:    
+            RouteToFoundry._foundry_target = None
+            return
+
         Pathfinder.move_to(pos, ban_target_pos=True)
         if Globals.ct.get_global_resources()[0] > Globals.ct.get_foundry_cost()[0] \
                 and Globals.ct.can_destroy(pos) \
@@ -23258,10 +23263,11 @@ class FoundryBuild:
             cls.register_foundry(pos)          # fixed: was register_foundry(encoded)
 
             RouteToFoundry._foundry_target = None
-
+            """
             cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
             if cand is not None and cand.ti.entity_type not in Constants.TRANSPORTERS_SET:
                 RouteToBreach.set_pos(cand.position)
+            """
             return True
         return False
 
@@ -29038,6 +29044,7 @@ class RouteToFoundry:
 class RushTargeter:
     persistentOre = None
     beenNearbyEnemyCore = False
+    killed: set[Position] = set()
 
     @classmethod
     def enemy_core_turret_target(cls, attack_r_sq) -> Position | None:
@@ -29080,9 +29087,9 @@ class RushTargeter:
         return (((attack_pos.x) + 3) * 56 + ((attack_pos.y) + 3))
 
     @classmethod
-    def nearest_titanium_to_enemy(cls) -> Position | None:
+    def nearest_source_to_enemy(cls):
         if not Symmetry.is_sym_known:
-            return None
+            return None, "C" # for cry
         maxr = 10
         cx = Symmetry.enemy_core_pos.x
         cy = Symmetry.enemy_core_pos.y
@@ -29107,14 +29114,18 @@ class RushTargeter:
                     thepos = Position(x, y)
                     if OreExecutive.state[thepos] == 2: #killed
                         continue
+                    if ti.entity_type in [EntityType.FOUNDRY]:
+                        if thepos in cls.killed:
+                            continue
+                        return thepos, "R" # for just Route
                     if ti.entity_type in [EntityType.HARVESTER,EntityType.FOUNDRY]:
                         continue
                     if ti.has_building and not ti.is_building_ally and ti.entity_type != EntityType.MARKER:
                         continue
                     if env == Environment.ORE_TITANIUM:
-                        return thepos
+                        return thepos, "B" # for build harvester
 
-        return None  # Nothing found
+        return None, "C"  # Nothing found
 
     @classmethod
     def get_best_target(cls):
@@ -29123,10 +29134,11 @@ class RushTargeter:
                 cls.beenNearbyEnemyCore = True
             if Builder.mode == 2:
                 if cls.beenNearbyEnemyCore and BuildManager.can_afford_harvester():
-                    funPos = cls.nearest_titanium_to_enemy()
+                    stuff = cls.nearest_source_to_enemy()
+                    funPos = stuff[0]
                     if funPos == None or not VisionTracker.me_is_canonical_ally(funPos):
                         return Explore.get_target(),'M' #move
-                    return funPos,'B' #build harvester
+                    return funPos, stuff[1] 
                 else:
                     return Explore.get_target(),'M' #move
             if (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
@@ -31445,8 +31457,19 @@ class StateRush:
         type = targ[1]
         if type == 'M': #move
             Pathfinder.move_to(pos)
-        else: #build
+        elif type == 'B': # build
             OreExecutive.go_build_harvester(pos,True)
+        elif type == 'R': #route
+            Pathfinder.move_to(pos)
+            if Pathfinder.given_up:
+                RushTargeter.killed.add(pos)
+                return
+            if Globals.my_pos.distance_squared(pos) <= 4: #sufficiently close
+                cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
+                if cand is not None and cand.ti.entity_type not in Constants.TRANSPORTERS_SET:
+                    RouteToBreach.set_pos(cand.position)
+                else:
+                    RushTargeter.killed.add(pos)
 
 
 # ============================================================
@@ -32423,10 +32446,8 @@ class Builder(Unit):
 
         misinfo: TransporterInfo = VisionTracker.get_best_misrouted_target() 
         
-        """
         if RouteToBreach.is_active:
             return ('RouteBreach',)
-        """
 
         if takedownpos is not None:
             Debug.dot(takedownpos, Color.PURPLE)
@@ -32481,11 +32502,9 @@ class Builder(Unit):
             if shieldpos is not None:
                 return 'BuildShield', shieldpos
 
-        """
         breach_target = BreachBuild._pick_target()
         if breach_target is not None:
             return 'BreachBuild', breach_target
-        """
         
         foundry_target = FoundryBuild._pick_target()
         if foundry_target is not None:
