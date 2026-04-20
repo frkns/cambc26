@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-20 01:57:35 (local)
+# latest,  @ 2026-04-20 11:48:05 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -26196,22 +26196,44 @@ class Map:
                 else:
                     DarkForest.remove_node(pos_idx)
 
-            is_fresh_enemy_tower = (
-                old_etype != etype and
-                (not is_building_ally or not old_is_building_ally) and
-                (
-                    (etype in (SENTINEL, LAUNCHER) and not is_building_ally) or
-                    (old_etype in (SENTINEL, LAUNCHER) and not old_is_building_ally)
-                )
+            # is_fresh_enemy_tower = (
+            #     old_etype != etype and
+            #     (not is_building_ally or not old_is_building_ally) and
+            #     (
+            #         (etype in (SENTINEL, LAUNCHER) and not is_building_ally) or
+            #         (old_etype in (SENTINEL, LAUNCHER) and not old_is_building_ally)
+            #     )
+            # )
+
+            # if is_fresh_enemy_tower:
+            #     if old_etype == SENTINEL:
+            #         BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
+            #     elif old_etype == LAUNCHER:
+            #         BfsBureau.remove_enemy_launcher(pos_idx)
+
+            # if is_fresh_enemy_tower:
+            #     if etype == SENTINEL:
+            #         BfsBureau.add_enemy_sentinel(pos, ti)
+            #     elif etype == LAUNCHER:
+            #         BfsBureau.add_enemy_launcher(pos_idx)
+
+            old_enemy_tower = (
+                old_etype in (SENTINEL, LAUNCHER) and
+                not old_is_building_ally
             )
 
-            if is_fresh_enemy_tower:
+            new_enemy_tower = (
+                etype in (SENTINEL, LAUNCHER) and
+                not is_building_ally
+            )
+
+            if old_enemy_tower and not new_enemy_tower:
                 if old_etype == SENTINEL:
                     BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
                 elif old_etype == LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
 
-            if is_fresh_enemy_tower:
+            elif new_enemy_tower and not old_enemy_tower:
                 if etype == SENTINEL:
                     BfsBureau.add_enemy_sentinel(pos, ti)
                 elif etype == LAUNCHER:
@@ -26530,22 +26552,44 @@ class Map:
                 else:
                     DarkForest.remove_node(pos_idx)
 
-            is_fresh_enemy_tower = (
-                old_etype != etype and
-                (not is_building_ally or not old_is_building_ally) and
-                (
-                    (etype in (SENTINEL, LAUNCHER) and not is_building_ally) or
-                    (old_etype in (SENTINEL, LAUNCHER) and not old_is_building_ally)
-                )
+            # is_fresh_enemy_tower = (
+            #     old_etype != etype and
+            #     (not is_building_ally or not old_is_building_ally) and
+            #     (
+            #         (etype in (SENTINEL, LAUNCHER) and not is_building_ally) or
+            #         (old_etype in (SENTINEL, LAUNCHER) and not old_is_building_ally)
+            #     )
+            # )
+
+            # if is_fresh_enemy_tower:
+            #     if old_etype == SENTINEL:
+            #         BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
+            #     elif old_etype == LAUNCHER:
+            #         BfsBureau.remove_enemy_launcher(pos_idx)
+
+            # if is_fresh_enemy_tower:
+            #     if etype == SENTINEL:
+            #         BfsBureau.add_enemy_sentinel(pos, ti)
+            #     elif etype == LAUNCHER:
+            #         BfsBureau.add_enemy_launcher(pos_idx)
+
+            old_enemy_tower = (
+                old_etype in (SENTINEL, LAUNCHER) and
+                not old_is_building_ally
             )
 
-            if is_fresh_enemy_tower:
+            new_enemy_tower = (
+                etype in (SENTINEL, LAUNCHER) and
+                not is_building_ally
+            )
+
+            if old_enemy_tower and not new_enemy_tower:
                 if old_etype == SENTINEL:
                     BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
                 elif old_etype == LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
 
-            if is_fresh_enemy_tower:
+            elif new_enemy_tower and not old_enemy_tower:
                 if etype == SENTINEL:
                     BfsBureau.add_enemy_sentinel(pos, ti)
                 elif etype == LAUNCHER:
@@ -26864,22 +26908,44 @@ class Map:
                 else:
                     DarkForest.remove_node(pos_idx)
 
-            is_fresh_enemy_tower = (
-                old_etype != etype and
-                (not is_building_ally or not old_is_building_ally) and
-                (
-                    (etype in (SENTINEL, LAUNCHER) and not is_building_ally) or
-                    (old_etype in (SENTINEL, LAUNCHER) and not old_is_building_ally)
-                )
+            # is_fresh_enemy_tower = (
+            #     old_etype != etype and
+            #     (not is_building_ally or not old_is_building_ally) and
+            #     (
+            #         (etype in (SENTINEL, LAUNCHER) and not is_building_ally) or
+            #         (old_etype in (SENTINEL, LAUNCHER) and not old_is_building_ally)
+            #     )
+            # )
+
+            # if is_fresh_enemy_tower:
+            #     if old_etype == SENTINEL:
+            #         BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
+            #     elif old_etype == LAUNCHER:
+            #         BfsBureau.remove_enemy_launcher(pos_idx)
+
+            # if is_fresh_enemy_tower:
+            #     if etype == SENTINEL:
+            #         BfsBureau.add_enemy_sentinel(pos, ti)
+            #     elif etype == LAUNCHER:
+            #         BfsBureau.add_enemy_launcher(pos_idx)
+
+            old_enemy_tower = (
+                old_etype in (SENTINEL, LAUNCHER) and
+                not old_is_building_ally
             )
 
-            if is_fresh_enemy_tower:
+            new_enemy_tower = (
+                etype in (SENTINEL, LAUNCHER) and
+                not is_building_ally
+            )
+
+            if old_enemy_tower and not new_enemy_tower:
                 if old_etype == SENTINEL:
                     BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
                 elif old_etype == LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
 
-            if is_fresh_enemy_tower:
+            elif new_enemy_tower and not old_enemy_tower:
                 if etype == SENTINEL:
                     BfsBureau.add_enemy_sentinel(pos, ti)
                 elif etype == LAUNCHER:
@@ -27177,22 +27243,44 @@ class Map:
                 else:
                     DarkForest.remove_node(pos_idx)
 
-            is_fresh_enemy_tower = (
-                old_etype != etype and
-                (not is_building_ally or not old_is_building_ally) and
-                (
-                    (etype in (SENTINEL, LAUNCHER) and not is_building_ally) or
-                    (old_etype in (SENTINEL, LAUNCHER) and not old_is_building_ally)
-                )
+            # is_fresh_enemy_tower = (
+            #     old_etype != etype and
+            #     (not is_building_ally or not old_is_building_ally) and
+            #     (
+            #         (etype in (SENTINEL, LAUNCHER) and not is_building_ally) or
+            #         (old_etype in (SENTINEL, LAUNCHER) and not old_is_building_ally)
+            #     )
+            # )
+
+            # if is_fresh_enemy_tower:
+            #     if old_etype == SENTINEL:
+            #         BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
+            #     elif old_etype == LAUNCHER:
+            #         BfsBureau.remove_enemy_launcher(pos_idx)
+
+            # if is_fresh_enemy_tower:
+            #     if etype == SENTINEL:
+            #         BfsBureau.add_enemy_sentinel(pos, ti)
+            #     elif etype == LAUNCHER:
+            #         BfsBureau.add_enemy_launcher(pos_idx)
+
+            old_enemy_tower = (
+                old_etype in (SENTINEL, LAUNCHER) and
+                not old_is_building_ally
             )
 
-            if is_fresh_enemy_tower:
+            new_enemy_tower = (
+                etype in (SENTINEL, LAUNCHER) and
+                not is_building_ally
+            )
+
+            if old_enemy_tower and not new_enemy_tower:
                 if old_etype == SENTINEL:
                     BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
                 elif old_etype == LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
 
-            if is_fresh_enemy_tower:
+            elif new_enemy_tower and not old_enemy_tower:
                 if etype == SENTINEL:
                     BfsBureau.add_enemy_sentinel(pos, ti)
                 elif etype == LAUNCHER:
@@ -32233,6 +32321,8 @@ class SentinelSupervisor:
             x, y = pos.x, pos.y
             idx = (((x) + 3) * 56 + ((y) + 3))
             ti = tile_info[x][y]
+            if not (ti.has_building and not ti.is_building_ally) and not (ti.has_bot and not ti.is_bot_ally):
+                continue
             
             info = SentinelTargetInfo()
             info.position = pos
@@ -32341,15 +32431,18 @@ class SentinelTargetInfo:
         if (not a.is_road) and b.is_road: return True
 
         # if there is a bot on top of the tile, nothing underneath gets hit
-        if a.has_bot and (not b.has_bot): return False
-        if (not a.has_bot) and b.has_bot: return True
+        if (a.has_building and not a.is_road) or (b.has_building and not b.is_road):
+            if a.has_bot and (not b.has_bot): return False  # don't target bots if there's buildings
+            if (not a.has_bot) and b.has_bot: return True
+        else:
+            if a.has_bot and (not b.has_bot): return True
+            if (not a.has_bot) and b.has_bot: return False
+
 
         if a.has_bot and b.has_bot:
             if a.bot_hp != b.bot_hp:
                 return a.bot_hp < b.bot_hp
             return a.rand_key < b.rand_key
-
-        # both don't have bots
 
         if a.ally_connected and (not b.ally_connected): return False  # don't target allied routes
         if (not a.ally_connected) and b.ally_connected: return True
@@ -33112,11 +33205,16 @@ class Symmetry:
         if cls.is_sym_known: 
             return
 
+        pre = cls.V + cls.H + cls.R  # new
+
         cls.check_map[cls.V + (cls.H * 2) + (cls.R * 4)]()
 
-        if cls.V + cls.H + cls.R == 1: 
-            cls.do_sym_found_stuff()
+        post = cls.V + cls.H + cls.R  # new
 
+        if post == 1: 
+            cls.do_sym_found_stuff()
+        elif post < pre and cls.R == 0:  # new
+            cls.predict_enemy_core()
 
     @classmethod
     def do_sym_found_stuff(cls):
@@ -33764,7 +33862,8 @@ class Builder(Unit):
         Marker.attempt_mark()
         
 
-        # BfsBureau.debug_enemy_launcher_zone()
+        # BfsBureau.debug_bfs20_dist_adj()
+        BfsBureau.debug_enemy_launcher_zone()
         # if Globals.round & 1:
         #     BfsBureau.debug_now_passable_int_impassable()
         # else:

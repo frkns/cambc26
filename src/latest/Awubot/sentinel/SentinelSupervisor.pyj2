@@ -66,15 +66,18 @@ class SentinelTargetInfo:
         if (not a.is_road) and b.is_road: return True
 
         # if there is a bot on top of the tile, nothing underneath gets hit
-        if a.has_bot and (not b.has_bot): return False
-        if (not a.has_bot) and b.has_bot: return True
+        if (a.has_building and not a.is_road) or (b.has_building and not b.is_road):
+            if a.has_bot and (not b.has_bot): return False  # don't target bots if there's buildings
+            if (not a.has_bot) and b.has_bot: return True
+        else:
+            if a.has_bot and (not b.has_bot): return True
+            if (not a.has_bot) and b.has_bot: return False
+
 
         if a.has_bot and b.has_bot:
             if a.bot_hp != b.bot_hp:
                 return a.bot_hp < b.bot_hp
             return a.rand_key < b.rand_key
-
-        # both don't have bots
 
         if a.ally_connected and (not b.ally_connected): return False  # don't target allied routes
         if (not a.ally_connected) and b.ally_connected: return True
@@ -181,6 +184,8 @@ class SentinelSupervisor:
             x, y = pos.x, pos.y
             idx = {{ encode_pos('x', 'y') }}
             ti = tile_info[x][y]
+            if not (ti.has_building and not ti.is_building_ally) and not (ti.has_bot and not ti.is_bot_ally):
+                continue
             
             info = SentinelTargetInfo()
             info.position = pos
