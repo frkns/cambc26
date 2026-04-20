@@ -133,9 +133,9 @@ class Builder({{ super() }}):
         # else:
         #     BfsBureau.debug_now_weight_inf()
 
-        my_pos = Globals.my_pos
-        if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos):
-            Globals.ct.fire(my_pos)
+        # my_pos = Globals.my_pos
+        # if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos):
+        #     Globals.ct.fire(my_pos)
 
 
 

@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-20 13:52:24 (local)
+# latest,  @ 2026-04-20 14:10:09 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -34489,9 +34489,9 @@ class Builder(Unit):
         # else:
         #     BfsBureau.debug_now_weight_inf()
 
-        my_pos = Globals.my_pos
-        if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos):
-            Globals.ct.fire(my_pos)
+        # my_pos = Globals.my_pos
+        # if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos):
+        #     Globals.ct.fire(my_pos)
 
 
 
