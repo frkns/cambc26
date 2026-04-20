@@ -184,7 +184,7 @@ class Map:
                 opp_ti.has_turret = False
                 opp_ti.has_building = False
                 opp_ti.easily_passable = False
-                opp_ti.harvester_adjacent = False
+                opp_ti.harvester_adjacent = 0
                 opp_ti.entity_type = None
                 opp_ti.target = None
                 opp_ti.allied_bots_adjacent = 0
@@ -335,7 +335,7 @@ class Map:
             nti = row_xp1[y];   h2 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
             nti = row_x[y - 1]; h3 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
             nti = row_x[y + 1]; h4 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
-            ti.harvester_adjacent = h1 or h2 or h3 or h4
+            ti.harvester_adjacent = h1 + h2 + h3 + h4
 
             # allied_bots_adjacent: 8-neighbors + self
             ym1 = y - 1
@@ -452,7 +452,7 @@ class Map:
                     opp_ti.has_turret = False
                     opp_ti.has_building = False
                     opp_ti.easily_passable = False
-                    opp_ti.harvester_adjacent = False
+                    opp_ti.harvester_adjacent = 0
                     opp_ti.entity_type = None
                     opp_ti.target = None
                     opp_ti.allied_bots_adjacent = 0

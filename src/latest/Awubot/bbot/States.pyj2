@@ -149,7 +149,10 @@ class StateBuildTurret:
             # who cares all turrets are the same anyways
             BuildManager.dbuild_gunner(pos, core_dir)
         elif BuildManager.can_dbuild_sentinel(pos):
+            {{ P.start() }}
             dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
+            {{ P.end('SentinelDirectionPicker.get_best_direction') }}
+
             BuildManager.dbuild_sentinel(pos, dir)
         elif Globals.ct.can_build_road(pos):
             Globals.ct.build_road(pos)

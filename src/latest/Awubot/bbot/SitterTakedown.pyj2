@@ -24,10 +24,14 @@ class SitterTargetInfo:
     __slots__ = (
         'position', 'dist_enemy_core', 'has_ally_transporter',
         'enemy_bots_nearby', 'harvester_nearby', 'launchers_adjacent',
+        'bfs_dist_adj',
     )
 
     @staticmethod
     def is_better_than(a: SitterTargetInfo, b: SitterTargetInfo):
+        if a.bfs_dist_adj >= 100: return False
+        if b.bfs_dist_adj >= 100: return True
+
         if a.launchers_adjacent != b.launchers_adjacent:
             return a.launchers_adjacent < b.launchers_adjacent
         
@@ -39,6 +43,9 @@ class SitterTargetInfo:
         
         if a.has_ally_transporter != b.has_ally_transporter:
             return a.has_ally_transporter < b.has_ally_transporter
+
+        if a.bfs_dist_adj != b.bfs_dist_adj:
+            return a.bfs_dist_adj < b.bfs_dist_adj
         
         return a.dist_enemy_core < b.dist_enemy_core
 
@@ -67,6 +74,9 @@ class SitterTakedown:
             return None
         
         if best.launchers_adjacent > 0:
+            return None
+
+        if best.bfs_dist_adj >= 100:
             return None
 
         if not VisionTracker.me_is_canonical_ally(best.position) and best.position.distance_squared(Globals.my_pos) > 2: # Make sure we're a canonical ally *if we're not already adjacent*
@@ -100,6 +110,7 @@ class SitterTakedown:
             info.enemy_bots_nearby = 0
             info.harvester_nearby = False
             info.launchers_adjacent = 0
+            info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
             
             info.has_ally_transporter = (
                 ti.has_building 

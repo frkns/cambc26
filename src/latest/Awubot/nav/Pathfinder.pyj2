@@ -35,7 +35,7 @@ class Pathfinder:
             cls.reset()
             cls.cur_target = target
 
-        Debug.line(target)
+        # Debug.line(target)
         my_pos = Globals.my_pos
         midx = {{ encode_pos('my_pos.x', 'my_pos.y') }}
 

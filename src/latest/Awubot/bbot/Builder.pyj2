@@ -146,6 +146,9 @@ class Builder({{ super() }}):
         takedownpos = None if takedowninfo is None else takedowninfo.position
 
         misinfo: TransporterInfo = VisionTracker.get_best_misrouted_target() 
+
+        # now changed to sentinel/gunner pos near enemy?
+        sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
         
         """
         if RouteToBreach.is_active:
@@ -156,13 +159,6 @@ class Builder({{ super() }}):
             Debug.dot(takedownpos, Color.PURPLE)
             return 'BuildGunner', takedownpos, None
 
-        {{ P.start() }}
-        sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
-        {{ P.end('HarvesterAdjacent.get_best_sentinel_position') }}
-
-        if sentinelpos is not None:
-            Debug.dot(sentinelpos, Color.PURPLE)
-            return 'BuildTurret', sentinelpos, None
 
         # disable for now
         sitterpos = SitterTakedown.get_best_launcher_position()
@@ -201,6 +197,10 @@ class Builder({{ super() }}):
                 return 'Reroute', misinfo.position
             else:
                 return 'Reroute', misinfo.position  # same
+
+        if sentinelpos is not None:
+            Debug.dot(sentinelpos, Color.PURPLE)
+            return 'BuildTurret', sentinelpos, None
             
         if buildingFirstConveyor:
             shieldpos = HarvesterAdjacent.get_best_shield_position()

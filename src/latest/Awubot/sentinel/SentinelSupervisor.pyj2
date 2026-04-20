@@ -40,6 +40,8 @@ class SentinelTargetInfo:
     is_harvester_feeding_ally: bool
     harvester_adjacent: bool
 
+    num_ally_sentinels: int
+
 
     @staticmethod
     def is_better_than(a: SentinelTargetInfo, b: SentinelTargetInfo):
@@ -60,13 +62,19 @@ class SentinelTargetInfo:
             if a_is_gunner and (not b_is_gunner): return True
             if (not a_is_gunner) and b_is_gunner: return False
 
+        if a.is_road and (not b.is_road): return False  # prefer non-roads
+        if (not a.is_road) and b.is_road: return True
+
         # if there is a bot on top of the tile, nothing underneath gets hit
-        if a.has_bot and (not b.has_bot): return True
-        if (not a.has_bot) and b.has_bot: return False
+        if a.has_bot and (not b.has_bot): return False
+        if (not a.has_bot) and b.has_bot: return True
 
         if a.has_bot and b.has_bot:
             if a.bot_hp != b.bot_hp:
                 return a.bot_hp < b.bot_hp
+            return a.rand_key < b.rand_key
+
+        # both don't have bots
 
         if a.ally_connected and (not b.ally_connected): return False  # don't target allied routes
         if (not a.ally_connected) and b.ally_connected: return True
@@ -74,16 +82,28 @@ class SentinelTargetInfo:
         if a.has_building and (not b.has_building): return True
         if (not a.has_building) and b.has_building: return False
 
+        if (not a.has_building) and (not b.has_building):
+            return a.rand_key < b.rand_key
+
         if a.harvester_adjacent and (not b.harvester_adjacent): return True
         if (not a.harvester_adjacent) and b.harvester_adjacent: return False
 
-        if a.is_road and (not b.is_road): return False  # prefer non-roads
-        if (not a.is_road) and b.is_road: return True
+        a_critical = a.building_hp <= {{ DMG }}
+        b_critical = b.building_hp <= {{ DMG }}
 
-        if a.has_building and b.has_building:
-            if a.building_hp != b.building_hp:
-                return a.building_hp < b.building_hp
-            return a.rand_key < b.rand_key
+        if a_critical != b_critical:
+            return a_critical > b_critical
+
+        if a.num_ally_sentinels != b.num_ally_sentinels:
+            return a.num_ally_sentinels > b.num_ally_sentinels
+
+        # a_is_harvester = a.entity_type == EntityType.HARVESTER
+        # b_is_harvester = b.entity_type == EntityType.HARVESTER
+        # if a_is_harvester and (not b_is_harvester): return True
+        # if (not a_is_harvester) and b_is_harvester: return False
+
+        if a.building_hp != b.building_hp:
+            return a.building_hp < b.building_hp
 
         return a.rand_key < b.rand_key
 
@@ -205,6 +225,8 @@ class SentinelSupervisor:
 
                 elif info.entity_type == EntityType.LAUNCHER:
                     info.has_launcher = True
+
+            info.num_ally_sentinels = SentinelChain.sen_map[x][y]
 
             cls.targets.append(info)
 

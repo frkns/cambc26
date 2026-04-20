@@ -102,7 +102,13 @@ class RouteToCore:
 
     @classmethod
     def move_to_next(cls):
-        Pathfinder.move_to(cls.from_pos, ban_target_pos=True)
+        from_pos = cls.from_pos
+        x, y = from_pos.x, from_pos.y
+
+        if Map.tile_info[x][y].entity_type == EntityType.ROAD:
+            Pathfinder.move_to(cls.from_pos, ban_target_pos=False)
+        else:
+            Pathfinder.move_to(cls.from_pos, ban_target_pos=True)
 
 
     @classmethod
@@ -162,7 +168,8 @@ class RouteToCore:
 
         dsq = Globals.my_pos.distance_squared(cls.from_pos)
         if Globals.ct.get_action_cooldown() == 0 \
-                and (dsq == 1 or dsq == 2):
+                and (dsq <= 2):
+
             cls.try_build_route()
             cls.move_to_next()
             # if Globals.ct.can_build_road(cls.from_pos):

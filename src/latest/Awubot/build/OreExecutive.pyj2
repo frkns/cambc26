@@ -22,13 +22,14 @@ class OreExecutive:
     {% set UNSEEN = 0 %}
     {% set TITANIUM_QUEUED = 1 %}
     {% set KILLED = 2 %}
-    {% set HAS_HARVESTER = 3 %}
+    {% set HAS_HARD_BUILDING = 3 %}
     {% set AX_QUEUED = 4 %}
     state: dict[Position, int] = defaultdict(int)
     ti_queue: list[tuple[int, Position]] = []
     ax_queue: list[tuple[int, Position]] = []
     # nearby_ti_queue removed (reverted c187f820)
 
+    hard_building_set: set[EntityType] = {EntityType.HARVESTER, EntityType.FOUNDRY, EntityType.SENTINEL}
 
     @classmethod
     def fill(cls):
@@ -44,7 +45,7 @@ class OreExecutive:
                 continue
             env = ti.env
 
-            if ti.entity_type == EntityType.HARVESTER:
+            if ti.entity_type in cls.hard_building_set:
                 continue
 
 
@@ -88,18 +89,18 @@ class OreExecutive:
 
             ti = Map.tile_info[pos.x][pos.y]
 
-            if ti.entity_type == EntityType.HARVESTER:
+            if ti.entity_type in cls.hard_building_set:
                 heapq.heappop(cls.ti_queue)
-                cls.state[pos] = {{ HAS_HARVESTER }}
+                cls.state[pos] = {{ HAS_HARD_BUILDING }}
                 continue
             if ti.entity_type == EntityType.FOUNDRY:
                 heapq.heappop(cls.ti_queue)
-                cls.state[pos] = {{ HAS_HARVESTER }}  # just to prevent requeuing, doesn't matter much
+                cls.state[pos] = {{ HAS_HARD_BUILDING }}  # just to prevent requeuing, doesn't matter much
                 continue
 
             if ti.has_building and not ti.is_building_ally:
                 heapq.heappop(cls.ti_queue)
-                cls.state[pos] = {{ HAS_HARVESTER }}
+                cls.state[pos] = {{ HAS_HARD_BUILDING }}
                 continue
 
             if not ti.has_bot and MarketMaker.should_build_harvester(pos):  # fixed: was should_build_ax_harvester
@@ -145,18 +146,14 @@ class OreExecutive:
 
             ti = Map.tile_info[pos.x][pos.y]
 
-            if ti.entity_type == EntityType.HARVESTER:
+            if ti.entity_type in cls.hard_building_set:
                 heapq.heappop(cls.ax_queue)
-                cls.state[pos] = {{ HAS_HARVESTER }}
-                continue
-            if ti.entity_type == EntityType.FOUNDRY:
-                heapq.heappop(cls.ax_queue)
-                cls.state[pos] = {{ HAS_HARVESTER }}  # just to prevent requeuing, doesn't matter much
+                cls.state[pos] = {{ HAS_HARD_BUILDING }}
                 continue
 
             if ti.has_building and not ti.is_building_ally:
                 heapq.heappop(cls.ax_queue)
-                cls.state[pos] = {{ HAS_HARVESTER }}
+                cls.state[pos] = {{ HAS_HARD_BUILDING }}
                 continue
 
             if not ti.has_bot and MarketMaker.should_build_harvester(pos):

@@ -153,7 +153,7 @@ def toposort_classes(all_classes):
         for dep in sorted(dependents[node]):
             in_degree[dep] -= 1
             if in_degree[dep] == 0:
-                queue.append(dep)
+                queue = deque(sorted(list(queue) + [dep]))
 
     if len(result) != len(name_set):
         remaining = name_set - set(result)

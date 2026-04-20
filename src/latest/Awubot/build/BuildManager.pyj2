@@ -106,6 +106,10 @@ class BuildManager:
 
     @staticmethod
     def can_dbuild_{{ st }}(pos) -> bool:
+        {% if etype in no_core_passable_set %}
+        if pos == Globals.my_pos:
+            return BuildManager.can_mbuild_{{ st }}()
+        {% endif %}            
         return (
             {% if etype in units_set %}
             Globals.ct.get_unit_count() < {{ GameConstants.MAX_TEAM_UNITS }} and
