@@ -314,9 +314,205 @@ class BfsBureau:
     {% endfor %}
 
     # outward depth-limited dijkstra + bitmask bfs
+    {# /* # ---=== */ #}
+    {# /* @classmethod */ #}
+    {# /* def find_route(cls, start: Position, target: Position, */ #}
+                   {# /* ban_target: bool = False, */ #}
+                   {# /* max_iter: int = 200) -> tuple[int, Direction | None]: */ #}
+        {# /* {% set WEIGHTED_DEPTH = 5 %} */ #}
+
+        {# /* sx, sy = start.x, start.y */ #}
+        {# /* _tx, _ty = target.x, target.y */ #}
+
+        {# /* weight = cls.now_weight */ #}
+        {# /* stride = cls.STRIDE */ #}
+
+        {# /* si = {{ encode_pos('sx', 'sy') }} */ #}
+        {# /* ti = {{ encode_pos('_tx', '_ty') }} */ #}
+        {# /* center_weight = weight[si] if weight[si] > 5 else 1 */ #}
+
+        {# /* _D = ({% for d in range(8) %}{{ directions[d] }}{% if not loop.last %}, {% endif %}{% endfor %}) */ #}
+
+        {# /* # ── Same-tile: CENTRE competes with neighbors ── */ #}
+        {# /* if si == ti: */ #}
+            {# /* {% if LOCAL %} */ #}
+            {# /* print(f'[on top of find_route target with {ban_target=}]') */ #}
+            {# /* {% endif %} */ #}
+            
+            {# /* if ban_target: */ #}
+                {# /* _best_c = {{ INF }} */ #}
+                {# /* _best_d = None */ #}
+            {# /* else: */ #}
+                {# /* _best_c = center_weight */ #}
+                {# /* _best_d = Direction.CENTRE if center_weight < {{ INF }} else None */ #}
+            {# /* {% for dir in range(8) %} */ #}
+            {# /* ni = si + {{ Dir.dx[dir] * PH + Dir.dy[dir] }} */ #}
+            {# /* w = weight[ni] */ #}
+            {# /* # print({{ dir }}, f'{w=}') */ #}
+            {# /* if w < _best_c and MoveManager.can_fill_move({{ directions[dir] }}): */ #}
+                {# /* _best_c = w */ #}
+                {# /* _best_d = {{ directions[dir] }} */ #}
+            {# /* {% endfor %} */ #}
+            {# /* if _best_d is not None: */ #}
+                {# /* return _best_c, _best_d */ #}
+            {# /* return {{ INF }}, None */ #}
+
+        {# /* # ── Adjacent to banned target: CENTRE competes, but ti is excluded ── */ #}
+        {# /* if ban_target: */ #}
+            {# /* _d = si - ti */ #}
+            {# /* _ad = _d if _d >= 0 else -_d */ #}
+            {# /* if _ad == 1 or _ad == {{ PH - 1 }} or _ad == {{ PH }} or _ad == {{ PH + 1 }}: */ #}
+                {# /* _best_c = center_weight */ #}
+                {# /* _best_d = Direction.CENTRE if center_weight < {{ INF }} else None */ #}
+                {# /* {% for dir in range(8) %} */ #}
+                {# /* ni = si + {{ Dir.dx[dir] * PH + Dir.dy[dir] }} */ #}
+                {# /* if ni != ti: */ #}
+                    {# /* w = weight[ni] */ #}
+                    {# /* if w < _best_c and MoveManager.can_fill_move({{ directions[dir] }}): */ #}
+                        {# /* _best_c = w */ #}
+                        {# /* _best_d = {{ directions[dir] }} */ #}
+                {# /* {% endfor %} */ #}
+                {# /* if _best_d is not None: */ #}
+                    {# /* return _best_c, _best_d */ #}
+                {# /* return {{ INF }}, None */ #}
+
+        {# /* weight[ti] = 1  # allow target */ #}
+
+        {# /* # we do this because try...finally is banned by engine */ #}
+        {# /* {% set before_ret -%} */ #}
+        {# /* # don't need to save anymore! */ #}
+        {# /* {%- endset %} */ #}
+
+        {# /* # ── Phase 1: weighted Dijkstra up to {{ WEIGHTED_DEPTH }} ── */ #}
+        {# /* dist = [{{ INF }}] * {{ PADDED_GRID_SIZE }} */ #}
+        {# /* fhd  = [0]       * {{ PADDED_GRID_SIZE }} */ #}
+        {# /* dist[si] = 0 */ #}
+
+        {# /* heap  = [] */ #}
+        {# /* _hp   = heapq.heappush */ #}
+        {# /* _hpop = heapq.heappop */ #}
+
+        {# /* _settled = [si] */ #}
+        {# /* _sa = _settled.append */ #}
+
+        {# /* {% for dir in range(8) %} */ #}
+        {# /* ni = si + {{ Dir.dx[dir] * PH + Dir.dy[dir] }} */ #}
+        {# /* if weight[ni] < {{ INF }} and MoveManager.can_fill_move({{ directions[dir] }}): */ #}
+            {# /* w = weight[ni] */ #}
+            {# /* dist[ni] = w */ #}
+            {# /* fhd[ni]  = {{ dir }} */ #}
+            {# /* if ni == ti: */ #}
+                {# /* {{ before_ret }} */ #}
+                {# /* return w, {{ directions[dir] }} */ #}
+            {# /* _hp(heap, (w, ni)) */ #}
+        {# /* {% endfor %} */ #}
+
+        {# /* phase2_seeds = [] */ #}
+        {# /* _p2a = phase2_seeds.append */ #}
+
+        {# /* while heap: */ #}
+            {# /* d, idx = _hpop(heap) */ #}
+            {# /* if d > dist[idx]: */ #}
+                {# /* continue */ #}
+
+            {# /* _sa(idx) */ #}
+
+            {# /* if d >= {{ WEIGHTED_DEPTH }}: */ #}
+                {# /* _p2a(idx) */ #}
+                {# /* while heap: */ #}
+                    {# /* _dd, _idx = _hpop(heap) */ #}
+                    {# /* if _dd == dist[_idx]: */ #}
+                        {# /* _sa(_idx) */ #}
+                        {# /* _p2a(_idx) */ #}
+                {# /* break */ #}
+
+            {# /* _fh = fhd[idx] */ #}
+            {# /* {% for dir in range(8) %} */ #}
+            {# /* ni = idx + {{ Dir.dx[dir] * PH + Dir.dy[dir] }} */ #}
+            {# /* w  = weight[ni] */ #}
+            {# /* if w < {{ INF }}: */ #}
+                {# /* nd = d + w */ #}
+                {# /* if nd < dist[ni]: */ #}
+                    {# /* dist[ni] = nd */ #}
+                    {# /* fhd[ni]  = _fh */ #}
+                    {# /* if ni == ti: */ #}
+                        {# /* {{ before_ret }} */ #}
+                        {# /* return nd, _D[_fh] */ #}
+                    {# /* _hp(heap, (nd, ni)) */ #}
+            {# /* {% endfor %} */ #}
+
+        {# /* if not phase2_seeds: */ #}
+            {# /* {{ before_ret }} */ #}
+            {# /* return {{ INF }}, None */ #}
+
+        {# /* # ── Phase 2: bitmask BFS from Dijkstra frontier ── */ #}
+        {# /* {{ P.start() }} */ #}
+        {# /* _tb = _tx * stride + _ty */ #}
+        {# /* _tm = 1 << _tb */ #}
+        {# /* _uc = (cls.now_passable_int | _tm) & cls.board_mask */ #}
+
+        {# /* _settled_bits = 0 */ #}
+        {# /* for _ci in _settled: */ #}
+            {# /* _cx = _ci // {{ PH }} - {{ PAD }} */ #}
+            {# /* _cy = _ci % {{ PH }} - {{ PAD }} */ #}
+            {# /* _settled_bits |= 1 << (_cx * stride + _cy) */ #}
+        {# /* _uc &= ~_settled_bits */ #}
+
+        {# /* {% for dir in range(8) %} */ #}
+        {# /* _fh{{ dir }} = 0 */ #}
+        {# /* _md{{ dir }} = {{ INF }} */ #}
+        {# /* {% endfor %} */ #}
+
+        {# /* for _ci in phase2_seeds: */ #}
+            {# /* _cx = _ci // {{ PH }} - {{ PAD }} */ #}
+            {# /* _cy = _ci % {{ PH }} - {{ PAD }} */ #}
+            {# /* _di = fhd[_ci] */ #}
+            {# /* _bit = 1 << (_cx * stride + _cy) */ #}
+            {# /* {% for dir in range(8) %} */ #}
+            {# /* {{ 'if' if loop.first else 'elif' }} _di == {{ dir }}: */ #}
+                {# /* _fh{{ dir }} |= _bit */ #}
+                {# /* if dist[_ci] < _md{{ dir }}: */ #}
+                    {# /* _md{{ dir }} = dist[_ci] */ #}
+            {# /* {% endfor %} */ #}
+
+        {# /* _bfs_d = 0 */ #}
+        {# /* it = 0 */ #}
+        {# /* while (it := it + 1) <= max_iter: */ #}
+            {# /* _any = False */ #}
+
+            {# /* {% for dir in range(8) %} */ #}
+            {# /* _f = _fh{{ dir }} */ #}
+            {# /* if _f: */ #}
+                {# /* _v = _f | (_f << 1) | (_f >> 1) */ #}
+                {# /* _e = (_v | (_v << stride) | (_v >> stride)) & _uc */ #}
+                {# /* _e &= ~_f */ #}
+                {# /* if _e: */ #}
+                    {# /* _fh{{ dir }} = _e */ #}
+                    {# /* _uc &= ~_e */ #}
+                    {# /* _any = True */ #}
+                    {# /* if _e & _tm: */ #}
+                        {# /* return _md{{ dir }} + _bfs_d + 1, _D[{{ dir }}] */ #}
+                {# /* else: */ #}
+                    {# /* _fh{{ dir }} = 0 */ #}
+            {# /* {% endfor %} */ #}
+
+            {# /* if not _any: */ #}
+                {# /* break */ #}
+            {# /* _bfs_d += 1 */ #}
+
+        {# /* {{ before_ret }} */ #}
+        {# /* return {{ INF }}, None */ #}
+    {# /* # ===--- */ #}
+
+    {% for variant_suffix, road_w, empty_w in [
+        ('',     1, 2),
+        ('_inv', 2, 1),
+    ] %}
+    # outward depth-limited dijkstra + bitmask bfs
+    # {{ 'prefers roads' if road_w == 1 else 'prefers empties' }}
     # ---===
     @classmethod
-    def find_route(cls, start: Position, target: Position,
+    def find_route{{ variant_suffix }}(cls, start: Position, target: Position,
                    ban_target: bool = False,
                    max_iter: int = 200) -> tuple[int, Direction | None]:
         {% set WEIGHTED_DEPTH = 5 %}
@@ -336,7 +532,7 @@ class BfsBureau:
         # ── Same-tile: CENTRE competes with neighbors ──
         if si == ti:
             {% if LOCAL %}
-            print(f'[on top of find_route target with {ban_target=}]')
+            print(f'[on top of find_route{{ variant_suffix }} target with {ban_target=}]')
             {% endif %}
             
             if ban_target:
@@ -348,7 +544,9 @@ class BfsBureau:
             {% for dir in range(8) %}
             ni = si + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
             w = weight[ni]
-            # print({{ dir }}, f'{w=}')
+            {% if road_w != 1 %}
+            if w <= 2: w = 3 - w
+            {% endif %}
             if w < _best_c and MoveManager.can_fill_move({{ directions[dir] }}):
                 _best_c = w
                 _best_d = {{ directions[dir] }}
@@ -368,6 +566,9 @@ class BfsBureau:
                 ni = si + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
                 if ni != ti:
                     w = weight[ni]
+                    {% if road_w != 1 %}
+                    if w <= 2: w = 3 - w
+                    {% endif %}
                     if w < _best_c and MoveManager.can_fill_move({{ directions[dir] }}):
                         _best_c = w
                         _best_d = {{ directions[dir] }}
@@ -395,6 +596,8 @@ class BfsBureau:
         _settled = [si]
         _sa = _settled.append
 
+        {% if road_w == 1 %}
+        # Original seeding: single pass, no diagonal preference
         {% for dir in range(8) %}
         ni = si + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
         if weight[ni] < {{ INF }} and MoveManager.can_fill_move({{ directions[dir] }}):
@@ -406,6 +609,36 @@ class BfsBureau:
                 return w, {{ directions[dir] }}
             _hp(heap, (w, ni))
         {% endfor %}
+        {% else %}
+        # Inverse seeding: remap weights, cardinals first then diagonals preferred on ties
+        {% for dir in range(8) if Dir.dx[dir] == 0 or Dir.dy[dir] == 0 %}
+        ni = si + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
+        if weight[ni] < {{ INF }} and MoveManager.can_fill_move({{ directions[dir] }}):
+            w = weight[ni]
+            if w <= 2: w = 3 - w
+            dist[ni] = w
+            fhd[ni]  = {{ dir }}
+            if ni == ti:
+                {{ before_ret }}
+                return w, {{ directions[dir] }}
+            _hp(heap, (w, ni))
+        {% endfor %}
+        {% for dir in range(8) if Dir.dx[dir] != 0 and Dir.dy[dir] != 0 %}
+        ni = si + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
+        if weight[ni] < {{ INF }} and MoveManager.can_fill_move({{ directions[dir] }}):
+            w = weight[ni]
+            if w <= 2: w = 3 - w
+            if w < dist[ni]:
+                dist[ni] = w
+                fhd[ni]  = {{ dir }}
+                if ni == ti:
+                    {{ before_ret }}
+                    return w, {{ directions[dir] }}
+                _hp(heap, (w, ni))
+            elif w == dist[ni]:
+                fhd[ni] = {{ dir }}
+        {% endfor %}
+        {% endif %}
 
         phase2_seeds = []
         _p2a = phase2_seeds.append
@@ -431,6 +664,9 @@ class BfsBureau:
             ni = idx + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
             w  = weight[ni]
             if w < {{ INF }}:
+                {% if road_w != 1 %}
+                if w <= 2: w = 3 - w
+                {% endif %}
                 nd = d + w
                 if nd < dist[ni]:
                     dist[ni] = nd
@@ -503,6 +739,7 @@ class BfsBureau:
         {{ before_ret }}
         return {{ INF }}, None
     # ===---
+    {% endfor %}
 
     # bfs20
     bfs20_dist: list[int] = [{{ INF }}] * {{ PADDED_GRID_SIZE }}
@@ -764,5 +1001,5 @@ class BfsBureau:
         enclosed = cls.enclosed_region
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             if enclosed[idx]:
-                Debug.dot(Position(x, y), Color.RED)
+                Debug.dot(Position(x, y), Color.BLUE)
 # ===---

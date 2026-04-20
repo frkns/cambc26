@@ -17,3 +17,4 @@ fi
 
 cd ../..
 cambc submit "bots/$1" -n "$NAME"
+gc -y "$NAME"

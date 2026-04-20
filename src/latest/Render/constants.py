@@ -203,3 +203,4 @@ def register(env):
 #         print(f"  ({len(sentinel_pattern[i])} tiles)")
 #
 # _debug_sentinel()
+# print(sentinel_pattern)

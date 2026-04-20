@@ -22,92 +22,65 @@ class OreExecutive:
     {% set UNSEEN = 0 %}
     {% set TITANIUM_QUEUED = 1 %}
     {% set KILLED = 2 %}
-    {% set HAS_HARVESTER = 3 %}
+    {% set HAS_HARD_BUILDING = 3 %}
     {% set AX_QUEUED = 4 %}
-    state: dict[Position, int] = defaultdict(int)  
+    state: dict[Position, int] = defaultdict(int)
     ti_queue: list[tuple[int, Position]] = []
     ax_queue: list[tuple[int, Position]] = []
-    nearby_ti_queue: list[tuple[int, Position]] = []
+    # nearby_ti_queue removed (reverted c187f820)
 
-
-    @classmethod
-    def register_ti(cls, pos: Position):
-        if cls.state[pos] == {{ UNSEEN }}:
-            dist = pos.distance_squared(Unit.core_pos)
-            heapq.heappush(cls.ti_queue, (dist, pos))
-            cls.state[pos] = {{ TITANIUM_QUEUED }}
-
+    hard_building_set: set[EntityType] = {EntityType.HARVESTER, EntityType.FOUNDRY, EntityType.SENTINEL}
 
     @classmethod
     def fill(cls):
-        cls.nearby_ti_queue.clear()
-        for pos in Map.nearby_tiles:
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             # not using Map.harvester_set..?
+            
+            if ti.entity_type == EntityType.FOUNDRY:
+                if idx not in RouteToFoundry.planned_foundry_positions:
+                    FoundryBuild.register_foundry(pos)
+                continue
 
             if cls.state[pos] == {{ KILLED }}:
                 continue
-            ti = Map.tile_info[pos.x][pos.y]
             env = ti.env
-            if ti.entity_type == EntityType.FOUNDRY:
-                RouteToFoundry.planned_foundry_positions.add({{ encode_pos('pos.x','pos.y') }})
+
+            if ti.entity_type in cls.hard_building_set:
                 continue
-            
-            if ti.entity_type == EntityType.HARVESTER:
-                continue
-            
-            
+
+
             if ti.has_building and not ti.is_building_ally:
                 continue
 
-            if env == Environment.ORE_TITANIUM:
-                if BfsBureau.bfs20_dist[{{ encode_pos('pos.x', 'pos.y') }}] < 100:
-                    dist = pos.distance_squared(Unit.core_pos)
-                    heapq.heappush(cls.nearby_ti_queue, (dist, pos))
-                if cls.state[pos] != {{ TITANIUM_QUEUED }}:  # intended: can potentially requeue
-                    dist = pos.distance_squared(Unit.core_pos)
-                    heapq.heappush(cls.ti_queue, (dist, pos))
-                    cls.state[pos] = {{ TITANIUM_QUEUED }}
 
+            if env == Environment.ORE_TITANIUM or env == Environment.ORE_AXIONITE:
+                {% set d_core -%}
+                    math.sqrt(pos.distance_squared(Unit.core_pos))
+                {%- endset %}
 
-            if env == Environment.ORE_AXIONITE:
-                if cls.state[pos] != {{ AX_QUEUED }}:  # intended: can potentially requeue
-                    dist = pos.distance_squared(Unit.core_pos)
-                    heapq.heappush(cls.ax_queue, (dist, pos))
-                    cls.state[pos] = {{ AX_QUEUED }}
+                {% set d_me -%}
+                    BfsBureau.bfs20_dist[idx]
+                {%- endset %}
+
+                {% set metric -%}
+                    int(5 * {{ d_core }} + {{ d_me }})
+                {%- endset %}
+
+                if env == Environment.ORE_TITANIUM:
+                    if cls.state[pos] != {{ TITANIUM_QUEUED }}:  # intended: can potentially requeue
+                        heapq.heappush(cls.ti_queue, ({{ metric }}, pos))
+                        cls.state[pos] = {{ TITANIUM_QUEUED }}
+
+                if env == Environment.ORE_AXIONITE:
+                    if cls.state[pos] != {{ AX_QUEUED }}:  # intended: can potentially requeue
+                        heapq.heappush(cls.ax_queue, ({{ metric }}, pos))
+                        cls.state[pos] = {{ AX_QUEUED }}
 
 
     @classmethod
     def get_titanium_target(cls) -> Position | None:
         ret = None
-        while cls.nearby_ti_queue:
-            dist, pos = cls.nearby_ti_queue[0]
-
-            if cls.state[pos] == {{ KILLED }}:
-                heapq.heappop(cls.nearby_ti_queue)
-                continue
-
-            ti = Map.tile_info[pos.x][pos.y]
-
-            if ti.entity_type == EntityType.HARVESTER:
-                heapq.heappop(cls.nearby_ti_queue)
-                cls.state[pos] = {{ HAS_HARVESTER }}
-                continue
-            if ti.entity_type == EntityType.FOUNDRY:
-                heapq.heappop(cls.nearby_ti_queue)
-                cls.state[pos] = {{ HAS_HARVESTER }} # just to prevent requeuing, doesn't matter much
-                continue
-            
-            if ti.has_building and not ti.is_building_ally:
-                heapq.heappop(cls.nearby_ti_queue)
-                cls.state[pos] = {{ HAS_HARVESTER }}
-                continue
-
-            if not ti.has_bot and MarketMaker.should_build_harvester(pos):
-                ret = pos
-                break
-            else:
-                break
-        while ret == None and cls.ti_queue:
+        while cls.ti_queue:
             dist, pos = cls.ti_queue[0]
 
             if cls.state[pos] == {{ KILLED }}:
@@ -116,21 +89,21 @@ class OreExecutive:
 
             ti = Map.tile_info[pos.x][pos.y]
 
-            if ti.entity_type == EntityType.HARVESTER:
+            if ti.entity_type in cls.hard_building_set:
                 heapq.heappop(cls.ti_queue)
-                cls.state[pos] = {{ HAS_HARVESTER }}
+                cls.state[pos] = {{ HAS_HARD_BUILDING }}
                 continue
             if ti.entity_type == EntityType.FOUNDRY:
                 heapq.heappop(cls.ti_queue)
-                cls.state[pos] = {{ HAS_HARVESTER }} # just to prevent requeuing, doesn't matter much
-                continue
-            
-            if ti.has_building and not ti.is_building_ally:
-                heapq.heappop(cls.ti_queue)
-                cls.state[pos] = {{ HAS_HARVESTER }}
+                cls.state[pos] = {{ HAS_HARD_BUILDING }}  # just to prevent requeuing, doesn't matter much
                 continue
 
-            if not ti.has_bot and MarketMaker.should_build_ax_harvester(pos):
+            if ti.has_building and not ti.is_building_ally:
+                heapq.heappop(cls.ti_queue)
+                cls.state[pos] = {{ HAS_HARD_BUILDING }}
+                continue
+
+            if not ti.has_bot and MarketMaker.should_build_harvester(pos):  # fixed: was should_build_ax_harvester
                 ret = pos
                 break
             else:
@@ -146,14 +119,14 @@ class OreExecutive:
 
         {% for dir in cardinal_directions %}
         {% set dx, dy = dir.delta() %}
-        
+
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + {{ dx }}][ret.y + {{ dy }}]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
                 cls.state[ret] = {{ KILLED }}
                 return None
-                
+
         {% endfor %}
 
         return ret
@@ -161,8 +134,8 @@ class OreExecutive:
     @classmethod
     def get_axionite_target(cls) -> Position | None:
         if Globals.round < Constants.AXIONITE_START:
-            return None # don't want to waste resources on axionite early on
-            
+            return None  # don't want to waste resources on axionite early on
+
         ret = None
         while cls.ax_queue:
             dist, pos = cls.ax_queue[0]
@@ -173,18 +146,14 @@ class OreExecutive:
 
             ti = Map.tile_info[pos.x][pos.y]
 
-            if ti.entity_type == EntityType.HARVESTER:
+            if ti.entity_type in cls.hard_building_set:
                 heapq.heappop(cls.ax_queue)
-                cls.state[pos] = {{ HAS_HARVESTER }}
+                cls.state[pos] = {{ HAS_HARD_BUILDING }}
                 continue
-            if ti.entity_type == EntityType.FOUNDRY:
-                heapq.heappop(cls.ax_queue)
-                cls.state[pos] = {{ HAS_HARVESTER }} # just to prevent requeuing, doesn't matter much
-                continue
-            
+
             if ti.has_building and not ti.is_building_ally:
                 heapq.heappop(cls.ax_queue)
-                cls.state[pos] = {{ HAS_HARVESTER }}
+                cls.state[pos] = {{ HAS_HARD_BUILDING }}
                 continue
 
             if not ti.has_bot and MarketMaker.should_build_harvester(pos):
@@ -203,14 +172,14 @@ class OreExecutive:
 
         {% for dir in cardinal_directions %}
         {% set dx, dy = dir.delta() %}
-        
+
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + {{ dx }}][ret.y + {{ dy }}]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
                 cls.state[ret] = {{ KILLED }}
                 return None
-                
+
         {% endfor %}
 
         return ret
@@ -230,7 +199,6 @@ class OreExecutive:
             Debug.line(pos, Color.YELLOW)
             BuildManager.dbuild_harvester(pos)
 
-            
             cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
             if cand is not None:
                 RouteToCore.set_pos(cand.position)
@@ -259,7 +227,6 @@ class OreExecutive:
             Debug.diamond(Color.RED)
             return
 
-
         RouteToFoundry.set_pos(cand.position)
         RouteToFoundry.try_claim_target()
         foundry_enc = RouteToFoundry._foundry_target
@@ -276,13 +243,14 @@ class OreExecutive:
             for d in Constants.CARDINAL_DIRECTIONS:
                 newPos = pos.add(d)
                 ti = Map.tile_info[newPos.x][newPos.y]
-                if ti is None: # off-map, ignore
+                if ti is None:  # off-map, ignore
                     continue
                 if ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET:
-                    break # If already routed ignore
+                    break  # If already routed ignore
             else:
                 RouteToFoundry.set_pos(cand.position)
                 return
             RouteToFoundry.give_up(True)
         else:
             RouteToFoundry.give_up(True)
+

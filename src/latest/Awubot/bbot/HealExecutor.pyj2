@@ -40,6 +40,8 @@ class HealExecutor:
     @classmethod
     def precompute(cls):
         my_pos = Globals.my_pos
+        can_heal = Globals.ct.can_heal
+        tile_info = Map.tile_info
 
         {% for dir in directions %}
         {% set dx, dy = dir.delta() %}
@@ -50,7 +52,7 @@ class HealExecutor:
         cand = cls.Candidate()
         cls.cand[{{ loop.index0 }}] = cand
 
-        if Globals.ct.can_heal(npos):
+        if can_heal(npos):
             cand.is_accessible = True
             cand.position = npos
             cand.building_heal = 0
@@ -59,7 +61,7 @@ class HealExecutor:
             cand.bot_hp = {{ INF }}
             cand.is_turret = False
 
-            ti = Map.tile_info[nx][ny]
+            ti = tile_info[nx][ny]
             cand.entity_type = ti.entity_type
             cand.harvester_adjacent = ti.harvester_adjacent
 

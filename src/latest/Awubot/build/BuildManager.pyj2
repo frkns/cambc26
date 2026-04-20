@@ -106,6 +106,10 @@ class BuildManager:
 
     @staticmethod
     def can_dbuild_{{ st }}(pos) -> bool:
+        {% if etype in no_core_passable_set %}
+        if pos == Globals.my_pos:
+            return BuildManager.can_mbuild_{{ st }}()
+        {% endif %}            
         return (
             {% if etype in units_set %}
             Globals.ct.get_unit_count() < {{ GameConstants.MAX_TEAM_UNITS }} and
@@ -151,6 +155,19 @@ class BuildManager:
     def destroy(pos):
         Debug.diamond(Color.RED, pos)
         Globals.ct.destroy(pos)
+
+    @staticmethod
+    def should_build_armoured(pos):
+
+        {% set cond1 -%}
+            (min(pos.distance_squared(Unit.core_pos), pos.distance_squared(Symmetry.enemy_core_pos)) <= 20)
+        {%- endset %}
+
+        {% set cond2 -%}
+            Map.tile_info[pos.x][pos.y].harvester_adjacent
+        {%- endset %}
+
+        return {{ cond1 }} or {{ cond2 }}
 
 
 

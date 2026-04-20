@@ -45,6 +45,7 @@ class Map:
     proc_nearby_tiles: list[tuple[Position, int, int, int, TileInfo]]
     num_allies: int
     num_enemies: int
+    num_enemy_buildings: int
     harvester_set: set[int] = set()
     ti_ally_harvester_set: set[int] = set()
     ax_ally_harvester_set: set[int] = set()
@@ -125,6 +126,7 @@ class Map:
         messages_read = 0
         num_allies = 0
         num_enemies = 0
+        num_enemy_buildings = 0
         cls.nearby_tiles = ct.get_nearby_tiles()
 
         {% if sym != 'UNKNOWN' %}
@@ -182,7 +184,7 @@ class Map:
                 opp_ti.has_turret = False
                 opp_ti.has_building = False
                 opp_ti.easily_passable = False
-                opp_ti.harvester_adjacent = False
+                opp_ti.harvester_adjacent = 0
                 opp_ti.entity_type = None
                 opp_ti.target = None
                 opp_ti.allied_bots_adjacent = 0
@@ -206,6 +208,8 @@ class Map:
                 etype = get_entity_type(building_id)
                 is_building_ally = get_team(building_id) == my_team
                 ti.is_building_ally = is_building_ally
+                if not is_building_ally:
+                    num_enemy_buildings += 1
             else:
                 etype = None
                 is_building_ally = False
@@ -271,22 +275,44 @@ class Map:
                 else:
                     DarkForest.remove_node(pos_idx)
 
-            is_fresh_enemy_tower = (
-                old_etype != etype and
-                (not is_building_ally or not old_is_building_ally) and
-                (
-                    (etype in (SENTINEL, LAUNCHER) and not is_building_ally) or
-                    (old_etype in (SENTINEL, LAUNCHER) and not old_is_building_ally)
-                )
+            # is_fresh_enemy_tower = (
+            #     old_etype != etype and
+            #     (not is_building_ally or not old_is_building_ally) and
+            #     (
+            #         (etype in (SENTINEL, LAUNCHER) and not is_building_ally) or
+            #         (old_etype in (SENTINEL, LAUNCHER) and not old_is_building_ally)
+            #     )
+            # )
+
+            # if is_fresh_enemy_tower:
+            #     if old_etype == SENTINEL:
+            #         BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
+            #     elif old_etype == LAUNCHER:
+            #         BfsBureau.remove_enemy_launcher(pos_idx)
+
+            # if is_fresh_enemy_tower:
+            #     if etype == SENTINEL:
+            #         BfsBureau.add_enemy_sentinel(pos, ti)
+            #     elif etype == LAUNCHER:
+            #         BfsBureau.add_enemy_launcher(pos_idx)
+
+            old_enemy_tower = (
+                old_etype in (SENTINEL, LAUNCHER) and
+                not old_is_building_ally
             )
 
-            if is_fresh_enemy_tower:
+            new_enemy_tower = (
+                etype in (SENTINEL, LAUNCHER) and
+                not is_building_ally
+            )
+
+            if old_enemy_tower and not new_enemy_tower:
                 if old_etype == SENTINEL:
                     BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
                 elif old_etype == LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
 
-            if is_fresh_enemy_tower:
+            elif new_enemy_tower and not old_enemy_tower:
                 if etype == SENTINEL:
                     BfsBureau.add_enemy_sentinel(pos, ti)
                 elif etype == LAUNCHER:
@@ -317,6 +343,7 @@ class Map:
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
+        cls.num_enemy_buildings = num_enemy_buildings
 
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
@@ -330,7 +357,7 @@ class Map:
             nti = row_xp1[y];   h2 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
             nti = row_x[y - 1]; h3 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
             nti = row_x[y + 1]; h4 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
-            ti.harvester_adjacent = h1 or h2 or h3 or h4
+            ti.harvester_adjacent = h1 + h2 + h3 + h4
 
             # allied_bots_adjacent: 8-neighbors + self
             ym1 = y - 1
@@ -368,7 +395,7 @@ class Map:
                     if nti.entity_type in TRANSPORTERS_SET:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if (not nti.entity_type == EntityType.CONVEYOR and nti.target == pos):
+                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos):
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
@@ -447,7 +474,7 @@ class Map:
                     opp_ti.has_turret = False
                     opp_ti.has_building = False
                     opp_ti.easily_passable = False
-                    opp_ti.harvester_adjacent = False
+                    opp_ti.harvester_adjacent = 0
                     opp_ti.entity_type = None
                     opp_ti.target = None
                     opp_ti.allied_bots_adjacent = 0

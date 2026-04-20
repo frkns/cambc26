@@ -45,8 +45,13 @@ class StateAttack:
 
 
 class StateReroute:  # for misrouted ally transporters
+    # is_active: bool = False
+    # pos: Position = None
+
     @classmethod
     def run(cls, pos):
+        # cls.pos = pos
+
         # Debug.line(pos, Color.ORANGE)
         if Globals.my_pos.distance_squared(pos) > 2:
             Pathfinder.move_to(pos)
@@ -60,6 +65,9 @@ class StateReroute:  # for misrouted ally transporters
 class StateRoute:
     @classmethod
     def run(cls):
+        {% if LOCAL %}
+        assert RouteToCore.is_active
+        {% endif %}
         RouteToCore.do_routing()
 
 class StateFoundryBuild:
@@ -109,8 +117,8 @@ class StateBuildTurret:
 
         x, y = gunner_pos.x + dx, gunner_pos.y + dy      # start one step ahead
 
-        while x >= 0 and y >= 0 and x <= Map.W and y <= Map.H:
-            if (x - gunner_pos.x) ** 2 + (y - gunner_pos.y) ** 2 > GameConstants.GUNNER_VISION_RADIUS_SQ:
+        while x >= 0 and y >= 0 and x < Map.W and y < Map.H:
+            if (x - gunner_pos.x) ** 2 + (y - gunner_pos.y) ** 2 > {{ GameConstants.GUNNER_VISION_RADIUS_SQ }}:
                 break                                         # out of range — stop ray
 
             ti = Map.tile_info[x][y]
@@ -128,6 +136,7 @@ class StateBuildTurret:
             y += dy
 
         return None
+
     @classmethod
     def run(cls, pos, banned_dir: Direction | None = None):
         Pathfinder.move_to(pos, ban_target_pos=True)
@@ -140,7 +149,10 @@ class StateBuildTurret:
             # who cares all turrets are the same anyways
             BuildManager.dbuild_gunner(pos, core_dir)
         elif BuildManager.can_dbuild_sentinel(pos):
+            {{ P.start() }}
             dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
+            {{ P.end('SentinelDirectionPicker.get_best_direction') }}
+
             BuildManager.dbuild_sentinel(pos, dir)
         elif Globals.ct.can_build_road(pos):
             Globals.ct.build_road(pos)
@@ -197,10 +209,18 @@ class StateBuildShield:
         print(f'{target_dir=}, {found_ally_harvester=}')
         {% endif %}
 
+        {% set should_try_armour -%}
+        (
+            Map.num_enemy_buildings > 0
+        )
+        {%- endset %}
+
         if pos != Globals.my_pos:
             if target_dir is not None:
                 if found_ally_harvester:
-                    if BuildManager.can_dbuild_conveyor(pos):
+                    if {{ should_try_armour }} and BuildManager.can_dbuild_armoured_conveyor(pos):
+                        BuildManager.dbuild_armoured_conveyor(pos, target_dir)
+                    elif BuildManager.can_dbuild_conveyor(pos):
                         BuildManager.dbuild_conveyor(pos, target_dir)
                 else:
                     if BuildManager.can_build_road(pos):
@@ -211,7 +231,9 @@ class StateBuildShield:
         else:
             if target_dir is not None:
                 if found_ally_harvester:
-                    if BuildManager.can_mbuild_conveyor():
+                    if {{ should_try_armour }} and BuildManager.can_mbuild_armoured_conveyor():
+                        BuildManager.dbuild_armoured_conveyor(pos, target_dir)
+                    elif BuildManager.can_mbuild_conveyor():
                         BuildManager.dbuild_conveyor(pos, target_dir)  # mbuild check but dbuild
                 else:
                     if BuildManager.can_mbuild_road():

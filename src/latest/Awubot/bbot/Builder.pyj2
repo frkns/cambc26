@@ -126,25 +126,39 @@ class Builder({{ super() }}):
         Marker.attempt_mark()
         {{ P.end('Marker.attempt_mark') }}
 
-        {# /* BfsBureau.debug_bfs20_dist_adj() */ #}
+        # BfsBureau.debug_bfs20_dist_adj()
         # BfsBureau.debug_enemy_launcher_zone()
         # if Globals.round & 1:
         #     BfsBureau.debug_now_passable_int_impassable()
         # else:
         #     BfsBureau.debug_now_weight_inf()
 
+        # my_pos = Globals.my_pos
+        # if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos):
+        #     Globals.ct.fire(my_pos)
+
+
 
     @classmethod
     def determine_state(cls):
         my_pos = Globals.my_pos
+        ct = Globals.ct
 
         healinfo = HealTargeter.get_best_target_info()
-        healpos = None if healinfo is None else healinfo.position
+        healpos = None
+        if healinfo is not None:
+            if healinfo.entity_type == EntityType.CORE:
+                healpos = Unit.core_pos
+            else:
+                healpos = healinfo.position
 
         takedowninfo = HarvesterAdjacent.get_best_turret_takedown_info()
         takedownpos = None if takedowninfo is None else takedowninfo.position
 
         misinfo: TransporterInfo = VisionTracker.get_best_misrouted_target() 
+
+        # now changed to sentinel/gunner pos near enemy?
+        sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
         
         """
         if RouteToBreach.is_active:
@@ -155,17 +169,6 @@ class Builder({{ super() }}):
             Debug.dot(takedownpos, Color.PURPLE)
             return 'BuildGunner', takedownpos, None
 
-        if misinfo is not None and not (RouteToCore.backTracking or RouteToFoundry.backTracking):
-            if misinfo.on_ally_side:
-                return 'Reroute', misinfo.position
-            else:
-                return 'Reroute', misinfo.position  # same
-            
-
-        sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
-        if sentinelpos is not None:
-            Debug.dot(sentinelpos, Color.PURPLE)
-            return 'BuildTurret', sentinelpos, None
 
         # disable for now
         sitterpos = SitterTakedown.get_best_launcher_position()
@@ -198,6 +201,16 @@ class Builder({{ super() }}):
 
         if RouteToCore.is_active:
             return ('Route',)
+
+        if misinfo is not None and not (RouteToCore.backTracking or RouteToFoundry.backTracking and not RouteToCore.is_active and not RouteToFoundry.is_active):
+            if misinfo.on_ally_side:
+                return 'Reroute', misinfo.position
+            else:
+                return 'Reroute', misinfo.position  # same
+
+        if sentinelpos is not None:
+            Debug.dot(sentinelpos, Color.PURPLE)
+            return 'BuildTurret', sentinelpos, None
             
         if buildingFirstConveyor:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
@@ -242,6 +255,9 @@ class Builder({{ super() }}):
         if (dist_stalk <= 4 or (dist_stalk < dist_ti and dist_stalk < dist_ax)) and cls.mode != {{ Mode.EARLY_RUSH }}:
             return 'MoveTo', stalk_target, 'Stalk'
 
+        if ax_target is not None and MarketMaker.ax == 0 and cls.mode != {{ Mode.EARLY_RUSH }}:
+            return 'BuildHarvesterAx', ax_target
+
         if ti_target is not None and cls.mode != {{ Mode.EARLY_RUSH }}:
             return 'BuildHarvester', ti_target
 
@@ -251,7 +267,9 @@ class Builder({{ super() }}):
         route_pos = HarvesterAdjacent.get_best_route_position()
         if route_pos is not None and cls.mode != {{ Mode.EARLY_RUSH }}:
             RouteToCore.set_pos(route_pos)
-            return ('Route',)
+            if RouteToCore.is_active:
+                {{ D.print('[HarvesterAdjacent found route]') }}
+                return ('Route',)
 
         if stalk_target is not None and cls.mode != {{ Mode.EARLY_RUSH }}:
             return 'MoveTo', stalk_target, 'Stalk'
@@ -260,8 +278,9 @@ class Builder({{ super() }}):
         if rushTarget is not None:
             return 'Rush', rushTarget
 
-        patrolTarget = PatrolTargeter.get_best_target()
-        if patrolTarget is not None:
-            return 'MoveTo', patrolTarget, 'Patrol'
+        if ct.get_unit_count() < 15 or Globals.my_id % 3 == 0:
+            patrolTarget = PatrolTargeter.get_best_target()
+            if patrolTarget is not None:
+                return 'MoveTo', patrolTarget, 'Patrol'
 
         return 'MoveTo', Explore.get_target(), 'Explore'

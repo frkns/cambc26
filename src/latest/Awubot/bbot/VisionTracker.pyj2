@@ -21,7 +21,7 @@ from Generated import *
 class TransporterInfo:
     __slots__ = (
         'ti', 'position', 'target', 'easily_reachable', 'easily_reachable_adj',
-        'bfs_dist', 'bfs_dist_target', 'flow', 'entity_type',
+        'bfs_dist', 'bfs_dist_adj', 'bfs_dist_target', 'flow', 'entity_type',
         'harvester_adjacent', 'is_ally', 'node_kind', 'flowing_into_ally',
         'on_ally_side', 'easily_buildable', 'sight_flowing'
     )
@@ -37,11 +37,14 @@ class TransporterInfo:
         if a.ti.has_bot and (not b.ti.has_bot): return False
         if (not a.ti.has_bot) and b.ti.has_bot: return True
 
-        if a.harvester_adjacent and (not b.harvester_adjacent): return True
-        if (not a.harvester_adjacent) and b.harvester_adjacent: return False
+        if abs(a.bfs_dist - b.bfs_dist >2):
+            return a.bfs_dist < b.bfs_dist
 
         if a.ti.building_hp != b.ti.building_hp:
             return a.ti.building_hp < b.ti.building_hp
+
+        if a.harvester_adjacent and (not b.harvester_adjacent): return True
+        if (not a.harvester_adjacent) and b.harvester_adjacent: return False
 
         if a.flow != b.flow:
             return a.flow > b.flow
@@ -66,11 +69,11 @@ class TransporterInfo:
 
     @staticmethod
     def is_better_misrouted_than(a: TransporterInfo, b: TransporterInfo) -> bool:
-        if a.easily_reachable and (not b.easily_reachable): return True
-        if (not a.easily_reachable) and b.easily_reachable: return False
+        if a.easily_reachable_adj and (not b.easily_reachable_adj): return True
+        if (not a.easily_reachable_adj) and b.easily_reachable_adj: return False
         if a.on_ally_side and (not b.on_ally_side): return True
         if (not a.on_ally_side) and b.on_ally_side: return False
-        return a.bfs_dist < b.bfs_dist
+        return a.bfs_dist_adj < b.bfs_dist_adj
 
 
 class ConnectManager:
@@ -147,6 +150,7 @@ class VisionTracker:
                 trans.easily_reachable = BfsBureau.bfs20_dist[idx] < 20
                 trans.easily_reachable_adj = BfsBureau.bfs20_dist_adj[idx] < 20
                 trans.bfs_dist = BfsBureau.bfs20_dist[idx]
+                trans.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
                 trans.flow = DarkForest.flow[idx]
                 trans.entity_type = ti.entity_type
                 trans.harvester_adjacent = ti.harvester_adjacent
@@ -180,8 +184,9 @@ class VisionTracker:
                 if DarkForest.node_kind[idx] == 0 and (DarkForest.flow[idx] > 0 or DarkForest.sight_flowing[idx]):
                     if DarkForest.nodes[idx].up is None:
                         if Globals.ct.get_stored_resource(trans.ti.building_id) in (ResourceType.TITANIUM, ResourceType.REFINED_AXIONITE):
-                            cls.disconnected_roots.append(trans)
-                            Globals.ct.draw_indicator_dot(trans.position,255,0,0)
+                            if target_ti is not None and target_ti.entity_type in (None, EntityType.ROAD):
+                                cls.disconnected_roots.append(trans)
+                                Debug.dot(trans.position, Color.PINK)
 
 
 

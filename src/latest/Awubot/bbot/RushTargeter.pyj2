@@ -105,9 +105,9 @@ class RushTargeter:
             if Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) < 25: #sufficiently near
                 cls.beenNearbyEnemyCore = True
             if Builder.mode == {{ Mode.EARLY_RUSH }}:
-                if cls.beenNearbyEnemyCore:
+                if cls.beenNearbyEnemyCore and BuildManager.can_afford_harvester():
                     funPos = cls.nearest_titanium_to_enemy()
-                    if funPos == None:
+                    if funPos == None or not VisionTracker.me_is_canonical_ally(funPos):
                         return Explore.get_target(),'M' #move
                     return funPos,'B' #build harvester
                 else:
