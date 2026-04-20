@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-20 15:09:53 (local)
+# latest,  @ 2026-04-20 15:21:21 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -23831,6 +23831,10 @@ class Explore:
             pos = Symmetry.sym_pos(Unit.core_pos)
             dx, dy = random.choice([(dx, dy) for dx in range(-6, 6) for dy in range(-6, 6) if abs(dx) > 1 or abs(dy) > 1])
             return Position(max(0,min(pos.x + dx,Map.W)), max(0,min(pos.y + dy,Map.H)))
+        elif Builder.mode == 3:
+            pos = Unit.core_pos
+            dx, dy = random.choice([(dx, dy) for dx in range(-5, 5) for dy in range(-5, 5) if abs(dx) > 1 or abs(dy) > 1])
+            return Position(max(0,min(pos.x + dx,Map.W)), max(0,min(pos.y + dy,Map.H)))
         else:
             return Util.rand_pos()
 
@@ -34438,6 +34442,9 @@ class Builder(Unit):
         if cls.mode == 0:
             if Globals.round in [4,5]:
                 cls.mode = 2
+                Explore.target = Explore.new_target()
+            elif Globals.round in [3]:
+                cls.mode = 3
                 Explore.target = Explore.new_target()
             else:
                 cls.mode = 1
