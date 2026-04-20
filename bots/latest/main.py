@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-20 15:48:37 (local)
+# latest,  @ 2026-04-20 16:29:47 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -231,9 +231,9 @@ class Attacker:
 
     @classmethod
     def should_fire(cls, pos):
-        if Builder.mode != 2:
-            if MarketMaker.est_income <= 10 and MarketMaker.ti <= 50:
-                return False
+        # if Builder.mode != 2:  eco cooked
+        if MarketMaker.est_income <= 10 and MarketMaker.ti <= 50:
+            return False
 
         x, y = pos.x, pos.y
         tile_info = Map.tile_info
@@ -34386,8 +34386,10 @@ class Breach(Unit):
 # ============================================================
 
 class Builder(Unit):
+
     state: str
     mode: int = 0
+    role: int = 0
 
     @classmethod
     def init(cls):
@@ -34396,7 +34398,8 @@ class Builder(Unit):
         DarkForest.init()
         BfsBureau.enclosed_init()
         cls.state = 'Explore'
-
+        if Globals.round == 5:
+            cls.role = 1
 
     @classmethod
     def start_turn(cls):
@@ -34413,7 +34416,7 @@ class Builder(Unit):
         Symmetry.run_sym_check()
 
         if cls.mode == 0:
-            if Globals.round in [4,5]:
+            if Globals.round in [2,3]:
                 cls.mode = 2
                 Explore.target = Explore.new_target()
             else:
@@ -34544,6 +34547,9 @@ class Builder(Unit):
             if healpos is not None:  # redundant, OK
                 return 'MoveTo', healpos, '[lrh: move to heal]'
             return 'MoveTo', HealExecutor.last_healed.position, '[lrh: wait for heal]'
+
+        if cls.role == 1:
+            return 'MoveTo', Unit.core_pos, '[core healer]'
             
         buildingFirstConveyor = RouteToCore.is_active and len(RouteToCore.prevRoute) == 0
             

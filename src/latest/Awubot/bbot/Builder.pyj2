@@ -21,8 +21,13 @@ from Generated import *
 {% macro super() %}Unit{% endmacro %}
 
 class Builder({{ super() }}):
+    {% set Role = namespace() %}
+    {% set Role.NONE = 0 %}
+    {% set Role.CORE_HEALER = 1 %}
+
     state: str
     mode: int = {{ Mode.NONE }}
+    role: int = {{ Role.NONE }}
 
     @classmethod
     def init(cls):
@@ -31,7 +36,8 @@ class Builder({{ super() }}):
         DarkForest.init()
         BfsBureau.enclosed_init()
         cls.state = 'Explore'
-
+        if Globals.round == 5:
+            cls.role = {{ Role.CORE_HEALER }}
 
     @classmethod
     def start_turn(cls):
@@ -48,7 +54,7 @@ class Builder({{ super() }}):
         Symmetry.run_sym_check()
 
         if cls.mode == {{ Mode.NONE }}:
-            if Globals.round in [4,5]:
+            if Globals.round in [2,3]:
                 cls.mode = {{ Mode.EARLY_RUSH }}
                 Explore.target = Explore.new_target()
             else:
@@ -188,6 +194,9 @@ class Builder({{ super() }}):
             if healpos is not None:  # redundant, OK
                 return 'MoveTo', healpos, '[lrh: move to heal]'
             return 'MoveTo', HealExecutor.last_healed.position, '[lrh: wait for heal]'
+
+        if cls.role == {{ Role.CORE_HEALER }}:
+            return 'MoveTo', Unit.core_pos, '[core healer]'
             
         buildingFirstConveyor = RouteToCore.is_active and len(RouteToCore.prevRoute) == 0
             
