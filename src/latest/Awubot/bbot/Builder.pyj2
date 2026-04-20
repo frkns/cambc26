@@ -129,6 +129,9 @@ class Builder({{ super() }}):
         Marker.attempt_mark()
         {{ P.end('Marker.attempt_mark') }}
 
+        if cls.mode == {{ Mode.HEALER }}:
+            RoadspamExecutor.execute_roadspam_attempt()
+
         # BfsBureau.debug_bfs20_dist_adj()
         # BfsBureau.debug_enemy_launcher_zone()
         # if Globals.round & 1:

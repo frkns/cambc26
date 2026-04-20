@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-20 15:21:21 (local)
+# latest,  @ 2026-04-20 15:55:24 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -34545,6 +34545,9 @@ class Builder(Unit):
         Marker.attempt_mark()
         
 
+        if cls.mode == 3:
+            RoadspamExecutor.execute_roadspam_attempt()
+
         # BfsBureau.debug_bfs20_dist_adj()
         # BfsBureau.debug_enemy_launcher_zone()
         # if Globals.round & 1:
@@ -34556,8 +34559,8 @@ class Builder(Unit):
         # if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos):
         #     Globals.ct.fire(my_pos)
         
-        if my_pos.distance_squared(Symmetry.enemy_core_pos) < my_pos.distance_squared(Unit.core_pos):
-            RoadspamExecutor.execute_roadspam_attempt()
+        # if my_pos.distance_squared(Symmetry.enemy_core_pos) < my_pos.distance_squared(Unit.core_pos):
+        #     RoadspamExecutor.execute_roadspam_attempt()
 
 
 
