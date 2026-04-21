@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-21 14:27:31 (local)
+# latest,  @ 2026-04-21 16:40:35 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -8,6 +8,7 @@ import array
 import time
 import math
 import sys
+import threading
 from collections import deque, defaultdict
 from typing import NamedTuple
 from enum import Enum
@@ -34800,6 +34801,10 @@ class Core(Unit):
         except AttributeError as e:
             print("here are the locals", l, file=sys.stderr)
         print("well that was the very real profiler", file=sys.stderr)
+        # sys.settrace(Core.very_real_profiler)
+        # sys.setprofile(Core.very_real_profiler)
+        # threading.settrace(Core.very_real_profiler)
+        # threading.setprofile(Core.very_real_profiler)
         return Core.very_real_profiler
 
     @classmethod
@@ -34810,7 +34815,10 @@ class Core(Unit):
             Globals.ct.resign()
             raise Exception
         
-        sys.settrace(Core.very_real_profiler)
+        # sys.settrace(Core.very_real_profiler)
+        # sys.setprofile(Core.very_real_profiler)
+        # threading.settrace(Core.very_real_profiler)
+        threading.setprofile(Core.very_real_profiler)
 
 
 # ============================================================
