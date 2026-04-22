@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:docs.battlecode.cam)"
+      "WebFetch(domain:docs.battlecode.cam)",
+      "Bash(cambc run *)",
+      "Bash(cambc --help)",
+      "Bash(python -c ' *)",
+      "Bash(rm -f /tmp/antigravity3.log)",
+      "Read(//tmp/**)"
     ]
   }
 }
