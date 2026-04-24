@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-24 10:19:18 (local)
+# latest,  @ 2026-04-24 12:01:03 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -138,13 +138,17 @@ class AdjacentInfo:
 class Attacker:
     @classmethod
     def get_target(cls) -> Position | None:
-        if Builder.mode == 3 and Globals.my_pos.distance_squared(Unit.core_pos) > 16:
-            return
+        # if Builder.mode == 3 and Globals.my_pos.distance_squared(Unit.core_pos) > 16:
+        #     return
         
-        t = cls.get_road_target()
+        t = cls.get_shield_target()
         if t is not None: 
             return t
         return cls.get_trans_target()
+    
+    @classmethod        
+    def get_secondary_target(cls) -> Position | None:
+        return cls.get_road_target()
 
     @classmethod
     def get_trans_target(cls) -> Position | None:
@@ -160,6 +164,20 @@ class Attacker:
         if not cls.should_fire(trans.position):
             return None
         return trans.position
+
+
+    @classmethod
+    def get_shield_target(cls) -> Position | None:
+        road: TransporterInfo = VisionTracker.get_best_shield_atk_target()
+        if road is None:
+            return None
+        if not road.bfs_dist < 10: 
+            return None
+        if not VisionTracker.me_is_canonical_ally(road.position):
+            return None
+        if not cls.should_fire(road.position):
+            return None
+        return road.position
 
 
     @classmethod
@@ -34684,10 +34702,11 @@ class Builder(Unit):
                 return 'BuildShield', shieldpos
                 
         attackpos = Attacker.get_target()
+        secondaryattackpos = Attacker.get_secondary_target()
         
-        if attackpos is not None:
-            if Globals.my_pos.distance_squared(attackpos) <= 2:
-                return 'Attack', attackpos
+        if secondaryattackpos is not None and (RouteToCore.is_active or RouteToFoundry.is_active or RouteToBreach.is_active):
+            if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
+                return 'Attack', secondaryattackpos
 
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
@@ -34764,6 +34783,9 @@ class Builder(Unit):
         if stalk_target is not None and cls.mode != 2:
             return 'MoveTo', stalk_target, 'Stalk'
 
+        if secondaryattackpos is not None:
+            return 'Attack', secondaryattackpos
+            
         rushTarget = RushTargeter.get_best_target()
         if rushTarget is not None:
             return 'Rush', rushTarget
@@ -35195,7 +35217,7 @@ class VisionTracker:
 
     @classmethod
     def get_best_road_atk_target(cls) -> RoadInfo | None:
-        roads = (cls.enemy_roads_harvester if Map.num_enemies_8 > 0 else cls.enemy_roads)
+        roads = cls.enemy_roads
         if not roads:
             return None
 
@@ -35205,7 +35227,19 @@ class VisionTracker:
             if RoadInfo.is_better_road_atk_target_than(cand, best):
                 best = cand
         return best 
+    
+    @classmethod
+    def get_best_shield_atk_target(cls) -> RoadInfo | None:
+        roads = cls.enemy_roads_harvester
+        if not roads:
+            return None
 
+        best: RoadInfo = roads[0]
+
+        for cand in roads[1:]:
+            if RoadInfo.is_better_road_atk_target_than(cand, best):
+                best = cand
+        return best 
 
 
     @classmethod

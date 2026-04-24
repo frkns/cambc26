@@ -260,7 +260,7 @@ class VisionTracker:
 
     @classmethod
     def get_best_road_atk_target(cls) -> RoadInfo | None:
-        roads = (cls.enemy_roads_harvester if Map.num_enemies_8 > 0 else cls.enemy_roads)
+        roads = cls.enemy_roads
         if not roads:
             return None
 
@@ -270,7 +270,19 @@ class VisionTracker:
             if RoadInfo.is_better_road_atk_target_than(cand, best):
                 best = cand
         return best 
+    
+    @classmethod
+    def get_best_shield_atk_target(cls) -> RoadInfo | None:
+        roads = cls.enemy_roads_harvester
+        if not roads:
+            return None
 
+        best: RoadInfo = roads[0]
+
+        for cand in roads[1:]:
+            if RoadInfo.is_better_road_atk_target_than(cand, best):
+                best = cand
+        return best 
 
 
     @classmethod

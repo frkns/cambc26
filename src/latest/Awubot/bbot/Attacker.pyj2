@@ -21,13 +21,17 @@ from Generated import *
 class Attacker:
     @classmethod
     def get_target(cls) -> Position | None:
-        if Builder.mode == {{ Mode.HEALER }} and Globals.my_pos.distance_squared(Unit.core_pos) > 16:
-            return
+        # if Builder.mode == {{ Mode.HEALER }} and Globals.my_pos.distance_squared(Unit.core_pos) > 16:
+        #     return
         
-        t = cls.get_road_target()
+        t = cls.get_shield_target()
         if t is not None: 
             return t
         return cls.get_trans_target()
+    
+    @classmethod        
+    def get_secondary_target(cls) -> Position | None:
+        return cls.get_road_target()
 
     @classmethod
     def get_trans_target(cls) -> Position | None:
@@ -43,6 +47,20 @@ class Attacker:
         if not cls.should_fire(trans.position):
             return None
         return trans.position
+
+
+    @classmethod
+    def get_shield_target(cls) -> Position | None:
+        road: TransporterInfo = VisionTracker.get_best_shield_atk_target()
+        if road is None:
+            return None
+        if not road.bfs_dist < 10: 
+            return None
+        if not VisionTracker.me_is_canonical_ally(road.position):
+            return None
+        if not cls.should_fire(road.position):
+            return None
+        return road.position
 
 
     @classmethod

@@ -203,10 +203,11 @@ class Builder({{ super() }}):
                 return 'BuildShield', shieldpos
                 
         attackpos = Attacker.get_target()
+        secondaryattackpos = Attacker.get_secondary_target()
         
-        if attackpos is not None:
-            if Globals.my_pos.distance_squared(attackpos) <= 2:
-                return 'Attack', attackpos
+        if secondaryattackpos is not None and (RouteToCore.is_active or RouteToFoundry.is_active or RouteToBreach.is_active):
+            if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
+                return 'Attack', secondaryattackpos
 
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
@@ -283,6 +284,9 @@ class Builder({{ super() }}):
         if stalk_target is not None and cls.mode != {{ Mode.EARLY_RUSH }}:
             return 'MoveTo', stalk_target, 'Stalk'
 
+        if secondaryattackpos is not None:
+            return 'Attack', secondaryattackpos
+            
         rushTarget = RushTargeter.get_best_target()
         if rushTarget is not None:
             return 'Rush', rushTarget
