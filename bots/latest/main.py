@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-24 15:30:31 (local)
+# latest,  @ 2026-04-24 16:07:36 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -144,7 +144,7 @@ class Attacker:
         t = cls.get_shield_target()
         if t is not None: 
             return t
-        if Map.num_enemies == 0:
+        if Map.num_enemies_8 == 0:
             return cls.get_trans_target()
         else:
             return cls.get_trans_shield_target()

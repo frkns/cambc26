@@ -27,7 +27,7 @@ class Attacker:
         t = cls.get_shield_target()
         if t is not None: 
             return t
-        if Map.num_enemies == 0:
+        if Map.num_enemies_8 == 0:
             return cls.get_trans_target()
         else:
             return cls.get_trans_shield_target()
