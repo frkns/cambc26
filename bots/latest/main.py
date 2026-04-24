@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-24 12:01:03 (local)
+# latest,  @ 2026-04-24 12:37:06 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -28643,12 +28643,6 @@ class OreExecutive:
                 cls.state[pos] = 3
                 continue
 
-            if not VisionTracker.me_is_canonical_ally(pos):
-                heapq.heappop(cls.ti_queue)
-                del cls.state[pos]
-                # just kill?
-                continue
-
             if not ti.has_bot and MarketMaker.should_build_harvester(pos):  # fixed: was should_build_ax_harvester
                 ret = pos
                 break
@@ -28656,6 +28650,10 @@ class OreExecutive:
                 break
 
         if ret is None:
+            return None
+
+        if not VisionTracker.me_is_canonical_ally(ret):
+            # just kill?
             return None
 
 
