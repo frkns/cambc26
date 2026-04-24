@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-20 16:52:41 (local)
+# latest,  @ 2026-04-23 21:50:59 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -29226,10 +29226,9 @@ class RouteToBreach:
 
     @classmethod
     def _pick_target(cls) -> int | None:
-        if not Symmetry.is_sym_known:
-            return None
-        enemy_core = Symmetry.enemy_core_pos
-        print("Yo so the enemy core is at", enemy_core)
+        enemy_core = Unit.core_pos
+        print("Yo so the ally core is at", enemy_core)
+        Globals.ct.resign()
 
         vision_r = int(GameConstants.BREACH_ATTACK_RADIUS_SQ ** 0.5) + 1
 
@@ -34556,10 +34555,8 @@ class Builder(Unit):
         # now changed to sentinel/gunner pos near enemy?
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
         
-        """
         if RouteToBreach.is_active:
             return ('RouteBreach',)
-        """
 
         if takedownpos is not None:
             Debug.dot(takedownpos, Color.PURPLE)
@@ -34616,11 +34613,9 @@ class Builder(Unit):
             if shieldpos is not None:
                 return 'BuildShield', shieldpos
 
-        """
         breach_target = BreachBuild._pick_target()
         if breach_target is not None:
             return 'BreachBuild', breach_target
-        """
         
         foundry_target = FoundryBuild._pick_target()
         if foundry_target is not None:
