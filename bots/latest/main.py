@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-21 13:19:08 (local)
+# latest,  @ 2026-04-24 09:48:43 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -138,6 +138,9 @@ class AdjacentInfo:
 class Attacker:
     @classmethod
     def get_target(cls) -> Position | None:
+        if Builder.mode == 3 and Globals.my_pos.distance_squared(Unit.core_pos) > 16:
+            return
+        
         t = cls.get_road_target()
         if t is not None: 
             return t
@@ -26584,6 +26587,7 @@ class Map:
     proc_nearby_tiles: list[tuple[Position, int, int, int, TileInfo]]
     num_allies: int
     num_enemies: int
+    num_enemies_8: int
     num_enemy_buildings: int
     harvester_set: set[int] = set()
     ti_ally_harvester_set: set[int] = set()
@@ -26664,6 +26668,7 @@ class Map:
         messages_read = 0
         num_allies = 0
         num_enemies = 0
+        num_enemies_8 = 0
         num_enemy_buildings = 0
         cls.nearby_tiles = ct.get_nearby_tiles()
 
@@ -26695,6 +26700,8 @@ class Map:
 
         # track harvester tiles for second pass adjacency
         harvester_proc = []
+        
+        my_x, my_y = Globals.my_pos
 
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
             tile_env = get_tile_env(pos)
@@ -26759,6 +26766,8 @@ class Map:
                     num_allies += 1
                 else:
                     num_enemies += 1
+                    if abs(x-my_x) < 2 and abs(y-my_y) < 2:
+                        num_enemies_8 += 1
 
             ti.easily_passable = False
 
@@ -26871,6 +26880,7 @@ class Map:
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
+        cls.num_enemies_8 = num_enemies_8
         cls.num_enemy_buildings = num_enemy_buildings
 
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
@@ -27020,6 +27030,7 @@ class Map:
         messages_read = 0
         num_allies = 0
         num_enemies = 0
+        num_enemies_8 = 0
         num_enemy_buildings = 0
         cls.nearby_tiles = ct.get_nearby_tiles()
 
@@ -27051,6 +27062,8 @@ class Map:
 
         # track harvester tiles for second pass adjacency
         harvester_proc = []
+        
+        my_x, my_y = Globals.my_pos
 
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
             tile_env = get_tile_env(pos)
@@ -27115,6 +27128,8 @@ class Map:
                     num_allies += 1
                 else:
                     num_enemies += 1
+                    if abs(x-my_x) < 2 and abs(y-my_y) < 2:
+                        num_enemies_8 += 1
 
             ti.easily_passable = False
 
@@ -27227,6 +27242,7 @@ class Map:
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
+        cls.num_enemies_8 = num_enemies_8
         cls.num_enemy_buildings = num_enemy_buildings
 
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
@@ -27376,6 +27392,7 @@ class Map:
         messages_read = 0
         num_allies = 0
         num_enemies = 0
+        num_enemies_8 = 0
         num_enemy_buildings = 0
         cls.nearby_tiles = ct.get_nearby_tiles()
 
@@ -27407,6 +27424,8 @@ class Map:
 
         # track harvester tiles for second pass adjacency
         harvester_proc = []
+        
+        my_x, my_y = Globals.my_pos
 
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
             tile_env = get_tile_env(pos)
@@ -27471,6 +27490,8 @@ class Map:
                     num_allies += 1
                 else:
                     num_enemies += 1
+                    if abs(x-my_x) < 2 and abs(y-my_y) < 2:
+                        num_enemies_8 += 1
 
             ti.easily_passable = False
 
@@ -27583,6 +27604,7 @@ class Map:
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
+        cls.num_enemies_8 = num_enemies_8
         cls.num_enemy_buildings = num_enemy_buildings
 
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
@@ -27732,6 +27754,7 @@ class Map:
         messages_read = 0
         num_allies = 0
         num_enemies = 0
+        num_enemies_8 = 0
         num_enemy_buildings = 0
         cls.nearby_tiles = ct.get_nearby_tiles()
 
@@ -27760,6 +27783,8 @@ class Map:
 
         # track harvester tiles for second pass adjacency
         harvester_proc = []
+        
+        my_x, my_y = Globals.my_pos
 
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
             tile_env = get_tile_env(pos)
@@ -27806,6 +27831,8 @@ class Map:
                     num_allies += 1
                 else:
                     num_enemies += 1
+                    if abs(x-my_x) < 2 and abs(y-my_y) < 2:
+                        num_enemies_8 += 1
 
             ti.easily_passable = False
 
@@ -27918,6 +27945,7 @@ class Map:
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
+        cls.num_enemies_8 = num_enemies_8
         cls.num_enemy_buildings = num_enemy_buildings
 
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
@@ -33163,11 +33191,12 @@ class SitterTakedown:
             if SitterTargetInfo.is_better_than(c, best):
                 best = c
 
-        if best.enemy_bots_nearby < 2:
-            return None
-        
-        if not best.harvester_nearby:
-            return None
+        if not best.enemy_transporters_adjacent:
+            if best.enemy_bots_nearby < 2:
+                return None
+            
+            if not best.harvester_nearby:
+                return None
         
         if best.launchers_adjacent > 0:
             return None
@@ -33207,6 +33236,7 @@ class SitterTakedown:
             info.harvester_nearby = False
             info.launchers_adjacent = 0
             info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
+            info.enemy_transporters_adjacent = 0
             
             info.has_ally_transporter = (
                 ti.has_building 
@@ -33225,11 +33255,14 @@ class SitterTakedown:
             if nti is not None:
                 if nti.has_bot and not nti.is_bot_ally:
                     info.enemy_bots_nearby += 1
-                elif nti.has_building and nti.entity_type == EntityType.HARVESTER:
+                if nti.has_building and nti.entity_type == EntityType.HARVESTER:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                    
+                                        
+                if nti.has_building and not nti.is_building_ally and nti.entity_type in Constants.TRANSPORTERS_SET:
+                    info.enemy_transporters_adjacent += 1
+                                        
                 if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                     info.launchers_adjacent += 1
 
@@ -33237,11 +33270,14 @@ class SitterTakedown:
             if nti is not None:
                 if nti.has_bot and not nti.is_bot_ally:
                     info.enemy_bots_nearby += 1
-                elif nti.has_building and nti.entity_type == EntityType.HARVESTER:
+                if nti.has_building and nti.entity_type == EntityType.HARVESTER:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                    
+                                        
+                if nti.has_building and not nti.is_building_ally and nti.entity_type in Constants.TRANSPORTERS_SET:
+                    info.enemy_transporters_adjacent += 1
+                                        
                 if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                     info.launchers_adjacent += 1
 
@@ -33249,11 +33285,14 @@ class SitterTakedown:
             if nti is not None:
                 if nti.has_bot and not nti.is_bot_ally:
                     info.enemy_bots_nearby += 1
-                elif nti.has_building and nti.entity_type == EntityType.HARVESTER:
+                if nti.has_building and nti.entity_type == EntityType.HARVESTER:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                    
+                                        
+                if nti.has_building and not nti.is_building_ally and nti.entity_type in Constants.TRANSPORTERS_SET:
+                    info.enemy_transporters_adjacent += 1
+                                        
                 if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                     info.launchers_adjacent += 1
 
@@ -33261,11 +33300,14 @@ class SitterTakedown:
             if nti is not None:
                 if nti.has_bot and not nti.is_bot_ally:
                     info.enemy_bots_nearby += 1
-                elif nti.has_building and nti.entity_type == EntityType.HARVESTER:
+                if nti.has_building and nti.entity_type == EntityType.HARVESTER:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                    
+                                        
+                if nti.has_building and not nti.is_building_ally and nti.entity_type in Constants.TRANSPORTERS_SET:
+                    info.enemy_transporters_adjacent += 1
+                                        
                 if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                     info.launchers_adjacent += 1
 
@@ -33273,11 +33315,14 @@ class SitterTakedown:
             if nti is not None:
                 if nti.has_bot and not nti.is_bot_ally:
                     info.enemy_bots_nearby += 1
-                elif nti.has_building and nti.entity_type == EntityType.HARVESTER:
+                if nti.has_building and nti.entity_type == EntityType.HARVESTER:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                    
+                                        
+                if nti.has_building and not nti.is_building_ally and nti.entity_type in Constants.TRANSPORTERS_SET:
+                    info.enemy_transporters_adjacent += 1
+                                        
                 if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                     info.launchers_adjacent += 1
 
@@ -33285,11 +33330,14 @@ class SitterTakedown:
             if nti is not None:
                 if nti.has_bot and not nti.is_bot_ally:
                     info.enemy_bots_nearby += 1
-                elif nti.has_building and nti.entity_type == EntityType.HARVESTER:
+                if nti.has_building and nti.entity_type == EntityType.HARVESTER:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                    
+                                        
+                if nti.has_building and not nti.is_building_ally and nti.entity_type in Constants.TRANSPORTERS_SET:
+                    info.enemy_transporters_adjacent += 1
+                                        
                 if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                     info.launchers_adjacent += 1
 
@@ -33297,11 +33345,14 @@ class SitterTakedown:
             if nti is not None:
                 if nti.has_bot and not nti.is_bot_ally:
                     info.enemy_bots_nearby += 1
-                elif nti.has_building and nti.entity_type == EntityType.HARVESTER:
+                if nti.has_building and nti.entity_type == EntityType.HARVESTER:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                    
+                                        
+                if nti.has_building and not nti.is_building_ally and nti.entity_type in Constants.TRANSPORTERS_SET:
+                    info.enemy_transporters_adjacent += 1
+                                        
                 if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                     info.launchers_adjacent += 1
 
@@ -33309,11 +33360,14 @@ class SitterTakedown:
             if nti is not None:
                 if nti.has_bot and not nti.is_bot_ally:
                     info.enemy_bots_nearby += 1
-                elif nti.has_building and nti.entity_type == EntityType.HARVESTER:
+                if nti.has_building and nti.entity_type == EntityType.HARVESTER:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                    
+                                        
+                if nti.has_building and not nti.is_building_ally and nti.entity_type in Constants.TRANSPORTERS_SET:
+                    info.enemy_transporters_adjacent += 1
+                                        
                 if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                     info.launchers_adjacent += 1
 
@@ -33326,7 +33380,7 @@ class SitterTargetInfo:
     __slots__ = (
         'position', 'dist_enemy_core', 'has_ally_transporter',
         'enemy_bots_nearby', 'harvester_nearby', 'launchers_adjacent',
-        'bfs_dist_adj',
+        'bfs_dist_adj', 'enemy_transporters_adjacent'
     )
 
     @staticmethod
@@ -33336,6 +33390,12 @@ class SitterTargetInfo:
 
         if a.launchers_adjacent != b.launchers_adjacent:
             return a.launchers_adjacent < b.launchers_adjacent
+        
+        if a.enemy_transporters_adjacent != b.enemy_transporters_adjacent:
+            return a.enemy_transporters_adjacent > b.enemy_transporters_adjacent
+        
+        # if bool(a.enemy_bots_nearby) != bool(b.enemy_bots_nearby):
+        #     return bool(a.enemy_bots_nearby)
         
         if a.enemy_bots_nearby != b.enemy_bots_nearby:
             return a.enemy_bots_nearby > b.enemy_bots_nearby
@@ -34559,8 +34619,8 @@ class Builder(Unit):
         if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos) and Map.num_enemies == 0:
             Globals.ct.fire(my_pos)
         
-        # if my_pos.distance_squared(Symmetry.enemy_core_pos) < my_pos.distance_squared(Unit.core_pos):
-        #     RoadspamExecutor.execute_roadspam_attempt()
+        if my_pos.distance_squared(Symmetry.enemy_core_pos) < my_pos.distance_squared(Unit.core_pos) and Map.num_enemies > 0:
+            RoadspamExecutor.execute_roadspam_attempt()
 
 
 
@@ -34593,7 +34653,6 @@ class Builder(Unit):
             return 'BuildGunner', takedownpos, None
 
 
-        # disable for now
         sitterpos = SitterTakedown.get_best_launcher_position()
         if sitterpos is not None:
             Debug.dot(sitterpos, Color.PURPLE)
@@ -34618,6 +34677,12 @@ class Builder(Unit):
             shieldpos = HarvesterAdjacent.get_best_shield_position()
             if shieldpos is not None:
                 return 'BuildShield', shieldpos
+                
+        attackpos = Attacker.get_target()
+        
+        if attackpos is not None:
+            if Globals.my_pos.distance_squared(attackpos) <= 2:
+                return 'Attack', attackpos
 
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
@@ -34660,11 +34725,10 @@ class Builder(Unit):
             if tpos not in RouteToCore.killed:
                 RouteToCore.set_pos(tpos)
                 return 'MoveTo', tpos, 'InitRoute'
-
-        apos = Attacker.get_target()
-        if apos is not None:
-            return 'Attack', apos
-
+        
+        if attackpos is not None:
+            return 'Attack', attackpos
+                
         ax_target = OreExecutive.get_axionite_target()
         ti_target = OreExecutive.get_titanium_target()
         stalk_target = StalkTargeter.get_best_target()
@@ -35126,7 +35190,7 @@ class VisionTracker:
 
     @classmethod
     def get_best_road_atk_target(cls) -> RoadInfo | None:
-        roads = (cls.enemy_roads_harvester if Map.num_enemies > 0 else cls.enemy_roads)
+        roads = (cls.enemy_roads_harvester if Map.num_enemies_8 > 0 else cls.enemy_roads)
         if not roads:
             return None
 

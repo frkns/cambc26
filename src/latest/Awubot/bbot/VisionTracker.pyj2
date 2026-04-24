@@ -260,7 +260,7 @@ class VisionTracker:
 
     @classmethod
     def get_best_road_atk_target(cls) -> RoadInfo | None:
-        roads = (cls.enemy_roads_harvester if Map.num_enemies > 0 else cls.enemy_roads)
+        roads = (cls.enemy_roads_harvester if Map.num_enemies_8 > 0 else cls.enemy_roads)
         if not roads:
             return None
 

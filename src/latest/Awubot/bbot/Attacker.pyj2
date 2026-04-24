@@ -21,6 +21,9 @@ from Generated import *
 class Attacker:
     @classmethod
     def get_target(cls) -> Position | None:
+        if Builder.mode == {{ Mode.HEALER }} and Globals.my_pos.distance_squared(Unit.core_pos) > 16:
+            return
+        
         t = cls.get_road_target()
         if t is not None: 
             return t

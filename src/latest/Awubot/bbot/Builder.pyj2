@@ -143,8 +143,8 @@ class Builder({{ super() }}):
         if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos) and Map.num_enemies == 0:
             Globals.ct.fire(my_pos)
         
-        # if my_pos.distance_squared(Symmetry.enemy_core_pos) < my_pos.distance_squared(Unit.core_pos):
-        #     RoadspamExecutor.execute_roadspam_attempt()
+        if my_pos.distance_squared(Symmetry.enemy_core_pos) < my_pos.distance_squared(Unit.core_pos) and Map.num_enemies > 0:
+            RoadspamExecutor.execute_roadspam_attempt()
 
 
 
@@ -177,7 +177,6 @@ class Builder({{ super() }}):
             return 'BuildGunner', takedownpos, None
 
 
-        # disable for now
         sitterpos = SitterTakedown.get_best_launcher_position()
         if sitterpos is not None:
             Debug.dot(sitterpos, Color.PURPLE)
@@ -202,6 +201,12 @@ class Builder({{ super() }}):
             shieldpos = HarvesterAdjacent.get_best_shield_position()
             if shieldpos is not None:
                 return 'BuildShield', shieldpos
+                
+        attackpos = Attacker.get_target()
+        
+        if attackpos is not None:
+            if Globals.my_pos.distance_squared(attackpos) <= 2:
+                return 'Attack', attackpos
 
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
@@ -244,11 +249,10 @@ class Builder({{ super() }}):
             if tpos not in RouteToCore.killed:
                 RouteToCore.set_pos(tpos)
                 return 'MoveTo', tpos, 'InitRoute'
-
-        apos = Attacker.get_target()
-        if apos is not None:
-            return 'Attack', apos
-
+        
+        if attackpos is not None:
+            return 'Attack', attackpos
+                
         ax_target = OreExecutive.get_axionite_target()
         ti_target = OreExecutive.get_titanium_target()
         stalk_target = StalkTargeter.get_best_target()
