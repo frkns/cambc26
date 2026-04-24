@@ -41,7 +41,7 @@ class Breach({{ super() }}):
         for tile in nearbyTiles:
             daBuildingID = ct.get_tile_building_id(tile)
             if daBuildingID is not None:
-                if ct.get_team(daBuildingID) != Globals.my_team and ct.get_entity_type(daBuildingID) == EntityType.CORE:
+                if ct.get_entity_type(daBuildingID) == EntityType.CORE:
                     nearbyCore = True
                     break
         RANGE_DIST = 5
@@ -52,7 +52,7 @@ class Breach({{ super() }}):
         myPos = Globals.my_pos
         newPos = myPos
         for _ in range(RANGE_DIST):
-            newPos =newPos.add(myDir)
+            newPos = newPos.add(myDir)
         opposite = myDir.opposite()
         for _ in range(RANGE_DIST):
             if Globals.ct.can_fire(newPos):

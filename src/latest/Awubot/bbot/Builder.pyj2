@@ -239,7 +239,7 @@ class Builder({{ super() }}):
             if Util.dist_sq(tpos, Symmetry.enemy_core_pos) \
                     < Util.dist_sq(tpos, Unit.core_pos) \
                     and BfsBureau.bfs20_dist_adj[{{ encode_pos('tpos.x', 'tpos.y') }}] < 100:
-                return 'BuildTurret', tpos 
+                return 'BuildTurret', tpos
 
             if tpos not in RouteToCore.killed:
                 RouteToCore.set_pos(tpos)

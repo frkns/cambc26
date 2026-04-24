@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-21 13:19:08 (local)
+# latest,  @ 2026-04-23 20:56:22 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -411,6 +411,7 @@ class BfsBureau:
         cls.weight[idx + -56] += 1000000
         cls.weight[idx + -57] += 1000000
 
+        Debug.dot(Position(x, y), Color.YELLOW)
 
     @classmethod
     def remove_enemy_launcher(cls, idx):
@@ -451,6 +452,7 @@ class BfsBureau:
         if cls.weight[i] < 1:
             cls.weight[i] = 1
 
+        Debug.dot(Position(x, y), Color.GREEN)
 
 
 
@@ -1857,6 +1859,7 @@ class BfsBureau:
 
         # ── Same-tile: CENTRE competes with neighbors ──
         if si == ti:
+            print(f'[on top of find_route target with {ban_target=}]')
             
             if ban_target:
                 _best_c = 1000000
@@ -2171,7 +2174,7 @@ class BfsBureau:
             return 1000000, None
 
         # ── Phase 2: bitmask BFS from Dijkstra frontier ──
-        
+        Profiler.start()
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = (cls.now_passable_int | _tm) & cls.board_mask
@@ -2377,6 +2380,7 @@ class BfsBureau:
 
         # ── Same-tile: CENTRE competes with neighbors ──
         if si == ti:
+            print(f'[on top of find_route_inv target with {ban_target=}]')
             
             if ban_target:
                 _best_c = 1000000
@@ -2735,7 +2739,7 @@ class BfsBureau:
             return 1000000, None
 
         # ── Phase 2: bitmask BFS from Dijkstra frontier ──
-        
+        Profiler.start()
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = (cls.now_passable_int | _tm) & cls.board_mask
@@ -4520,11 +4524,11 @@ class BreachBuild:
                 and Globals.ct.get_action_cooldown() == 0:
                 BuildManager.destroy(pos)
         
-        dirToBuild = pos.direction_to(Symmetry.enemy_core_pos)
+        dirToBuild = pos.direction_to(Unit.core_pos)
         
         # Calculate distance to the closest tile of the 3x3 enemy core
-        core_dx = max(0, abs(pos.x - Symmetry.enemy_core_pos.x) - 1)
-        core_dy = max(0, abs(pos.y - Symmetry.enemy_core_pos.y) - 1)
+        core_dx = max(0, abs(pos.x - Unit.core_pos.x) - 1)
+        core_dy = max(0, abs(pos.y - Unit.core_pos.y) - 1)
         dist_to_core_sq = core_dx**2 + core_dy**2
 
         if Globals.ct.can_build_breach(pos, dirToBuild) and dist_to_core_sq <= GameConstants.BREACH_ATTACK_RADIUS_SQ:
@@ -4613,6 +4617,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_builder_bot() -> bool:
+        assert EntityType.BUILDER_BOT in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4655,6 +4660,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4672,6 +4678,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_gunner() -> bool:
+        assert EntityType.GUNNER in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4728,6 +4735,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_sentinel() -> bool:
+        assert EntityType.SENTINEL in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4770,6 +4778,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4787,6 +4796,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_breach() -> bool:
+        assert EntityType.BREACH in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4829,6 +4839,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4846,6 +4857,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_launcher() -> bool:
+        assert EntityType.LAUNCHER in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4902,6 +4914,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_conveyor() -> bool:
+        assert EntityType.CONVEYOR in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4945,6 +4958,7 @@ class BuildManager:
         if MarketMaker.est_income > 10 and Globals.round > 50:
             ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4962,6 +4976,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_splitter() -> bool:
+        assert EntityType.SPLITTER in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -5003,6 +5018,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -5020,6 +5036,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_armoured_conveyor() -> bool:
+        assert EntityType.ARMOURED_CONVEYOR in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -5061,6 +5078,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -5078,6 +5096,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_bridge() -> bool:
+        assert EntityType.BRIDGE in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -5121,6 +5140,7 @@ class BuildManager:
         if MarketMaker.est_income > 10 and Globals.round > 50:
             ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -5138,6 +5158,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_harvester() -> bool:
+        assert EntityType.HARVESTER in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -5178,6 +5199,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -5195,6 +5217,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_foundry() -> bool:
+        assert EntityType.FOUNDRY in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -5235,6 +5258,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -5252,6 +5276,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_road() -> bool:
+        assert EntityType.ROAD in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -5293,6 +5318,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -5310,6 +5336,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_barrier() -> bool:
+        assert EntityType.BARRIER in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -5350,6 +5377,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -25988,10 +26016,11 @@ class HarvesterAdjacent:
                     infos.append(info)
 
         
-        
+        Profiler.start()
         sample = random.sample(infos, min(5, len(infos)))
         for info in sample:
             info.sentinel_dir_info = SentinelDirectionPicker.get_best_info(info.position)
+        Profiler.end(f"""SentinelDirectionPicker.get_best_info (x5)""")
 
 
 # ============================================================
@@ -26491,9 +26520,11 @@ class HealTargeter:
             if HealTargetInfo.is_better_than(cand, best):
                 best = cand
 
+        print(f'(possible) heal target {best.position=} {best.building_heal=} {best.building_hp=}')
 
         total_heal = best.building_heal + best.bot_heal
         if total_heal < 4:
+            print(f'{total_heal=}')
             # Still heal buildings next to harvesters for shielding
             if not best.harvester_adjacent or total_heal == 0:
                 return None
@@ -26865,9 +26896,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+                Profiler.start()
                 Comms.handle_message(get_marker_value(building_id))
-                
+                Profiler.end(f"""Comms.handle_message""")
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
@@ -27221,9 +27252,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+                Profiler.start()
                 Comms.handle_message(get_marker_value(building_id))
-                
+                Profiler.end(f"""Comms.handle_message""")
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
@@ -27577,9 +27608,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+                Profiler.start()
                 Comms.handle_message(get_marker_value(building_id))
-                
+                Profiler.end(f"""Comms.handle_message""")
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
@@ -27912,9 +27943,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+                Profiler.start()
                 Comms.handle_message(get_marker_value(building_id))
-                
+                Profiler.end(f"""Comms.handle_message""")
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
@@ -28405,9 +28436,9 @@ class MarketMaker:
             return cls.hres
 
         
-        
+        Profiler.start()
         bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.core_sink_set)
-        
+        Profiler.end(f"""BfsBureau.find_bridge_route""")
         h_cost, _ = Globals.ct.get_harvester_cost()
         b_cost, _ = Globals.ct.get_bridge_cost()
         cls.hres = h_cost + b_cost * bridges 
@@ -28984,12 +29015,12 @@ class Pathfinder:
             cls.near_base = False
         # else: in dead-band [19..25], keep previous near_base value
 
-        
+        Profiler.start()
         if cls.near_base:
             dist, dir = BfsBureau.find_route_inv(my_pos, target, ban_target_pos)  # prefer empties → lays roads
         else:
             dist, dir = BfsBureau.find_route(my_pos, target, ban_target_pos)      # prefer roads → uses existing roads
-        
+        Profiler.end(f"""BfsBureau.find_route""")
 
         if orbit and 0 < target.distance_squared(my_pos) <= 2:
             dir = my_pos.direction_to(target).rotate_left()
@@ -29077,6 +29108,8 @@ class Player:
             err = traceback.format_exc()
             Debug.tee(err)
             Debug.tee(f'(I am a {Globals.my_type})')
+
+            ct.resign()
 
 
 # ============================================================
@@ -29233,10 +29266,8 @@ class RouteToBreach:
 
     @classmethod
     def _pick_target(cls) -> int | None:
-        if not Symmetry.is_sym_known:
-            return None
-        enemy_core = Symmetry.enemy_core_pos
-        print("Yo so the enemy core is at", enemy_core)
+        enemy_core = Unit.core_pos
+        print("Yo so the ally core is at", enemy_core)
 
         vision_r = int(GameConstants.BREACH_ATTACK_RADIUS_SQ ** 0.5) + 1
 
@@ -29300,7 +29331,7 @@ class RouteToBreach:
             avoid_pos = RouteToCore.pathFindingKill
         )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("RouteToBreach: first_target is None, giving up")
@@ -29460,6 +29491,9 @@ class RouteToCore:
         assert cls.is_active
         bridge_dist = 0
         first_target = None
+        
+        if Globals.round > 300:
+            cls.isAttack = True
         if cls.isAttack:
             coolPos = RushTargeter.enemy_core_turret_target(GameConstants.SENTINEL_VISION_RADIUS_SQ)
             if coolPos == None:
@@ -29487,7 +29521,7 @@ class RouteToCore:
                     avoid_pos = cls.pathFindingKill
                 )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("first_target is None: giving up")
@@ -29719,7 +29753,7 @@ class RouteToFoundry:
             avoid_pos = RouteToCore.pathFindingKill 
         )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("RouteToFoundry: first_target is None, giving up")
@@ -29846,10 +29880,8 @@ class RushTargeter:
 
     @classmethod
     def enemy_core_turret_target(cls, attack_r_sq) -> Position | None:
-        if not Symmetry.is_sym_known:
-            return None
-        enemy_core = Symmetry.enemy_core_pos
-        print("Yo so the enemy core is at", enemy_core)
+        enemy_core = Unit.core_pos
+        print("Yo so the ally core is at", enemy_core)
 
         vision_r = int(attack_r_sq ** 0.5) + 1
 
@@ -30019,12 +30051,15 @@ class SentinelChain:
 # ============================================================
 
 class SentinelDirectionInfo:
-    __slots__ = ('direction', 'banned', 'enemy_building_hp', 'enemy_bot_hp', 'cosine_sim')
+    __slots__ = ('direction', 'banned', 'enemy_building_hp', 'enemy_bot_hp', 'cosine_sim', 'has_core')
 
     @staticmethod
     def is_better_than(a: SentinelDirectionInfo, b: SentinelDirectionInfo) -> bool:
         if a.banned: return False
         if b.banned: return True
+        
+        if a.has_core != b.has_core:
+            return a.has_core > b.has_core
         
         if a.enemy_building_hp != b.enemy_building_hp:
             return a.enemy_building_hp > b.enemy_building_hp
@@ -30112,6 +30147,7 @@ class SentinelDirectionPicker:
             info0.banned = has_feeder[0]
             info0.enemy_building_hp = 0
             info0.enemy_bot_hp = 0
+            info0.has_core = False
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
@@ -30125,6 +30161,7 @@ class SentinelDirectionPicker:
             info1.banned = has_feeder[1]
             info1.enemy_building_hp = 0
             info1.enemy_bot_hp = 0
+            info1.has_core = False
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
@@ -30138,6 +30175,7 @@ class SentinelDirectionPicker:
             info2.banned = has_feeder[2]
             info2.enemy_building_hp = 0
             info2.enemy_bot_hp = 0
+            info2.has_core = False
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
@@ -30151,6 +30189,7 @@ class SentinelDirectionPicker:
             info3.banned = has_feeder[3]
             info3.enemy_building_hp = 0
             info3.enemy_bot_hp = 0
+            info3.has_core = False
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
@@ -30164,6 +30203,7 @@ class SentinelDirectionPicker:
             info4.banned = has_feeder[4]
             info4.enemy_building_hp = 0
             info4.enemy_bot_hp = 0
+            info4.has_core = False
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
@@ -30177,6 +30217,7 @@ class SentinelDirectionPicker:
             info5.banned = has_feeder[5]
             info5.enemy_building_hp = 0
             info5.enemy_bot_hp = 0
+            info5.has_core = False
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
@@ -30190,6 +30231,7 @@ class SentinelDirectionPicker:
             info6.banned = has_feeder[6]
             info6.enemy_building_hp = 0
             info6.enemy_bot_hp = 0
+            info6.has_core = False
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
@@ -30203,6 +30245,7 @@ class SentinelDirectionPicker:
             info7.banned = has_feeder[7]
             info7.enemy_building_hp = 0
             info7.enemy_bot_hp = 0
+            info7.has_core = False
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
@@ -30218,6 +30261,7 @@ class SentinelDirectionPicker:
             info0.banned = False
             info0.enemy_building_hp = 0
             info0.enemy_bot_hp = 0
+            info0.has_core = False
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
@@ -30231,6 +30275,7 @@ class SentinelDirectionPicker:
             info1.banned = False
             info1.enemy_building_hp = 0
             info1.enemy_bot_hp = 0
+            info1.has_core = False
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
@@ -30244,6 +30289,7 @@ class SentinelDirectionPicker:
             info2.banned = False
             info2.enemy_building_hp = 0
             info2.enemy_bot_hp = 0
+            info2.has_core = False
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
@@ -30257,6 +30303,7 @@ class SentinelDirectionPicker:
             info3.banned = False
             info3.enemy_building_hp = 0
             info3.enemy_bot_hp = 0
+            info3.has_core = False
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
@@ -30270,6 +30317,7 @@ class SentinelDirectionPicker:
             info4.banned = False
             info4.enemy_building_hp = 0
             info4.enemy_bot_hp = 0
+            info4.has_core = False
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
@@ -30283,6 +30331,7 @@ class SentinelDirectionPicker:
             info5.banned = False
             info5.enemy_building_hp = 0
             info5.enemy_bot_hp = 0
+            info5.has_core = False
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
@@ -30296,6 +30345,7 @@ class SentinelDirectionPicker:
             info6.banned = False
             info6.enemy_building_hp = 0
             info6.enemy_bot_hp = 0
+            info6.has_core = False
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
@@ -30309,6 +30359,7 @@ class SentinelDirectionPicker:
             info7.banned = False
             info7.enemy_building_hp = 0
             info7.enemy_bot_hp = 0
+            info7.has_core = False
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
@@ -30327,6 +30378,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + -5][sy + -4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30334,6 +30387,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + -5][sy + -3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30341,6 +30396,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + -5][sy + -2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30348,6 +30405,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + -5][sy + -1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30357,6 +30416,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info6.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info6.has_core = true
         ti = tile_info[sx + -5][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30366,6 +30428,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info6.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info6.has_core = true
         ti = tile_info[sx + -5][sy + 1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30375,6 +30440,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info6.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info6.has_core = true
         ti = tile_info[sx + -5][sy + 2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30382,6 +30450,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + -5][sy + 3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30389,6 +30459,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + -5][sy + 4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30396,6 +30468,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + -5][sy + 5]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30403,6 +30477,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + -4][sy + -5]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30410,6 +30486,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + -4][sy + -4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30419,6 +30497,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info7.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info7.has_core = true
         ti = tile_info[sx + -4][sy + -3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30428,6 +30509,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info7.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info7.has_core = true
         ti = tile_info[sx + -4][sy + -2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30437,6 +30521,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info7.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info7.has_core = true
         ti = tile_info[sx + -4][sy + -1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30446,6 +30533,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info6.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info6.has_core = true
         ti = tile_info[sx + -4][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30455,6 +30545,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info6.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info6.has_core = true
         ti = tile_info[sx + -4][sy + 1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30464,6 +30557,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info6.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info6.has_core = true
         ti = tile_info[sx + -4][sy + 2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30473,6 +30569,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info5.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info5.has_core = true
         ti = tile_info[sx + -4][sy + 3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30482,6 +30581,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info5.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info5.has_core = true
         ti = tile_info[sx + -4][sy + 4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30491,6 +30593,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info5.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info5.has_core = true
         ti = tile_info[sx + -4][sy + 5]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30498,6 +30603,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + -3][sy + -5]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30505,6 +30612,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + -3][sy + -4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30514,6 +30623,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info7.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info7.has_core = true
         ti = tile_info[sx + -3][sy + -3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30523,6 +30635,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info7.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info7.has_core = true
         ti = tile_info[sx + -3][sy + -2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30532,6 +30647,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info7.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info7.has_core = true
         ti = tile_info[sx + -3][sy + -1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30543,6 +30661,10 @@ class SentinelDirectionPicker:
                 e_bot_hp = ti.bot_hp
                 info6.enemy_bot_hp += e_bot_hp
                 info7.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info6.has_core = true
+                info7.has_core = true
         ti = tile_info[sx + -3][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30552,6 +30674,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info6.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info6.has_core = true
         ti = tile_info[sx + -3][sy + 1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30563,6 +30688,10 @@ class SentinelDirectionPicker:
                 e_bot_hp = ti.bot_hp
                 info5.enemy_bot_hp += e_bot_hp
                 info6.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info5.has_core = true
+                info6.has_core = true
         ti = tile_info[sx + -3][sy + 2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30572,6 +30701,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info5.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info5.has_core = true
         ti = tile_info[sx + -3][sy + 3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30581,6 +30713,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info5.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info5.has_core = true
         ti = tile_info[sx + -3][sy + 4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30590,6 +30725,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info5.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info5.has_core = true
         ti = tile_info[sx + -3][sy + 5]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30597,6 +30735,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + -2][sy + -5]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30604,6 +30744,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + -2][sy + -4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30613,6 +30755,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info7.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info7.has_core = true
         ti = tile_info[sx + -2][sy + -3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30622,6 +30767,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info7.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info7.has_core = true
         ti = tile_info[sx + -2][sy + -2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30631,6 +30779,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info7.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info7.has_core = true
         ti = tile_info[sx + -2][sy + -1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30642,6 +30793,10 @@ class SentinelDirectionPicker:
                 e_bot_hp = ti.bot_hp
                 info6.enemy_bot_hp += e_bot_hp
                 info7.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info6.has_core = true
+                info7.has_core = true
         ti = tile_info[sx + -2][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30655,6 +30810,11 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
                 info6.enemy_bot_hp += e_bot_hp
                 info7.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info5.has_core = true
+                info6.has_core = true
+                info7.has_core = true
         ti = tile_info[sx + -2][sy + 1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30666,6 +30826,10 @@ class SentinelDirectionPicker:
                 e_bot_hp = ti.bot_hp
                 info5.enemy_bot_hp += e_bot_hp
                 info6.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info5.has_core = true
+                info6.has_core = true
         ti = tile_info[sx + -2][sy + 2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30675,6 +30839,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info5.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info5.has_core = true
         ti = tile_info[sx + -2][sy + 3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30684,6 +30851,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info5.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info5.has_core = true
         ti = tile_info[sx + -2][sy + 4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30693,6 +30863,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info5.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info5.has_core = true
         ti = tile_info[sx + -2][sy + 5]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30700,6 +30873,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + -1][sy + -5]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30709,6 +30884,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info0.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info0.has_core = true
         ti = tile_info[sx + -1][sy + -4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30718,6 +30896,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info0.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info0.has_core = true
         ti = tile_info[sx + -1][sy + -3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30729,6 +30910,10 @@ class SentinelDirectionPicker:
                 e_bot_hp = ti.bot_hp
                 info0.enemy_bot_hp += e_bot_hp
                 info7.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info0.has_core = true
+                info7.has_core = true
         ti = tile_info[sx + -1][sy + -2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30740,6 +30925,10 @@ class SentinelDirectionPicker:
                 e_bot_hp = ti.bot_hp
                 info0.enemy_bot_hp += e_bot_hp
                 info7.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info0.has_core = true
+                info7.has_core = true
         ti = tile_info[sx + -1][sy + -1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30753,6 +30942,11 @@ class SentinelDirectionPicker:
                 info0.enemy_bot_hp += e_bot_hp
                 info6.enemy_bot_hp += e_bot_hp
                 info7.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info0.has_core = true
+                info6.has_core = true
+                info7.has_core = true
         ti = tile_info[sx + -1][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30770,6 +30964,13 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
                 info6.enemy_bot_hp += e_bot_hp
                 info7.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info0.has_core = true
+                info4.has_core = true
+                info5.has_core = true
+                info6.has_core = true
+                info7.has_core = true
         ti = tile_info[sx + -1][sy + 1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30783,6 +30984,11 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
                 info5.enemy_bot_hp += e_bot_hp
                 info6.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info4.has_core = true
+                info5.has_core = true
+                info6.has_core = true
         ti = tile_info[sx + -1][sy + 2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30794,6 +31000,10 @@ class SentinelDirectionPicker:
                 e_bot_hp = ti.bot_hp
                 info4.enemy_bot_hp += e_bot_hp
                 info5.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info4.has_core = true
+                info5.has_core = true
         ti = tile_info[sx + -1][sy + 3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30805,6 +31015,10 @@ class SentinelDirectionPicker:
                 e_bot_hp = ti.bot_hp
                 info4.enemy_bot_hp += e_bot_hp
                 info5.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info4.has_core = true
+                info5.has_core = true
         ti = tile_info[sx + -1][sy + 4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30814,6 +31028,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info4.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info4.has_core = true
         ti = tile_info[sx + -1][sy + 5]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30823,6 +31040,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info4.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info4.has_core = true
         ti = tile_info[sx + 0][sy + -5]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30832,6 +31052,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info0.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info0.has_core = true
         ti = tile_info[sx + 0][sy + -4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30841,6 +31064,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info0.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info0.has_core = true
         ti = tile_info[sx + 0][sy + -3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30850,6 +31076,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info0.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info0.has_core = true
         ti = tile_info[sx + 0][sy + -2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30863,6 +31092,11 @@ class SentinelDirectionPicker:
                 info0.enemy_bot_hp += e_bot_hp
                 info1.enemy_bot_hp += e_bot_hp
                 info7.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info0.has_core = true
+                info1.has_core = true
+                info7.has_core = true
         ti = tile_info[sx + 0][sy + -1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30880,6 +31114,13 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
                 info6.enemy_bot_hp += e_bot_hp
                 info7.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info0.has_core = true
+                info1.has_core = true
+                info2.has_core = true
+                info6.has_core = true
+                info7.has_core = true
         ti = tile_info[sx + 0][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30887,6 +31128,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + 0][sy + 1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30904,6 +31147,13 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
                 info5.enemy_bot_hp += e_bot_hp
                 info6.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info2.has_core = true
+                info3.has_core = true
+                info4.has_core = true
+                info5.has_core = true
+                info6.has_core = true
         ti = tile_info[sx + 0][sy + 2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30917,6 +31167,11 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
                 info4.enemy_bot_hp += e_bot_hp
                 info5.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info3.has_core = true
+                info4.has_core = true
+                info5.has_core = true
         ti = tile_info[sx + 0][sy + 3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30926,6 +31181,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info4.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info4.has_core = true
         ti = tile_info[sx + 0][sy + 4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30935,6 +31193,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info4.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info4.has_core = true
         ti = tile_info[sx + 0][sy + 5]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30944,6 +31205,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info4.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info4.has_core = true
         ti = tile_info[sx + 1][sy + -5]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30953,6 +31217,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info0.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info0.has_core = true
         ti = tile_info[sx + 1][sy + -4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30962,6 +31229,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info0.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info0.has_core = true
         ti = tile_info[sx + 1][sy + -3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30973,6 +31243,10 @@ class SentinelDirectionPicker:
                 e_bot_hp = ti.bot_hp
                 info0.enemy_bot_hp += e_bot_hp
                 info1.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info0.has_core = true
+                info1.has_core = true
         ti = tile_info[sx + 1][sy + -2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30984,6 +31258,10 @@ class SentinelDirectionPicker:
                 e_bot_hp = ti.bot_hp
                 info0.enemy_bot_hp += e_bot_hp
                 info1.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info0.has_core = true
+                info1.has_core = true
         ti = tile_info[sx + 1][sy + -1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -30997,6 +31275,11 @@ class SentinelDirectionPicker:
                 info0.enemy_bot_hp += e_bot_hp
                 info1.enemy_bot_hp += e_bot_hp
                 info2.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info0.has_core = true
+                info1.has_core = true
+                info2.has_core = true
         ti = tile_info[sx + 1][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31014,6 +31297,13 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
                 info3.enemy_bot_hp += e_bot_hp
                 info4.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info0.has_core = true
+                info1.has_core = true
+                info2.has_core = true
+                info3.has_core = true
+                info4.has_core = true
         ti = tile_info[sx + 1][sy + 1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31027,6 +31317,11 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
                 info3.enemy_bot_hp += e_bot_hp
                 info4.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info2.has_core = true
+                info3.has_core = true
+                info4.has_core = true
         ti = tile_info[sx + 1][sy + 2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31038,6 +31333,10 @@ class SentinelDirectionPicker:
                 e_bot_hp = ti.bot_hp
                 info3.enemy_bot_hp += e_bot_hp
                 info4.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info3.has_core = true
+                info4.has_core = true
         ti = tile_info[sx + 1][sy + 3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31049,6 +31348,10 @@ class SentinelDirectionPicker:
                 e_bot_hp = ti.bot_hp
                 info3.enemy_bot_hp += e_bot_hp
                 info4.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info3.has_core = true
+                info4.has_core = true
         ti = tile_info[sx + 1][sy + 4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31058,6 +31361,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info4.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info4.has_core = true
         ti = tile_info[sx + 1][sy + 5]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31067,6 +31373,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info4.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info4.has_core = true
         ti = tile_info[sx + 2][sy + -5]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31074,6 +31383,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + 2][sy + -4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31083,6 +31394,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info1.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info1.has_core = true
         ti = tile_info[sx + 2][sy + -3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31092,6 +31406,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info1.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info1.has_core = true
         ti = tile_info[sx + 2][sy + -2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31101,6 +31418,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info1.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info1.has_core = true
         ti = tile_info[sx + 2][sy + -1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31112,6 +31432,10 @@ class SentinelDirectionPicker:
                 e_bot_hp = ti.bot_hp
                 info1.enemy_bot_hp += e_bot_hp
                 info2.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info1.has_core = true
+                info2.has_core = true
         ti = tile_info[sx + 2][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31125,6 +31449,11 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
                 info2.enemy_bot_hp += e_bot_hp
                 info3.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info1.has_core = true
+                info2.has_core = true
+                info3.has_core = true
         ti = tile_info[sx + 2][sy + 1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31136,6 +31465,10 @@ class SentinelDirectionPicker:
                 e_bot_hp = ti.bot_hp
                 info2.enemy_bot_hp += e_bot_hp
                 info3.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info2.has_core = true
+                info3.has_core = true
         ti = tile_info[sx + 2][sy + 2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31145,6 +31478,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info3.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info3.has_core = true
         ti = tile_info[sx + 2][sy + 3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31154,6 +31490,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info3.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info3.has_core = true
         ti = tile_info[sx + 2][sy + 4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31163,6 +31502,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info3.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info3.has_core = true
         ti = tile_info[sx + 2][sy + 5]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31170,6 +31512,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + 3][sy + -5]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31177,6 +31521,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + 3][sy + -4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31186,6 +31532,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info1.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info1.has_core = true
         ti = tile_info[sx + 3][sy + -3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31195,6 +31544,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info1.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info1.has_core = true
         ti = tile_info[sx + 3][sy + -2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31204,6 +31556,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info1.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info1.has_core = true
         ti = tile_info[sx + 3][sy + -1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31215,6 +31570,10 @@ class SentinelDirectionPicker:
                 e_bot_hp = ti.bot_hp
                 info1.enemy_bot_hp += e_bot_hp
                 info2.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info1.has_core = true
+                info2.has_core = true
         ti = tile_info[sx + 3][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31224,6 +31583,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info2.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info2.has_core = true
         ti = tile_info[sx + 3][sy + 1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31235,6 +31597,10 @@ class SentinelDirectionPicker:
                 e_bot_hp = ti.bot_hp
                 info2.enemy_bot_hp += e_bot_hp
                 info3.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info2.has_core = true
+                info3.has_core = true
         ti = tile_info[sx + 3][sy + 2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31244,6 +31610,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info3.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info3.has_core = true
         ti = tile_info[sx + 3][sy + 3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31253,6 +31622,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info3.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info3.has_core = true
         ti = tile_info[sx + 3][sy + 4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31262,6 +31634,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info3.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info3.has_core = true
         ti = tile_info[sx + 3][sy + 5]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31269,6 +31644,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + 4][sy + -5]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31276,6 +31653,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + 4][sy + -4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31285,6 +31664,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info1.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info1.has_core = true
         ti = tile_info[sx + 4][sy + -3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31294,6 +31676,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info1.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info1.has_core = true
         ti = tile_info[sx + 4][sy + -2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31303,6 +31688,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info1.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info1.has_core = true
         ti = tile_info[sx + 4][sy + -1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31312,6 +31700,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info2.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info2.has_core = true
         ti = tile_info[sx + 4][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31321,6 +31712,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info2.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info2.has_core = true
         ti = tile_info[sx + 4][sy + 1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31330,6 +31724,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info2.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info2.has_core = true
         ti = tile_info[sx + 4][sy + 2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31339,6 +31736,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info3.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info3.has_core = true
         ti = tile_info[sx + 4][sy + 3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31348,6 +31748,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info3.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info3.has_core = true
         ti = tile_info[sx + 4][sy + 4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31357,6 +31760,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info3.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info3.has_core = true
         ti = tile_info[sx + 4][sy + 5]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31364,6 +31770,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + 5][sy + -5]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31371,6 +31779,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + 5][sy + -4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31378,6 +31788,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + 5][sy + -3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31385,6 +31797,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + 5][sy + -2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31392,6 +31806,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + 5][sy + -1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31401,6 +31817,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info2.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info2.has_core = true
         ti = tile_info[sx + 5][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31410,6 +31829,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info2.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info2.has_core = true
         ti = tile_info[sx + 5][sy + 1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31419,6 +31841,9 @@ class SentinelDirectionPicker:
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info2.enemy_bot_hp += e_bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                info2.has_core = true
         ti = tile_info[sx + 5][sy + 2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31426,6 +31851,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + 5][sy + 3]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31433,6 +31860,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + 5][sy + 4]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31440,6 +31869,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
         ti = tile_info[sx + 5][sy + 5]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -31447,6 +31878,8 @@ class SentinelDirectionPicker:
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
 
 
     @staticmethod
@@ -31465,6 +31898,7 @@ class SentinelDirectionPicker:
 
         info = SentinelDirectionInfo()
         info.banned = False
+        info.has_core = False
 
         ecore = Symmetry.enemy_core_pos
         u1, u2 = ecore.x - sx, ecore.y - sy
@@ -31491,6 +31925,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -1, sy + -4), 
                       Color.YELLOW)
@@ -31501,6 +31937,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -1, sy + -3), 
                       Color.YELLOW)
@@ -31511,6 +31949,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -1, sy + -2), 
                       Color.YELLOW)
@@ -31521,6 +31961,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -1, sy + -1), 
                       Color.YELLOW)
@@ -31531,6 +31973,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -1, sy + 0), 
                       Color.YELLOW)
@@ -31541,6 +31985,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 0, sy + -5), 
                       Color.YELLOW)
@@ -31551,6 +31997,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 0, sy + -4), 
                       Color.YELLOW)
@@ -31561,6 +32009,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 0, sy + -3), 
                       Color.YELLOW)
@@ -31571,6 +32021,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 0, sy + -2), 
                       Color.YELLOW)
@@ -31581,6 +32033,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 0, sy + -1), 
                       Color.YELLOW)
@@ -31591,6 +32045,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + -5), 
                       Color.YELLOW)
@@ -31601,6 +32057,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + -4), 
                       Color.YELLOW)
@@ -31611,6 +32069,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + -3), 
                       Color.YELLOW)
@@ -31621,6 +32081,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + -2), 
                       Color.YELLOW)
@@ -31631,6 +32093,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + -1), 
                       Color.YELLOW)
@@ -31641,6 +32105,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + 0), 
                       Color.YELLOW)
@@ -31651,6 +32117,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
         elif dir == Direction.NORTHEAST:
 
             Debug.dot(Position(sx + 0, sy + -2), 
@@ -31662,6 +32130,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 0, sy + -1), 
                       Color.YELLOW)
@@ -31672,6 +32142,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + -3), 
                       Color.YELLOW)
@@ -31682,6 +32154,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + -2), 
                       Color.YELLOW)
@@ -31692,6 +32166,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + -1), 
                       Color.YELLOW)
@@ -31702,6 +32178,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + 0), 
                       Color.YELLOW)
@@ -31712,6 +32190,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 2, sy + -4), 
                       Color.YELLOW)
@@ -31722,6 +32202,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 2, sy + -3), 
                       Color.YELLOW)
@@ -31732,6 +32214,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 2, sy + -2), 
                       Color.YELLOW)
@@ -31742,6 +32226,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 2, sy + -1), 
                       Color.YELLOW)
@@ -31752,6 +32238,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 2, sy + 0), 
                       Color.YELLOW)
@@ -31762,6 +32250,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 3, sy + -4), 
                       Color.YELLOW)
@@ -31772,6 +32262,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 3, sy + -3), 
                       Color.YELLOW)
@@ -31782,6 +32274,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 3, sy + -2), 
                       Color.YELLOW)
@@ -31792,6 +32286,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 3, sy + -1), 
                       Color.YELLOW)
@@ -31802,6 +32298,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 4, sy + -4), 
                       Color.YELLOW)
@@ -31812,6 +32310,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 4, sy + -3), 
                       Color.YELLOW)
@@ -31822,6 +32322,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 4, sy + -2), 
                       Color.YELLOW)
@@ -31832,6 +32334,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
         elif dir == Direction.EAST:
 
             Debug.dot(Position(sx + 0, sy + -1), 
@@ -31843,6 +32347,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 0, sy + 1), 
                       Color.YELLOW)
@@ -31853,6 +32359,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + -1), 
                       Color.YELLOW)
@@ -31863,6 +32371,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + 0), 
                       Color.YELLOW)
@@ -31873,6 +32383,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + 1), 
                       Color.YELLOW)
@@ -31883,6 +32395,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 2, sy + -1), 
                       Color.YELLOW)
@@ -31893,6 +32407,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 2, sy + 0), 
                       Color.YELLOW)
@@ -31903,6 +32419,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 2, sy + 1), 
                       Color.YELLOW)
@@ -31913,6 +32431,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 3, sy + -1), 
                       Color.YELLOW)
@@ -31923,6 +32443,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 3, sy + 0), 
                       Color.YELLOW)
@@ -31933,6 +32455,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 3, sy + 1), 
                       Color.YELLOW)
@@ -31943,6 +32467,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 4, sy + -1), 
                       Color.YELLOW)
@@ -31953,6 +32479,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 4, sy + 0), 
                       Color.YELLOW)
@@ -31963,6 +32491,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 4, sy + 1), 
                       Color.YELLOW)
@@ -31973,6 +32503,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 5, sy + -1), 
                       Color.YELLOW)
@@ -31983,6 +32515,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 5, sy + 0), 
                       Color.YELLOW)
@@ -31993,6 +32527,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 5, sy + 1), 
                       Color.YELLOW)
@@ -32003,6 +32539,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
         elif dir == Direction.SOUTHEAST:
 
             Debug.dot(Position(sx + 0, sy + 1), 
@@ -32014,6 +32552,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 0, sy + 2), 
                       Color.YELLOW)
@@ -32024,6 +32564,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + 0), 
                       Color.YELLOW)
@@ -32034,6 +32576,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + 1), 
                       Color.YELLOW)
@@ -32044,6 +32588,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + 2), 
                       Color.YELLOW)
@@ -32054,6 +32600,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + 3), 
                       Color.YELLOW)
@@ -32064,6 +32612,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 2, sy + 0), 
                       Color.YELLOW)
@@ -32074,6 +32624,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 2, sy + 1), 
                       Color.YELLOW)
@@ -32084,6 +32636,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 2, sy + 2), 
                       Color.YELLOW)
@@ -32094,6 +32648,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 2, sy + 3), 
                       Color.YELLOW)
@@ -32104,6 +32660,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 2, sy + 4), 
                       Color.YELLOW)
@@ -32114,6 +32672,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 3, sy + 1), 
                       Color.YELLOW)
@@ -32124,6 +32684,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 3, sy + 2), 
                       Color.YELLOW)
@@ -32134,6 +32696,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 3, sy + 3), 
                       Color.YELLOW)
@@ -32144,6 +32708,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 3, sy + 4), 
                       Color.YELLOW)
@@ -32154,6 +32720,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 4, sy + 2), 
                       Color.YELLOW)
@@ -32164,6 +32732,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 4, sy + 3), 
                       Color.YELLOW)
@@ -32174,6 +32744,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 4, sy + 4), 
                       Color.YELLOW)
@@ -32184,6 +32756,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
         elif dir == Direction.SOUTH:
 
             Debug.dot(Position(sx + -1, sy + 0), 
@@ -32195,6 +32769,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -1, sy + 1), 
                       Color.YELLOW)
@@ -32205,6 +32781,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -1, sy + 2), 
                       Color.YELLOW)
@@ -32215,6 +32793,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -1, sy + 3), 
                       Color.YELLOW)
@@ -32225,6 +32805,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -1, sy + 4), 
                       Color.YELLOW)
@@ -32235,6 +32817,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -1, sy + 5), 
                       Color.YELLOW)
@@ -32245,6 +32829,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 0, sy + 1), 
                       Color.YELLOW)
@@ -32255,6 +32841,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 0, sy + 2), 
                       Color.YELLOW)
@@ -32265,6 +32853,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 0, sy + 3), 
                       Color.YELLOW)
@@ -32275,6 +32865,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 0, sy + 4), 
                       Color.YELLOW)
@@ -32285,6 +32877,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 0, sy + 5), 
                       Color.YELLOW)
@@ -32295,6 +32889,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + 0), 
                       Color.YELLOW)
@@ -32305,6 +32901,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + 1), 
                       Color.YELLOW)
@@ -32315,6 +32913,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + 2), 
                       Color.YELLOW)
@@ -32325,6 +32925,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + 3), 
                       Color.YELLOW)
@@ -32335,6 +32937,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + 4), 
                       Color.YELLOW)
@@ -32345,6 +32949,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 1, sy + 5), 
                       Color.YELLOW)
@@ -32355,6 +32961,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
         elif dir == Direction.SOUTHWEST:
 
             Debug.dot(Position(sx + -4, sy + 2), 
@@ -32366,6 +32974,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -4, sy + 3), 
                       Color.YELLOW)
@@ -32376,6 +32986,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -4, sy + 4), 
                       Color.YELLOW)
@@ -32386,6 +32998,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -3, sy + 1), 
                       Color.YELLOW)
@@ -32396,6 +33010,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -3, sy + 2), 
                       Color.YELLOW)
@@ -32406,6 +33022,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -3, sy + 3), 
                       Color.YELLOW)
@@ -32416,6 +33034,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -3, sy + 4), 
                       Color.YELLOW)
@@ -32426,6 +33046,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -2, sy + 0), 
                       Color.YELLOW)
@@ -32436,6 +33058,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -2, sy + 1), 
                       Color.YELLOW)
@@ -32446,6 +33070,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -2, sy + 2), 
                       Color.YELLOW)
@@ -32456,6 +33082,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -2, sy + 3), 
                       Color.YELLOW)
@@ -32466,6 +33094,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -2, sy + 4), 
                       Color.YELLOW)
@@ -32476,6 +33106,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -1, sy + 0), 
                       Color.YELLOW)
@@ -32486,6 +33118,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -1, sy + 1), 
                       Color.YELLOW)
@@ -32496,6 +33130,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -1, sy + 2), 
                       Color.YELLOW)
@@ -32506,6 +33142,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -1, sy + 3), 
                       Color.YELLOW)
@@ -32516,6 +33154,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 0, sy + 1), 
                       Color.YELLOW)
@@ -32526,6 +33166,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 0, sy + 2), 
                       Color.YELLOW)
@@ -32536,6 +33178,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
         elif dir == Direction.WEST:
 
             Debug.dot(Position(sx + -5, sy + -1), 
@@ -32547,6 +33191,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -5, sy + 0), 
                       Color.YELLOW)
@@ -32557,6 +33203,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -5, sy + 1), 
                       Color.YELLOW)
@@ -32567,6 +33215,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -4, sy + -1), 
                       Color.YELLOW)
@@ -32577,6 +33227,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -4, sy + 0), 
                       Color.YELLOW)
@@ -32587,6 +33239,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -4, sy + 1), 
                       Color.YELLOW)
@@ -32597,6 +33251,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -3, sy + -1), 
                       Color.YELLOW)
@@ -32607,6 +33263,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -3, sy + 0), 
                       Color.YELLOW)
@@ -32617,6 +33275,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -3, sy + 1), 
                       Color.YELLOW)
@@ -32627,6 +33287,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -2, sy + -1), 
                       Color.YELLOW)
@@ -32637,6 +33299,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -2, sy + 0), 
                       Color.YELLOW)
@@ -32647,6 +33311,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -2, sy + 1), 
                       Color.YELLOW)
@@ -32657,6 +33323,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -1, sy + -1), 
                       Color.YELLOW)
@@ -32667,6 +33335,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -1, sy + 0), 
                       Color.YELLOW)
@@ -32677,6 +33347,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -1, sy + 1), 
                       Color.YELLOW)
@@ -32687,6 +33359,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 0, sy + -1), 
                       Color.YELLOW)
@@ -32697,6 +33371,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 0, sy + 1), 
                       Color.YELLOW)
@@ -32707,6 +33383,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
         else:  # dir == Direction.NORTHWEST
 
             Debug.dot(Position(sx + -4, sy + -4), 
@@ -32718,6 +33396,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -4, sy + -3), 
                       Color.YELLOW)
@@ -32728,6 +33408,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -4, sy + -2), 
                       Color.YELLOW)
@@ -32738,6 +33420,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -3, sy + -4), 
                       Color.YELLOW)
@@ -32748,6 +33432,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -3, sy + -3), 
                       Color.YELLOW)
@@ -32758,6 +33444,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -3, sy + -2), 
                       Color.YELLOW)
@@ -32768,6 +33456,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -3, sy + -1), 
                       Color.YELLOW)
@@ -32778,6 +33468,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -2, sy + -4), 
                       Color.YELLOW)
@@ -32788,6 +33480,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -2, sy + -3), 
                       Color.YELLOW)
@@ -32798,6 +33492,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -2, sy + -2), 
                       Color.YELLOW)
@@ -32808,6 +33504,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -2, sy + -1), 
                       Color.YELLOW)
@@ -32818,6 +33516,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -2, sy + 0), 
                       Color.YELLOW)
@@ -32828,6 +33528,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -1, sy + -3), 
                       Color.YELLOW)
@@ -32838,6 +33540,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -1, sy + -2), 
                       Color.YELLOW)
@@ -32848,6 +33552,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -1, sy + -1), 
                       Color.YELLOW)
@@ -32858,6 +33564,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + -1, sy + 0), 
                       Color.YELLOW)
@@ -32868,6 +33576,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 0, sy + -2), 
                       Color.YELLOW)
@@ -32878,6 +33588,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
             Debug.dot(Position(sx + 0, sy + -1), 
                       Color.YELLOW)
@@ -32888,6 +33600,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
 
         raise Exception
 
@@ -32987,9 +33701,6 @@ class SentinelSupervisor:
             x, y = pos.x, pos.y
             idx = (((x) + 3) * 56 + ((y) + 3))
             ti = tile_info[x][y]
-            if not (ti.has_building and not ti.is_building_ally) and not (ti.has_bot and not ti.is_bot_ally):
-                continue
-            
             info = SentinelTargetInfo()
             info.position = pos
             info.has_bot = False
@@ -33083,6 +33794,9 @@ class SentinelTargetInfo:
 
         if a.has_turret and (not b.has_turret): return True
         if (not a.has_turret) and b.has_turret: return False
+
+        if a.iscore and (not b.iscore): return True
+        if (not a.iscore) and b.iscore: return False
 
         if a.has_turret and b.has_turret:
             if a.can_shoot_me and (not b.can_shoot_me): return True
@@ -33481,7 +34195,7 @@ class SpawnManager:
 class StalkTargeter:
     @classmethod
     def get_best_target(cls) -> Position | None:
-        
+        Profiler.start()
 
         my_pos = Globals.my_pos
 
@@ -33505,7 +34219,7 @@ class StalkTargeter:
                     best_dist = dist
                     best = pos
                 
-        
+        Profiler.end(f"""StalkTargeter.get_best_target""")
                 
         return best
 
@@ -33634,6 +34348,7 @@ class StateBuildShield:
                     if ti.is_building_ally:
                         found_ally_harvester = True
         
+        print(f'{target_dir=}, {found_ally_harvester=}')
 
 
         if pos != Globals.my_pos:
@@ -33712,9 +34427,9 @@ class StateBuildTurret:
             # who cares all turrets are the same anyways
             BuildManager.dbuild_gunner(pos, core_dir)
         elif BuildManager.can_dbuild_sentinel(pos):
-            
+            Profiler.start()
             dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
-            
+            Profiler.end(f"""SentinelDirectionPicker.get_best_direction""")
 
             BuildManager.dbuild_sentinel(pos, dir)
         elif Globals.ct.can_build_road(pos):
@@ -33738,6 +34453,7 @@ class StateFoundryBuild:
 class StateMoveTo:
     @classmethod
     def run(cls, pos, tag='_'):
+        print(f'{tag=}')
         Pathfinder.move_to(pos)
 
 
@@ -33783,6 +34499,7 @@ class StateReroute:  # for misrouted ally transporters
 class StateRoute:
     @classmethod
     def run(cls):
+        assert RouteToCore.is_active
         RouteToCore.do_routing()
 
 
@@ -33909,9 +34626,9 @@ class Symmetry:
         cls.predict_enemy_core()
         DarkForest.register_enemy_core()
 
-        
+        Profiler.start()
         Map.sync_tile_infos()
-        
+        Profiler.end_now(f"""Map.sync_tile_infos""")
         RouteToCore.pathFindingKill.update(cls.enemy_core_pos_set) # don't route to core anymore
 
 
@@ -34377,9 +35094,9 @@ class Unit:
         MarketMaker.refresh()
 
         if Globals.ct.get_entity_type() != EntityType.LAUNCHER:
-            
+            Profiler.start()
             Map.fill_tile_info()
-            
+            Profiler.end(f"""Map.fill_tile_info""")
 
     @classmethod
     def run_turn(cls):
@@ -34388,7 +35105,7 @@ class Unit:
     @classmethod
     def end_turn(cls):
 
-        if Globals.round == 1999:
+        if Globals.round == 667:
             Profiler.report()
         print(f'scale ratio {MarketMaker.scale_ratio:.2f}')
 
@@ -34417,7 +35134,7 @@ class Breach(Unit):
         for tile in nearbyTiles:
             daBuildingID = ct.get_tile_building_id(tile)
             if daBuildingID is not None:
-                if ct.get_team(daBuildingID) != Globals.my_team and ct.get_entity_type(daBuildingID) == EntityType.CORE:
+                if ct.get_entity_type(daBuildingID) == EntityType.CORE:
                     nearbyCore = True
                     break
         RANGE_DIST = 5
@@ -34428,7 +35145,7 @@ class Breach(Unit):
         myPos = Globals.my_pos
         newPos = myPos
         for _ in range(RANGE_DIST):
-            newPos =newPos.add(myDir)
+            newPos = newPos.add(myDir)
         opposite = myDir.opposite()
         for _ in range(RANGE_DIST):
             if Globals.ct.can_fire(newPos):
@@ -34462,13 +35179,13 @@ class Builder(Unit):
     def start_turn(cls):
         Unit.start_turn()
 
-        
+        Profiler.start()
         DarkForest.fcompute()
-        
+        Profiler.end(f"""DarkForest.fcompute""")
 
-        
+        Profiler.start()
         BfsBureau.update()
-        
+        Profiler.end(f"""BfsBureau.update""")
 
         Symmetry.run_sym_check()
 
@@ -34492,34 +35209,34 @@ class Builder(Unit):
         print("Mode:", cls.mode)
 
 
-        
+        Profiler.start()
         BfsBureau.bfs20()
-        
+        Profiler.end(f"""BfsBureau.bfs20""")
 
-        
+        Profiler.start()
         BfsBureau.update_enclosed_regions()
-        
+        Profiler.end(f"""BfsBureau.update_enclosed_regions""")
 
 
-        
+        Profiler.start()
         OreExecutive.fill()
-        
+        Profiler.end(f"""OreExecutive.fill""")
 
-        
+        Profiler.start()
         VisionTracker.fill()
-        
+        Profiler.end(f"""VisionTracker.fill""")
 
-        
+        Profiler.start()
         SitterTakedown.fill()
-        
+        Profiler.end(f"""SitterTakedown.fill""")
 
-        
+        Profiler.start()
         HarvesterAdjacent.fill()
-        
+        Profiler.end(f"""HarvesterAdjacent.fill""")
 
-        
+        Profiler.start()
         HealTargeter.fill()
-        
+        Profiler.end(f"""HealTargeter.fill""")
 
 
 
@@ -34527,23 +35244,24 @@ class Builder(Unit):
     def run_turn(cls):
         cls.state, *args = cls.determine_state()
 
+        print(f'running: {cls.state}  @', *args, sep=' ')
 
-        
+        Profiler.start()
         globals()[f'State{cls.state}'].run(*args)
-        
+        Profiler.end(f"""State{cls.state}""")
 
 
     @classmethod
     def end_turn(cls):
         Unit.end_turn()
 
-        
+        Profiler.start()
         HealExecutor.execute_heal_attempt()
-        
+        Profiler.end(f"""HealExecutor.execute_heal_attempt""")
 
-        
+        Profiler.start()
         Marker.attempt_mark()
-        
+        Profiler.end(f"""Marker.attempt_mark""")
 
         if cls.mode == 3:
             RoadspamExecutor.execute_roadspam_attempt()
@@ -34655,7 +35373,7 @@ class Builder(Unit):
             if Util.dist_sq(tpos, Symmetry.enemy_core_pos) \
                     < Util.dist_sq(tpos, Unit.core_pos) \
                     and BfsBureau.bfs20_dist_adj[(((tpos.x) + 3) * 56 + ((tpos.y) + 3))] < 100:
-                return 'BuildTurret', tpos 
+                return 'BuildTurret', tpos
 
             if tpos not in RouteToCore.killed:
                 RouteToCore.set_pos(tpos)
@@ -34689,7 +35407,7 @@ class Builder(Unit):
         if route_pos is not None and cls.mode != 2:
             RouteToCore.set_pos(route_pos)
             if RouteToCore.is_active:
-                
+                print("""[HarvesterAdjacent found route]""")
                 return ('Route',)
 
         if stalk_target is not None and cls.mode != 2:
@@ -34742,6 +35460,10 @@ class Core(Unit):
     @classmethod
     def end_turn(cls):
         Unit.end_turn()
+
+        if Globals.round > 666:
+            Globals.ct.resign()
+            raise Exception
 
 
 # ============================================================
@@ -35059,16 +35781,16 @@ class VisionTracker:
 
     @classmethod
     def canonical_ally(cls, from_pos: Position) -> BotInfo:
-        
+        Profiler.start()
         ret = min(cls.allies, key=
             lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )
-        
+        Profiler.end(f"""canonical_ally""")
         return ret
     
     @classmethod
     def canonical_ally_index(cls, from_pos: Position) -> int:
-        
+        Profiler.start()
         allyIndex = list(map(lambda x: x.position, sorted(cls.allies, key=
             lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )))
@@ -35077,7 +35799,7 @@ class VisionTracker:
         else:
             Debug.warn("my_pos not found in canonical ally list!")
             i = 0
-        
+        Profiler.end(f"""canonical_ally""")
         return i
 
 

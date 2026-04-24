@@ -25,10 +25,8 @@ class RushTargeter:
 
     @classmethod
     def enemy_core_turret_target(cls, attack_r_sq) -> Position | None:
-        if not Symmetry.is_sym_known:
-            return None
-        enemy_core = Symmetry.enemy_core_pos
-        print("Yo so the enemy core is at", enemy_core)
+        enemy_core = Unit.core_pos
+        print("Yo so the ally core is at", enemy_core)
 
         vision_r = int(attack_r_sq ** 0.5) + 1
 

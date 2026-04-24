@@ -19,12 +19,15 @@ from Generated import *
 
 
 class SentinelDirectionInfo:
-    __slots__ = ('direction', 'banned', 'enemy_building_hp', 'enemy_bot_hp', 'cosine_sim')
+    __slots__ = ('direction', 'banned', 'enemy_building_hp', 'enemy_bot_hp', 'cosine_sim', 'has_core')
 
     @staticmethod
     def is_better_than(a: SentinelDirectionInfo, b: SentinelDirectionInfo) -> bool:
         if a.banned: return False
         if b.banned: return True
+        
+        if a.has_core != b.has_core:
+            return a.has_core > b.has_core
         
         if a.enemy_building_hp != b.enemy_building_hp:
             return a.enemy_building_hp > b.enemy_building_hp
@@ -99,6 +102,7 @@ class SentinelDirectionPicker:
             {% endif %}
             info{{ i }}.enemy_building_hp = 0
             info{{ i }}.enemy_bot_hp = 0
+            info{{ i }}.has_core = False
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
@@ -139,6 +143,11 @@ class SentinelDirectionPicker:
                 {% for i in sentinel_reverse[(rx, ry)] %}
                 info{{ i }}.enemy_bot_hp += e_bot_hp
                 {% endfor %}
+            if ti.has_building and ti.entity_type == EntityType.CORE:
+                true = True # tis is so cooked
+                {% for i in sentinel_reverse[(rx, ry)] %}
+                info{{ i }}.has_core = true
+                {% endfor %}
         {% endfor %}
         {% endfor %}
 
@@ -159,6 +168,7 @@ class SentinelDirectionPicker:
 
         info = SentinelDirectionInfo()
         info.banned = False
+        info.has_core = False
 
         ecore = Symmetry.enemy_core_pos
         u1, u2 = ecore.x - sx, ecore.y - sy
@@ -196,6 +206,8 @@ class SentinelDirectionPicker:
                     enemy_building_hp += _ti.building_hp
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
+                if _ti.has_building and _ti.entity_type == EntityType.CORE:
+                    has_core = True
             {% endfor %}
         {% endfor %}
 

@@ -50,6 +50,9 @@ class RouteToCore:
         assert cls.is_active
         bridge_dist = 0
         first_target = None
+        
+        if Globals.round > 300:
+            cls.isAttack = True
         if cls.isAttack:
             coolPos = RushTargeter.enemy_core_turret_target(GameConstants.SENTINEL_VISION_RADIUS_SQ)
             if coolPos == None:

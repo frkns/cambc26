@@ -47,11 +47,11 @@ class BreachBuild:
                 and Globals.ct.get_action_cooldown() == 0:
                 BuildManager.destroy(pos)
         
-        dirToBuild = pos.direction_to(Symmetry.enemy_core_pos)
+        dirToBuild = pos.direction_to(Unit.core_pos)
         
         # Calculate distance to the closest tile of the 3x3 enemy core
-        core_dx = max(0, abs(pos.x - Symmetry.enemy_core_pos.x) - 1)
-        core_dy = max(0, abs(pos.y - Symmetry.enemy_core_pos.y) - 1)
+        core_dx = max(0, abs(pos.x - Unit.core_pos.x) - 1)
+        core_dy = max(0, abs(pos.y - Unit.core_pos.y) - 1)
         dist_to_core_sq = core_dx**2 + core_dy**2
 
         if Globals.ct.can_build_breach(pos, dirToBuild) and dist_to_core_sq <= GameConstants.BREACH_ATTACK_RADIUS_SQ:
