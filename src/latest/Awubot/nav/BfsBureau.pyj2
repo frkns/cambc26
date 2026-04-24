@@ -529,7 +529,7 @@ class BfsBureau:
 
         _D = ({% for d in range(8) %}{{ directions[d] }}{% if not loop.last %}, {% endif %}{% endfor %})
 
-        # ── Same-tile: CENTRE competes with neighbors ──
+        # same tile
         if si == ti:
             {% if LOCAL %}
             print(f'[on top of find_route{{ variant_suffix }} target with {ban_target=}]')
@@ -555,7 +555,7 @@ class BfsBureau:
                 return _best_c, _best_d
             return {{ INF }}, None
 
-        # ── Adjacent to banned target: CENTRE competes, but ti is excluded ──
+        # adjacent to target
         if ban_target:
             _d = si - ti
             _ad = _d if _d >= 0 else -_d
@@ -584,7 +584,7 @@ class BfsBureau:
         # don't need to save anymore!
         {%- endset %}
 
-        # ── Phase 1: weighted Dijkstra up to {{ WEIGHTED_DEPTH }} ──
+        # dijkstra phase
         dist = [{{ INF }}] * {{ PADDED_GRID_SIZE }}
         fhd  = [0]       * {{ PADDED_GRID_SIZE }}
         dist[si] = 0
@@ -681,7 +681,7 @@ class BfsBureau:
             {{ before_ret }}
             return {{ INF }}, None
 
-        # ── Phase 2: bitmask BFS from Dijkstra frontier ──
+        # bitmask BFS
         {{ P.start() }}
         _tb = _tx * stride + _ty
         _tm = 1 << _tb

@@ -1,0 +1,145 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+{% from 'bbot/mode.j2' import Mode %}
+
+
+# for choosing sitter position
+
+class SitterTargetInfo:
+    __slots__ = (
+        'position', 'dist_enemy_core', 'has_ally_transporter',
+        'enemy_bots_nearby', 'harvester_nearby', 'launchers_adjacent',
+        'bfs_dist_adj',
+    )
+
+    @staticmethod
+    def is_better_than(a: SitterTargetInfo, b: SitterTargetInfo):
+        if a.bfs_dist_adj >= 100: return False
+        if b.bfs_dist_adj >= 100: return True
+
+        if a.launchers_adjacent != b.launchers_adjacent:
+            return a.launchers_adjacent < b.launchers_adjacent
+        
+        if a.enemy_bots_nearby != b.enemy_bots_nearby:
+            return a.enemy_bots_nearby > b.enemy_bots_nearby
+        
+        if a.harvester_nearby != b.harvester_nearby:
+            return a.harvester_nearby > b.harvester_nearby
+        
+        if a.has_ally_transporter != b.has_ally_transporter:
+            return a.has_ally_transporter < b.has_ally_transporter
+
+        if a.bfs_dist_adj != b.bfs_dist_adj:
+            return a.bfs_dist_adj < b.bfs_dist_adj
+        
+        return a.dist_enemy_core < b.dist_enemy_core
+
+
+class SitterTakedown:
+    cand: list[SitterTargetInfo] # adjacent candidate build positions
+
+
+    @classmethod
+    def get_best_launcher_position(cls) -> Position | None:
+        if not BuildManager.can_afford_launcher():
+            return None
+        
+        if not cls.cand:
+            return None
+
+        best = cls.cand[0]
+        for c in cls.cand[1:]:
+            if SitterTargetInfo.is_better_than(c, best):
+                best = c
+
+        if best.enemy_bots_nearby < 2:
+            return None
+        
+        if not best.harvester_nearby:
+            return None
+        
+        if best.launchers_adjacent > 0:
+            return None
+
+        if best.bfs_dist_adj >= 100:
+            return None
+
+        if not VisionTracker.me_is_canonical_ally(best.position) and best.position.distance_squared(Globals.my_pos) > 2: # Make sure we're a canonical ally *if we're not already adjacent*
+            return None
+
+        return best.position
+
+
+    @classmethod
+    def fill(cls):
+        cls.cand = []
+        tile_info = Map.tile_info
+
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            if ti.env == Environment.WALL:
+                continue
+            
+            if ti.has_bot:
+                continue
+            
+            if ti.has_building:
+                if not ti.is_building_ally:
+                    continue
+                if ti.entity_type != EntityType.ROAD:
+                    continue
+
+            info = SitterTargetInfo()
+            cls.cand.append(info)
+            info.position = pos
+            info.dist_enemy_core = Util.dist_sq(pos, Symmetry.enemy_core_pos)
+            info.enemy_bots_nearby = 0
+            info.harvester_nearby = False
+            info.launchers_adjacent = 0
+            info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
+            
+            info.has_ally_transporter = (
+                ti.has_building 
+                and ti.is_building_ally 
+                and ti.entity_type in Constants.TRANSPORTERS_SET
+            )
+            
+            # If the transporter is going into a harvester (probably a shield), it doesn't count as a transporter
+            if info.has_ally_transporter:
+                target_ti = tile_info[ti.target.x][ti.target.y]
+                if target_ti is not None and target_ti.has_building and target_ti.entity_type == EntityType.HARVESTER:
+                    info.has_ally_transporter = False
+
+            {% for dir in directions if dir != Direction.CENTRE %}
+            {% set dx, dy = dir.delta() %}
+            {% set nx %}x {{ sign0(dx) }}{% endset %}
+            {% set ny %}y {{ sign0(dy) }}{% endset %}
+
+            nti = tile_info[{{ nx }}][{{ ny }}]
+            if nti is not None:
+                if nti.has_bot and not nti.is_bot_ally:
+                    info.enemy_bots_nearby += 1
+                elif nti.has_building and nti.entity_type == EntityType.HARVESTER:
+                    info.harvester_nearby = True
+                elif nti.harvester_adjacent:
+                    info.harvester_nearby = True
+                    
+                if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
+                    info.launchers_adjacent += 1
+            {% endfor %}
+            
+

@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-20 16:52:41 (local)
+# latest,  @ 2026-04-23 16:26:50 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -1857,7 +1857,7 @@ class BfsBureau:
 
         _D = (Direction.NORTH, Direction.NORTHEAST, Direction.EAST, Direction.SOUTHEAST, Direction.SOUTH, Direction.SOUTHWEST, Direction.WEST, Direction.NORTHWEST)
 
-        # ── Same-tile: CENTRE competes with neighbors ──
+        # same tile
         if si == ti:
             print(f'[on top of find_route target with {ban_target=}]')
             
@@ -1911,7 +1911,7 @@ class BfsBureau:
                 return _best_c, _best_d
             return 1000000, None
 
-        # ── Adjacent to banned target: CENTRE competes, but ti is excluded ──
+        # adjacent to target
         if ban_target:
             _d = si - ti
             _ad = _d if _d >= 0 else -_d
@@ -1974,7 +1974,7 @@ class BfsBureau:
 
         # we do this because try...finally is banned by engine
 
-        # ── Phase 1: weighted Dijkstra up to 5 ──
+        # dijkstra phase
         dist = [1000000] * 3136
         fhd  = [0]       * 3136
         dist[si] = 0
@@ -2173,7 +2173,7 @@ class BfsBureau:
             # don't need to save anymore!
             return 1000000, None
 
-        # ── Phase 2: bitmask BFS from Dijkstra frontier ──
+        # bitmask BFS
         Profiler.start()
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
@@ -2378,7 +2378,7 @@ class BfsBureau:
 
         _D = (Direction.NORTH, Direction.NORTHEAST, Direction.EAST, Direction.SOUTHEAST, Direction.SOUTH, Direction.SOUTHWEST, Direction.WEST, Direction.NORTHWEST)
 
-        # ── Same-tile: CENTRE competes with neighbors ──
+        # same tile
         if si == ti:
             print(f'[on top of find_route_inv target with {ban_target=}]')
             
@@ -2440,7 +2440,7 @@ class BfsBureau:
                 return _best_c, _best_d
             return 1000000, None
 
-        # ── Adjacent to banned target: CENTRE competes, but ti is excluded ──
+        # adjacent to target
         if ban_target:
             _d = si - ti
             _ad = _d if _d >= 0 else -_d
@@ -2511,7 +2511,7 @@ class BfsBureau:
 
         # we do this because try...finally is banned by engine
 
-        # ── Phase 1: weighted Dijkstra up to 5 ──
+        # dijkstra phase
         dist = [1000000] * 3136
         fhd  = [0]       * 3136
         dist[si] = 0
@@ -2738,7 +2738,7 @@ class BfsBureau:
             # don't need to save anymore!
             return 1000000, None
 
-        # ── Phase 2: bitmask BFS from Dijkstra frontier ──
+        # bitmask BFS
         Profiler.start()
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
@@ -4499,7 +4499,7 @@ class BreachBuild:
     @classmethod
     def build_breach(cls, pos):
         print("Trying to build breach at", pos)
-        print("Breach cost:", Globals.ct.get_breach_cost()[0])
+        print("Breach cost:", Globals.ct.get_breach_cost()[0],Globals.ct.get_breach_cost()[1])
         ti = Map.tile_info[pos.x][pos.y]
         if ti.has_building and not ti.is_building_ally:
             print("Can't build breach at", pos, "because of enemy building")
@@ -23859,6 +23859,10 @@ class Explore:
             pos = Symmetry.sym_pos(Unit.core_pos)
             dx, dy = random.choice([(dx, dy) for dx in range(-6, 6) for dy in range(-6, 6) if abs(dx) > 1 or abs(dy) > 1])
             return Position(max(0,min(pos.x + dx,Map.W)), max(0,min(pos.y + dy,Map.H)))
+        elif Builder.mode == 3:
+            pos = Unit.core_pos
+            dx, dy = random.choice([(dx, dy) for dx in range(-5, 5) for dy in range(-5, 5) if abs(dx) > 1 or abs(dy) > 1])
+            return Position(max(0,min(pos.x + dx,Map.W)), max(0,min(pos.y + dy,Map.H)))
         else:
             return Util.rand_pos()
 
@@ -23901,6 +23905,11 @@ class FoundryBuild:
         print("Trying to build foundry at", pos)
         print("Foundry cost:", Globals.ct.get_foundry_cost()[0])
 
+        ti = Map.tile_info[pos.x][pos.y]
+        if not ti.is_building_ally or ti.entity_type == EntityType.FOUNDRY:    
+            RouteToFoundry._foundry_target = None
+            return
+
         Pathfinder.move_to(pos, ban_target_pos=True)
 
         # if Globals.ct.get_global_resources()[0] > Globals.ct.get_foundry_cost()[0] \
@@ -23915,10 +23924,11 @@ class FoundryBuild:
             cls.register_foundry(pos)          # fixed: was register_foundry(encoded)
 
             RouteToFoundry._foundry_target = None
-
+            """
             cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
             if cand is not None and cand.ti.entity_type not in Constants.TRANSPORTERS_SET:
                 RouteToBreach.set_pos(cand.position)
+            """
             return True
         return False
 
@@ -28783,7 +28793,7 @@ class OreExecutive:
             Debug.diamond(Color.RED)
             return
 
-        RouteToFoundry.set_pos(cand.position)
+        RouteToFoundry.from_pos = pos
         RouteToFoundry.try_claim_target()
         foundry_enc = RouteToFoundry._foundry_target
         if foundry_enc is None or not RouteToFoundry.axionite_can_reach_foundry(cand.position, foundry_enc):
@@ -29204,6 +29214,36 @@ class RoadInfo:
         if a.bfs_dist != b.bfs_dist:
             return a.bfs_dist < b.bfs_dist
         return a.hp < b.hp
+
+
+# ============================================================
+# RoadspamExecutor
+# ============================================================
+
+class RoadspamExecutor:
+    @classmethod
+    def execute_roadspam_attempt(cls):
+        if Globals.ct.get_action_cooldown() != 0:
+            return
+            
+        my_pos = Globals.my_pos
+        
+        if BuildManager.can_build_road(my_pos.add(Direction.NORTH)):
+            BuildManager.build_road(my_pos.add(Direction.NORTH))
+        if BuildManager.can_build_road(my_pos.add(Direction.NORTHEAST)):
+            BuildManager.build_road(my_pos.add(Direction.NORTHEAST))
+        if BuildManager.can_build_road(my_pos.add(Direction.EAST)):
+            BuildManager.build_road(my_pos.add(Direction.EAST))
+        if BuildManager.can_build_road(my_pos.add(Direction.SOUTHEAST)):
+            BuildManager.build_road(my_pos.add(Direction.SOUTHEAST))
+        if BuildManager.can_build_road(my_pos.add(Direction.SOUTH)):
+            BuildManager.build_road(my_pos.add(Direction.SOUTH))
+        if BuildManager.can_build_road(my_pos.add(Direction.SOUTHWEST)):
+            BuildManager.build_road(my_pos.add(Direction.SOUTHWEST))
+        if BuildManager.can_build_road(my_pos.add(Direction.WEST)):
+            BuildManager.build_road(my_pos.add(Direction.WEST))
+        if BuildManager.can_build_road(my_pos.add(Direction.NORTHWEST)):
+            BuildManager.build_road(my_pos.add(Direction.NORTHWEST))
 
 
 # ============================================================
@@ -29835,6 +29875,7 @@ class RouteToFoundry:
 class RushTargeter:
     persistentOre = None
     beenNearbyEnemyCore = False
+    killed: set[Position] = set()
 
     @classmethod
     def enemy_core_turret_target(cls, attack_r_sq) -> Position | None:
@@ -29877,9 +29918,9 @@ class RushTargeter:
         return (((attack_pos.x) + 3) * 56 + ((attack_pos.y) + 3))
 
     @classmethod
-    def nearest_titanium_to_enemy(cls) -> Position | None:
+    def nearest_source_to_enemy(cls):
         if not Symmetry.is_sym_known:
-            return None
+            return None, "C" # for cry
         maxr = 10
         cx = Symmetry.enemy_core_pos.x
         cy = Symmetry.enemy_core_pos.y
@@ -29904,14 +29945,18 @@ class RushTargeter:
                     thepos = Position(x, y)
                     if OreExecutive.state[thepos] == 2: #killed
                         continue
+                    if ti.entity_type in [EntityType.FOUNDRY]:
+                        if thepos in cls.killed:
+                            continue
+                        return thepos, "R" # for just Route
                     if ti.entity_type in [EntityType.HARVESTER,EntityType.FOUNDRY]:
                         continue
                     if ti.has_building and not ti.is_building_ally and ti.entity_type != EntityType.MARKER:
                         continue
                     if env == Environment.ORE_TITANIUM:
-                        return thepos
+                        return thepos, "B" # for build harvester
 
-        return None  # Nothing found
+        return None, "C"  # Nothing found
 
     @classmethod
     def get_best_target(cls):
@@ -29920,10 +29965,11 @@ class RushTargeter:
                 cls.beenNearbyEnemyCore = True
             if Builder.mode == 2:
                 if cls.beenNearbyEnemyCore and BuildManager.can_afford_harvester():
-                    funPos = cls.nearest_titanium_to_enemy()
+                    stuff = cls.nearest_source_to_enemy()
+                    funPos = stuff[0]
                     if funPos == None or not VisionTracker.me_is_canonical_ally(funPos):
                         return Explore.get_target(),'M' #move
-                    return funPos,'B' #build harvester
+                    return funPos, stuff[1] 
                 else:
                     return Explore.get_target(),'M' #move
             if (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
@@ -33756,10 +33802,13 @@ class StateReroute:  # for misrouted ally transporters
         if Globals.my_pos.distance_squared(pos) > 2:
             Pathfinder.move_to(pos)
 
-        if Globals.ct.can_destroy(pos):
+        if Globals.ct.get_action_cooldown() == 0 and Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
             if pos.distance_squared(Unit.core_pos) < pos.distance_squared(Symmetry.enemy_core_pos):
                 RouteToCore.set_pos(pos)
+                
+            if BuildManager.can_build_road(pos):
+                BuildManager.build_road(pos)
 
 
 # ============================================================
@@ -33804,8 +33853,19 @@ class StateRush:
         type = targ[1]
         if type == 'M': #move
             Pathfinder.move_to(pos)
-        else: #build
+        elif type == 'B': # build
             OreExecutive.go_build_harvester(pos,True)
+        elif type == 'R': #route
+            Pathfinder.move_to(pos)
+            if Pathfinder.given_up:
+                RushTargeter.killed.add(pos)
+                return
+            if Globals.my_pos.distance_squared(pos) <= 4: #sufficiently close
+                cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
+                if cand is not None and cand.ti.entity_type not in Constants.TRANSPORTERS_SET:
+                    RouteToBreach.set_pos(cand.position)
+                else:
+                    RushTargeter.killed.add(pos)
 
 
 # ============================================================
@@ -34455,6 +34515,9 @@ class Builder(Unit):
             if Globals.round in [2,3]:
                 cls.mode = 2
                 Explore.target = Explore.new_target()
+            elif Globals.round in [3]:
+                cls.mode = 3
+                Explore.target = Explore.new_target()
             else:
                 cls.mode = 1
         if Globals.round >= Constants.RUSH_OVER:
@@ -34522,6 +34585,9 @@ class Builder(Unit):
         Marker.attempt_mark()
         Profiler.end(f"""Marker.attempt_mark""")
 
+        if cls.mode == 3:
+            RoadspamExecutor.execute_roadspam_attempt()
+
         # BfsBureau.debug_bfs20_dist_adj()
         # BfsBureau.debug_enemy_launcher_zone()
         # if Globals.round & 1:
@@ -34529,9 +34595,12 @@ class Builder(Unit):
         # else:
         #     BfsBureau.debug_now_weight_inf()
 
-        # my_pos = Globals.my_pos
+        my_pos = Globals.my_pos
         # if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos):
         #     Globals.ct.fire(my_pos)
+        
+        # if my_pos.distance_squared(Symmetry.enemy_core_pos) < my_pos.distance_squared(Unit.core_pos):
+        #     RoadspamExecutor.execute_roadspam_attempt()
 
 
 
@@ -34556,10 +34625,8 @@ class Builder(Unit):
         # now changed to sentinel/gunner pos near enemy?
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
         
-        """
         if RouteToBreach.is_active:
             return ('RouteBreach',)
-        """
 
         if takedownpos is not None:
             Debug.dot(takedownpos, Color.PURPLE)
@@ -34616,11 +34683,9 @@ class Builder(Unit):
             if shieldpos is not None:
                 return 'BuildShield', shieldpos
 
-        """
         breach_target = BreachBuild._pick_target()
         if breach_target is not None:
             return 'BreachBuild', breach_target
-        """
         
         foundry_target = FoundryBuild._pick_target()
         if foundry_target is not None:

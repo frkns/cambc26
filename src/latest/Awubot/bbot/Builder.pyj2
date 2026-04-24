@@ -57,6 +57,9 @@ class Builder({{ super() }}):
             if Globals.round in [2,3]:
                 cls.mode = {{ Mode.EARLY_RUSH }}
                 Explore.target = Explore.new_target()
+            elif Globals.round in [3]:
+                cls.mode = {{ Mode.HEALER }}
+                Explore.target = Explore.new_target()
             else:
                 cls.mode = {{ Mode.ECON }}
         if Globals.round >= Constants.RUSH_OVER:
@@ -132,6 +135,9 @@ class Builder({{ super() }}):
         Marker.attempt_mark()
         {{ P.end('Marker.attempt_mark') }}
 
+        if cls.mode == {{ Mode.HEALER }}:
+            RoadspamExecutor.execute_roadspam_attempt()
+
         # BfsBureau.debug_bfs20_dist_adj()
         # BfsBureau.debug_enemy_launcher_zone()
         # if Globals.round & 1:
@@ -139,9 +145,12 @@ class Builder({{ super() }}):
         # else:
         #     BfsBureau.debug_now_weight_inf()
 
-        # my_pos = Globals.my_pos
+        my_pos = Globals.my_pos
         # if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos):
         #     Globals.ct.fire(my_pos)
+        
+        # if my_pos.distance_squared(Symmetry.enemy_core_pos) < my_pos.distance_squared(Unit.core_pos):
+        #     RoadspamExecutor.execute_roadspam_attempt()
 
 
 
@@ -166,10 +175,8 @@ class Builder({{ super() }}):
         # now changed to sentinel/gunner pos near enemy?
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
         
-        """
         if RouteToBreach.is_active:
             return ('RouteBreach',)
-        """
 
         if takedownpos is not None:
             Debug.dot(takedownpos, Color.PURPLE)
@@ -226,11 +233,9 @@ class Builder({{ super() }}):
             if shieldpos is not None:
                 return 'BuildShield', shieldpos
 
-        """
         breach_target = BreachBuild._pick_target()
         if breach_target is not None:
             return 'BreachBuild', breach_target
-        """
         
         foundry_target = FoundryBuild._pick_target()
         if foundry_target is not None:

@@ -56,10 +56,13 @@ class StateReroute:  # for misrouted ally transporters
         if Globals.my_pos.distance_squared(pos) > 2:
             Pathfinder.move_to(pos)
 
-        if Globals.ct.can_destroy(pos):
+        if Globals.ct.get_action_cooldown() == 0 and Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
             if pos.distance_squared(Unit.core_pos) < pos.distance_squared(Symmetry.enemy_core_pos):
                 RouteToCore.set_pos(pos)
+                
+            if BuildManager.can_build_road(pos):
+                BuildManager.build_road(pos)
 
 
 class StateRoute:
@@ -106,8 +109,19 @@ class StateRush:
         type = targ[1]
         if type == 'M': #move
             Pathfinder.move_to(pos)
-        else: #build
+        elif type == 'B': # build
             OreExecutive.go_build_harvester(pos,True)
+        elif type == 'R': #route
+            Pathfinder.move_to(pos)
+            if Pathfinder.given_up:
+                RushTargeter.killed.add(pos)
+                return
+            if Globals.my_pos.distance_squared(pos) <= 4: #sufficiently close
+                cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
+                if cand is not None and cand.ti.entity_type not in Constants.TRANSPORTERS_SET:
+                    RouteToBreach.set_pos(cand.position)
+                else:
+                    RushTargeter.killed.add(pos)
 
 class StateBuildTurret:
     @classmethod

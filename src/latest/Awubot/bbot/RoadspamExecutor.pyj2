@@ -1,0 +1,44 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+{% from 'bbot/mode.j2' import Mode %}
+
+
+class RoadspamExecutor:
+    @classmethod
+    def execute_roadspam_attempt(cls):
+        if Globals.ct.get_action_cooldown() != 0:
+            return
+            
+        my_pos = Globals.my_pos
+        
+        {% for dir in directions[:8] %}
+        if BuildManager.can_build_road(my_pos.add({{ dir }})):
+            BuildManager.build_road(my_pos.add({{ dir }}))
+        {% endfor %}
+    
+        
+
+
+
+
+
+
+
+
+
+
