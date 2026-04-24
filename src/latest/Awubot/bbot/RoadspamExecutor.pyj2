@@ -37,12 +37,14 @@ class RoadspamExecutor:
 
         if pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
             nti = tile_info[{{ nx }}][{{ ny }}]
-            if not nti.has_building or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
+            if (not nti.has_building) or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
                 if BuildManager.can_dbuild_barrier(pos):
                     BuildManager.dbuild_barrier(pos)
+                    return
             
         if BuildManager.can_build_road(pos):
             BuildManager.build_road(pos)
+            return
         {% endfor %}
     
         

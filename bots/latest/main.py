@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-24 16:26:44 (local)
+# latest,  @ 2026-04-24 17:04:26 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -5380,9 +5380,6 @@ class BuildManager:
     @staticmethod
     def can_afford_barrier() -> bool:
         ti_cost, ax_cost = Globals.ct.get_barrier_cost()
-        
-        
-        ti_cost += int(20 * MarketMaker.scale_ratio)
         
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
@@ -29261,89 +29258,105 @@ class RoadspamExecutor:
 
         if pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
             nti = tile_info[(mx )][(my -1)]
-            if not nti.has_building or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
+            if (not nti.has_building) or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
                 if BuildManager.can_dbuild_barrier(pos):
                     BuildManager.dbuild_barrier(pos)
+                    return
             
         if BuildManager.can_build_road(pos):
             BuildManager.build_road(pos)
+            return
 
         pos = Position((mx +1), (my -1))
 
         if pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
             nti = tile_info[(mx +1)][(my -1)]
-            if not nti.has_building or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
+            if (not nti.has_building) or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
                 if BuildManager.can_dbuild_barrier(pos):
                     BuildManager.dbuild_barrier(pos)
+                    return
             
         if BuildManager.can_build_road(pos):
             BuildManager.build_road(pos)
+            return
 
         pos = Position((mx +1), (my ))
 
         if pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
             nti = tile_info[(mx +1)][(my )]
-            if not nti.has_building or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
+            if (not nti.has_building) or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
                 if BuildManager.can_dbuild_barrier(pos):
                     BuildManager.dbuild_barrier(pos)
+                    return
             
         if BuildManager.can_build_road(pos):
             BuildManager.build_road(pos)
+            return
 
         pos = Position((mx +1), (my +1))
 
         if pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
             nti = tile_info[(mx +1)][(my +1)]
-            if not nti.has_building or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
+            if (not nti.has_building) or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
                 if BuildManager.can_dbuild_barrier(pos):
                     BuildManager.dbuild_barrier(pos)
+                    return
             
         if BuildManager.can_build_road(pos):
             BuildManager.build_road(pos)
+            return
 
         pos = Position((mx ), (my +1))
 
         if pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
             nti = tile_info[(mx )][(my +1)]
-            if not nti.has_building or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
+            if (not nti.has_building) or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
                 if BuildManager.can_dbuild_barrier(pos):
                     BuildManager.dbuild_barrier(pos)
+                    return
             
         if BuildManager.can_build_road(pos):
             BuildManager.build_road(pos)
+            return
 
         pos = Position((mx -1), (my +1))
 
         if pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
             nti = tile_info[(mx -1)][(my +1)]
-            if not nti.has_building or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
+            if (not nti.has_building) or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
                 if BuildManager.can_dbuild_barrier(pos):
                     BuildManager.dbuild_barrier(pos)
+                    return
             
         if BuildManager.can_build_road(pos):
             BuildManager.build_road(pos)
+            return
 
         pos = Position((mx -1), (my ))
 
         if pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
             nti = tile_info[(mx -1)][(my )]
-            if not nti.has_building or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
+            if (not nti.has_building) or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
                 if BuildManager.can_dbuild_barrier(pos):
                     BuildManager.dbuild_barrier(pos)
+                    return
             
         if BuildManager.can_build_road(pos):
             BuildManager.build_road(pos)
+            return
 
         pos = Position((mx -1), (my -1))
 
         if pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
             nti = tile_info[(mx -1)][(my -1)]
-            if not nti.has_building or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
+            if (not nti.has_building) or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
                 if BuildManager.can_dbuild_barrier(pos):
                     BuildManager.dbuild_barrier(pos)
+                    return
             
         if BuildManager.can_build_road(pos):
             BuildManager.build_road(pos)
+            return
 
 
 # ============================================================
