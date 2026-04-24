@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-24 17:04:26 (local)
+# latest,  @ 2026-04-24 17:06:54 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -29256,7 +29256,7 @@ class RoadspamExecutor:
 
         pos = Position((mx ), (my -1))
 
-        if pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
+        if not BuildManager.can_afford_gunner() and pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
             nti = tile_info[(mx )][(my -1)]
             if (not nti.has_building) or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
                 if BuildManager.can_dbuild_barrier(pos):
@@ -29269,7 +29269,7 @@ class RoadspamExecutor:
 
         pos = Position((mx +1), (my -1))
 
-        if pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
+        if not BuildManager.can_afford_gunner() and pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
             nti = tile_info[(mx +1)][(my -1)]
             if (not nti.has_building) or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
                 if BuildManager.can_dbuild_barrier(pos):
@@ -29282,7 +29282,7 @@ class RoadspamExecutor:
 
         pos = Position((mx +1), (my ))
 
-        if pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
+        if not BuildManager.can_afford_gunner() and pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
             nti = tile_info[(mx +1)][(my )]
             if (not nti.has_building) or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
                 if BuildManager.can_dbuild_barrier(pos):
@@ -29295,7 +29295,7 @@ class RoadspamExecutor:
 
         pos = Position((mx +1), (my +1))
 
-        if pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
+        if not BuildManager.can_afford_gunner() and pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
             nti = tile_info[(mx +1)][(my +1)]
             if (not nti.has_building) or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
                 if BuildManager.can_dbuild_barrier(pos):
@@ -29308,7 +29308,7 @@ class RoadspamExecutor:
 
         pos = Position((mx ), (my +1))
 
-        if pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
+        if not BuildManager.can_afford_gunner() and pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
             nti = tile_info[(mx )][(my +1)]
             if (not nti.has_building) or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
                 if BuildManager.can_dbuild_barrier(pos):
@@ -29321,7 +29321,7 @@ class RoadspamExecutor:
 
         pos = Position((mx -1), (my +1))
 
-        if pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
+        if not BuildManager.can_afford_gunner() and pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
             nti = tile_info[(mx -1)][(my +1)]
             if (not nti.has_building) or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
                 if BuildManager.can_dbuild_barrier(pos):
@@ -29334,7 +29334,7 @@ class RoadspamExecutor:
 
         pos = Position((mx -1), (my ))
 
-        if pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
+        if not BuildManager.can_afford_gunner() and pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
             nti = tile_info[(mx -1)][(my )]
             if (not nti.has_building) or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
                 if BuildManager.can_dbuild_barrier(pos):
@@ -29347,7 +29347,7 @@ class RoadspamExecutor:
 
         pos = Position((mx -1), (my -1))
 
-        if pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
+        if not BuildManager.can_afford_gunner() and pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
             nti = tile_info[(mx -1)][(my -1)]
             if (not nti.has_building) or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
                 if BuildManager.can_dbuild_barrier(pos):
