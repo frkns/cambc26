@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-24 12:37:06 (local)
+# latest,  @ 2026-04-24 15:30:31 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -144,12 +144,25 @@ class Attacker:
         t = cls.get_shield_target()
         if t is not None: 
             return t
-        return cls.get_trans_target()
+        if Map.num_enemies == 0:
+            return cls.get_trans_target()
+        else:
+            return cls.get_trans_shield_target()
     
     @classmethod        
     def get_secondary_target(cls) -> Position | None:
         return cls.get_road_target()
 
+    @classmethod
+    def get_trans_shield_target(cls) -> Position | None:
+        shield = VisionTracker.get_best_trans_shield_atk_target()
+        if shield is None:
+            return None
+        if not cls.should_fire(shield):
+            return None
+        return shield
+    
+    
     @classmethod
     def get_trans_target(cls) -> Position | None:
         trans: TransporterInfo = VisionTracker.get_best_trans_atk_target()
@@ -35225,6 +35238,84 @@ class VisionTracker:
             if RoadInfo.is_better_road_atk_target_than(cand, best):
                 best = cand
         return best 
+    
+    @classmethod
+    def get_best_trans_shield_atk_target(cls) -> RoadInfo | None:
+        enemy_transporters = cls.enemy_transporters
+        if not enemy_transporters:
+            return None
+
+        best: TransporterInfo = enemy_transporters[0]
+
+        for cand in enemy_transporters[1:]:
+            if TransporterInfo.is_better_trans_atk_target_than(cand, best):
+                best = cand
+                
+        best_shield = None
+        best_shield_dist = 1000000
+        
+        tile_info = Map.tile_info
+        
+        bx, by = best.position.x, best.position.y
+        
+
+        nti = tile_info[(bx )][(by -1)]
+        if nti is not None and nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.ROAD:
+            dist = BfsBureau.bfs20_dist_adj[((((bx )) + 3) * 56 + (((by -1)) + 3))]
+            if dist < best_shield_dist:
+                best_shield = Position((bx ), (by -1))
+                best_shield_dist = dist
+
+        nti = tile_info[(bx +1)][(by -1)]
+        if nti is not None and nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.ROAD:
+            dist = BfsBureau.bfs20_dist_adj[((((bx +1)) + 3) * 56 + (((by -1)) + 3))]
+            if dist < best_shield_dist:
+                best_shield = Position((bx +1), (by -1))
+                best_shield_dist = dist
+
+        nti = tile_info[(bx +1)][(by )]
+        if nti is not None and nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.ROAD:
+            dist = BfsBureau.bfs20_dist_adj[((((bx +1)) + 3) * 56 + (((by )) + 3))]
+            if dist < best_shield_dist:
+                best_shield = Position((bx +1), (by ))
+                best_shield_dist = dist
+
+        nti = tile_info[(bx +1)][(by +1)]
+        if nti is not None and nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.ROAD:
+            dist = BfsBureau.bfs20_dist_adj[((((bx +1)) + 3) * 56 + (((by +1)) + 3))]
+            if dist < best_shield_dist:
+                best_shield = Position((bx +1), (by +1))
+                best_shield_dist = dist
+
+        nti = tile_info[(bx )][(by +1)]
+        if nti is not None and nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.ROAD:
+            dist = BfsBureau.bfs20_dist_adj[((((bx )) + 3) * 56 + (((by +1)) + 3))]
+            if dist < best_shield_dist:
+                best_shield = Position((bx ), (by +1))
+                best_shield_dist = dist
+
+        nti = tile_info[(bx -1)][(by +1)]
+        if nti is not None and nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.ROAD:
+            dist = BfsBureau.bfs20_dist_adj[((((bx -1)) + 3) * 56 + (((by +1)) + 3))]
+            if dist < best_shield_dist:
+                best_shield = Position((bx -1), (by +1))
+                best_shield_dist = dist
+
+        nti = tile_info[(bx -1)][(by )]
+        if nti is not None and nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.ROAD:
+            dist = BfsBureau.bfs20_dist_adj[((((bx -1)) + 3) * 56 + (((by )) + 3))]
+            if dist < best_shield_dist:
+                best_shield = Position((bx -1), (by ))
+                best_shield_dist = dist
+
+        nti = tile_info[(bx -1)][(by -1)]
+        if nti is not None and nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.ROAD:
+            dist = BfsBureau.bfs20_dist_adj[((((bx -1)) + 3) * 56 + (((by -1)) + 3))]
+            if dist < best_shield_dist:
+                best_shield = Position((bx -1), (by -1))
+                best_shield_dist = dist
+
+        return best_shield
     
     @classmethod
     def get_best_shield_atk_target(cls) -> RoadInfo | None:

@@ -272,6 +272,40 @@ class VisionTracker:
         return best 
     
     @classmethod
+    def get_best_trans_shield_atk_target(cls) -> RoadInfo | None:
+        enemy_transporters = cls.enemy_transporters
+        if not enemy_transporters:
+            return None
+
+        best: TransporterInfo = enemy_transporters[0]
+
+        for cand in enemy_transporters[1:]:
+            if TransporterInfo.is_better_trans_atk_target_than(cand, best):
+                best = cand
+                
+        best_shield = None
+        best_shield_dist = {{ INF }}
+        
+        tile_info = Map.tile_info
+        
+        bx, by = best.position.x, best.position.y
+        
+        {% for dir in directions[:8] %}
+        {% set dx, dy = dir.delta() %}
+        {% set nx %}(bx {{ sign0(dx) }}){% endset %}
+        {% set ny %}(by {{ sign0(dy) }}){% endset %}
+
+        nti = tile_info[{{ nx }}][{{ ny }}]
+        if nti is not None and nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.ROAD:
+            dist = BfsBureau.bfs20_dist_adj[{{ encode_pos(nx, ny) }}]
+            if dist < best_shield_dist:
+                best_shield = Position({{ nx }}, {{ ny }})
+                best_shield_dist = dist
+        {% endfor %}
+
+        return best_shield
+    
+    @classmethod
     def get_best_shield_atk_target(cls) -> RoadInfo | None:
         roads = cls.enemy_roads_harvester
         if not roads:

@@ -27,12 +27,25 @@ class Attacker:
         t = cls.get_shield_target()
         if t is not None: 
             return t
-        return cls.get_trans_target()
+        if Map.num_enemies == 0:
+            return cls.get_trans_target()
+        else:
+            return cls.get_trans_shield_target()
     
     @classmethod        
     def get_secondary_target(cls) -> Position | None:
         return cls.get_road_target()
 
+    @classmethod
+    def get_trans_shield_target(cls) -> Position | None:
+        shield = VisionTracker.get_best_trans_shield_atk_target()
+        if shield is None:
+            return None
+        if not cls.should_fire(shield):
+            return None
+        return shield
+    
+    
     @classmethod
     def get_trans_target(cls) -> Position | None:
         trans: TransporterInfo = VisionTracker.get_best_trans_atk_target()
