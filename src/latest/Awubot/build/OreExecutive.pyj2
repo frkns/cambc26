@@ -103,6 +103,13 @@ class OreExecutive:
                 cls.state[pos] = {{ HAS_HARD_BUILDING }}
                 continue
 
+            if not VisionTracker.me_is_canonical_ally(pos):
+                heapq.heappop(cls.ti_queue)
+                del cls.state[pos]
+                # just kill?
+                {# /* cls.state[ret] = {{ KILLED }} */ #}
+                continue
+
             if not ti.has_bot and MarketMaker.should_build_harvester(pos):  # fixed: was should_build_ax_harvester
                 ret = pos
                 break
@@ -110,11 +117,6 @@ class OreExecutive:
                 break
 
         if ret is None:
-            return None
-
-        if not VisionTracker.me_is_canonical_ally(ret):
-            # just kill?
-            {# /* cls.state[ret] = {{ KILLED }} */ #}
             return None
 
         {% for dir in cardinal_directions %}

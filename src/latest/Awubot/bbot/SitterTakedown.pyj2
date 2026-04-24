@@ -79,6 +79,9 @@ class SitterTakedown:
             
             if not best.harvester_nearby:
                 return None
+        else:
+            if best.enemy_bots_nearby == 0:
+                return None
         
         if best.launchers_adjacent > 0:
             return None
