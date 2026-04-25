@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-25 14:53:30 (local)
+# latest,  @ 2026-04-25 16:56:12 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -38,8 +38,9 @@ class AdjacentInfo:
         if a.is_working_shield != b.is_working_shield:
             return a.is_working_shield < b.is_working_shield
 
-        if a.h_outward_adj == 0: return False
-        if b.h_outward_adj == 0: return True
+        if bool(a.h_outward_adj) != bool(b.h_outward_adj):
+            if a.is_harvester_ally and b.is_harvester_ally:
+                return a.h_outward_adj > b.h_outward_adj
 
         if a.bfs_dist_adj >= 100: return False        
         if b.bfs_dist_adj >= 100: return True
@@ -141,13 +142,13 @@ class Attacker:
         # if Builder.mode == 3 and Globals.my_pos.distance_squared(Unit.core_pos) > 16:
         #     return
         
-        t = cls.get_shield_target()
+        t = cls.get_trans_shield_target()
         if t is not None: 
             return t
         t = cls.get_trans_target()
         if t is not None:
             return t
-        return cls.get_trans_shield_target()
+        return cls.get_shield_target()
     
     @classmethod        
     def get_secondary_target(cls) -> Position | None:
@@ -158,7 +159,7 @@ class Attacker:
         shield = VisionTracker.get_best_trans_shield_atk_target()
         if shield is None:
             return None
-        if not cls.should_fire(shield):
+        if not cls.should_fire(shield, include_mode=False):
             return None
         return shield
     
@@ -174,10 +175,11 @@ class Attacker:
             return None
         if trans.flow == 0 and not trans.sight_flowing:
             return None
-        if not cls.should_fire(trans.position):
-            return None
-        if Map.num_enemies_8 > 0 and trans.adjacent_launchers < 2:
-            return None
+        if trans.adjacent_launchers == 0 and not BuildManager.can_afford_launcher():
+            if not cls.should_fire(trans.position):
+                return None
+            if Map.num_enemies_8 > 0:
+                return None
         return trans.position
 
 
@@ -211,7 +213,7 @@ class Attacker:
     @classmethod
     def compute_readiness(cls):
         allies_ready = 0
-        lst: tuple[int, int] = []
+        lst: list[tuple[int, int]]= []
 
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
 
@@ -266,7 +268,7 @@ class Attacker:
 
 
     @classmethod
-    def should_fire(cls, pos):
+    def should_fire(cls, pos, include_mode: bool = True):
         if Builder.mode != 2:
             if MarketMaker.est_income <= 10 and MarketMaker.ti <= 50:
                 return False
@@ -304,7 +306,7 @@ class Attacker:
         if enemy_bots_adjacent == 0:
             return True
 
-        if Builder.mode == 2:
+        if Builder.mode == 2 and include_mode:
             return True
 
         return False
@@ -25420,7 +25422,7 @@ class HarvesterAdjacent:
         if best.is_working_shield: # if there's already a shield at the target
             return None
 
-        if best.h_outward_adj == 0:
+        if best.is_harvester_ally and best.h_outward_adj == 0:
             return None
 
         if best.bfs_dist_adj >= 100:
@@ -26443,7 +26445,22 @@ class HealExecutor:
             return
 
         Debug.line(best.position, Color.LIME)
+        
+        # TODO: implement this
+        # # Replace the conveyor if it's cheaper
+        # if best.entity_type == EntityType.CONVEYOR:
+        #     if BuildManager.can_afford_conveyor():
+        #         heal = (Constants.MAX_HP_MAP[best.entity_type] - best.building_hp)
+        #         heals = math.ceil(heal / GameConstants.HEAL_AMOUNT)
+        #         heal_cost = heals * GameConstants.HEAL_COST
+        #         if heal_cost >= Globals.ct.get_conveyor_cost():
+        #             if BuildManager.can_dbuild_conveyor(best.position):
+        #                 BuildManager.dbuild_conveyor(best.position)
+        #                 return
+
         Globals.ct.heal(best.position)
+        
+        
         cls.last_healed_round = Globals.round
         cls.last_healed = best
 
@@ -26473,14 +26490,12 @@ class HealTargetInfo:
         if a.is_turret != b.is_turret:
             return a.is_turret > b.is_turret
             
+        if a.is_transporter != b.is_transporter:
+            return a.is_transporter > b.is_transporter
         
-        if a.harvester_adjacent != b.harvester_adjacent:
-            return a.harvester_adjacent > b.harvester_adjacent
-            
-        # Transporters are only more important if not next to a harvester
-        if not a.harvester_adjacent:
-            if a.is_transporter != b.is_transporter:
-                return a.is_transporter > b.is_transporter
+        if not a.is_transporter:
+            if a.harvester_adjacent != b.harvester_adjacent:
+                return a.harvester_adjacent > b.harvester_adjacent
     
         if a.has_enemy_bot != b.has_enemy_bot:
             return a.has_enemy_bot > b.has_enemy_bot
@@ -33314,7 +33329,7 @@ class SitterTakedown:
             if SitterTargetInfo.is_better_than(c, best):
                 best = c
 
-        if not best.enemy_transporters_adjacent:
+        if not best.flowing_enemy_transporters_adjacent:
             if best.enemy_bots_nearby < 2:
                 return None
             
@@ -33368,7 +33383,7 @@ class SitterTakedown:
             info.harvester_nearby = False
             info.launchers_adjacent = 0
             info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
-            info.enemy_transporters_adjacent = 0
+            info.flowing_enemy_transporters_adjacent = 0
             
             info.has_ally_transporter = (
                 ti.has_building 
@@ -33395,7 +33410,9 @@ class SitterTakedown:
                 if nti.has_building:             
                     if not nti.is_building_ally:
                         if nti.entity_type in Constants.TRANSPORTERS_SET:
-                            info.enemy_transporters_adjacent += 1     
+                            flow = DarkForest.sight_flowing[(((x ) + 3) * 56 + ((y -1) + 3))]
+                            if flow > 0:
+                                info.flowing_enemy_transporters_adjacent += 1     
                         info.enemy_buildings_adjacent += 1                 
                     else:
                         if nti.entity_type == EntityType.LAUNCHER:
@@ -33413,7 +33430,9 @@ class SitterTakedown:
                 if nti.has_building:             
                     if not nti.is_building_ally:
                         if nti.entity_type in Constants.TRANSPORTERS_SET:
-                            info.enemy_transporters_adjacent += 1     
+                            flow = DarkForest.sight_flowing[(((x +1) + 3) * 56 + ((y -1) + 3))]
+                            if flow > 0:
+                                info.flowing_enemy_transporters_adjacent += 1     
                         info.enemy_buildings_adjacent += 1                 
                     else:
                         if nti.entity_type == EntityType.LAUNCHER:
@@ -33431,7 +33450,9 @@ class SitterTakedown:
                 if nti.has_building:             
                     if not nti.is_building_ally:
                         if nti.entity_type in Constants.TRANSPORTERS_SET:
-                            info.enemy_transporters_adjacent += 1     
+                            flow = DarkForest.sight_flowing[(((x +1) + 3) * 56 + ((y ) + 3))]
+                            if flow > 0:
+                                info.flowing_enemy_transporters_adjacent += 1     
                         info.enemy_buildings_adjacent += 1                 
                     else:
                         if nti.entity_type == EntityType.LAUNCHER:
@@ -33449,7 +33470,9 @@ class SitterTakedown:
                 if nti.has_building:             
                     if not nti.is_building_ally:
                         if nti.entity_type in Constants.TRANSPORTERS_SET:
-                            info.enemy_transporters_adjacent += 1     
+                            flow = DarkForest.sight_flowing[(((x +1) + 3) * 56 + ((y +1) + 3))]
+                            if flow > 0:
+                                info.flowing_enemy_transporters_adjacent += 1     
                         info.enemy_buildings_adjacent += 1                 
                     else:
                         if nti.entity_type == EntityType.LAUNCHER:
@@ -33467,7 +33490,9 @@ class SitterTakedown:
                 if nti.has_building:             
                     if not nti.is_building_ally:
                         if nti.entity_type in Constants.TRANSPORTERS_SET:
-                            info.enemy_transporters_adjacent += 1     
+                            flow = DarkForest.sight_flowing[(((x ) + 3) * 56 + ((y +1) + 3))]
+                            if flow > 0:
+                                info.flowing_enemy_transporters_adjacent += 1     
                         info.enemy_buildings_adjacent += 1                 
                     else:
                         if nti.entity_type == EntityType.LAUNCHER:
@@ -33485,7 +33510,9 @@ class SitterTakedown:
                 if nti.has_building:             
                     if not nti.is_building_ally:
                         if nti.entity_type in Constants.TRANSPORTERS_SET:
-                            info.enemy_transporters_adjacent += 1     
+                            flow = DarkForest.sight_flowing[(((x -1) + 3) * 56 + ((y +1) + 3))]
+                            if flow > 0:
+                                info.flowing_enemy_transporters_adjacent += 1     
                         info.enemy_buildings_adjacent += 1                 
                     else:
                         if nti.entity_type == EntityType.LAUNCHER:
@@ -33503,7 +33530,9 @@ class SitterTakedown:
                 if nti.has_building:             
                     if not nti.is_building_ally:
                         if nti.entity_type in Constants.TRANSPORTERS_SET:
-                            info.enemy_transporters_adjacent += 1     
+                            flow = DarkForest.sight_flowing[(((x -1) + 3) * 56 + ((y ) + 3))]
+                            if flow > 0:
+                                info.flowing_enemy_transporters_adjacent += 1     
                         info.enemy_buildings_adjacent += 1                 
                     else:
                         if nti.entity_type == EntityType.LAUNCHER:
@@ -33521,7 +33550,9 @@ class SitterTakedown:
                 if nti.has_building:             
                     if not nti.is_building_ally:
                         if nti.entity_type in Constants.TRANSPORTERS_SET:
-                            info.enemy_transporters_adjacent += 1     
+                            flow = DarkForest.sight_flowing[(((x -1) + 3) * 56 + ((y -1) + 3))]
+                            if flow > 0:
+                                info.flowing_enemy_transporters_adjacent += 1     
                         info.enemy_buildings_adjacent += 1                 
                     else:
                         if nti.entity_type == EntityType.LAUNCHER:
@@ -33536,7 +33567,7 @@ class SitterTargetInfo:
     __slots__ = (
         'position', 'dist_enemy_core', 'has_ally_transporter',
         'enemy_bots_nearby', 'harvester_nearby', 'launchers_adjacent',
-        'bfs_dist_adj', 'enemy_transporters_adjacent', 'enemy_buildings_adjacent'
+        'bfs_dist_adj', 'flowing_enemy_transporters_adjacent', 'enemy_buildings_adjacent'
     )
 
     @staticmethod
@@ -33547,8 +33578,8 @@ class SitterTargetInfo:
         if a.launchers_adjacent != b.launchers_adjacent:
             return a.launchers_adjacent < b.launchers_adjacent
         
-        if a.enemy_transporters_adjacent != b.enemy_transporters_adjacent:
-            return a.enemy_transporters_adjacent > b.enemy_transporters_adjacent
+        if bool(a.flowing_enemy_transporters_adjacent) != bool(b.flowing_enemy_transporters_adjacent):
+            return bool(a.flowing_enemy_transporters_adjacent)
         
         # if bool(a.enemy_bots_nearby) != bool(b.enemy_bots_nearby):
         #     return bool(a.enemy_bots_nearby)
@@ -33557,10 +33588,16 @@ class SitterTargetInfo:
             return a.enemy_bots_nearby > b.enemy_bots_nearby
         
         if a.harvester_nearby != b.harvester_nearby:
-            return a.harvester_nearby > b.harvester_nearby
+            if a.enemy_bots_nearby < 2:
+                return a.harvester_nearby < b.harvester_nearby
+            else:
+                return a.harvester_nearby > b.harvester_nearby
         
         if a.has_ally_transporter != b.has_ally_transporter:
             return a.has_ally_transporter < b.has_ally_transporter
+        
+        if a.flowing_enemy_transporters_adjacent != b.flowing_enemy_transporters_adjacent:
+            return a.flowing_enemy_transporters_adjacent > b.flowing_enemy_transporters_adjacent
         
         if a.enemy_buildings_adjacent != b.enemy_buildings_adjacent:
             return a.enemy_buildings_adjacent < b.enemy_buildings_adjacent
@@ -33735,7 +33772,8 @@ class StalkTargeter:
 
 class StateAttack:
     @classmethod
-    def run(cls, pos):
+    def run(cls, pos, tag='_'):
+        
         if Globals.my_pos != pos:
             Pathfinder.move_to(pos)
 
@@ -34845,7 +34883,7 @@ class Builder(Unit):
         
         if secondaryattackpos is not None and (RouteToCore.is_active or RouteToFoundry.is_active or RouteToBreach.is_active):
             if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
-                return 'Attack', secondaryattackpos
+                return 'Attack', secondaryattackpos, 'preroute'
 
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
@@ -34890,7 +34928,7 @@ class Builder(Unit):
                 return 'MoveTo', tpos, 'InitRoute'
         
         if attackpos is not None:
-            return 'Attack', attackpos
+            return 'Attack', attackpos, 'primary'
                 
         ax_target = OreExecutive.get_axionite_target()
         ti_target = OreExecutive.get_titanium_target()
@@ -34920,11 +34958,12 @@ class Builder(Unit):
                 
                 return ('Route',)
 
-        if stalk_target is not None and cls.mode != 2:
-            return 'MoveTo', stalk_target, 'Stalk'
+        if my_pos.distance_squared(Symmetry.enemy_core_pos) > my_pos.distance_squared(Unit.core_pos) or attackpos is None:
+            if stalk_target is not None and cls.mode != 2:
+                return 'MoveTo', stalk_target, 'Stalk'
 
         if secondaryattackpos is not None:
-            return 'Attack', secondaryattackpos
+            return 'Attack', secondaryattackpos, 'secondary'
             
         rushTarget = RushTargeter.get_best_target()
         if rushTarget is not None:
@@ -35049,10 +35088,13 @@ class Launcher(Unit):
             if get_team(building) != my_team:
                 enemy_buildings += 1
                 
-        for unit in ct.get_nearby_units(8):
-            if get_etype(unit) == BUILDER_BOT:
-                if get_team(unit) != my_team:
-                    close_enemy_bots += 1
+        if nearby_ally_bot is not None:
+            print("Nearby Ally Bot:", nearby_ally_bot)
+            for unit in ct.get_nearby_units(8):
+                if get_etype(unit) == BUILDER_BOT:
+                    if get_team(unit) != my_team:
+                        if ct.get_position(unit).distance_squared(nearby_ally_bot) <= 2:
+                            close_enemy_bots += 1
                 
         if nearby_enemy_bot is not None:
             print("Oh no! Nearby Enemy Bot:", nearby_enemy_bot)
@@ -35107,7 +35149,7 @@ class Launcher(Unit):
 
             if nearby_enemy_bot is not None and best_pos is not None and ct.can_launch(nearby_enemy_bot, best_pos):
                 ct.launch(nearby_enemy_bot, best_pos)
-        elif nearby_ally_bot is not None and enemy_buildings > 0 and close_enemy_bots > 0:
+        elif nearby_ally_bot is not None and enemy_buildings > 1 and close_enemy_bots > 0:
             print("No nearby enemies, but nearby ally bot:", nearby_ally_bot)
 
             ROUTING = cls.ROUTING_SET
@@ -35427,7 +35469,7 @@ class VisionTracker:
                 trans.easily_reachable_adj = BfsBureau.bfs20_dist_adj[idx] < 20
                 trans.bfs_dist = BfsBureau.bfs20_dist[idx]
                 trans.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
-                trans.flow = DarkForest.flow[idx]
+                trans.flow = DarkForest.sight_flowing[idx]
                 trans.entity_type = ti.entity_type
                 trans.harvester_adjacent = ti.harvester_adjacent
                 trans.is_ally = ti.is_building_ally

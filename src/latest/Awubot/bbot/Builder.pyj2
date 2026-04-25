@@ -207,7 +207,7 @@ class Builder({{ super() }}):
         
         if secondaryattackpos is not None and (RouteToCore.is_active or RouteToFoundry.is_active or RouteToBreach.is_active):
             if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
-                return 'Attack', secondaryattackpos
+                return 'Attack', secondaryattackpos, 'preroute'
 
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
@@ -252,7 +252,7 @@ class Builder({{ super() }}):
                 return 'MoveTo', tpos, 'InitRoute'
         
         if attackpos is not None:
-            return 'Attack', attackpos
+            return 'Attack', attackpos, 'primary'
                 
         ax_target = OreExecutive.get_axionite_target()
         ti_target = OreExecutive.get_titanium_target()
@@ -282,11 +282,12 @@ class Builder({{ super() }}):
                 {{ D.print('[HarvesterAdjacent found route]') }}
                 return ('Route',)
 
-        if stalk_target is not None and cls.mode != {{ Mode.EARLY_RUSH }}:
-            return 'MoveTo', stalk_target, 'Stalk'
+        if my_pos.distance_squared(Symmetry.enemy_core_pos) > my_pos.distance_squared(Unit.core_pos) or attackpos is None:
+            if stalk_target is not None and cls.mode != {{ Mode.EARLY_RUSH }}:
+                return 'MoveTo', stalk_target, 'Stalk'
 
         if secondaryattackpos is not None:
-            return 'Attack', secondaryattackpos
+            return 'Attack', secondaryattackpos, 'secondary'
             
         rushTarget = RushTargeter.get_best_target()
         if rushTarget is not None:

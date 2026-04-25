@@ -40,8 +40,9 @@ class AdjacentInfo:
         if a.is_working_shield != b.is_working_shield:
             return a.is_working_shield < b.is_working_shield
 
-        if a.h_outward_adj == 0: return False
-        if b.h_outward_adj == 0: return True
+        if bool(a.h_outward_adj) != bool(b.h_outward_adj):
+            if a.is_harvester_ally and b.is_harvester_ally:
+                return a.h_outward_adj > b.h_outward_adj
 
         if a.bfs_dist_adj >= 100: return False        
         if b.bfs_dist_adj >= 100: return True
@@ -246,7 +247,7 @@ class HarvesterAdjacent:
         if best.is_working_shield: # if there's already a shield at the target
             return None
 
-        if best.h_outward_adj == 0:
+        if best.is_harvester_ally and best.h_outward_adj == 0:
             return None
 
         if best.bfs_dist_adj >= 100:

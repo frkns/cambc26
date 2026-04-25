@@ -142,7 +142,22 @@ class HealExecutor:
             return
 
         Debug.line(best.position, Color.LIME)
+        
+        # TODO: implement this
+        # # Replace the conveyor if it's cheaper
+        # if best.entity_type == EntityType.CONVEYOR:
+        #     if BuildManager.can_afford_conveyor():
+        #         heal = (Constants.MAX_HP_MAP[best.entity_type] - best.building_hp)
+        #         heals = math.ceil(heal / GameConstants.HEAL_AMOUNT)
+        #         heal_cost = heals * GameConstants.HEAL_COST
+        #         if heal_cost >= Globals.ct.get_conveyor_cost():
+        #             if BuildManager.can_dbuild_conveyor(best.position):
+        #                 BuildManager.dbuild_conveyor(best.position)
+        #                 return
+
         Globals.ct.heal(best.position)
+        
+        
         cls.last_healed_round = Globals.round
         cls.last_healed = best
     

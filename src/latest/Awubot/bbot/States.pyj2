@@ -33,7 +33,11 @@ class StateBuildHarvesterAx:
 
 class StateAttack:
     @classmethod
-    def run(cls, pos):
+    def run(cls, pos, tag='_'):
+        {% if LOCAL %}
+        print(f'{tag=}')
+        {% endif %}
+        
         if Globals.my_pos != pos:
             Pathfinder.move_to(pos)
 

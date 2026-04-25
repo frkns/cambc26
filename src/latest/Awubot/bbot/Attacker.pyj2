@@ -24,13 +24,13 @@ class Attacker:
         # if Builder.mode == {{ Mode.HEALER }} and Globals.my_pos.distance_squared(Unit.core_pos) > 16:
         #     return
         
-        t = cls.get_shield_target()
+        t = cls.get_trans_shield_target()
         if t is not None: 
             return t
         t = cls.get_trans_target()
         if t is not None:
             return t
-        return cls.get_trans_shield_target()
+        return cls.get_shield_target()
     
     @classmethod        
     def get_secondary_target(cls) -> Position | None:
@@ -41,7 +41,7 @@ class Attacker:
         shield = VisionTracker.get_best_trans_shield_atk_target()
         if shield is None:
             return None
-        if not cls.should_fire(shield):
+        if not cls.should_fire(shield, include_mode=False):
             return None
         return shield
     
@@ -57,10 +57,11 @@ class Attacker:
             return None
         if trans.flow == 0 and not trans.sight_flowing:
             return None
-        if not cls.should_fire(trans.position):
-            return None
-        if Map.num_enemies_8 > 0 and trans.adjacent_launchers < 2:
-            return None
+        if trans.adjacent_launchers == 0 and not BuildManager.can_afford_launcher():
+            if not cls.should_fire(trans.position):
+                return None
+            if Map.num_enemies_8 > 0:
+                return None
         return trans.position
 
 
@@ -94,7 +95,7 @@ class Attacker:
     @classmethod
     def compute_readiness(cls):
         allies_ready = 0
-        lst: tuple[int, int] = []
+        lst: list[tuple[int, int]]= []
 
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             {% set cond1 -%}
@@ -132,7 +133,7 @@ class Attacker:
 
 
     @classmethod
-    def should_fire(cls, pos):
+    def should_fire(cls, pos, include_mode: bool = True):
         if Builder.mode != {{ Mode.EARLY_RUSH }}:
             if MarketMaker.est_income <= 10 and MarketMaker.ti <= 50:
                 return False
@@ -170,7 +171,7 @@ class Attacker:
         if enemy_bots_adjacent == 0:
             return True
 
-        if Builder.mode == {{ Mode.EARLY_RUSH }}:
+        if Builder.mode == {{ Mode.EARLY_RUSH }} and include_mode:
             return True
 
         return False

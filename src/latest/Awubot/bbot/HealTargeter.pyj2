@@ -39,14 +39,12 @@ class HealTargetInfo:
         if a.is_turret != b.is_turret:
             return a.is_turret > b.is_turret
             
+        if a.is_transporter != b.is_transporter:
+            return a.is_transporter > b.is_transporter
         
-        if a.harvester_adjacent != b.harvester_adjacent:
-            return a.harvester_adjacent > b.harvester_adjacent
-            
-        # Transporters are only more important if not next to a harvester
-        if not a.harvester_adjacent:
-            if a.is_transporter != b.is_transporter:
-                return a.is_transporter > b.is_transporter
+        if not a.is_transporter:
+            if a.harvester_adjacent != b.harvester_adjacent:
+                return a.harvester_adjacent > b.harvester_adjacent
     
         if a.has_enemy_bot != b.has_enemy_bot:
             return a.has_enemy_bot > b.has_enemy_bot

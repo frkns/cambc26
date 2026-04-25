@@ -70,10 +70,13 @@ class Launcher({{ super() }}):
             if get_team(building) != my_team:
                 enemy_buildings += 1
                 
-        for unit in ct.get_nearby_units(8):
-            if get_etype(unit) == BUILDER_BOT:
-                if get_team(unit) != my_team:
-                    close_enemy_bots += 1
+        if nearby_ally_bot is not None:
+            print("Nearby Ally Bot:", nearby_ally_bot)
+            for unit in ct.get_nearby_units(8):
+                if get_etype(unit) == BUILDER_BOT:
+                    if get_team(unit) != my_team:
+                        if ct.get_position(unit).distance_squared(nearby_ally_bot) <= 2:
+                            close_enemy_bots += 1
                 
         if nearby_enemy_bot is not None:
             print("Oh no! Nearby Enemy Bot:", nearby_enemy_bot)
@@ -128,7 +131,7 @@ class Launcher({{ super() }}):
 
             if nearby_enemy_bot is not None and best_pos is not None and ct.can_launch(nearby_enemy_bot, best_pos):
                 ct.launch(nearby_enemy_bot, best_pos)
-        elif nearby_ally_bot is not None and enemy_buildings > 0 and close_enemy_bots > 0:
+        elif nearby_ally_bot is not None and enemy_buildings > 1 and close_enemy_bots > 0:
             print("No nearby enemies, but nearby ally bot:", nearby_ally_bot)
 
             ROUTING = cls.ROUTING_SET
