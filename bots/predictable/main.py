@@ -34722,7 +34722,7 @@ class Core(Unit):
         # prob win
         prob = (math.sin(2 * math.pi / 6 * hour - math.pi / 2) + 1) / 2
         print(prob)
-        prob **= 0.3
+        prob **= 0.6
         print(prob)
         X = random.random()
         print('U(0,1) r.v.', X)
