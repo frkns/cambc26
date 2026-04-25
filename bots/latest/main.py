@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-25 12:11:55 (local)
+# latest,  @ 2026-04-25 14:49:19 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -304,6 +304,9 @@ class Attacker:
         if enemy_bots_adjacent == 0:
             return True
 
+        if Builder.mode == 2:
+            return True
+
         return False
 
 
@@ -447,6 +450,7 @@ class BfsBureau:
         cls.weight[idx + -56] += 1000000
         cls.weight[idx + -57] += 1000000
 
+        Debug.dot(Position(x, y), Color.YELLOW)
 
     @classmethod
     def remove_enemy_launcher(cls, idx):
@@ -487,6 +491,7 @@ class BfsBureau:
         if cls.weight[i] < 1:
             cls.weight[i] = 1
 
+        Debug.dot(Position(x, y), Color.GREEN)
 
 
 
@@ -1893,6 +1898,7 @@ class BfsBureau:
 
         # ── Same-tile: CENTRE competes with neighbors ──
         if si == ti:
+            print(f'[on top of find_route target with {ban_target=}]')
             
             if ban_target:
                 _best_c = 1000000
@@ -2207,7 +2213,7 @@ class BfsBureau:
             return 1000000, None
 
         # ── Phase 2: bitmask BFS from Dijkstra frontier ──
-        
+        Profiler.start()
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = (cls.now_passable_int | _tm) & cls.board_mask
@@ -2413,6 +2419,7 @@ class BfsBureau:
 
         # ── Same-tile: CENTRE competes with neighbors ──
         if si == ti:
+            print(f'[on top of find_route_inv target with {ban_target=}]')
             
             if ban_target:
                 _best_c = 1000000
@@ -2771,7 +2778,7 @@ class BfsBureau:
             return 1000000, None
 
         # ── Phase 2: bitmask BFS from Dijkstra frontier ──
-        
+        Profiler.start()
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = (cls.now_passable_int | _tm) & cls.board_mask
@@ -4649,6 +4656,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_builder_bot() -> bool:
+        assert EntityType.BUILDER_BOT in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4691,6 +4699,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4708,6 +4717,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_gunner() -> bool:
+        assert EntityType.GUNNER in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4764,6 +4774,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_sentinel() -> bool:
+        assert EntityType.SENTINEL in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4806,6 +4817,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4823,6 +4835,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_breach() -> bool:
+        assert EntityType.BREACH in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4865,6 +4878,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4882,6 +4896,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_launcher() -> bool:
+        assert EntityType.LAUNCHER in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4938,6 +4953,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_conveyor() -> bool:
+        assert EntityType.CONVEYOR in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -4981,6 +4997,7 @@ class BuildManager:
         if MarketMaker.est_income > 10 and Globals.round > 50:
             ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -4998,6 +5015,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_splitter() -> bool:
+        assert EntityType.SPLITTER in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -5039,6 +5057,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -5056,6 +5075,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_armoured_conveyor() -> bool:
+        assert EntityType.ARMOURED_CONVEYOR in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -5097,6 +5117,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -5114,6 +5135,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_bridge() -> bool:
+        assert EntityType.BRIDGE in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -5157,6 +5179,7 @@ class BuildManager:
         if MarketMaker.est_income > 10 and Globals.round > 50:
             ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -5174,6 +5197,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_harvester() -> bool:
+        assert EntityType.HARVESTER in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -5214,6 +5238,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -5231,6 +5256,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_foundry() -> bool:
+        assert EntityType.FOUNDRY in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -5271,6 +5297,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -5288,6 +5315,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_road() -> bool:
+        assert EntityType.ROAD in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -5329,6 +5357,7 @@ class BuildManager:
         
         ti_cost += int(20 * MarketMaker.scale_ratio)
         
+        assert int(20 * MarketMaker.scale_ratio) >= 0
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
 
@@ -5346,6 +5375,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_barrier() -> bool:
+        assert EntityType.BARRIER in Constants.PASSABLE_SET
         pos = Globals.my_pos
 
         return (
@@ -26021,10 +26051,11 @@ class HarvesterAdjacent:
                     infos.append(info)
 
         
-        
+        Profiler.start()
         sample = random.sample(infos, min(5, len(infos)))
         for info in sample:
             info.sentinel_dir_info = SentinelDirectionPicker.get_best_info(info.position)
+        Profiler.end(f"""SentinelDirectionPicker.get_best_info (x5)""")
 
 
 # ============================================================
@@ -26524,9 +26555,11 @@ class HealTargeter:
             if HealTargetInfo.is_better_than(cand, best):
                 best = cand
 
+        print(f'(possible) heal target {best.position=} {best.building_heal=} {best.building_hp=}')
 
         total_heal = best.building_heal + best.bot_heal
         if total_heal < 4:
+            print(f'{total_heal=}')
             # Still heal buildings next to harvesters for shielding
             if not best.harvester_adjacent or total_heal == 0:
                 return None
@@ -26904,9 +26937,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+                Profiler.start()
                 Comms.handle_message(get_marker_value(building_id))
-                
+                Profiler.end(f"""Comms.handle_message""")
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
@@ -27266,9 +27299,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+                Profiler.start()
                 Comms.handle_message(get_marker_value(building_id))
-                
+                Profiler.end(f"""Comms.handle_message""")
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
@@ -27628,9 +27661,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+                Profiler.start()
                 Comms.handle_message(get_marker_value(building_id))
-                
+                Profiler.end(f"""Comms.handle_message""")
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
@@ -27969,9 +28002,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+                Profiler.start()
                 Comms.handle_message(get_marker_value(building_id))
-                
+                Profiler.end(f"""Comms.handle_message""")
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
@@ -28463,9 +28496,9 @@ class MarketMaker:
             return cls.hres
 
         
-        
+        Profiler.start()
         bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.core_sink_set)
-        
+        Profiler.end(f"""BfsBureau.find_bridge_route""")
         h_cost, _ = Globals.ct.get_harvester_cost()
         b_cost, _ = Globals.ct.get_bridge_cost()
         cls.hres = h_cost + b_cost * bridges 
@@ -29042,12 +29075,12 @@ class Pathfinder:
             cls.near_base = False
         # else: in dead-band [19..25], keep previous near_base value
 
-        
+        Profiler.start()
         if cls.near_base:
             dist, dir = BfsBureau.find_route_inv(my_pos, target, ban_target_pos)  # prefer empties → lays roads
         else:
             dist, dir = BfsBureau.find_route(my_pos, target, ban_target_pos)      # prefer roads → uses existing roads
-        
+        Profiler.end(f"""BfsBureau.find_route""")
 
         if orbit and 0 < target.distance_squared(my_pos) <= 2:
             dir = my_pos.direction_to(target).rotate_left()
@@ -29135,6 +29168,8 @@ class Player:
             err = traceback.format_exc()
             Debug.tee(err)
             Debug.tee(f'(I am a {Globals.my_type})')
+
+            ct.resign()
 
 
 # ============================================================
@@ -29448,7 +29483,7 @@ class RouteToBreach:
             avoid_pos = RouteToCore.pathFindingKill
         )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("RouteToBreach: first_target is None, giving up")
@@ -29635,7 +29670,7 @@ class RouteToCore:
                     avoid_pos = cls.pathFindingKill
                 )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("first_target is None: giving up")
@@ -29867,7 +29902,7 @@ class RouteToFoundry:
             avoid_pos = RouteToCore.pathFindingKill 
         )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("RouteToFoundry: first_target is None, giving up")
@@ -33697,7 +33732,7 @@ class SpawnManager:
 class StalkTargeter:
     @classmethod
     def get_best_target(cls) -> Position | None:
-        
+        Profiler.start()
 
         my_pos = Globals.my_pos
 
@@ -33721,7 +33756,7 @@ class StalkTargeter:
                     best_dist = dist
                     best = pos
                 
-        
+        Profiler.end(f"""StalkTargeter.get_best_target""")
                 
         return best
 
@@ -33850,6 +33885,7 @@ class StateBuildShield:
                     if ti.is_building_ally:
                         found_ally_harvester = True
         
+        print(f'{target_dir=}, {found_ally_harvester=}')
 
 
         if pos != Globals.my_pos:
@@ -33928,9 +33964,9 @@ class StateBuildTurret:
             # who cares all turrets are the same anyways
             BuildManager.dbuild_gunner(pos, core_dir)
         elif BuildManager.can_dbuild_sentinel(pos):
-            
+            Profiler.start()
             dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
-            
+            Profiler.end(f"""SentinelDirectionPicker.get_best_direction""")
 
             BuildManager.dbuild_sentinel(pos, dir)
         elif Globals.ct.can_build_road(pos):
@@ -33954,6 +33990,7 @@ class StateFoundryBuild:
 class StateMoveTo:
     @classmethod
     def run(cls, pos, tag='_'):
+        print(f'{tag=}')
         Pathfinder.move_to(pos)
 
 
@@ -33999,6 +34036,7 @@ class StateReroute:  # for misrouted ally transporters
 class StateRoute:
     @classmethod
     def run(cls):
+        assert RouteToCore.is_active
         RouteToCore.do_routing()
 
 
@@ -34125,9 +34163,9 @@ class Symmetry:
         cls.predict_enemy_core()
         DarkForest.register_enemy_core()
 
-        
+        Profiler.start()
         Map.sync_tile_infos()
-        
+        Profiler.end_now(f"""Map.sync_tile_infos""")
         RouteToCore.pathFindingKill.update(cls.enemy_core_pos_set) # don't route to core anymore
 
 
@@ -34596,9 +34634,9 @@ class Unit:
         MarketMaker.refresh()
 
         if Globals.ct.get_entity_type() != EntityType.LAUNCHER:
-            
+            Profiler.start()
             Map.fill_tile_info()
-            
+            Profiler.end(f"""Map.fill_tile_info""")
 
     @classmethod
     def run_turn(cls):
@@ -34607,7 +34645,7 @@ class Unit:
     @classmethod
     def end_turn(cls):
 
-        if Globals.round == 1999:
+        if Globals.round == 667:
             Profiler.report()
         print(f'scale ratio {MarketMaker.scale_ratio:.2f}')
 
@@ -34681,13 +34719,13 @@ class Builder(Unit):
     def start_turn(cls):
         Unit.start_turn()
 
-        
+        Profiler.start()
         DarkForest.fcompute()
-        
+        Profiler.end(f"""DarkForest.fcompute""")
 
-        
+        Profiler.start()
         BfsBureau.update()
-        
+        Profiler.end(f"""BfsBureau.update""")
 
         Symmetry.run_sym_check()
 
@@ -34711,34 +34749,34 @@ class Builder(Unit):
         print("Mode:", cls.mode)
 
 
-        
+        Profiler.start()
         BfsBureau.bfs20()
-        
+        Profiler.end(f"""BfsBureau.bfs20""")
 
-        
+        Profiler.start()
         BfsBureau.update_enclosed_regions()
-        
+        Profiler.end(f"""BfsBureau.update_enclosed_regions""")
 
 
-        
+        Profiler.start()
         OreExecutive.fill()
-        
+        Profiler.end(f"""OreExecutive.fill""")
 
-        
+        Profiler.start()
         VisionTracker.fill()
-        
+        Profiler.end(f"""VisionTracker.fill""")
 
-        
+        Profiler.start()
         SitterTakedown.fill()
-        
+        Profiler.end(f"""SitterTakedown.fill""")
 
-        
+        Profiler.start()
         HarvesterAdjacent.fill()
-        
+        Profiler.end(f"""HarvesterAdjacent.fill""")
 
-        
+        Profiler.start()
         HealTargeter.fill()
-        
+        Profiler.end(f"""HealTargeter.fill""")
 
 
 
@@ -34746,23 +34784,24 @@ class Builder(Unit):
     def run_turn(cls):
         cls.state, *args = cls.determine_state()
 
+        print(f'running: {cls.state}  @', *args, sep=' ')
 
-        
+        Profiler.start()
         globals()[f'State{cls.state}'].run(*args)
-        
+        Profiler.end(f"""State{cls.state}""")
 
 
     @classmethod
     def end_turn(cls):
         Unit.end_turn()
 
-        
+        Profiler.start()
         HealExecutor.execute_heal_attempt()
-        
+        Profiler.end(f"""HealExecutor.execute_heal_attempt""")
 
-        
+        Profiler.start()
         Marker.attempt_mark()
-        
+        Profiler.end(f"""Marker.attempt_mark""")
 
         if cls.mode == 3:
             RoadspamExecutor.execute_roadspam_attempt()
@@ -34778,7 +34817,7 @@ class Builder(Unit):
         if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos) and Map.num_enemies == 0:
             Globals.ct.fire(my_pos)
         
-        if my_pos.distance_squared(Symmetry.enemy_core_pos) < my_pos.distance_squared(Unit.core_pos) and Map.num_enemies > 0:
+        if Map.num_enemies_8 > 0 or (my_pos.distance_squared(Symmetry.enemy_core_pos) < my_pos.distance_squared(Unit.core_pos) and Map.num_enemies > 0):
             RoadspamExecutor.execute_roadspam_attempt()
 
 
@@ -34914,7 +34953,7 @@ class Builder(Unit):
         if route_pos is not None and cls.mode != 2:
             RouteToCore.set_pos(route_pos)
             if RouteToCore.is_active:
-                
+                print("""[HarvesterAdjacent found route]""")
                 return ('Route',)
 
         if stalk_target is not None and cls.mode != 2:
@@ -34970,6 +35009,10 @@ class Core(Unit):
     @classmethod
     def end_turn(cls):
         Unit.end_turn()
+
+        if Globals.round > 666:
+            Globals.ct.resign()
+            raise Exception
 
 
 # ============================================================
@@ -35029,66 +35072,240 @@ class Launcher(Unit):
         tiles = ct.get_nearby_tiles()
 
         BUILDER_BOT = EntityType.BUILDER_BOT
-        nearby_bot = None
+        nearby_enemy_bot = None
+        nearby_ally_bot = None
+        enemy_buildings = 0
+        close_enemy_bots = 0
         get_etype = ct.get_entity_type
         get_team = ct.get_team
         for unit in ct.get_nearby_units(2):
-            if get_etype(unit) == BUILDER_BOT and get_team(unit) != my_team:
-                nearby_bot = ct.get_position(unit)
-                break
+            if get_etype(unit) == BUILDER_BOT:
+                if get_team(unit) != my_team:
+                    nearby_enemy_bot = ct.get_position(unit)
+                else:
+                    nearby_ally_bot = ct.get_position(unit)
+        
+        for building in ct.get_nearby_buildings(2):
+            if get_team(building) != my_team:
+                enemy_buildings += 1
+                
+        for unit in ct.get_nearby_units(8):
+            if get_etype(unit) == BUILDER_BOT:
+                if get_team(unit) != my_team:
+                    close_enemy_bots += 1
+                
+        if nearby_enemy_bot is not None:
+            print("Oh no! Nearby Enemy Bot:", nearby_enemy_bot)
+            print("Time Elapsed:", ct.get_cpu_time_elapsed())
 
-        print("Oh no! Nearby Enemy Bot:", nearby_bot)
-        print("Time Elapsed:", ct.get_cpu_time_elapsed())
+            ROUTING = cls.ROUTING_SET
+            LAUNCHER = EntityType.LAUNCHER
+            DIRECTIONS = Constants.DIRECTIONS
+            map_w = ct.get_map_width()
+            map_h = ct.get_map_height()
 
-        ROUTING = cls.ROUTING_SET
-        LAUNCHER = EntityType.LAUNCHER
-        DIRECTIONS = Constants.DIRECTIONS
-        map_w = ct.get_map_width()
-        map_h = ct.get_map_height()
+            building_cache = {}
+            get_bid = ct.get_tile_building_id
+            _bc_get = building_cache.get
+            scores = []
+            _sa = scores.append
 
-        building_cache = {}
-        get_bid = ct.get_tile_building_id
-        _bc_get = building_cache.get
-        scores = []
-        _sa = scores.append
+            for tile in tiles:
+                building_id = get_bid(tile)
+                if building_id is not None:
+                    building_cache[tile] = Building(ct, building_id)
 
-        for tile in tiles:
-            building_id = get_bid(tile)
-            if building_id is not None:
-                building_cache[tile] = Building(ct, building_id)
-
-            if not ct.is_tile_passable(tile):
-                continue
-
-            building = _bc_get(tile)
-            if building is not None and building.team == my_team and building.entityType in ROUTING:
-                continue
-
-            score = my_pos.distance_squared(tile)
-
-            for d in DIRECTIONS:
-                new_loc = tile.add(d)
-                nx, ny = new_loc.x, new_loc.y
-                if not (0 <= nx < map_w and 0 <= ny < map_h) or not ct.is_in_vision(new_loc):
+                if not ct.is_tile_passable(tile):
                     continue
-                adj_building = _bc_get(new_loc)
-                if adj_building is None:
+
+                building = _bc_get(tile)
+                if building is not None and building.team == my_team and building.entityType in ROUTING:
                     continue
-                if adj_building.team != my_team and adj_building.entityType == LAUNCHER:
+
+                score = my_pos.distance_squared(tile)
+
+                for d in DIRECTIONS:
+                    new_loc = tile.add(d)
+                    nx, ny = new_loc.x, new_loc.y
+                    if not (0 <= nx < map_w and 0 <= ny < map_h) or not ct.is_in_vision(new_loc):
+                        continue
+                    adj_building = _bc_get(new_loc)
+                    if adj_building is None:
+                        continue
+                    if adj_building.team != my_team and adj_building.entityType == LAUNCHER:
+                        score -= 50
+                    elif adj_building.team == my_team and adj_building.entityType in ROUTING:
+                        score -= 50
+
+                _sa((score, tile))
+                if ct.get_cpu_time_elapsed() > 1920:
+                    break
+
+            best_pos = max(scores, key=lambda x: x[0])[1] if scores else None
+
+            print("Plausible place to throw:", best_pos)
+
+            if nearby_enemy_bot is not None and best_pos is not None and ct.can_launch(nearby_enemy_bot, best_pos):
+                ct.launch(nearby_enemy_bot, best_pos)
+        elif nearby_ally_bot is not None and enemy_buildings > 0 and close_enemy_bots > 0:
+            print("No nearby enemies, but nearby ally bot:", nearby_ally_bot)
+
+            ROUTING = cls.ROUTING_SET
+            LAUNCHER = EntityType.LAUNCHER
+            DIRECTIONS = Constants.DIRECTIONS
+            map_w = ct.get_map_width()
+            map_h = ct.get_map_height()
+
+            building_cache = {}
+            get_bid = ct.get_tile_building_id
+            _bc_get = building_cache.get
+            scores = []
+            _sa = scores.append
+            
+            enemy_builder_bots = set()
+            enemy_bots_2 = set()
+            enemy_bots_8 = set()
+            
+            for unit in ct.get_nearby_units():
+                if ct.get_entity_type(unit) == BUILDER_BOT and ct.get_team(unit) != my_team:
+                    upos = ct.get_position(unit)
+                    enemy_builder_bots.add(upos)
+                    ux, uy = upos.x, upos.y
+                    enemy_bots_2.add(Position(ux + -1, uy + -1))
+                    enemy_bots_2.add(Position(ux + -1, uy + 0))
+                    enemy_bots_2.add(Position(ux + -1, uy + 1))
+                    enemy_bots_2.add(Position(ux + 0, uy + -1))
+                    enemy_bots_2.add(Position(ux + 0, uy + 1))
+                    enemy_bots_2.add(Position(ux + 1, uy + -1))
+                    enemy_bots_2.add(Position(ux + 1, uy + 0))
+                    enemy_bots_2.add(Position(ux + 1, uy + 1))
+                    enemy_bots_8.add(Position(ux + -2, uy + -2))
+                    enemy_bots_8.add(Position(ux + -2, uy + -1))
+                    enemy_bots_8.add(Position(ux + -2, uy + 0))
+                    enemy_bots_8.add(Position(ux + -2, uy + 1))
+                    enemy_bots_8.add(Position(ux + -2, uy + 2))
+                    enemy_bots_8.add(Position(ux + -1, uy + -2))
+                    enemy_bots_8.add(Position(ux + -1, uy + 2))
+                    enemy_bots_8.add(Position(ux + 0, uy + -2))
+                    enemy_bots_8.add(Position(ux + 0, uy + 2))
+                    enemy_bots_8.add(Position(ux + 1, uy + -2))
+                    enemy_bots_8.add(Position(ux + 1, uy + 2))
+                    enemy_bots_8.add(Position(ux + 2, uy + -2))
+                    enemy_bots_8.add(Position(ux + 2, uy + -1))
+                    enemy_bots_8.add(Position(ux + 2, uy + 0))
+                    enemy_bots_8.add(Position(ux + 2, uy + 1))
+                    enemy_bots_8.add(Position(ux + 2, uy + 2))
+
+            for tile in tiles:
+                building_id = get_bid(tile)
+                if building_id is not None:
+                    building_cache[tile] = Building(ct, building_id)
+
+                if not ct.is_tile_passable(tile):
+                    continue
+                    
+                if tile in enemy_builder_bots:
+                    continue
+                    
+                score = 0
+
+                building = _bc_get(tile)
+                    
+                if building is not None:
+                    if building.team != my_team:
+                        score += 1
+                        if building.entityType in cls.ROUTING_SET:
+                            score += 5
+
+
+                    new_loc = tile.add(Direction.NORTH)
+                    nx, ny = new_loc.x, new_loc.y
+                    if (0 <= nx < map_w and 0 <= ny < map_h) and ct.is_in_vision(new_loc):
+                        adj_building = _bc_get(new_loc)
+                        if adj_building is not None:
+                            if adj_building.team != my_team and adj_building.entityType == LAUNCHER:
+                                score -= 1000
+                            elif adj_building.team != my_team and adj_building.entityType in ROUTING:
+                                score += 3
+                    new_loc = tile.add(Direction.NORTHEAST)
+                    nx, ny = new_loc.x, new_loc.y
+                    if (0 <= nx < map_w and 0 <= ny < map_h) and ct.is_in_vision(new_loc):
+                        adj_building = _bc_get(new_loc)
+                        if adj_building is not None:
+                            if adj_building.team != my_team and adj_building.entityType == LAUNCHER:
+                                score -= 1000
+                            elif adj_building.team != my_team and adj_building.entityType in ROUTING:
+                                score += 3
+                    new_loc = tile.add(Direction.EAST)
+                    nx, ny = new_loc.x, new_loc.y
+                    if (0 <= nx < map_w and 0 <= ny < map_h) and ct.is_in_vision(new_loc):
+                        adj_building = _bc_get(new_loc)
+                        if adj_building is not None:
+                            if adj_building.team != my_team and adj_building.entityType == LAUNCHER:
+                                score -= 1000
+                            elif adj_building.team != my_team and adj_building.entityType in ROUTING:
+                                score += 3
+                    new_loc = tile.add(Direction.SOUTHEAST)
+                    nx, ny = new_loc.x, new_loc.y
+                    if (0 <= nx < map_w and 0 <= ny < map_h) and ct.is_in_vision(new_loc):
+                        adj_building = _bc_get(new_loc)
+                        if adj_building is not None:
+                            if adj_building.team != my_team and adj_building.entityType == LAUNCHER:
+                                score -= 1000
+                            elif adj_building.team != my_team and adj_building.entityType in ROUTING:
+                                score += 3
+                    new_loc = tile.add(Direction.SOUTH)
+                    nx, ny = new_loc.x, new_loc.y
+                    if (0 <= nx < map_w and 0 <= ny < map_h) and ct.is_in_vision(new_loc):
+                        adj_building = _bc_get(new_loc)
+                        if adj_building is not None:
+                            if adj_building.team != my_team and adj_building.entityType == LAUNCHER:
+                                score -= 1000
+                            elif adj_building.team != my_team and adj_building.entityType in ROUTING:
+                                score += 3
+                    new_loc = tile.add(Direction.SOUTHWEST)
+                    nx, ny = new_loc.x, new_loc.y
+                    if (0 <= nx < map_w and 0 <= ny < map_h) and ct.is_in_vision(new_loc):
+                        adj_building = _bc_get(new_loc)
+                        if adj_building is not None:
+                            if adj_building.team != my_team and adj_building.entityType == LAUNCHER:
+                                score -= 1000
+                            elif adj_building.team != my_team and adj_building.entityType in ROUTING:
+                                score += 3
+                    new_loc = tile.add(Direction.WEST)
+                    nx, ny = new_loc.x, new_loc.y
+                    if (0 <= nx < map_w and 0 <= ny < map_h) and ct.is_in_vision(new_loc):
+                        adj_building = _bc_get(new_loc)
+                        if adj_building is not None:
+                            if adj_building.team != my_team and adj_building.entityType == LAUNCHER:
+                                score -= 1000
+                            elif adj_building.team != my_team and adj_building.entityType in ROUTING:
+                                score += 3
+                    new_loc = tile.add(Direction.NORTHWEST)
+                    nx, ny = new_loc.x, new_loc.y
+                    if (0 <= nx < map_w and 0 <= ny < map_h) and ct.is_in_vision(new_loc):
+                        adj_building = _bc_get(new_loc)
+                        if adj_building is not None:
+                            if adj_building.team != my_team and adj_building.entityType == LAUNCHER:
+                                score -= 1000
+                            elif adj_building.team != my_team and adj_building.entityType in ROUTING:
+                                score += 3
+
+                if tile in enemy_bots_2:
+                    score -= 100
+                elif tile in enemy_bots_8:
                     score -= 50
-                elif adj_building.team == my_team and adj_building.entityType in ROUTING:
-                    score -= 50
 
-            _sa((score, tile))
-            if ct.get_cpu_time_elapsed() > 1920:
-                break
+                _sa((score, tile))
+                if ct.get_cpu_time_elapsed() > 1920:
+                    break
 
-        best_pos = max(scores, key=lambda x: x[0])[1] if scores else None
+            best_pos = max(scores, key=lambda x: x[0])[1] if scores else None
 
-        print("Plausible place to throw:", best_pos)
+            print("Plausible place to throw:", best_pos)
 
-        if nearby_bot is not None and best_pos is not None and ct.can_launch(nearby_bot, best_pos):
-            ct.launch(nearby_bot, best_pos)
+            if nearby_ally_bot is not None and best_pos is not None and ct.can_launch(nearby_ally_bot, best_pos):
+                ct.launch(nearby_ally_bot, best_pos)
 
     @classmethod
     def on_map(cls, ct, pos):
@@ -35325,16 +35542,16 @@ class VisionTracker:
 
     @classmethod
     def canonical_ally(cls, from_pos: Position) -> BotInfo:
-        
+        Profiler.start()
         ret = min(cls.allies, key=
             lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )
-        
+        Profiler.end(f"""canonical_ally""")
         return ret
     
     @classmethod
     def canonical_ally_index(cls, from_pos: Position) -> int:
-        
+        Profiler.start()
         allyIndex = list(map(lambda x: x.position, sorted(cls.allies, key=
             lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )))
@@ -35343,7 +35560,7 @@ class VisionTracker:
         else:
             Debug.warn("my_pos not found in canonical ally list!")
             i = 0
-        
+        Profiler.end(f"""canonical_ally""")
         return i
 
 

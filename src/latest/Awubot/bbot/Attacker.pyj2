@@ -170,4 +170,7 @@ class Attacker:
         if enemy_bots_adjacent == 0:
             return True
 
+        if Builder.mode == {{ Mode.EARLY_RUSH }}:
+            return True
+
         return False
