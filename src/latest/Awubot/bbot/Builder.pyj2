@@ -146,11 +146,11 @@ class Builder({{ super() }}):
         #     BfsBureau.debug_now_weight_inf()
 
         my_pos = Globals.my_pos
-        # if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos):
-        #     Globals.ct.fire(my_pos)
+        if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos) and Map.num_enemies == 0:
+            Globals.ct.fire(my_pos)
         
-        # if my_pos.distance_squared(Symmetry.enemy_core_pos) < my_pos.distance_squared(Unit.core_pos):
-        #     RoadspamExecutor.execute_roadspam_attempt()
+        if my_pos.distance_squared(Symmetry.enemy_core_pos) < my_pos.distance_squared(Unit.core_pos) and Map.num_enemies > 0:
+            RoadspamExecutor.execute_roadspam_attempt()
 
 
 
@@ -183,7 +183,6 @@ class Builder({{ super() }}):
             return 'BuildGunner', takedownpos, None
 
 
-        # disable for now
         sitterpos = SitterTakedown.get_best_launcher_position()
         if sitterpos is not None:
             Debug.dot(sitterpos, Color.PURPLE)
@@ -211,6 +210,13 @@ class Builder({{ super() }}):
             shieldpos = HarvesterAdjacent.get_best_shield_position()
             if shieldpos is not None:
                 return 'BuildShield', shieldpos
+                
+        attackpos = Attacker.get_target()
+        secondaryattackpos = Attacker.get_secondary_target()
+        
+        if secondaryattackpos is not None and (RouteToCore.is_active or RouteToFoundry.is_active or RouteToBreach.is_active):
+            if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
+                return 'Attack', secondaryattackpos
 
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
@@ -253,11 +259,10 @@ class Builder({{ super() }}):
             if tpos not in RouteToCore.killed:
                 RouteToCore.set_pos(tpos)
                 return 'MoveTo', tpos, 'InitRoute'
-
-        apos = Attacker.get_target()
-        if apos is not None:
-            return 'Attack', apos
-
+        
+        if attackpos is not None:
+            return 'Attack', attackpos
+                
         ax_target = OreExecutive.get_axionite_target()
         ti_target = OreExecutive.get_titanium_target()
         stalk_target = StalkTargeter.get_best_target()
@@ -288,6 +293,9 @@ class Builder({{ super() }}):
         if stalk_target is not None and cls.mode != {{ Mode.EARLY_RUSH }}:
             return 'MoveTo', stalk_target, 'Stalk'
 
+        if secondaryattackpos is not None:
+            return 'Attack', secondaryattackpos
+            
         rushTarget = RushTargeter.get_best_target()
         if rushTarget is not None:
             return 'Rush', rushTarget

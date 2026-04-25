@@ -45,6 +45,7 @@ class Map:
     proc_nearby_tiles: list[tuple[Position, int, int, int, TileInfo]]
     num_allies: int
     num_enemies: int
+    num_enemies_8: int
     num_enemy_buildings: int
     harvester_set: set[int] = set()
     ti_ally_harvester_set: set[int] = set()
@@ -126,6 +127,7 @@ class Map:
         messages_read = 0
         num_allies = 0
         num_enemies = 0
+        num_enemies_8 = 0
         num_enemy_buildings = 0
         cls.nearby_tiles = ct.get_nearby_tiles()
 
@@ -159,6 +161,8 @@ class Map:
 
         # track harvester tiles for second pass adjacency
         harvester_proc = []
+        
+        my_x, my_y = Globals.my_pos
 
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
             tile_env = get_tile_env(pos)
@@ -231,6 +235,8 @@ class Map:
                     num_allies += 1
                 else:
                     num_enemies += 1
+                    if abs(x-my_x) < 2 and abs(y-my_y) < 2:
+                        num_enemies_8 += 1
 
             ti.easily_passable = False
 
@@ -343,6 +349,7 @@ class Map:
 
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
+        cls.num_enemies_8 = num_enemies_8
         cls.num_enemy_buildings = num_enemy_buildings
 
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
