@@ -24,7 +24,7 @@ class SitterTargetInfo:
     __slots__ = (
         'position', 'dist_enemy_core', 'has_ally_transporter',
         'enemy_bots_nearby', 'harvester_nearby', 'launchers_adjacent',
-        'bfs_dist_adj', 'enemy_transporters_adjacent'
+        'bfs_dist_adj', 'enemy_transporters_adjacent', 'enemy_buildings_adjacent'
     )
 
     @staticmethod
@@ -49,6 +49,9 @@ class SitterTargetInfo:
         
         if a.has_ally_transporter != b.has_ally_transporter:
             return a.has_ally_transporter < b.has_ally_transporter
+        
+        if a.enemy_buildings_adjacent != b.enemy_buildings_adjacent:
+            return a.enemy_buildings_adjacent < b.enemy_buildings_adjacent
 
         if a.bfs_dist_adj != b.bfs_dist_adj:
             return a.bfs_dist_adj < b.bfs_dist_adj
@@ -79,6 +82,11 @@ class SitterTakedown:
             
             if not best.harvester_nearby:
                 return None
+            
+            if best.enemy_buildings_adjacent == 0:
+                return None
+            
+            return None
         else:
             if best.enemy_bots_nearby == 0:
                 return None
@@ -118,6 +126,7 @@ class SitterTakedown:
             info.position = pos
             info.dist_enemy_core = Util.dist_sq(pos, Symmetry.enemy_core_pos)
             info.enemy_bots_nearby = 0
+            info.enemy_buildings_adjacent = 0
             info.harvester_nearby = False
             info.launchers_adjacent = 0
             info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
@@ -148,12 +157,15 @@ class SitterTakedown:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                                        
-                if nti.has_building and not nti.is_building_ally and nti.entity_type in Constants.TRANSPORTERS_SET:
-                    info.enemy_transporters_adjacent += 1
-                                        
-                if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
-                    info.launchers_adjacent += 1
+                    
+                if nti.has_building:             
+                    if not nti.is_building_ally:
+                        if nti.entity_type in Constants.TRANSPORTERS_SET:
+                            info.enemy_transporters_adjacent += 1     
+                        info.enemy_buildings_adjacent += 1                 
+                    else:
+                        if nti.entity_type == EntityType.LAUNCHER:
+                            info.launchers_adjacent += 1
             {% endfor %}
             
 

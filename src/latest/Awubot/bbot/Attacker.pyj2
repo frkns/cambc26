@@ -27,10 +27,10 @@ class Attacker:
         t = cls.get_shield_target()
         if t is not None: 
             return t
-        if Map.num_enemies_8 == 0:
-            return cls.get_trans_target()
-        else:
-            return cls.get_trans_shield_target()
+        t = cls.get_trans_target()
+        if t is not None:
+            return t
+        return cls.get_trans_shield_target()
     
     @classmethod        
     def get_secondary_target(cls) -> Position | None:
@@ -58,6 +58,8 @@ class Attacker:
         if trans.flow == 0 and not trans.sight_flowing:
             return None
         if not cls.should_fire(trans.position):
+            return None
+        if Map.num_enemies_8 > 0 and trans.adjacent_launchers < 2:
             return None
         return trans.position
 

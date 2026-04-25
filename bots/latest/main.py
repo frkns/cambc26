@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-24 17:06:54 (local)
+# latest,  @ 2026-04-25 12:11:55 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -144,10 +144,10 @@ class Attacker:
         t = cls.get_shield_target()
         if t is not None: 
             return t
-        if Map.num_enemies_8 == 0:
-            return cls.get_trans_target()
-        else:
-            return cls.get_trans_shield_target()
+        t = cls.get_trans_target()
+        if t is not None:
+            return t
+        return cls.get_trans_shield_target()
     
     @classmethod        
     def get_secondary_target(cls) -> Position | None:
@@ -175,6 +175,8 @@ class Attacker:
         if trans.flow == 0 and not trans.sight_flowing:
             return None
         if not cls.should_fire(trans.position):
+            return None
+        if Map.num_enemies_8 > 0 and trans.adjacent_launchers < 2:
             return None
         return trans.position
 
@@ -33315,6 +33317,11 @@ class SitterTakedown:
             
             if not best.harvester_nearby:
                 return None
+            
+            if best.enemy_buildings_adjacent == 0:
+                return None
+            
+            return None
         else:
             if best.enemy_bots_nearby == 0:
                 return None
@@ -33354,6 +33361,7 @@ class SitterTakedown:
             info.position = pos
             info.dist_enemy_core = Util.dist_sq(pos, Symmetry.enemy_core_pos)
             info.enemy_bots_nearby = 0
+            info.enemy_buildings_adjacent = 0
             info.harvester_nearby = False
             info.launchers_adjacent = 0
             info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
@@ -33380,12 +33388,15 @@ class SitterTakedown:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                                        
-                if nti.has_building and not nti.is_building_ally and nti.entity_type in Constants.TRANSPORTERS_SET:
-                    info.enemy_transporters_adjacent += 1
-                                        
-                if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
-                    info.launchers_adjacent += 1
+                    
+                if nti.has_building:             
+                    if not nti.is_building_ally:
+                        if nti.entity_type in Constants.TRANSPORTERS_SET:
+                            info.enemy_transporters_adjacent += 1     
+                        info.enemy_buildings_adjacent += 1                 
+                    else:
+                        if nti.entity_type == EntityType.LAUNCHER:
+                            info.launchers_adjacent += 1
 
             nti = tile_info[x +1][y -1]
             if nti is not None:
@@ -33395,12 +33406,15 @@ class SitterTakedown:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                                        
-                if nti.has_building and not nti.is_building_ally and nti.entity_type in Constants.TRANSPORTERS_SET:
-                    info.enemy_transporters_adjacent += 1
-                                        
-                if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
-                    info.launchers_adjacent += 1
+                    
+                if nti.has_building:             
+                    if not nti.is_building_ally:
+                        if nti.entity_type in Constants.TRANSPORTERS_SET:
+                            info.enemy_transporters_adjacent += 1     
+                        info.enemy_buildings_adjacent += 1                 
+                    else:
+                        if nti.entity_type == EntityType.LAUNCHER:
+                            info.launchers_adjacent += 1
 
             nti = tile_info[x +1][y ]
             if nti is not None:
@@ -33410,12 +33424,15 @@ class SitterTakedown:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                                        
-                if nti.has_building and not nti.is_building_ally and nti.entity_type in Constants.TRANSPORTERS_SET:
-                    info.enemy_transporters_adjacent += 1
-                                        
-                if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
-                    info.launchers_adjacent += 1
+                    
+                if nti.has_building:             
+                    if not nti.is_building_ally:
+                        if nti.entity_type in Constants.TRANSPORTERS_SET:
+                            info.enemy_transporters_adjacent += 1     
+                        info.enemy_buildings_adjacent += 1                 
+                    else:
+                        if nti.entity_type == EntityType.LAUNCHER:
+                            info.launchers_adjacent += 1
 
             nti = tile_info[x +1][y +1]
             if nti is not None:
@@ -33425,12 +33442,15 @@ class SitterTakedown:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                                        
-                if nti.has_building and not nti.is_building_ally and nti.entity_type in Constants.TRANSPORTERS_SET:
-                    info.enemy_transporters_adjacent += 1
-                                        
-                if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
-                    info.launchers_adjacent += 1
+                    
+                if nti.has_building:             
+                    if not nti.is_building_ally:
+                        if nti.entity_type in Constants.TRANSPORTERS_SET:
+                            info.enemy_transporters_adjacent += 1     
+                        info.enemy_buildings_adjacent += 1                 
+                    else:
+                        if nti.entity_type == EntityType.LAUNCHER:
+                            info.launchers_adjacent += 1
 
             nti = tile_info[x ][y +1]
             if nti is not None:
@@ -33440,12 +33460,15 @@ class SitterTakedown:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                                        
-                if nti.has_building and not nti.is_building_ally and nti.entity_type in Constants.TRANSPORTERS_SET:
-                    info.enemy_transporters_adjacent += 1
-                                        
-                if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
-                    info.launchers_adjacent += 1
+                    
+                if nti.has_building:             
+                    if not nti.is_building_ally:
+                        if nti.entity_type in Constants.TRANSPORTERS_SET:
+                            info.enemy_transporters_adjacent += 1     
+                        info.enemy_buildings_adjacent += 1                 
+                    else:
+                        if nti.entity_type == EntityType.LAUNCHER:
+                            info.launchers_adjacent += 1
 
             nti = tile_info[x -1][y +1]
             if nti is not None:
@@ -33455,12 +33478,15 @@ class SitterTakedown:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                                        
-                if nti.has_building and not nti.is_building_ally and nti.entity_type in Constants.TRANSPORTERS_SET:
-                    info.enemy_transporters_adjacent += 1
-                                        
-                if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
-                    info.launchers_adjacent += 1
+                    
+                if nti.has_building:             
+                    if not nti.is_building_ally:
+                        if nti.entity_type in Constants.TRANSPORTERS_SET:
+                            info.enemy_transporters_adjacent += 1     
+                        info.enemy_buildings_adjacent += 1                 
+                    else:
+                        if nti.entity_type == EntityType.LAUNCHER:
+                            info.launchers_adjacent += 1
 
             nti = tile_info[x -1][y ]
             if nti is not None:
@@ -33470,12 +33496,15 @@ class SitterTakedown:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                                        
-                if nti.has_building and not nti.is_building_ally and nti.entity_type in Constants.TRANSPORTERS_SET:
-                    info.enemy_transporters_adjacent += 1
-                                        
-                if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
-                    info.launchers_adjacent += 1
+                    
+                if nti.has_building:             
+                    if not nti.is_building_ally:
+                        if nti.entity_type in Constants.TRANSPORTERS_SET:
+                            info.enemy_transporters_adjacent += 1     
+                        info.enemy_buildings_adjacent += 1                 
+                    else:
+                        if nti.entity_type == EntityType.LAUNCHER:
+                            info.launchers_adjacent += 1
 
             nti = tile_info[x -1][y -1]
             if nti is not None:
@@ -33485,12 +33514,15 @@ class SitterTakedown:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                                        
-                if nti.has_building and not nti.is_building_ally and nti.entity_type in Constants.TRANSPORTERS_SET:
-                    info.enemy_transporters_adjacent += 1
-                                        
-                if nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
-                    info.launchers_adjacent += 1
+                    
+                if nti.has_building:             
+                    if not nti.is_building_ally:
+                        if nti.entity_type in Constants.TRANSPORTERS_SET:
+                            info.enemy_transporters_adjacent += 1     
+                        info.enemy_buildings_adjacent += 1                 
+                    else:
+                        if nti.entity_type == EntityType.LAUNCHER:
+                            info.launchers_adjacent += 1
 
 
 # ============================================================
@@ -33501,7 +33533,7 @@ class SitterTargetInfo:
     __slots__ = (
         'position', 'dist_enemy_core', 'has_ally_transporter',
         'enemy_bots_nearby', 'harvester_nearby', 'launchers_adjacent',
-        'bfs_dist_adj', 'enemy_transporters_adjacent'
+        'bfs_dist_adj', 'enemy_transporters_adjacent', 'enemy_buildings_adjacent'
     )
 
     @staticmethod
@@ -33526,6 +33558,9 @@ class SitterTargetInfo:
         
         if a.has_ally_transporter != b.has_ally_transporter:
             return a.has_ally_transporter < b.has_ally_transporter
+        
+        if a.enemy_buildings_adjacent != b.enemy_buildings_adjacent:
+            return a.enemy_buildings_adjacent < b.enemy_buildings_adjacent
 
         if a.bfs_dist_adj != b.bfs_dist_adj:
             return a.bfs_dist_adj < b.bfs_dist_adj
@@ -34382,7 +34417,7 @@ class TransporterInfo:
         'ti', 'position', 'target', 'easily_reachable', 'easily_reachable_adj',
         'bfs_dist', 'bfs_dist_adj', 'bfs_dist_target', 'flow', 'entity_type',
         'harvester_adjacent', 'is_ally', 'node_kind', 'flowing_into_ally',
-        'on_ally_side', 'easily_buildable', 'sight_flowing'
+        'on_ally_side', 'easily_buildable', 'sight_flowing', 'adjacent_launchers'
     )
 
     @staticmethod
@@ -34398,6 +34433,9 @@ class TransporterInfo:
 
         if abs(a.bfs_dist - b.bfs_dist >2):
             return a.bfs_dist < b.bfs_dist
+        
+        if a.adjacent_launchers != b.adjacent_launchers:
+            return a.adjacent_launchers > b.adjacent_launchers
 
         if a.ti.building_hp != b.ti.building_hp:
             return a.ti.building_hp < b.ti.building_hp
@@ -34859,8 +34897,9 @@ class Builder(Unit):
         dist_ax = 1000000 if ax_target is None else my_pos.distance_squared(ax_target)
         dist_stalk = 1000000 if stalk_target is None else my_pos.distance_squared(stalk_target)
 
-        if (dist_stalk <= 4 or (dist_stalk < dist_ti and dist_stalk < dist_ax)) and cls.mode != 2:
-            return 'MoveTo', stalk_target, 'Stalk'
+        if my_pos.distance_squared(Symmetry.enemy_core_pos) > my_pos.distance_squared(Unit.core_pos) or attackpos is None:
+            if (dist_stalk <= 4 or (dist_stalk < dist_ti and dist_stalk < dist_ax)) and cls.mode != 2:
+                return 'MoveTo', stalk_target, 'Stalk'
 
         if ax_target is not None and MarketMaker.ax == 0 and cls.mode != 2:
             return 'BuildHarvesterAx', ax_target
@@ -35216,6 +35255,7 @@ class VisionTracker:
                 trans.harvester_adjacent = ti.harvester_adjacent
                 trans.is_ally = ti.is_building_ally
                 trans.sight_flowing = DarkForest.sight_flowing[idx]
+                trans.adjacent_launchers = 0
 
                 trans.node_kind = DarkForest.node_kind[idx]
                 trans.flowing_into_ally = trans.node_kind in \
@@ -35234,6 +35274,39 @@ class VisionTracker:
                     trans.bfs_dist_target < 100
 
                 trans.on_ally_side = pos.distance_squared(Unit.core_pos) < pos.distance_squared(Symmetry.enemy_core_pos)
+                
+
+                nti = tile_info[(x )][(y -1)]
+                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                    trans.adjacent_launchers += 1
+
+                nti = tile_info[(x +1)][(y -1)]
+                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                    trans.adjacent_launchers += 1
+
+                nti = tile_info[(x +1)][(y )]
+                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                    trans.adjacent_launchers += 1
+
+                nti = tile_info[(x +1)][(y +1)]
+                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                    trans.adjacent_launchers += 1
+
+                nti = tile_info[(x )][(y +1)]
+                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                    trans.adjacent_launchers += 1
+
+                nti = tile_info[(x -1)][(y +1)]
+                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                    trans.adjacent_launchers += 1
+
+                nti = tile_info[(x -1)][(y )]
+                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                    trans.adjacent_launchers += 1
+
+                nti = tile_info[(x -1)][(y -1)]
+                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                    trans.adjacent_launchers += 1
 
                 if ti.is_building_ally:
                     if target_ti is not None and target_ti.has_building and not target_ti.is_building_ally:
