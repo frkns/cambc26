@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-25 16:56:12 (local)
+# latest,  @ 2026-04-26 14:37:37 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -26446,18 +26446,29 @@ class HealExecutor:
 
         Debug.line(best.position, Color.LIME)
         
-        # TODO: implement this
-        # # Replace the conveyor if it's cheaper
-        # if best.entity_type == EntityType.CONVEYOR:
-        #     if BuildManager.can_afford_conveyor():
-        #         heal = (Constants.MAX_HP_MAP[best.entity_type] - best.building_hp)
-        #         heals = math.ceil(heal / GameConstants.HEAL_AMOUNT)
-        #         heal_cost = heals * GameConstants.HEAL_COST
-        #         if heal_cost >= Globals.ct.get_conveyor_cost():
-        #             if BuildManager.can_dbuild_conveyor(best.position):
-        #                 BuildManager.dbuild_conveyor(best.position)
-        #                 return
-
+        # Replace the conveyor if it's at low health
+        if best.entity_type == EntityType.CONVEYOR:
+            if best.building_hp < 10:
+                if BuildManager.can_dbuild_conveyor(best.position):
+                    BuildManager.dbuild_conveyor(best.position, Globals.ct.get_direction(Globals.ct.get_tile_building_id(best.position)))
+                    return
+        if best.entity_type == EntityType.ARMOURED_CONVEYOR:
+            if best.building_hp < 25:
+                if BuildManager.can_dbuild_armoured_conveyor(best.position):
+                    BuildManager.dbuild_armoured_conveyor(best.position, Globals.ct.get_direction(Globals.ct.get_tile_building_id(best.position)))
+                    return
+        if best.entity_type == EntityType.SPLITTER:
+            if best.building_hp < 10:
+                if BuildManager.can_dbuild_splitter(best.position):
+                    BuildManager.dbuild_splitter(best.position, Globals.ct.get_direction(Globals.ct.get_tile_building_id(best.position)))
+                    return
+        if best.entity_type == EntityType.BRIDGE:
+            if best.building_hp < 10:
+                if BuildManager.can_dbuild_bridge(best.position):
+                    ti = Map.tile_info[best.position.x][best.position.y]
+                    BuildManager.dbuild_bridge(best.position, ti.target)
+                    return
+        
         Globals.ct.heal(best.position)
         
         
@@ -34819,7 +34830,7 @@ class Builder(Unit):
         if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos) and Map.num_enemies == 0:
             Globals.ct.fire(my_pos)
         
-        if Map.num_enemies_8 > 0 or (my_pos.distance_squared(Symmetry.enemy_core_pos) < my_pos.distance_squared(Unit.core_pos) and Map.num_enemies > 0):
+        if Map.num_enemies > 0: #Map.num_enemies_8 > 0 or (my_pos.distance_squared(Symmetry.enemy_core_pos) < my_pos.distance_squared(Unit.core_pos) and Map.num_enemies > 0):
             RoadspamExecutor.execute_roadspam_attempt()
 
 
