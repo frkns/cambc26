@@ -29,6 +29,9 @@ class Builder({{ super() }}):
     mode: int = {{ Mode.NONE }}
     role: int = {{ Role.NONE }}
 
+    is_routing_active: bool = False
+    route_from_pos: Position
+
     @classmethod
     def init(cls):
         {{ super() }}.init()
@@ -64,15 +67,11 @@ class Builder({{ super() }}):
                 cls.mode = {{ Mode.ECON }}
         if Globals.round >= Constants.RUSH_OVER:
             cls.mode = {{ Mode.ECON }}
-            Explore.target = Explore.new_target()
-        """
-        if (cls.mode == {{ Mode.EARLY_RUSH }} and Symmetry.is_sym_known and Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= 36):
-            cls.mode = {{ Mode.ECON }}
-            Explore.target = Explore.new_target()
-        """
+            # Explore.target = Explore.new_target()
+
         print("Mode:", cls.mode)
 
-        {# /* DarkForest.debug_pressure() */ #}
+        DarkForest.debug_pressure()
         {# /* DarkForest.debug_kind() */ #}
 
         {{ P.start() }}
@@ -108,6 +107,13 @@ class Builder({{ super() }}):
         HealTargeter.fill()
         {{ P.end('HealTargeter.fill') }}
 
+        cls.is_routing_active = False
+
+        {% for thing in 'Core', 'Breach', 'Foundry' %}
+        if RouteTo{{ thing }}.is_active:
+            cls.is_routing_active = True
+            cls.route_from_pos = RouteTo{{ thing }}.from_pos
+        {% endfor %}
 
 
     @classmethod
@@ -178,6 +184,14 @@ class Builder({{ super() }}):
         if RouteToBreach.is_active:
             return ('RouteBreach',)
 
+        if (
+             HealExecutor.last_healed is not None 
+             and HealExecutor.last_healed.is_turret
+             and (Globals.round - HealExecutor.last_healed_round) <= 3
+        ):
+            if healpos is not None:  # redundant, OK
+                return 'MoveTo', healpos, '[lrh: move to heal]'
+
         if takedownpos is not None:
             Debug.dot(takedownpos, Color.PURPLE)
             return 'BuildGunner', takedownpos, None
@@ -192,17 +206,9 @@ class Builder({{ super() }}):
         if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
 
-        if (
-             HealExecutor.last_healed is not None 
-             and HealExecutor.last_healed.is_turret
-             and (Globals.round - HealExecutor.last_healed_round) <= 5
-        ):
-            if healpos is not None:  # redundant, OK
-                return 'MoveTo', healpos, '[lrh: move to heal]'
-            return 'MoveTo', HealExecutor.last_healed.position, '[lrh: wait for heal]'
 
-        if cls.role == {{ Role.CORE_HEALER }}:
-            return 'MoveTo', Unit.core_pos, '[core healer]'
+        # if cls.role == {{ Role.CORE_HEALER }}:
+        #     return 'MoveTo', Unit.core_pos, '[core healer]'
             
         buildingFirstConveyor = RouteToCore.is_active and len(RouteToCore.prevRoute) == 0
             
@@ -214,9 +220,6 @@ class Builder({{ super() }}):
         attackpos = Attacker.get_target()
         secondaryattackpos = Attacker.get_secondary_target()
         
-        if secondaryattackpos is not None and (RouteToCore.is_active or RouteToFoundry.is_active or RouteToBreach.is_active):
-            if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
-                return 'Attack', secondaryattackpos
 
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
@@ -262,6 +265,10 @@ class Builder({{ super() }}):
         
         if attackpos is not None:
             return 'Attack', attackpos
+
+        if secondaryattackpos is not None:
+            if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
+                return 'Attack', secondaryattackpos
                 
         ax_target = OreExecutive.get_axionite_target()
         ti_target = OreExecutive.get_titanium_target()

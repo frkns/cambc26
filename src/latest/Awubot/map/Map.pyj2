@@ -42,7 +42,8 @@ class Map:
     # [x][y], some buffer right/bot side
     tile_info: list[list[TileInfo | None]]
     nearby_tiles: list[Position]
-    proc_nearby_tiles: list[tuple[Position, int, int, int, TileInfo]]
+    proc_nearby_tiles: list[tuple[Position, int, int, int, TileInfo]]        # in rsq 20
+    inner_proc_nearby_tiles: list[tuple[Position, int, int, int, TileInfo]]  # in rsq 10
     num_allies: int
     num_enemies: int
     num_enemies_8: int
@@ -142,6 +143,7 @@ class Map:
         ax_ally_harvester_set = cls.ax_ally_harvester_set
 
         proc_nearby_tiles = []
+        inner_proc_nearby_tiles = []
         for pos in cls.nearby_tiles:
             x, y = pos.x, pos.y
             idx = {{ encode_pos('x', 'y') }}
@@ -157,6 +159,12 @@ class Map:
             proc_nearby_tiles.append(
                 (pos, x, y, idx, ti)
             )
+            if my_pos.distance_squared(pos) <= 10:
+                inner_proc_nearby_tiles.append(
+                    (pos, x, y, idx, ti)
+                )
+
+        cls.inner_proc_nearby_tiles = inner_proc_nearby_tiles
         cls.proc_nearby_tiles = proc_nearby_tiles
 
         # track harvester tiles for second pass adjacency
