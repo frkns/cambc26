@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-26 15:08:30 (local)
+# latest,  @ 2026-04-26 15:40:46 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -35857,9 +35857,10 @@ class Builder(Unit):
         if attackpos is not None:
             return 'Attack', attackpos, 'Primary'
 
-        if secondaryattackpos is not None:
-            if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
-                return 'Attack', secondaryattackpos, 'Secondary'
+        if cls.min_dist_to_a_core <= 48:
+            if secondaryattackpos is not None:
+                if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
+                    return 'Attack', secondaryattackpos, 'Secondary'
                 
         ax_target = OreExecutive.get_axionite_target()
         ti_target = OreExecutive.get_titanium_target()
