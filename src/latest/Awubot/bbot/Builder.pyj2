@@ -61,17 +61,24 @@ class Builder({{ super() }}):
         Symmetry.run_sym_check()
 
         if cls.mode == {{ Mode.NONE }}:
+            """
             if Globals.round in [2,3]:
                 cls.mode = {{ Mode.EARLY_RUSH }}
                 Explore.target = Explore.new_target()
-            elif Globals.round in [4]:
+            """
+            if Globals.round in [4]:
                 cls.mode = {{ Mode.HEALER }}
                 Explore.target = Explore.new_target()
             else:
                 cls.mode = {{ Mode.ECON }}
+        if cls.mode != {{ Mode.EARLY_RUSH }} and (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 30 and Globals.round > 100):
+            cls.mode = {{ Mode.EARLY_RUSH }}
+            Explore.target = Explore.new_target()
+        """
         if Globals.round >= Constants.RUSH_OVER:
             cls.mode = {{ Mode.ECON }}
             # Explore.target = Explore.new_target()
+        """
 
         print("Mode:", cls.mode)
 
@@ -279,10 +286,9 @@ class Builder({{ super() }}):
         if attackpos is not None:
             return 'Attack', attackpos, 'Primary'
 
-        if cls.min_dist_to_a_core <= 48:
-            if secondaryattackpos is not None:
-                if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
-                    return 'Attack', secondaryattackpos, 'Secondary'
+        if secondaryattackpos is not None:
+            if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
+                return 'Attack', secondaryattackpos, 'Secondary'
                 
         ax_target = OreExecutive.get_axionite_target()
         ti_target = OreExecutive.get_titanium_target()

@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-26 15:40:46 (local)
+# latest,  @ 2026-04-26 14:20:23 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -30695,8 +30695,6 @@ class RushTargeter:
                     return funPos, stuff[1] 
                 else:
                     return Explore.get_target(),'M' #move
-            if (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
-                return Symmetry.enemy_core_pos,'M' #move
         elif Builder.mode == 2:
             return Symmetry.sym_pos(Unit.core_pos),'M' #move
         return None
@@ -35643,17 +35641,24 @@ class Builder(Unit):
         Symmetry.run_sym_check()
 
         if cls.mode == 0:
+            """
             if Globals.round in [2,3]:
                 cls.mode = 2
                 Explore.target = Explore.new_target()
-            elif Globals.round in [4]:
+            """
+            if Globals.round in [4]:
                 cls.mode = 3
                 Explore.target = Explore.new_target()
             else:
                 cls.mode = 1
+        if cls.mode != 2 and (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 30 and Globals.round > 100):
+            cls.mode = 2
+            Explore.target = Explore.new_target()
+        """
         if Globals.round >= Constants.RUSH_OVER:
             cls.mode = 1
             # Explore.target = Explore.new_target()
+        """
 
         print("Mode:", cls.mode)
 
@@ -35857,10 +35862,9 @@ class Builder(Unit):
         if attackpos is not None:
             return 'Attack', attackpos, 'Primary'
 
-        if cls.min_dist_to_a_core <= 48:
-            if secondaryattackpos is not None:
-                if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
-                    return 'Attack', secondaryattackpos, 'Secondary'
+        if secondaryattackpos is not None:
+            if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
+                return 'Attack', secondaryattackpos, 'Secondary'
                 
         ax_target = OreExecutive.get_axionite_target()
         ti_target = OreExecutive.get_titanium_target()
