@@ -53,19 +53,18 @@ class Builder({{ super() }}):
                 cls.mode = {{ Mode.EARLY_RUSH }}
                 Explore.target = Explore.new_target()
             """
+            
             if Globals.round in [3]:
                 cls.mode = {{ Mode.HEALER }}
                 Explore.target = Explore.new_target()
             else:
                 cls.mode = {{ Mode.ECON }}
-        if cls.mode != {{ Mode.EARLY_RUSH }} and (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
+        if cls.mode != {{ Mode.EARLY_RUSH }} and cls.mode != {{ Mode.HEALER }} and (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
             cls.mode = {{ Mode.EARLY_RUSH }}
             Explore.target = Explore.new_target()
-        """
-        if Globals.round >= Constants.RUSH_OVER:
+        if cls.mode == {{ Mode.HEALER }} and Globals.round >= Constants.HEAL_OVER:
             cls.mode = {{ Mode.ECON }}
             Explore.target = Explore.new_target()
-        """
         print("Mode:", cls.mode)
 
         {# /* DarkForest.debug_pressure() */ #}
