@@ -499,6 +499,11 @@ class BfsBureau:
             {% for dir in range(8) %}
             ni = idx + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
             w  = weight[ni]
+
+            {% if LOCAL %}
+            assert w >= 0, 'negative edge weight in dijkstra'
+            {% endif %}
+
             if w < {{ INF }}:
                 {% if road_w != 1 %}
                 if w <= 2: w = 3 - w
@@ -517,7 +522,7 @@ class BfsBureau:
             {{ before_ret }}
             return {{ INF }}, None
 
-        {{ P.start() }}
+        {{ P.start('BfsBureau.find_route{{ variant_suffix }}') }}
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = (cls.now_passable_int | _tm) & cls.board_mask
@@ -571,6 +576,7 @@ class BfsBureau:
                 break
             _bfs_d += 1
 
+        {{ P.end('BfsBureau.find_route{{ variant_suffix }}') }}
         {{ before_ret }}
         return {{ INF }}, None
 # ===---

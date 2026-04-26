@@ -371,7 +371,7 @@ class HarvesterAdjacent:
 
         
         {% set SAMPLES = 5 %}
-        {{ P.start() }}
+        {{ P.start('SentinelDirectionPicker.get_best_info (x' ~ SAMPLES ~ ')') }}
         sample = random.sample(infos, min({{ SAMPLES }}, len(infos)))
         for info in sample:
             info.sentinel_dir_info = SentinelDirectionPicker.get_best_info(info.position)

@@ -220,7 +220,7 @@ class VisionTracker:
 
     @classmethod
     def canonical_ally(cls, from_pos: Position) -> BotInfo:
-        {{ P.start() }}
+        {{ P.start('canonical_ally') }}
         ret = min(cls.allies, key=
             lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )
@@ -229,7 +229,7 @@ class VisionTracker:
     
     @classmethod
     def canonical_ally_index(cls, from_pos: Position) -> int:
-        {{ P.start() }}
+        {{ P.start('canonical_ally') }}
         allyIndex = list(map(lambda x: x.position, sorted(cls.allies, key=
             lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )))

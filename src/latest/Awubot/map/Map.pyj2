@@ -344,7 +344,7 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                {{ P.start() }}
+                {{ P.start('Comms.handle_message') }}
                 Comms.handle_message(get_marker_value(building_id))
                 {{ P.end('Comms.handle_message') }}
 

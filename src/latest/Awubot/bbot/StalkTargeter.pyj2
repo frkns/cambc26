@@ -21,14 +21,16 @@ from Generated import *
 class StalkTargeter:
     @classmethod
     def get_best_target(cls) -> Position | None:
-        {{ P.start() }}
+        {{ P.start('StalkTargeter.get_best_target') }}
 
         my_pos = Globals.my_pos
 
         if my_pos.distance_squared(Unit.core_pos) > my_pos.distance_squared(Symmetry.enemy_core_pos):
+            {{ P.end('pop') }}
             return None
 
         if MarketMaker.est_income < 3:
+            {{ P.end('pop') }}
             return None
 
         bfs20_dist_adj = BfsBureau.bfs20_dist_adj

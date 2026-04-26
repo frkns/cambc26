@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-26 01:13:27 (local)
+# latest,  @ 2026-04-26 01:26:42 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -2106,6 +2106,9 @@ class BfsBureau:
             _fh = fhd[idx]
             ni = idx + -1
             w  = weight[ni]
+
+            assert w >= 0, 'negative edge weight in dijkstra'
+
             if w < 1000000:
                 nd = d + w
                 if nd < dist[ni]:
@@ -2117,6 +2120,9 @@ class BfsBureau:
                     _hp(heap, (nd, ni))
             ni = idx + 55
             w  = weight[ni]
+
+            assert w >= 0, 'negative edge weight in dijkstra'
+
             if w < 1000000:
                 nd = d + w
                 if nd < dist[ni]:
@@ -2128,6 +2134,9 @@ class BfsBureau:
                     _hp(heap, (nd, ni))
             ni = idx + 56
             w  = weight[ni]
+
+            assert w >= 0, 'negative edge weight in dijkstra'
+
             if w < 1000000:
                 nd = d + w
                 if nd < dist[ni]:
@@ -2139,6 +2148,9 @@ class BfsBureau:
                     _hp(heap, (nd, ni))
             ni = idx + 57
             w  = weight[ni]
+
+            assert w >= 0, 'negative edge weight in dijkstra'
+
             if w < 1000000:
                 nd = d + w
                 if nd < dist[ni]:
@@ -2150,6 +2162,9 @@ class BfsBureau:
                     _hp(heap, (nd, ni))
             ni = idx + 1
             w  = weight[ni]
+
+            assert w >= 0, 'negative edge weight in dijkstra'
+
             if w < 1000000:
                 nd = d + w
                 if nd < dist[ni]:
@@ -2161,6 +2176,9 @@ class BfsBureau:
                     _hp(heap, (nd, ni))
             ni = idx + -55
             w  = weight[ni]
+
+            assert w >= 0, 'negative edge weight in dijkstra'
+
             if w < 1000000:
                 nd = d + w
                 if nd < dist[ni]:
@@ -2172,6 +2190,9 @@ class BfsBureau:
                     _hp(heap, (nd, ni))
             ni = idx + -56
             w  = weight[ni]
+
+            assert w >= 0, 'negative edge weight in dijkstra'
+
             if w < 1000000:
                 nd = d + w
                 if nd < dist[ni]:
@@ -2183,6 +2204,9 @@ class BfsBureau:
                     _hp(heap, (nd, ni))
             ni = idx + -57
             w  = weight[ni]
+
+            assert w >= 0, 'negative edge weight in dijkstra'
+
             if w < 1000000:
                 nd = d + w
                 if nd < dist[ni]:
@@ -2197,7 +2221,7 @@ class BfsBureau:
             weight[ti] = pre_weight
             return 1000000, None
 
-        Profiler.start(f"""???""")
+        Profiler.start(f"""BfsBureau.find_route{{ variant_suffix }}""")
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = (cls.now_passable_int | _tm) & cls.board_mask
@@ -2378,6 +2402,7 @@ class BfsBureau:
                 break
             _bfs_d += 1
 
+        Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
         weight[ti] = pre_weight
         return 1000000, None
 
@@ -2657,6 +2682,9 @@ class BfsBureau:
             _fh = fhd[idx]
             ni = idx + -1
             w  = weight[ni]
+
+            assert w >= 0, 'negative edge weight in dijkstra'
+
             if w < 1000000:
                 if w <= 2: w = 3 - w
                 nd = d + w
@@ -2669,6 +2697,9 @@ class BfsBureau:
                     _hp(heap, (nd, ni))
             ni = idx + 55
             w  = weight[ni]
+
+            assert w >= 0, 'negative edge weight in dijkstra'
+
             if w < 1000000:
                 if w <= 2: w = 3 - w
                 nd = d + w
@@ -2681,6 +2712,9 @@ class BfsBureau:
                     _hp(heap, (nd, ni))
             ni = idx + 56
             w  = weight[ni]
+
+            assert w >= 0, 'negative edge weight in dijkstra'
+
             if w < 1000000:
                 if w <= 2: w = 3 - w
                 nd = d + w
@@ -2693,6 +2727,9 @@ class BfsBureau:
                     _hp(heap, (nd, ni))
             ni = idx + 57
             w  = weight[ni]
+
+            assert w >= 0, 'negative edge weight in dijkstra'
+
             if w < 1000000:
                 if w <= 2: w = 3 - w
                 nd = d + w
@@ -2705,6 +2742,9 @@ class BfsBureau:
                     _hp(heap, (nd, ni))
             ni = idx + 1
             w  = weight[ni]
+
+            assert w >= 0, 'negative edge weight in dijkstra'
+
             if w < 1000000:
                 if w <= 2: w = 3 - w
                 nd = d + w
@@ -2717,6 +2757,9 @@ class BfsBureau:
                     _hp(heap, (nd, ni))
             ni = idx + -55
             w  = weight[ni]
+
+            assert w >= 0, 'negative edge weight in dijkstra'
+
             if w < 1000000:
                 if w <= 2: w = 3 - w
                 nd = d + w
@@ -2729,6 +2772,9 @@ class BfsBureau:
                     _hp(heap, (nd, ni))
             ni = idx + -56
             w  = weight[ni]
+
+            assert w >= 0, 'negative edge weight in dijkstra'
+
             if w < 1000000:
                 if w <= 2: w = 3 - w
                 nd = d + w
@@ -2741,6 +2787,9 @@ class BfsBureau:
                     _hp(heap, (nd, ni))
             ni = idx + -57
             w  = weight[ni]
+
+            assert w >= 0, 'negative edge weight in dijkstra'
+
             if w < 1000000:
                 if w <= 2: w = 3 - w
                 nd = d + w
@@ -2756,7 +2805,7 @@ class BfsBureau:
             weight[ti] = pre_weight
             return 1000000, None
 
-        Profiler.start(f"""???""")
+        Profiler.start(f"""BfsBureau.find_route{{ variant_suffix }}""")
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = (cls.now_passable_int | _tm) & cls.board_mask
@@ -2937,6 +2986,7 @@ class BfsBureau:
                 break
             _bfs_d += 1
 
+        Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
         weight[ti] = pre_weight
         return 1000000, None
 
@@ -26453,7 +26503,7 @@ class HarvesterAdjacent:
                     infos.append(info)
 
         
-        Profiler.start(f"""???""")
+        Profiler.start(f"""SentinelDirectionPicker.get_best_info (x5)""")
         sample = random.sample(infos, min(5, len(infos)))
         for info in sample:
             info.sentinel_dir_info = SentinelDirectionPicker.get_best_info(info.position)
@@ -27367,7 +27417,7 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                Profiler.start(f"""???""")
+                Profiler.start(f"""Comms.handle_message""")
                 Comms.handle_message(get_marker_value(building_id))
                 Profiler.end(f"""Comms.handle_message""")
 
@@ -27738,7 +27788,7 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                Profiler.start(f"""???""")
+                Profiler.start(f"""Comms.handle_message""")
                 Comms.handle_message(get_marker_value(building_id))
                 Profiler.end(f"""Comms.handle_message""")
 
@@ -28109,7 +28159,7 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                Profiler.start(f"""???""")
+                Profiler.start(f"""Comms.handle_message""")
                 Comms.handle_message(get_marker_value(building_id))
                 Profiler.end(f"""Comms.handle_message""")
 
@@ -28459,7 +28509,7 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                Profiler.start(f"""???""")
+                Profiler.start(f"""Comms.handle_message""")
                 Comms.handle_message(get_marker_value(building_id))
                 Profiler.end(f"""Comms.handle_message""")
 
@@ -28963,7 +29013,7 @@ class MarketMaker:
             return cls.hres
 
         
-        Profiler.start(f"""???""")
+        Profiler.start(f"""BfsBureau.find_bridge_route""")
         bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.core_sink_set)
         Profiler.end(f"""BfsBureau.find_bridge_route""")
         h_cost, _ = Globals.ct.get_harvester_cost()
@@ -29584,7 +29634,7 @@ class Pathfinder:
             cls.near_base = False
         # else: in dead-band [19..25], keep previous near_base value
 
-        Profiler.start(f"""???""")
+        Profiler.start(f"""BfsBureau.find_route""")
         if cls.near_base:
             dist, dir = BfsBureau.find_route_inv(my_pos, target, ban_target_pos)  # prefer empties → lays roads
         else:
@@ -29776,11 +29826,11 @@ class Profiler:
     @classmethod
     def compare(cls, f, g):
         if Globals.round & 1:
-            Profiler.start()
+            Profiler.start('1')
             ret = f()
             Profiler.end('1')
         else:
-            Profiler.start()
+            Profiler.start('2')
             ret = g()
             Profiler.end('2')
         return ret
@@ -34635,14 +34685,16 @@ class SpawnManager:
 class StalkTargeter:
     @classmethod
     def get_best_target(cls) -> Position | None:
-        Profiler.start(f"""???""")
+        Profiler.start(f"""StalkTargeter.get_best_target""")
 
         my_pos = Globals.my_pos
 
         if my_pos.distance_squared(Unit.core_pos) > my_pos.distance_squared(Symmetry.enemy_core_pos):
+            Profiler.end(f"""pop""")
             return None
 
         if MarketMaker.est_income < 3:
+            Profiler.end(f"""pop""")
             return None
 
         bfs20_dist_adj = BfsBureau.bfs20_dist_adj
@@ -34873,7 +34925,7 @@ class StateBuildTurret:
             # who cares all turrets are the same anyways
             BuildManager.smartbuild_gunner(pos, core_dir)
         elif BuildManager.can_smartbuild_sentinel(pos):
-            Profiler.start(f"""???""")
+            Profiler.start(f"""SentinelDirectionPicker.get_best_direction""")
             dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
             Profiler.end(f"""SentinelDirectionPicker.get_best_direction""")
 
@@ -35072,7 +35124,7 @@ class Symmetry:
         cls.predict_enemy_core()
         DarkForest.register_enemy_core()
 
-        Profiler.start(f"""???""")
+        Profiler.start(f"""Map.sync_tile_infos""")
         Map.sync_tile_infos()
         Profiler.end_now(f"""Map.sync_tile_infos""")
         RouteToCore.pathFindingKill.update(cls.enemy_core_pos_set) # don't route to core anymore
@@ -35544,7 +35596,7 @@ class Unit:
         MarketMaker.refresh()
 
         if Globals.ct.get_entity_type() != EntityType.LAUNCHER:
-            Profiler.start(f"""???""")
+            Profiler.start(f"""Map.fill_tile_info""")
             Map.fill_tile_info()
             Profiler.end(f"""Map.fill_tile_info""")
 
@@ -36493,7 +36545,7 @@ class VisionTracker:
 
     @classmethod
     def canonical_ally(cls, from_pos: Position) -> BotInfo:
-        Profiler.start(f"""???""")
+        Profiler.start(f"""canonical_ally""")
         ret = min(cls.allies, key=
             lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )
@@ -36502,7 +36554,7 @@ class VisionTracker:
     
     @classmethod
     def canonical_ally_index(cls, from_pos: Position) -> int:
-        Profiler.start(f"""???""")
+        Profiler.start(f"""canonical_ally""")
         allyIndex = list(map(lambda x: x.position, sorted(cls.allies, key=
             lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )))

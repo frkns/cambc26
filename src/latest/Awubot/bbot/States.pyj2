@@ -187,7 +187,7 @@ class StateBuildTurret:
             # who cares all turrets are the same anyways
             BuildManager.smartbuild_gunner(pos, core_dir)
         elif BuildManager.can_smartbuild_sentinel(pos):
-            {{ P.start() }}
+            {{ P.start('SentinelDirectionPicker.get_best_direction') }}
             dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
             {{ P.end('SentinelDirectionPicker.get_best_direction') }}
 
