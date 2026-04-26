@@ -160,7 +160,7 @@ class Builder({{ super() }}):
         # if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos) and Map.num_enemies == 0:
         #     Globals.ct.fire(my_pos)
         
-        if cls.min_dist_to_a_core <= 36:
+        if Map.num_enemies > 0 or cls.min_dist_to_a_core <= 36:
             RoadspamExecutor.execute_roadspam_attempt()
 
 

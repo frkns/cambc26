@@ -143,18 +143,29 @@ class HealExecutor:
 
         Debug.line(best.position, Color.LIME)
         
-        # TODO: implement this
-        # # Replace the conveyor if it's cheaper
-        # if best.entity_type == EntityType.CONVEYOR:
-        #     if BuildManager.can_afford_conveyor():
-        #         heal = (Constants.MAX_HP_MAP[best.entity_type] - best.building_hp)
-        #         heals = math.ceil(heal / GameConstants.HEAL_AMOUNT)
-        #         heal_cost = heals * GameConstants.HEAL_COST
-        #         if heal_cost >= Globals.ct.get_conveyor_cost():
-        #             if BuildManager.can_dbuild_conveyor(best.position):
-        #                 BuildManager.dbuild_conveyor(best.position)
-        #                 return
-
+        # Replace the conveyor if it's at low health
+        if best.entity_type == EntityType.CONVEYOR:
+            if best.building_hp < {{ GameConstants.CONVEYOR_MAX_HP // 2 }}:
+                if BuildManager.can_dbuild_conveyor(best.position):
+                    BuildManager.dbuild_conveyor(best.position, Globals.ct.get_direction(Globals.ct.get_tile_building_id(best.position)))
+                    return
+        if best.entity_type == EntityType.ARMOURED_CONVEYOR:
+            if best.building_hp < {{ GameConstants.ARMOURED_CONVEYOR_MAX_HP // 2 }}:
+                if BuildManager.can_dbuild_armoured_conveyor(best.position):
+                    BuildManager.dbuild_armoured_conveyor(best.position, Globals.ct.get_direction(Globals.ct.get_tile_building_id(best.position)))
+                    return
+        if best.entity_type == EntityType.SPLITTER:
+            if best.building_hp < {{ GameConstants.SPLITTER_MAX_HP // 2 }}:
+                if BuildManager.can_dbuild_splitter(best.position):
+                    BuildManager.dbuild_splitter(best.position, Globals.ct.get_direction(Globals.ct.get_tile_building_id(best.position)))
+                    return
+        if best.entity_type == EntityType.BRIDGE:
+            if best.building_hp < {{ GameConstants.BRIDGE_MAX_HP // 2 }}:
+                if BuildManager.can_dbuild_bridge(best.position):
+                    ti = Map.tile_info[best.position.x][best.position.y]
+                    BuildManager.dbuild_bridge(best.position, ti.target)
+                    return
+        
         Globals.ct.heal(best.position)
         
         
