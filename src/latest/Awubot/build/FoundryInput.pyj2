@@ -236,7 +236,7 @@ class RouteToFoundryInput:
             bridge_dist, first_target = BfsBureau.find_bridge_route(
                 cls.from_pos,
                 target_set,
-                avoid_pos=RouteToCore.pathFindingKill,
+                avoid_pos=RouteToCore.pathFindingKill.union(Unit.core_pos_set),
             )
 
         {{ D.show('bridge_dist') }}
@@ -319,6 +319,7 @@ class RouteToFoundryInput:
                 RouteToCore.pathFindingKill.add(enc)
             cls.backTracking = False
             Debug.diamond(Color.CYAN)
+          
             print("RouteToFoundryInput: giving up from", cls.from_pos)
             return True
         else:
@@ -333,8 +334,8 @@ class RouteToFoundryInput:
     @classmethod
     def do_routing(cls):
         print("RouteToFoundryInput: routing from", cls.from_pos,
-              "ax=" + str(cls._is_ax),)
-              #"target=" + (str({{ decode_pos('cls._target') | join(', ') }}) if cls._target else 'None'))
+              "ax=" + str(cls._is_ax),
+              "target=",{{decode_pos('cls._target') | join(', ')}})
         if cls.should_give_up():
             if cls.give_up():
                 StateMoveTo.run(Explore.get_target())
@@ -347,14 +348,6 @@ class RouteToFoundryInput:
         else:
             cls.move_to_next()
 
-
-class StateRouteFoundryInput:
-    @classmethod
-    def run(cls):
-        {% if LOCAL %}
-        assert RouteToFoundryInput.is_active
-        {% endif %}
-        RouteToFoundryInput.do_routing()
 
 
 # ══════════════════════════════════════════════════════════════════════

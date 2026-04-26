@@ -200,7 +200,7 @@ class Builder({{ super() }}):
                 return 'MoveTo', healpos, '[lrh: move to heal]'
             return 'MoveTo', HealExecutor.last_healed.position, '[lrh: wait for heal]'
             
-        buildingFirstConveyor = RouteToCore.is_active and len(RouteToCore.prevRoute) == 0
+        buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0) or (RouteToFoundryInput.is_active and len(RouteToFoundryInput.prevRoute) == 0)
             
         if not buildingFirstConveyor:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
@@ -210,8 +210,8 @@ class Builder({{ super() }}):
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
 
-        if RouteToFoundryInput.is_active:          # ← NEW
-            return ('RouteFoundryInput',)           # ← NEW
+        if RouteToFoundryInput.is_active:
+            return ('RouteFoundryInput',)
 
         if RouteToCore.is_active:
             return ('Route',)

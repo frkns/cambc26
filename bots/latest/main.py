@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-25 19:57:30 (local)
+# latest,  @ 2026-04-25 22:55:45 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -28973,7 +28973,7 @@ class OreExecutive:
                 # over routing all the way back to core — it's cheaper and
                 # boosts an under-fed foundry's output.
                 fi_target = FoundryInputTracker.get_best_ti_foundry(pos)
-                if fi_target is not None and not RouteToFoundryInput.is_active:
+                if fi_target is not None and not RouteToFoundryInput.is_active and RouteToFoundry.axionite_can_reach_foundry(cand.position, fi_target):
                     FoundryInputTracker.claim_ti(fi_target)
                     RouteToFoundryInput.set_pos(cand.position, fi_target, is_ax=False)
                     print("go_build_harvester: routing ti to existing foundry", fi_target)
@@ -30182,7 +30182,7 @@ class RouteToFoundryInput:
             bridge_dist, first_target = BfsBureau.find_bridge_route(
                 cls.from_pos,
                 target_set,
-                avoid_pos=RouteToCore.pathFindingKill,
+                avoid_pos=RouteToCore.pathFindingKill.union(Unit.core_pos_set),
             )
 
         
@@ -30265,6 +30265,7 @@ class RouteToFoundryInput:
                 RouteToCore.pathFindingKill.add(enc)
             cls.backTracking = False
             Debug.diamond(Color.CYAN)
+          
             print("RouteToFoundryInput: giving up from", cls.from_pos)
             return True
         else:
@@ -30279,8 +30280,8 @@ class RouteToFoundryInput:
     @classmethod
     def do_routing(cls):
         print("RouteToFoundryInput: routing from", cls.from_pos,
-              "ax=" + str(cls._is_ax),)
-              #"target=" + (str(((cls._target) // 56 - 3), ((cls._target) % 56 - 3)) if cls._target else 'None'))
+              "ax=" + str(cls._is_ax),
+              "target=",((cls._target) // 56 - 3), ((cls._target) % 56 - 3))
         if cls.should_give_up():
             if cls.give_up():
                 StateMoveTo.run(Explore.get_target())
@@ -30292,6 +30293,23 @@ class RouteToFoundryInput:
             cls.move_to_next()
         else:
             cls.move_to_next()
+
+
+
+# ══════════════════════════════════════════════════════════════════════
+# OreClusterPlanner
+#
+# When a builder can see both titanium and axionite ores nearby,
+# it's efficient to build ONE foundry that serves both ore types
+# instead of routing the titanium all the way to the core separately.
+#
+# find_cluster_leaf() returns the titanium leaf from DarkForest.leaf_set
+# that best serves the current cluster of nearby ti + ax ores, scoring
+# each leaf by its minimum distance to each ore type.
+#
+# This is used inside a modified RouteToFoundry._pick_target() call in
+# go_build_ax_harvester to bias foundry siting toward ore clusters.
+# ══════════════════════════════════════════════════════════════════════
 
 
 # ============================================================
@@ -34275,22 +34293,6 @@ class StateRouteFoundryInput:
         RouteToFoundryInput.do_routing()
 
 
-# ══════════════════════════════════════════════════════════════════════
-# OreClusterPlanner
-#
-# When a builder can see both titanium and axionite ores nearby,
-# it's efficient to build ONE foundry that serves both ore types
-# instead of routing the titanium all the way to the core separately.
-#
-# find_cluster_leaf() returns the titanium leaf from DarkForest.leaf_set
-# that best serves the current cluster of nearby ti + ax ores, scoring
-# each leaf by its minimum distance to each ore type.
-#
-# This is used inside a modified RouteToFoundry._pick_target() call in
-# go_build_ax_harvester to bias foundry siting toward ore clusters.
-# ══════════════════════════════════════════════════════════════════════
-
-
 # ============================================================
 # StateRush
 # ============================================================
@@ -35101,7 +35103,7 @@ class Builder(Unit):
                 return 'MoveTo', healpos, '[lrh: move to heal]'
             return 'MoveTo', HealExecutor.last_healed.position, '[lrh: wait for heal]'
             
-        buildingFirstConveyor = RouteToCore.is_active and len(RouteToCore.prevRoute) == 0
+        buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0) or (RouteToFoundryInput.is_active and len(RouteToFoundryInput.prevRoute) == 0)
             
         if not buildingFirstConveyor:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
@@ -35111,8 +35113,8 @@ class Builder(Unit):
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
 
-        if RouteToFoundryInput.is_active:          # ← NEW
-            return ('RouteFoundryInput',)           # ← NEW
+        if RouteToFoundryInput.is_active:
+            return ('RouteFoundryInput',)
 
         if RouteToCore.is_active:
             return ('Route',)

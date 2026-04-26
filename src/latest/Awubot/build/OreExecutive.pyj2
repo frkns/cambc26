@@ -205,7 +205,7 @@ class OreExecutive:
                 # over routing all the way back to core — it's cheaper and
                 # boosts an under-fed foundry's output.
                 fi_target = FoundryInputTracker.get_best_ti_foundry(pos)
-                if fi_target is not None and not RouteToFoundryInput.is_active:
+                if fi_target is not None and not RouteToFoundryInput.is_active and RouteToFoundry.axionite_can_reach_foundry(cand.position, fi_target):
                     FoundryInputTracker.claim_ti(fi_target)
                     RouteToFoundryInput.set_pos(cand.position, fi_target, is_ax=False)
                     print("go_build_harvester: routing ti to existing foundry", fi_target)
