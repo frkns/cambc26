@@ -22,7 +22,7 @@ class HealTargetInfo:
     __slots__ = (
         'position', 'building_heal', 'building_hp', 'bot_heal', 'bot_hp',
         'harvester_adjacent', 'is_transporter', 'is_turret',
-        'has_enemy_bot', 'bfs_dist_adj', 'entity_type',
+        'has_enemy_bot', 'bfs_dist_adj', 'entity_type', 'core_info'
     )
 
     @staticmethod
@@ -39,14 +39,12 @@ class HealTargetInfo:
         if a.is_turret != b.is_turret:
             return a.is_turret > b.is_turret
             
+        if a.is_transporter != b.is_transporter:
+            return a.is_transporter > b.is_transporter
         
-        if a.harvester_adjacent != b.harvester_adjacent:
-            return a.harvester_adjacent > b.harvester_adjacent
-            
-        # Transporters are only more important if not next to a harvester
-        if not a.harvester_adjacent:
-            if a.is_transporter != b.is_transporter:
-                return a.is_transporter > b.is_transporter
+        if not a.is_transporter:
+            if a.harvester_adjacent != b.harvester_adjacent:
+                return a.harvester_adjacent > b.harvester_adjacent
     
         if a.has_enemy_bot != b.has_enemy_bot:
             return a.has_enemy_bot > b.has_enemy_bot
@@ -77,9 +75,21 @@ class HealTargetInfo:
 class HealTargeter:
     targets: list[HealTargetInfo] = []
 
-
     @classmethod
     def get_best_target_info(cls) -> HealTargetInfo | None:
+        target = cls.wrapped_get_best_target_info()
+        if target is not None:
+            return target
+
+        my_pos = Globals.my_pos
+
+        if cls.core_info is not None and cls.core_info.building_hp <= 450:
+            return cls.core_info
+
+        return None
+
+    @classmethod
+    def wrapped_get_best_target_info(cls) -> HealTargetInfo | None:
         targets = cls.targets
         if not targets:
             return None
@@ -120,13 +130,13 @@ class HealTargeter:
         if ally_index * GameConstants.HEAL_AMOUNT > max(best.building_heal, best.bot_heal):
             return None
 
-
         return best
 
 
     @classmethod
     def fill(cls):
         cls.targets = []
+        cls.core_info = None
         targets = cls.targets
 
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
@@ -172,5 +182,8 @@ class HealTargeter:
                 {# /* continue  # prune */ #}
 
             targets.append(info)
+
+            if ti.entity_type == EntityType.CORE:
+                cls.core_info = info
 
 

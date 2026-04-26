@@ -24,11 +24,28 @@ class RoadspamExecutor:
         if Globals.ct.get_action_cooldown() != 0:
             return
             
-        my_pos = Globals.my_pos
+        mx, my = Globals.my_pos.x, Globals.my_pos.y
+        
+        tile_info = Map.tile_info
         
         {% for dir in directions[:8] %}
-        if BuildManager.can_build_road(my_pos.add({{ dir }})):
-            BuildManager.build_road(my_pos.add({{ dir }}))
+        {% set dx, dy = dir.delta() %}
+        {% set nx %}(mx {{ sign0(dx) }}){% endset %}
+        {% set ny %}(my {{ sign0(dy) }}){% endset %}
+
+        pos = Position({{ nx }}, {{ ny }})
+
+        if not BuildManager.can_afford_gunner() and pos.distance_squared(Symmetry.enemy_core_pos) <= 8:
+            nti = tile_info[{{ nx }}][{{ ny }}]
+            if nti is not None:
+                if (not nti.has_building) or (nti.is_building_ally and nti.entity_type == EntityType.ROAD):
+                    if BuildManager.can_dbuild_barrier(pos):
+                        BuildManager.dbuild_barrier(pos)
+                        return
+            
+        if BuildManager.can_build_road(pos):
+            BuildManager.build_road(pos)
+            return
         {% endfor %}
     
         

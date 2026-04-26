@@ -70,7 +70,7 @@ class MarketMaker:
             return cls.hres
 
         
-        {{ P.start() }}
+        {{ P.start('BfsBureau.find_bridge_route') }}
         bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.core_sink_set)
         {{ P.end('BfsBureau.find_bridge_route') }}
         h_cost, _ = Globals.ct.get_harvester_cost()

@@ -47,6 +47,12 @@ class DarkForest:
 
     @classmethod
     def init(cls):
+        {% set N = PADDED_GRID_SIZE %}
+        {% set SIGHT_WINDOW = 4 %}
+
+        cls.sight_last_id    = [-1]                      * {{ N }}
+        cls.sight_last_round = [{{ -SIGHT_WINDOW }} - 1] * {{ N }}
+
         if Globals.my_type == EntityType.BUILDER_BOT:
             for p in Unit.core_pos_set:
                 cls.register_sink(p, {{ Kind.ALLY_CORE }})
@@ -245,8 +251,8 @@ class DarkForest:
             if (p := t.up) is not None:
                 if ns[p] is not None and p not in harvesters:
                     cc[p] += 1
-                else:
-                    t.up = None
+                # else:
+                #     t.up = None
         {% endfor %}
 
         # ── find leaves (zero in-degree) ──
@@ -263,7 +269,8 @@ class DarkForest:
         while qi < len(q):
             u = q[qi]; qi += 1
             p = ns[u].up
-            if p is not None:
+            # if p is not None:
+            if p is not None and ns[p] is not None and p not in harvesters:
                 flow[p] += flow[u]
                 # propagate ax taint upward
                 if ax_tagged[u]:
@@ -272,83 +279,21 @@ class DarkForest:
                 if not cc[p]:
                     qa(p)
 
-        # ── top-down pass: pressure, node_kind, core_sink_set ──
-        pressure = [0] * {{ N }}
-        nk       = [0] * {{ N }}
-
-        # core_sink_set: ALLY_CORE-reachable nodes, below pressure threshold,
-        # with NO axionite taint anywhere in their subtree.
-        core_sink_set: set[int] = set()
-        cs_add = core_sink_set.add
-        THR = {{ MAX_ACCEPTABLE_PRESSURE - FLOW_PER_HARVESTER }}
-
-        for u in reversed(q):
-            p = ns[u].up
-            if p is None:
-                pressure[u] = flow[u]
-                k = kind[u]
-            elif kind[p]:
-                pressure[u] = flow[u]
-                k = kind[p]
-            else:
-                pressure[u] = pressure[p]
-                k = nk[p]
-            nk[u] = k
-            if (k == {{ Kind.ALLY_CORE }}
-                    and pressure[u] <= THR
-                    and not ax_tagged[u]):
-                cs_add(u)
-
-        # cores themselves are always valid sinks regardless of taint/pressure
-        core_sink_set |= core_pos_set
-
-        cls.flow          = flow
-        cls.pressure      = pressure
-        cls.node_kind     = nk
-        cls.ax_tagged     = ax_tagged
-        cls.core_sink_set = core_sink_set
-        cls.sink_set      = core_sink_set   # backward-compat alias
-        
-        # ── refined axionite lines ──
-        # For each foundry, find its ALLY_CORE-tree neighbours (output side) and
-        # trace each one upward to the root.  Every node on that path is ineligible
-        # as a future foundry site.
-        _ral: set[int] = set()
-        _ALLY_CORE_K = {{ Kind.ALLY_CORE }}
-        _ral_off = ({{ -1 }}, {{ 1 }}, {{ -PH }}, {{ PH }})
-        for _f in cls.foundry_positions:
-            for _d in _ral_off:
-                _adj = _f + _d
-                if ns[_adj] is not None and nk[_adj] == _ALLY_CORE_K:
-                    _curr = _adj
-                    while True:
-                        _ral.add(_curr)
-                        _pn = ns[_curr]
-                        if _pn is None or _pn.up is None:
-                            break
-                        _curr = _pn.up
-        cls.refined_ax_line = _ral
-
-        # ── titanium leaf set ──
-        _ti_leaves: set[int] = set()
-        for u in _initial_leaves:
-            if (nk[u] == {{ Kind.ALLY_CORE }}
-                    and u not in core_pos_set
-                    and not ax_tagged[u]
-                    and u not in _ral):          # ← new: skip refined-axionite lines
-                _ti_leaves.add(u)
-        cls.leaf_set = _ti_leaves
-
         # ════════════════════════════════════════════════════════════════
-        # ── sight-based flow tracking ──
+        # ── sight-based flow tracking (must run before top-down pass) ──
+        # A node is sight_flowing if a valid resource was observed at it
+        # within the last {{ SIGHT_WINDOW }} rounds.  Propagated leaf→root so
+        # any ancestor of a flowing node also becomes sight_flowing.
+        # Used below to gate core_sink_set: no empirical flow → not a
+        # valid routing target, even if pressure is under threshold.
         # ════════════════════════════════════════════════════════════════
 
-        _SIGHT_WINDOW = 4
         _valid_rt = (ResourceType.TITANIUM, ResourceType.REFINED_AXIONITE)
 
-        if not hasattr(cls, 'sight_last_id'):
-            cls.sight_last_id    = [-1]            * {{ N }}
-            cls.sight_last_round = [-_SIGHT_WINDOW - 1] * {{ N }}
+        # moved
+        # if not hasattr(cls, 'sight_last_id'):
+        #     cls.sight_last_id    = [-1]                  * {{ N }}
+        #     cls.sight_last_round = [-{{ SIGHT_WINDOW }} - 1]  * {{ N }}
 
         _sight_last_id    = cls.sight_last_id
         _sight_last_round = cls.sight_last_round
@@ -367,11 +312,11 @@ class DarkForest:
         for u in active:
             if (
                 _sight_last_id[u] != -1
-                and (_cur_round - _sight_last_round[u]) <= _SIGHT_WINDOW
+                and (_cur_round - _sight_last_round[u]) <= {{ SIGHT_WINDOW }}
             ):
                 sight_flowing[u] = True
 
-        # propagate leaf→root
+        # propagate leaf→root along existing tree edges
         for u in q:
             if sight_flowing[u]:
                 p = ns[u].up
@@ -379,4 +324,78 @@ class DarkForest:
                     sight_flowing[p] = True
 
         cls.sight_flowing = sight_flowing
+
+        # ── top-down pass: pressure, node_kind, core_sink_set ──
+        pressure = [0] * {{ N }}
+        nk       = [0] * {{ N }}
+
+        # core_sink_set: ALLY_CORE-reachable nodes that are:
+        #   1. below the pressure threshold (not saturated)
+        #   2. not ax_tagged (pure titanium subtree)
+        #   3. sight_flowing (empirically observed to carry resources)
+        # All three conditions must hold.  This is strictly narrower than
+        # the old (pressure + ax_tagged) pair — sight_flowing can only
+        # remove nodes, never add ones the old code wouldn't include.
+        core_sink_set: set[int] = set()
+        cs_add = core_sink_set.add
+        THR = {{ MAX_ACCEPTABLE_PRESSURE - FLOW_PER_HARVESTER }}
+
+        for u in reversed(q):
+            p = ns[u].up
+            if p is None:
+                pressure[u] = flow[u]
+                k = kind[u]
+            elif kind[p]:
+                pressure[u] = flow[u]
+                k = kind[p]
+            else:
+                pressure[u] = pressure[p]
+                k = nk[p]
+            nk[u] = k
+            if (k == {{ Kind.ALLY_CORE }}
+                    and pressure[u] <= THR
+                    and not ax_tagged[u]
+                    and sight_flowing[u]):      # ← new: must have empirical flow
+                cs_add(u)
+
+        # cores themselves are always valid sinks regardless of the above
+        core_sink_set |= core_pos_set
+
+        cls.flow          = flow
+        cls.pressure      = pressure
+        cls.node_kind     = nk
+        cls.ax_tagged     = ax_tagged
+        cls.core_sink_set = core_sink_set
+        cls.sink_set      = core_sink_set   # backward-compat alias
+
+        # ── refined axionite lines ──
+        # For each foundry, find its ALLY_CORE-tree neighbours (output side) and
+        # trace each one upward to the root.  Every node on that path is ineligible
+        # as a future foundry site.
+        _ral: set[int] = set()
+        _ALLY_CORE_K = {{ Kind.ALLY_CORE }}
+        _ral_off = ({{ -1 }}, {{ 1 }}, {{ -PH }}, {{ PH }})
+        for _f in cls.foundry_positions:
+            for _d in _ral_off:
+                _adj = _f + _d
+                if ns[_adj] is not None and nk[_adj] == _ALLY_CORE_K:
+                    _curr = _adj
+                    for _ in range(len(q)):
+                        _ral.add(_curr)
+                        _pn = ns[_curr]
+                        if _pn is None or _pn.up is None:
+                            break
+                        _curr = _pn.up
+
+        cls.refined_ax_line = _ral
+
+        # ── titanium leaf set ──
+        _ti_leaves: set[int] = set()
+        for u in _initial_leaves:
+            if (nk[u] == {{ Kind.ALLY_CORE }}
+                    and u not in core_pos_set
+                    and not ax_tagged[u]
+                    and u not in _ral):
+                _ti_leaves.add(u)
+        cls.leaf_set = _ti_leaves
 # ===---

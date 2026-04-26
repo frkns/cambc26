@@ -1,0 +1,21 @@
+from jinja2 import Environment, FileSystemLoader
+
+def main():
+    # Set up Jinja2 environment (current directory)
+    env = Environment(loader=FileSystemLoader("."))
+
+    # Load the template
+    template = env.get_template("main.pyj2")
+
+    # Render template (pass variables here if needed)
+    rendered = template.render(
+        # example:
+        # name="world"
+    )
+
+    # Write output to main.py
+    with open("main.py", "w", encoding="utf-8") as f:
+        f.write(rendered)
+
+if __name__ == "__main__":
+    main()

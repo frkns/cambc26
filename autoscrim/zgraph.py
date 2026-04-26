@@ -11,8 +11,8 @@ import networkx as nx
 # -------------------------
 # CONFIG
 # -------------------------
-INPUT_FILE   = "top10_games.csv"
-HOURS_LIMIT  = 24 * 30      # set None for all time
+INPUT_FILE   = "top_games.csv"
+HOURS_LIMIT  = 24 * 15      # set None for all time
 MIN_GAMES    = 1            # minimum map-games between a pair to include it
 OUT_PATH     = "tournament_graph.png"
 

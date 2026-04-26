@@ -23,8 +23,9 @@ class BuildManager:
         EntityType.GUNNER: 0,
         EntityType.SENTINEL: 20,
         EntityType.LAUNCHER: 0,
+        EntityType.BARRIER: 50
     } %}
-    {% set ti_reserve_default = 20 %}
+    {% set ti_reserve_default = 40 %}
 
     @staticmethod
     def scale(cost: int) -> int:
@@ -80,7 +81,7 @@ class BuildManager:
     @staticmethod
     def can_mbuild_{{ st }}() -> bool:
         {% if LOCAL %}
-        assert {{ etype }} in Constants.PASSABLE_SET
+        # assert {{ etype }} in Constants.PASSABLE_SET  remove because changed
         {% endif %}
         pos = Globals.my_pos
 
@@ -95,12 +96,36 @@ class BuildManager:
 
 
     @staticmethod
+    def can_smartbuild_{{ st }}(pos) -> bool:
+        if pos == Globals.my_pos:
+            return BuildManager.can_mbuild_{{ st }}()
+        return BuildManager.can_dbuild_{{ st }}(pos)
+
+    @staticmethod
+    def smartbuild_{{ st }}(pos, *a):
+        if pos == Globals.my_pos:
+            BuildManager.mbuild_{{ st }}(*a)
+            return 
+        BuildManager.dbuild_{{ st }}(pos, *a)
+
+
+    @staticmethod
     def mbuild_{{ st }}(*a):
         pos = Globals.my_pos
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
-        Pathfinder.move_to(pos, ban_target_pos=True)
-        if BuildManager.can_build_{{ st }}(*a):
+
+        {% if etype not in no_core_passable_set %}
+        {% if LOCAL %}
+        success = Pathfinder.move_off()
+        if not success:
+            Debug.tee('failed move off')
+        {% else %}
+        Pathfinder.move_off()
+        {% endif %}
+        {% endif %}
+
+        if BuildManager.can_build_{{ st }}(pos, *a):
             Globals.ct.build_{{ st }}(pos, *a)
 
 

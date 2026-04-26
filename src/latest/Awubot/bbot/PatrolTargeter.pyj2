@@ -30,6 +30,9 @@ class PatrolTargeter:
         
     @classmethod
     def new_target(cls) -> Position:
+        if Globals.my_pos.distance_squared(Unit.core_pos) > 50:
+            return Unit.core_pos
+
         if Map.harvester_set:
             # Check which targets we haven't visited recently
             active_targets = Map.harvester_set.difference(cls.recentHits)

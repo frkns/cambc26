@@ -1,4 +1,4 @@
-# april19,  @ 2026-04-19 13:19:47 (local)
+# april19,  @ 2026-04-25 23:29:05 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -135,7 +135,7 @@ class Attacker:
             return None
         if trans.flowing_into_ally:
             return None
-        if trans.flow == 0 and not trans.sight_flowing:
+        if not trans.harvester_adjacent and trans.flow == 0 and not trans.sight_flowing:
             return None
         if not cls.should_fire(trans.position):
             return None

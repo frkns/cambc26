@@ -29,7 +29,8 @@ class TileInfo:
         'turrets_adjacent', 'ally_turrets_adjacent', 'enemy_turrets_adjacent',
         'ally_transporters_adjacent', 'enemy_transporters_adjacent',
         'resource_id', 'resource_type',
-        'ally_outward_transporters_adjacent'
+        'ally_outward_transporters_adjacent',
+        'is_pointed_to',
     )
 
 class Map:
@@ -42,9 +43,11 @@ class Map:
     # [x][y], some buffer right/bot side
     tile_info: list[list[TileInfo | None]]
     nearby_tiles: list[Position]
-    proc_nearby_tiles: list[tuple[Position, int, int, int, TileInfo]]
+    proc_nearby_tiles: list[tuple[Position, int, int, int, TileInfo]]        # in rsq 20
+    inner_proc_nearby_tiles: list[tuple[Position, int, int, int, TileInfo]]  # in rsq 10
     num_allies: int
     num_enemies: int
+    num_enemies_8: int
     num_enemy_buildings: int
     harvester_set: set[int] = set()
     ti_ally_harvester_set: set[int] = set()
@@ -126,6 +129,7 @@ class Map:
         messages_read = 0
         num_allies = 0
         num_enemies = 0
+        num_enemies_8 = 0
         num_enemy_buildings = 0
         cls.nearby_tiles = ct.get_nearby_tiles()
 
@@ -140,6 +144,7 @@ class Map:
         ax_ally_harvester_set = cls.ax_ally_harvester_set
 
         proc_nearby_tiles = []
+        inner_proc_nearby_tiles = []
         for pos in cls.nearby_tiles:
             x, y = pos.x, pos.y
             idx = {{ encode_pos('x', 'y') }}
@@ -155,10 +160,18 @@ class Map:
             proc_nearby_tiles.append(
                 (pos, x, y, idx, ti)
             )
+            if my_pos.distance_squared(pos) <= 10:
+                inner_proc_nearby_tiles.append(
+                    (pos, x, y, idx, ti)
+                )
+
+        cls.inner_proc_nearby_tiles = inner_proc_nearby_tiles
         cls.proc_nearby_tiles = proc_nearby_tiles
 
         # track harvester tiles for second pass adjacency
         harvester_proc = []
+        
+        my_x, my_y = Globals.my_pos
 
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
             tile_env = get_tile_env(pos)
@@ -231,6 +244,8 @@ class Map:
                     num_allies += 1
                 else:
                     num_enemies += 1
+                    if abs(x-my_x) < 2 and abs(y-my_y) < 2:
+                        num_enemies_8 += 1
 
             ti.easily_passable = False
 
@@ -275,26 +290,6 @@ class Map:
                 else:
                     DarkForest.remove_node(pos_idx)
 
-            # is_fresh_enemy_tower = (
-            #     old_etype != etype and
-            #     (not is_building_ally or not old_is_building_ally) and
-            #     (
-            #         (etype in (SENTINEL, LAUNCHER) and not is_building_ally) or
-            #         (old_etype in (SENTINEL, LAUNCHER) and not old_is_building_ally)
-            #     )
-            # )
-
-            # if is_fresh_enemy_tower:
-            #     if old_etype == SENTINEL:
-            #         BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
-            #     elif old_etype == LAUNCHER:
-            #         BfsBureau.remove_enemy_launcher(pos_idx)
-
-            # if is_fresh_enemy_tower:
-            #     if etype == SENTINEL:
-            #         BfsBureau.add_enemy_sentinel(pos, ti)
-            #     elif etype == LAUNCHER:
-            #         BfsBureau.add_enemy_launcher(pos_idx)
 
             old_enemy_tower = (
                 old_etype in (SENTINEL, LAUNCHER) and
@@ -318,6 +313,18 @@ class Map:
                 elif etype == LAUNCHER:
                     BfsBureau.add_enemy_launcher(pos_idx)
 
+            # [new enemy bot bfs]
+            old_ally_launcher = (old_etype == LAUNCHER and old_is_building_ally)
+            new_ally_launcher = (etype     == LAUNCHER and is_building_ally)
+
+            if old_ally_launcher and not new_ally_launcher:
+                # launcher was destroyed, replaced, or lost ally status
+                BfsBureau.remove_ally_launcher(pos_idx)
+            elif new_ally_launcher and not old_ally_launcher:
+                # newly placed ally launcher or first time we see this tile
+                BfsBureau.add_ally_launcher(pos_idx)
+            # [END NEW]
+
             # --- harvester set tracking ---
             if etype == HARVESTER:
                 harvester_set.add(pos_idx)
@@ -337,16 +344,27 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                {{ P.start() }}
+                {{ P.start('Comms.handle_message') }}
                 Comms.handle_message(get_marker_value(building_id))
                 {{ P.end('Comms.handle_message') }}
 
+            ti.is_pointed_to = False
+
+
         cls.num_allies = num_allies
         cls.num_enemies = num_enemies
+        cls.num_enemies_8 = num_enemies_8
         cls.num_enemy_buildings = num_enemy_buildings
 
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
+        # + is_pointed_to
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            if ti.target is not None:
+                targ = ti.target
+                targ_tile_info = tile_info[targ.x][targ.y]
+                if targ_tile_info is not None:
+                    targ_tile_info.is_pointed_to = True
+
             # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
             row_xm1 = tile_info[x - 1]
             row_x   = tile_info[x]

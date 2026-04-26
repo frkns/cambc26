@@ -19,21 +19,32 @@ from Generated import *
 
 
 class Profiler:
-    _stack: list = []
+    _stack: list = []  # Now stores (start_time, round, desc)
     _stats: dict = {}  # desc -> [count, mean, M2, max]
 
     {% set PREFIX_FSTRING = "[{Globals.my_team.__str__()[-1]}][{Globals.my_type.value}]" %}
 
     @classmethod
-    def start(cls):
-        cls._stack.append(Globals.ct.get_cpu_time_elapsed())
+    def start(cls, desc: str = ""):
+        cls._stack.append((Globals.ct.get_cpu_time_elapsed(), Globals.round, desc))
 
     @classmethod
     def end(cls, desc: str):
         end_time = Globals.ct.get_cpu_time_elapsed()
+        end_round = Globals.round
         if not cls._stack:
             return
-        start_time = cls._stack.pop()
+        start_time, start_round, start_desc = cls._stack.pop()
+        
+        # Check for round overflow
+        if start_round != end_round:
+            team = Globals.my_team.__str__()[-1]
+            label = desc or start_desc or "<unknown>"
+            warning = f"{{ PREFIX_FSTRING }} WARNING: Round overflow in '{label}': started in round {start_round}, ended in round {end_round}"
+            print(warning)
+            Debug.log(warning)
+            return  # Don't record stats for overflowed measurements
+        
         elapsed = (end_time - start_time) / 1_000_000
         if desc in cls._stats:
             entry = cls._stats[desc]
@@ -53,9 +64,20 @@ class Profiler:
     @classmethod
     def end_now(cls, desc: str):
         end_time = Globals.ct.get_cpu_time_elapsed()
+        end_round = Globals.round
         if not cls._stack:
             return
-        start_time = cls._stack.pop()
+        start_time, start_round, start_desc = cls._stack.pop()
+        
+        # Check for round overflow
+        if start_round != end_round:
+            team = Globals.my_team.__str__()[-1]
+            label = desc or start_desc or "<unknown>"
+            warning = f"{{ PREFIX_FSTRING }} WARNING: Round overflow in '{label}': started in round {start_round}, ended in round {end_round}"
+            print(warning)
+            Debug.log(warning)
+            return
+        
         elapsed = (end_time - start_time) / 1_000_000
 
         team = Globals.my_team.__str__()[-1]
@@ -64,13 +86,23 @@ class Profiler:
         Debug.log(s)
 
     @classmethod
+    def start_turn_check(cls):
+        if cls._stack:
+            team = Globals.my_team.__str__()[-1]
+            stale_descs = [entry[2] or "<unknown>" for entry in cls._stack]
+            warning = f"{{ PREFIX_FSTRING }} WARNING: Profiler stack not empty at turn start (round {Globals.round}). Stale entries: {stale_descs}"
+            print(warning)
+            Debug.log(warning)
+            cls._stack.clear()
+
+    @classmethod
     def compare(cls, f, g):
         if Globals.round & 1:
-            Profiler.start()
+            Profiler.start('1')
             ret = f()
             Profiler.end('1')
         else:
-            Profiler.start()
+            Profiler.start('2')
             ret = g()
             Profiler.end('2')
         return ret

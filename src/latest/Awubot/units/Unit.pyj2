@@ -61,9 +61,13 @@ class Unit:
         MarketMaker.refresh()
 
         if Globals.ct.get_entity_type() != EntityType.LAUNCHER:
-            {{ P.start() }}
+            {{ P.start('Map.fill_tile_info') }}
             Map.fill_tile_info()
             {{ P.end('Map.fill_tile_info') }}
+
+        {% if LOCAL %}
+        Profiler.start_turn_check()
+        {% endif %}
 
     @classmethod
     def run_turn(cls):
