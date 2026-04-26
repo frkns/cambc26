@@ -72,8 +72,13 @@ class RouteToFoundry:
         # Identify sinks that already have a foundry planned or built
         for p in cls.planned_foundry_positions:
             curr = p
-            while nodes[curr] is not None and nodes[curr].up is not None:
+            # while nodes[curr] is not None and nodes[curr].up is not None:
+            #     curr = nodes[curr].up
+            for _ in range({{ PADDED_GRID_SIZE }}):
+                if nodes[curr] is None or nodes[curr].up is None:
+                    break
                 curr = nodes[curr].up
+
             if nodes[curr] is not None:
                 bad_sinks.add(curr)
 
@@ -83,8 +88,13 @@ class RouteToFoundry:
         for c in candidates:
             # Trace the candidate up to its sink
             curr = c
-            while nodes[curr] is not None and nodes[curr].up is not None:
+            # while nodes[curr] is not None and nodes[curr].up is not None:
+            #     curr = nodes[curr].up
+            for _ in range({{ PADDED_GRID_SIZE }}):
+                if nodes[curr] is None or nodes[curr].up is None:
+                    break
                 curr = nodes[curr].up
+
             
             # Avoid picking targets if the sink it is in already has a foundry
             if nodes[curr] is not None and curr in bad_sinks:

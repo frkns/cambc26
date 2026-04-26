@@ -218,6 +218,7 @@ class Launcher({{ super() }}):
             print("Plausible place to throw:", best_pos)
 
             if nearby_ally_bot is not None and best_pos is not None and ct.can_launch(nearby_ally_bot, best_pos):
+                return  # -- disable supportive launchers for now --
                 ct.launch(nearby_ally_bot, best_pos)
 
     @classmethod

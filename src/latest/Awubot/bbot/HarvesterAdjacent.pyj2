@@ -142,8 +142,8 @@ class HarvesterAdjacent:
 
     @classmethod
     def get_best_sentinel_position(cls) -> Position | None:
-        if not BuildManager.can_afford_sentinel():
-            return None
+        {# /* if not BuildManager.can_afford_sentinel(): */ #}
+            {# /* return None */ #}
 
         if not cls.infos:
             return None
@@ -152,6 +152,8 @@ class HarvesterAdjacent:
         for c in cls.infos[1:]:
             if AdjacentInfo.is_better_than_sentinel(c, best):
                 best = c
+
+        # Debug.tee(best.__dict__)
 
         if not best.easily_buildable:
             return None
@@ -323,7 +325,7 @@ class HarvesterAdjacent:
                                 or (ti.entity_type in Constants.TRANSPORTERS_SET and ti.target == spos)
                             )
                         )
-                    )
+                    ) and not ti.has_bot
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester

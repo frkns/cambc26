@@ -65,6 +65,10 @@ class Unit:
             Map.fill_tile_info()
             {{ P.end('Map.fill_tile_info') }}
 
+        {% if LOCAL %}
+        Profiler.start_turn_check()
+        {% endif %}
+
     @classmethod
     def run_turn(cls):
         pass

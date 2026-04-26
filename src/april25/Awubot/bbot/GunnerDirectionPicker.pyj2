@@ -1,0 +1,137 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+{% from 'bbot/mode.j2' import Mode %}
+
+
+class GunnerDirectionInfo:
+    __slots__ = ('direction', 'banned', 'enemy_building_hp', 'enemy_bot_hp', 'has_enemy_turret')
+
+    @staticmethod
+    def is_better_than(a: GunnerDirectionInfo, b: GunnerDirectionInfo) -> bool:
+        if a.banned: return False
+        if b.banned: return True
+
+        if a.has_enemy_turret != b.has_enemy_turret:
+            return a.has_enemy_turret > b.has_enemy_turret
+
+        if a.enemy_building_hp != b.enemy_building_hp:
+            return a.enemy_building_hp > b.enemy_building_hp
+
+        if a.enemy_bot_hp != b.enemy_bot_hp:
+            return a.enemy_bot_hp > b.enemy_bot_hp
+
+        return False
+
+
+class GunnerDirectionPicker:
+    infos: list[GunnerDirectionInfo] = []
+
+
+    @classmethod
+    def get_best_direction(cls, spos) -> Direction:
+        cls.precompute(spos)
+        best = cls.infos[0]
+        for info in cls.infos[1:]:
+            if GunnerDirectionInfo.is_better_than(info, best):
+                best = info
+        return best.direction
+
+    @classmethod
+    def precompute(cls, spos):
+        infos = cls.infos
+        infos.clear()
+
+        tile_info = Map.tile_info
+
+        sx, sy = spos.x, spos.y
+        sidx = {{ encode_pos('sx', 'sy') }}
+
+        has_feeder = [False] * 8
+        nadj_feeders = 0
+
+        {% for dir in cardinal_directions %}
+        {% set dx, dy = dir.delta() %}
+        {% set i = directions.index(dir) %}
+        ti = tile_info[sx + {{ dx }}][sy + {{ dy }}]
+        if ti is not None:
+            if (ti.entity_type == EntityType.HARVESTER and ti.env == Environment.ORE_TITANIUM) or ti.target == spos:
+                has_feeder[{{ i }}] = True
+                nadj_feeders += 1
+        {% endfor %}
+
+        ecore = Symmetry.enemy_core_pos
+
+        {% macro gen(need_ban) %}
+        {% for dir in directions[:8] %}
+            {% set i = loop.index0 %}
+
+            info{{ i }} = GunnerDirectionInfo()
+            info{{ i }}.direction = {{ dir }}
+            {% if need_ban %}
+            info{{ i }}.banned = has_feeder[{{ i }}]
+            {% else %}
+            info{{ i }}.banned = False
+            {% endif %}
+            info{{ i }}.enemy_building_hp = 0
+            info{{ i }}.enemy_bot_hp = 0
+
+
+            infos.append(info{{ i }})
+        {% endfor %}
+        {% endmacro %}
+
+        if nadj_feeders == 1:
+{{ gen(True) }}
+        else:
+{{ gen(False) }}
+
+
+        {% for rx in range(-2, 3) %}
+        {% for ry in range(-2, 3) %}
+        ti = tile_info[sx + {{ rx }}][sy + {{ ry }}]
+        if ti is not None:
+            if ti.has_building and not ti.is_building_ally:
+                e_building_hp = ti.building_hp
+                {% for i in gunner_reverse[(rx, ry)] %}
+                info{{ i }}.enemy_building_hp += e_building_hp
+                {% endfor %}
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                {% for i in gunner_reverse[(rx, ry)] %}
+                info{{ i }}.enemy_bot_hp += e_bot_hp
+                {% endfor %}
+        {% endfor %}
+        {% endfor %}
+
+        {% for i in range(8) %}
+        {% set dir = directions[i] %}
+        {% set dx, dy = dir.delta() %}
+        {% set off = dx * PH + dy %}
+        ti = tile_info[sx {{ sign0(dx) }}][sy {{ sign0(dy) }}]
+        if ti is not None:
+            info{{ i }}.has_enemy_turret = ti.has_turret and not ti.is_building_ally
+        else:
+            info{{ i }}.has_enemy_turret = False
+        {% endfor %} 
+
+
+
+
+
+

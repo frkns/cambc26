@@ -155,23 +155,43 @@ class StateBuildTurret:
 
         return None
 
+    {# /* @classmethod */ #}
+    {# /* def run(cls, pos, banned_dir: Direction | None = None): */ #}
+        {# /* Pathfinder.move_to(pos, ban_target_pos=True) */ #}
+
+        {# /* core_dir = None */ #}
+        {# /* if Symmetry.is_sym_known: */ #}
+            {# /* core_dir = cls.gunner_can_hit_core(pos) */ #}
+            
+        {# /* if BuildManager.can_dbuild_gunner(pos) and core_dir is not None: */ #}
+            {# /* # who cares all turrets are the same anyways */ #}
+            {# /* BuildManager.dbuild_gunner(pos, core_dir) */ #}
+        {# /* elif BuildManager.can_dbuild_sentinel(pos): */ #}
+            {# /* {{ P.start() }} */ #}
+            {# /* dir: Direction = SentinelDirectionPicker.get_best_direction(pos) */ #}
+            {# /* {{ P.end('SentinelDirectionPicker.get_best_direction') }} */ #}
+
+            {# /* BuildManager.dbuild_sentinel(pos, dir) */ #}
+        {# /* elif Globals.ct.can_build_road(pos): */ #}
+            {# /* Globals.ct.build_road(pos) */ #}
+
     @classmethod
     def run(cls, pos, banned_dir: Direction | None = None):
-        Pathfinder.move_to(pos, ban_target_pos=True)
+        Pathfinder.move_to(pos, ban_target_pos=False)
 
         core_dir = None
         if Symmetry.is_sym_known:
             core_dir = cls.gunner_can_hit_core(pos)
             
-        if BuildManager.can_dbuild_gunner(pos) and core_dir is not None:
+        if BuildManager.can_smartbuild_gunner(pos) and core_dir is not None:
             # who cares all turrets are the same anyways
-            BuildManager.dbuild_gunner(pos, core_dir)
-        elif BuildManager.can_dbuild_sentinel(pos):
+            BuildManager.smartbuild_gunner(pos, core_dir)
+        elif BuildManager.can_smartbuild_sentinel(pos):
             {{ P.start() }}
             dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
             {{ P.end('SentinelDirectionPicker.get_best_direction') }}
 
-            BuildManager.dbuild_sentinel(pos, dir)
+            BuildManager.smartbuild_sentinel(pos, dir)
         elif Globals.ct.can_build_road(pos):
             Globals.ct.build_road(pos)
 

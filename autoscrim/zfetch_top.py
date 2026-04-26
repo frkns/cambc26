@@ -5,7 +5,7 @@ import csv
 import warnings
 warnings.filterwarnings("ignore", category=SyntaxWarning)
 
-OUTPUT_FILE = "top10_games.csv"
+OUTPUT_FILE = "top_games.csv"
 FIELDNAMES = ["match_id", "team_a", "team_b", "map", "winner", "date"]
 
 def run_cmd(command, env):

@@ -1,0 +1,173 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+{% from 'bbot/mode.j2' import Mode %}
+
+
+class BuildManager:
+    {% set ti_reserve_map = {
+        EntityType.GUNNER: 0,
+        EntityType.SENTINEL: 20,
+        EntityType.LAUNCHER: 0,
+    } %}
+    {% set ti_reserve_default = 20 %}
+
+    @staticmethod
+    def scale(cost: int) -> int:
+        return int(cost * MarketMaker.scale_ratio)
+
+    @staticmethod
+    def is_buildable(pos: Position):
+        dsq = Globals.my_pos.distance_squared(pos)
+        if dsq > 2 or dsq == 0:
+            return False
+
+        ti = Map.tile_info[pos.x][pos.y]
+        return (
+            {# /* ti is not None and  */ #}
+            ti.env != Environment.WALL 
+            and not ti.has_building
+            and not ti.has_bot
+        )
+
+    @staticmethod
+    def is_dbuildable(pos: Position):
+        dsq = Globals.my_pos.distance_squared(pos)
+        if dsq > 2 or dsq == 0:
+            return False
+
+        ti = Map.tile_info[pos.x][pos.y]
+
+        if Globals.ct.can_destroy(pos) and not ti.has_bot:
+            return True
+
+        return (
+            {# /* ti is not None and  */ #}
+            ti.env != Environment.WALL
+            and (not ti.has_building or (ti.is_building_ally and ti.entity_type != EntityType.CORE))
+        )
+
+
+    {% for etype in EntityType %}
+    {% set st = etype.value %}
+    {% if hasattr(Controller, 'get_' ~ st ~ '_cost') %}
+
+    @staticmethod
+    def build_{{ st }}(*a):
+        Globals.ct.build_{{ st }}(*a)
+
+    @staticmethod
+    def dbuild_{{ st }}(pos, *a):
+        if Globals.ct.can_destroy(pos):
+            BuildManager.destroy(pos)
+        Globals.ct.build_{{ st }}(pos, *a)
+
+
+    @staticmethod
+    def can_mbuild_{{ st }}() -> bool:
+        {% if LOCAL %}
+        assert {{ etype }} in Constants.PASSABLE_SET
+        {% endif %}
+        pos = Globals.my_pos
+
+        return (
+            (Globals.ct.can_destroy(pos) or Map.tile_info[pos.x][pos.y].entity_type is None) and
+            {% if etype in units_set %}
+            Globals.ct.get_unit_count() < {{ GameConstants.MAX_TEAM_UNITS }} and
+            {% endif %}
+            Globals.ct.get_action_cooldown() == 0 and
+            BuildManager.can_afford_{{ st }}()
+        )
+
+
+    @staticmethod
+    def mbuild_{{ st }}(*a):
+        pos = Globals.my_pos
+        if Globals.ct.can_destroy(pos):
+            BuildManager.destroy(pos)
+        Pathfinder.move_to(pos, ban_target_pos=True)
+        if BuildManager.can_build_{{ st }}(*a):
+            Globals.ct.build_{{ st }}(pos, *a)
+
+
+    @staticmethod
+    def can_dbuild_{{ st }}(pos) -> bool:
+        {% if etype in no_core_passable_set %}
+        if pos == Globals.my_pos:
+            return BuildManager.can_mbuild_{{ st }}()
+        {% endif %}            
+        return (
+            {% if etype in units_set %}
+            Globals.ct.get_unit_count() < {{ GameConstants.MAX_TEAM_UNITS }} and
+            {% endif %}
+            Globals.ct.get_action_cooldown() == 0 and
+            BuildManager.is_dbuildable(pos) and 
+            {% if etype not in no_core_passable_set %}
+            not Map.tile_info[pos.x][pos.y].has_bot and
+            {% endif %}
+            BuildManager.can_afford_{{ st }}()
+        )
+
+    @staticmethod
+    def can_build_{{ st }}(*a) -> bool:
+        return Globals.ct.can_build_{{ st }}(*a)
+
+    @staticmethod
+    def can_afford_{{ st }}() -> bool:
+        ti_cost, ax_cost = Globals.ct.get_{{ st }}_cost()
+        
+        {% set req = ti_reserve_map.get(etype, ti_reserve_default) %}
+        {% if req > 0 %}
+        
+        {% if etype in (EntityType.CONVEYOR, EntityType.BRIDGE) %}
+        # est income is at least 10 almost always because of passive income
+        if MarketMaker.est_income > 10 and Globals.round > 50:
+            ti_cost += int({{ req }} * MarketMaker.scale_ratio)
+        {% else %}
+        ti_cost += int({{ req }} * MarketMaker.scale_ratio)
+        {% endif %}
+        
+        {% if LOCAL %}
+        assert int({{ req }} * MarketMaker.scale_ratio) >= 0
+        {% endif %}
+        {% endif %}
+
+        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
+
+    {% endif %}
+    {% endfor %}
+
+    @staticmethod
+    def destroy(pos):
+        Debug.diamond(Color.RED, pos)
+        Globals.ct.destroy(pos)
+
+    @staticmethod
+    def should_build_armoured(pos):
+
+        {% set cond1 -%}
+            (min(pos.distance_squared(Unit.core_pos), pos.distance_squared(Symmetry.enemy_core_pos)) <= 20)
+        {%- endset %}
+
+        {% set cond2 -%}
+            Map.tile_info[pos.x][pos.y].harvester_adjacent
+        {%- endset %}
+
+        return {{ cond1 }} or {{ cond2 }}
+
+
+

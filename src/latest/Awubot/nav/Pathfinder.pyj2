@@ -29,6 +29,28 @@ class Pathfinder:
         cls.near_base = False
 
     @classmethod
+    def move_off(cls):
+        best_dir = None
+        best_w = {{ INF }}
+        d = BfsBureau.bfs20_dist
+        idx = Globals.my_idx
+
+        {% for dir in directions[:8] %}
+        {% set dx, dy = dir.delta() %}
+        {% set off = dx * PH + dy %}
+        nidx = idx {{ sign0(off) }}
+        if MoveManager.can_move({{ dir }}) and d[nidx] < best_w:
+            best_dir = {{ dir }}
+            best_w = d[nidx]
+        {% endfor %}
+
+        if best_dir is None:
+            return False
+
+        MoveManager.move(best_dir)
+        return True
+
+    @classmethod
     def move_to(cls, target: Position, ban_target_pos: bool = False, orbit: bool = False):
         if Globals.ct.get_move_cooldown() != 0:
             return
@@ -41,10 +63,6 @@ class Pathfinder:
         my_pos = Globals.my_pos
         midx = {{ encode_pos('my_pos.x', 'my_pos.y') }}
 
-        dsq = my_pos.distance_squared(target)
-        if (dsq == 1 or dsq == 2) and BfsBureau.now_weight[dsq] <= 3:
-            if not MoveManager.can_fill_move(my_pos.direction_to(target)):
-                return
 
         # ── Hysteresis: switch to road-building mode near base/enemy-base ──
         # Enter near_base when rsq <= 18, exit only when rsq > 25.
@@ -69,11 +87,21 @@ class Pathfinder:
         if orbit and 0 < target.distance_squared(my_pos) <= 2:
             dir = my_pos.direction_to(target).rotate_left()
 
-        if dir is None or dist >= {{ INF }}:
+
+        if dir is not None:
+            dsq = my_pos.distance_squared(target)
+            ndsq = my_pos.add(dir).distance_squared(target)
+            if (dsq == 1 or dsq == 2) and dsq < ndsq: 
+                if BfsBureau.now_weight[midx] <= 3:
+                    if not MoveManager.can_fill_move(my_pos.direction_to(target)):
+                        return
+
+        if dir is None:
             cls.given_up = True
-        else:
-            if MoveManager.can_move(dir):
-                MoveManager.move(dir)
-            elif MoveManager.can_fill_move(dir):
-                Globals.ct.build_road(my_pos.add(dir))
-                MoveManager.move(dir)
+            return
+
+        if MoveManager.can_move(dir):
+            MoveManager.move(dir)
+        elif MoveManager.can_fill_move(dir):
+            Globals.ct.build_road(my_pos.add(dir))
+            MoveManager.move(dir)

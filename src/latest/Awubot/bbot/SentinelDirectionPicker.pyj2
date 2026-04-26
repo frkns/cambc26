@@ -19,12 +19,15 @@ from Generated import *
 
 
 class SentinelDirectionInfo:
-    __slots__ = ('direction', 'banned', 'enemy_building_hp', 'enemy_bot_hp', 'cosine_sim')
+    __slots__ = ('direction', 'banned', 'enemy_building_hp', 'enemy_bot_hp', 'enemy_turret_hp', 'cosine_sim')
 
     @staticmethod
     def is_better_than(a: SentinelDirectionInfo, b: SentinelDirectionInfo) -> bool:
         if a.banned: return False
         if b.banned: return True
+
+        if a.enemy_turret_hp != b.enemy_turret_hp:
+            return a.enemy_turret_hp > b.enemy_turret_hp
         
         if a.enemy_building_hp != b.enemy_building_hp:
             return a.enemy_building_hp > b.enemy_building_hp
@@ -99,6 +102,7 @@ class SentinelDirectionPicker:
             {% endif %}
             info{{ i }}.enemy_building_hp = 0
             info{{ i }}.enemy_bot_hp = 0
+            info{{ i }}.enemy_turret_hp = 0
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
@@ -132,6 +136,8 @@ class SentinelDirectionPicker:
                 e_building_hp = ti.building_hp
                 {% for i in sentinel_reverse[(rx, ry)] %}
                 info{{ i }}.enemy_building_hp += e_building_hp
+                if ti.has_turret:
+                    info{{ i }}.enemy_turret_hp += e_building_hp
                 {% endfor %}
 
             if ti.has_bot and not ti.is_bot_ally:

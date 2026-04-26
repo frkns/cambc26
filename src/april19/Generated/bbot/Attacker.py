@@ -30,7 +30,7 @@ class Attacker:
             return None
         if trans.flowing_into_ally:
             return None
-        if trans.flow == 0 and not trans.sight_flowing:
+        if not trans.harvester_adjacent and trans.flow == 0 and not trans.sight_flowing:
             return None
         if not cls.should_fire(trans.position):
             return None

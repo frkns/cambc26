@@ -114,7 +114,7 @@ class SitterTakedown:
         cls.cand = []
         tile_info = Map.tile_info
 
-        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+        for pos, x, y, idx, ti in Map.inner_proc_nearby_tiles:
             if ti.env == Environment.WALL:
                 continue
             
@@ -126,6 +126,9 @@ class SitterTakedown:
                     continue
                 if ti.entity_type != EntityType.ROAD:
                     continue
+
+            if Builder.is_routing_active and pos == Builder.route_from_pos:
+                continue
 
             info = SitterTargetInfo()
             cls.cand.append(info)
