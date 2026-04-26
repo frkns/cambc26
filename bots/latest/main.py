@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-26 14:37:37 (local)
+# latest,  @ 2026-04-26 15:07:17 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -30116,8 +30116,6 @@ class RushTargeter:
                     return funPos, stuff[1] 
                 else:
                     return Explore.get_target(),'M' #move
-            if (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
-                return Symmetry.enemy_core_pos,'M' #move
         elif Builder.mode == 2:
             return Symmetry.sym_pos(Unit.core_pos),'M' #move
         return None
@@ -34744,19 +34742,21 @@ class Builder(Unit):
         Symmetry.run_sym_check()
 
         if cls.mode == 0:
+            """
             if Globals.round in [4,5]:
                 cls.mode = 2
                 Explore.target = Explore.new_target()
-            elif Globals.round in [3]:
+            """
+            if Globals.round in [3]:
                 cls.mode = 3
                 Explore.target = Explore.new_target()
             else:
                 cls.mode = 1
-        if Globals.round >= Constants.RUSH_OVER:
-            cls.mode = 1
+        if cls.mode != 2 and (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
+            cls.mode = 2
             Explore.target = Explore.new_target()
         """
-        if (cls.mode == 2 and Symmetry.is_sym_known and Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= 36):
+        if Globals.round >= Constants.RUSH_OVER:
             cls.mode = 1
             Explore.target = Explore.new_target()
         """

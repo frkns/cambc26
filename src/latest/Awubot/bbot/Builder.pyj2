@@ -48,19 +48,21 @@ class Builder({{ super() }}):
         Symmetry.run_sym_check()
 
         if cls.mode == {{ Mode.NONE }}:
+            """
             if Globals.round in [4,5]:
                 cls.mode = {{ Mode.EARLY_RUSH }}
                 Explore.target = Explore.new_target()
-            elif Globals.round in [3]:
+            """
+            if Globals.round in [3]:
                 cls.mode = {{ Mode.HEALER }}
                 Explore.target = Explore.new_target()
             else:
                 cls.mode = {{ Mode.ECON }}
-        if Globals.round >= Constants.RUSH_OVER:
-            cls.mode = {{ Mode.ECON }}
+        if cls.mode != {{ Mode.EARLY_RUSH }} and (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
+            cls.mode = {{ Mode.EARLY_RUSH }}
             Explore.target = Explore.new_target()
         """
-        if (cls.mode == {{ Mode.EARLY_RUSH }} and Symmetry.is_sym_known and Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= 36):
+        if Globals.round >= Constants.RUSH_OVER:
             cls.mode = {{ Mode.ECON }}
             Explore.target = Explore.new_target()
         """
