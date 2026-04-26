@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-21 13:19:08 (local)
+# latest,  @ 2026-04-25 19:57:30 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -23913,6 +23913,156 @@ class FoundryBuild:
 
 
 # ============================================================
+# FoundryInputTracker
+# ============================================================
+
+class FoundryInputTracker:
+    MAX_INPUTS    = 4   # total cardinal slots per foundry
+    MAX_TI_INPUTS = 3   # allow ≤3 ti so at least 1 ax slot is preserved
+    MAX_AX_INPUTS = 3   # allow ≤3 ax so at least 1 ti slot is preserved
+
+    # Built-connection counts (from DarkForest, reset each tick).
+    ti_count: dict[int, int] = {}
+    ax_count: dict[int, int, ] = {}
+
+    # Pending-route reservations (persist across ticks, cleared on
+    # give-up / success).  Keyed by foundry encoded position.
+    claimed_ti: dict[int, int] = defaultdict(int)
+    claimed_ax: dict[int, int] = defaultdict(int)
+
+    @classmethod
+    def compute(cls):
+        """Count actual tree-children per foundry (ti vs ax)."""
+        ns   = DarkForest.nodes
+        ax   = DarkForest.ax_tagged
+        ti_c: dict[int, int] = {}
+        ax_c: dict[int, int] = {}
+
+        for f in DarkForest.foundry_positions:
+            t = 0
+            a = 0
+            for _d in (-1, 1, -56, 56):
+                _adj = f + _d
+                _n   = ns[_adj]
+                if _n is not None and _n.up == f:
+                    if ax[_adj]:
+                        a += 1
+                    else:
+                        t += 1
+            ti_c[f] = t
+            ax_c[f] = a
+
+        cls.ti_count = ti_c
+        cls.ax_count = ax_c
+
+    # ── capacity helpers (built + claimed) ──
+
+    @classmethod
+    def _ti_used(cls, f: int) -> int:
+        return cls.ti_count.get(f, 0) + cls.claimed_ti[f]
+
+    @classmethod
+    def _ax_used(cls, f: int) -> int:
+        return cls.ax_count.get(f, 0) + cls.claimed_ax[f]
+
+    @classmethod
+    def has_ti_capacity(cls, f: int) -> bool:
+        return (cls._ti_used(f) < cls.MAX_TI_INPUTS
+                and cls._ti_used(f) + cls._ax_used(f) < cls.MAX_INPUTS)
+
+    @classmethod
+    def has_ax_capacity(cls, f: int) -> bool:
+        return (cls._ax_used(f) < cls.MAX_AX_INPUTS
+                and cls._ti_used(f) + cls._ax_used(f) < cls.MAX_INPUTS)
+
+    # ── reservation management ──
+
+    @classmethod
+    def claim_ti(cls, f: int):
+        cls.claimed_ti[f] += 1
+
+    @classmethod
+    def release_ti(cls, f: int):
+        if cls.claimed_ti[f] > 0:
+            cls.claimed_ti[f] -= 1
+
+    @classmethod
+    def claim_ax(cls, f: int):
+        cls.claimed_ax[f] += 1
+
+    @classmethod
+    def release_ax(cls, f: int):
+        if cls.claimed_ax[f] > 0:
+            cls.claimed_ax[f] -= 1
+
+    # ── target selection ──
+
+    @classmethod
+    def get_best_ti_foundry(cls, from_pos: Position) -> int | None:
+        """
+        Nearest existing foundry (by Manhattan distance) that still has
+        a spare titanium input slot.  Returns encoded position or None.
+        """
+        sx, sy  = from_pos.x, from_pos.y
+        best    = None
+        best_d  = 1000000
+        for f in DarkForest.foundry_positions:
+            if not cls.has_ti_capacity(f):
+                continue
+            fx = f // 56 - 3
+            fy = f % 56  - 3
+            d  = abs(fx - sx) + abs(fy - sy)
+            if d < best_d:
+                best_d = d
+                best   = f
+        return best
+
+    @classmethod
+    def get_best_ax_foundry(cls, from_pos: Position) -> int | None:
+        """
+        Nearest existing foundry with a spare axionite input slot.
+        Prefers foundries that already have at least one ti input (so
+        the foundry can actually produce refined axionite).
+        """
+        sx, sy  = from_pos.x, from_pos.y
+        best    = None
+        best_d  = 1000000
+        for f in DarkForest.foundry_positions:
+            if not cls.has_ax_capacity(f):
+                continue
+            fx = f // 56 - 3
+            fy = f % 56  - 3
+            d  = abs(fx - sx) + abs(fy - sy)
+            # Prefer foundries that already have a titanium connection.
+            if cls._ti_used(f) > 0:
+                d = d // 2     # half-distance bias toward productive foundries
+            if d < best_d:
+                best_d = d
+                best   = f
+        return best
+
+
+# ══════════════════════════════════════════════════════════════════════
+# RouteToFoundryInput
+#
+# Routes a just-built harvester (titanium OR axionite) toward an
+# existing foundry that has spare input capacity.
+#
+# Titanium mode  (is_ax=False): uses find_bridge_route.
+# Axionite mode  (is_ax=True):  uses find_bridge_route_avoid_ti_adj
+#                                to keep axionite paths off titanium
+#                                territory.
+#
+# Completion: when from_pos is adjacent to the foundry and we build
+# a conveyor pointing toward it, set_pos(foundry_pos) triggers
+# deactivation (encoded == _target).
+#
+# Mirrors RouteToCore / RouteToFoundry structure so determine_state
+# can handle all three uniformly.
+# ══════════════════════════════════════════════════════════════════════
+
+
+# ============================================================
 # Globals
 # ============================================================
 
@@ -28523,6 +28673,89 @@ class MoveManager:
 
 
 # ============================================================
+# OreClusterPlanner
+# ============================================================
+
+class OreClusterPlanner:
+    CLUSTER_RADIUS_SQ = 36   # ≈ radius-6 circle around builder
+    MIN_TI_ORES       = 2    # minimum titanium ores to call it a cluster
+    MIN_AX_ORES       = 1    # minimum axionite ores
+
+    @classmethod
+    def find_cluster_leaf(cls, candidates: set[int]) -> int | None:
+        """
+        From the set of pre-filtered candidate titanium leaves, return
+        the one that minimises a cluster-weighted score:
+
+            score = min_dist_to_any_ti + 2 * min_dist_to_any_ax
+
+        Axionite distance is weighted more because axionite routing is
+        more constrained (must avoid titanium-adjacent tiles).
+
+        Returns None if there aren't enough nearby ores to form a
+        cluster, or if candidates is empty.
+        """
+        if not candidates:
+            return None
+
+        ti_pos: list[tuple[int, int]] = []
+        ax_pos: list[tuple[int, int]] = []
+
+        my_pos = Globals.my_pos
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            if my_pos.distance_squared(pos) > cls.CLUSTER_RADIUS_SQ:
+                continue
+            if ti.has_building:
+                continue
+            if ti.env == Environment.ORE_TITANIUM:
+                ti_pos.append((x, y))
+            elif ti.env == Environment.ORE_AXIONITE:
+                ax_pos.append((x, y))
+
+        if len(ti_pos) < cls.MIN_TI_ORES or len(ax_pos) < cls.MIN_AX_ORES:
+            return None     # not a meaningful cluster — use default distance sort
+
+        best_leaf  = None
+        best_score = 1000000
+
+        for leaf in candidates:
+            lx = leaf // 56 - 3
+            ly = leaf % 56  - 3
+
+            ti_tinfo = Map.tile_info[lx][ly]
+            if ti_tinfo is None:
+                continue
+            if ti_tinfo.entity_type == EntityType.BRIDGE:
+                continue    # mirrored guard from _pick_target
+
+            min_d_ti = min(abs(lx - x) + abs(ly - y) for x, y in ti_pos)
+            min_d_ax = min(abs(lx - x) + abs(ly - y) for x, y in ax_pos)
+            score    = min_d_ti + 2 * min_d_ax
+
+            if score < best_score:
+                best_score = score
+                best_leaf  = leaf
+
+        return best_leaf
+
+    @classmethod
+    def has_cluster(cls) -> bool:
+        """Quick check: are there enough nearby ti + ax ores to form a cluster?"""
+        ti_n = ax_n = 0
+        my_pos = Globals.my_pos
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            if my_pos.distance_squared(pos) > cls.CLUSTER_RADIUS_SQ:
+                continue
+            if ti.has_building:
+                continue
+            if ti.env == Environment.ORE_TITANIUM:
+                ti_n += 1
+            elif ti.env == Environment.ORE_AXIONITE:
+                ax_n += 1
+        return ti_n >= cls.MIN_TI_ORES and ax_n >= cls.MIN_AX_ORES
+
+
+# ============================================================
 # OreExecutive
 # ============================================================
 
@@ -28736,8 +28969,17 @@ class OreExecutive:
 
             cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
             if cand is not None:
-                RouteToCore.set_pos(cand.position)
-                RouteToCore.isAttack = isAttack
+                # Prefer routing to an existing foundry with spare ti capacity
+                # over routing all the way back to core — it's cheaper and
+                # boosts an under-fed foundry's output.
+                fi_target = FoundryInputTracker.get_best_ti_foundry(pos)
+                if fi_target is not None and not RouteToFoundryInput.is_active:
+                    FoundryInputTracker.claim_ti(fi_target)
+                    RouteToFoundryInput.set_pos(cand.position, fi_target, is_ax=False)
+                    print("go_build_harvester: routing ti to existing foundry", fi_target)
+                else:
+                    RouteToCore.set_pos(cand.position)
+                    RouteToCore.isAttack = isAttack
 
     @classmethod
     def go_build_ax_harvester(cls, pos):
@@ -28762,7 +29004,39 @@ class OreExecutive:
             Debug.diamond(Color.RED)
             return
 
+        # ── Strategy 1: route to an existing foundry with spare ax capacity ──
+        # This is preferred because it immediately boosts an already-built
+        # foundry's refined-axionite output without needing to build a new one.
+        fi_target = FoundryInputTracker.get_best_ax_foundry(pos)
+        if (fi_target is not None
+                and not RouteToFoundryInput.is_active
+                and RouteToFoundry.axionite_can_reach_foundry(cand.position, fi_target)):
+            if BuildManager.can_dbuild_harvester(pos):
+                Debug.line(pos, Color.YELLOW)
+                BuildManager.dbuild_harvester(pos)
+                FoundryInputTracker.claim_ax(fi_target)
+                RouteToFoundryInput.set_pos(cand.position, fi_target, is_ax=True)
+                print("go_build_ax_harvester: routing ax to existing foundry", fi_target)
+            else:
+                RouteToFoundry.give_up(True)
+            return
+
+        # ── Strategy 2: route to a new foundry leaf (existing behaviour) ──
+        # Prefer cluster-aware leaf selection when nearby ores form a cluster.
         RouteToFoundry.from_pos = pos
+
+        if OreClusterPlanner.has_cluster():
+            # Offer a cluster-biased target to try_claim_target instead of
+            # the default nearest-leaf heuristic.  We set _foundry_target
+            # directly so try_claim_target's "already claimed" guard still
+            # runs correctly.
+            _candidates = DarkForest.leaf_set - RouteToFoundry.planned_foundry_positions
+            _cluster_leaf = OreClusterPlanner.find_cluster_leaf(_candidates)
+            if _cluster_leaf is not None:
+                print("go_build_ax_harvester: cluster leaf", _cluster_leaf)
+                RouteToFoundry._foundry_target = _cluster_leaf
+                #RouteToFoundry.planned_foundry_positions.add(_cluster_leaf)
+
         RouteToFoundry.try_claim_target()
         foundry_enc = RouteToFoundry._foundry_target
         if foundry_enc is None or not RouteToFoundry.axionite_can_reach_foundry(cand.position, foundry_enc):
@@ -28774,14 +29048,14 @@ class OreExecutive:
         if BuildManager.can_dbuild_harvester(pos):
             Debug.line(pos, Color.YELLOW)
             BuildManager.dbuild_harvester(pos)
-            #Check if already routed naturally
+            # Check if already routed naturally
             for d in Constants.CARDINAL_DIRECTIONS:
                 newPos = pos.add(d)
                 ti = Map.tile_info[newPos.x][newPos.y]
-                if ti is None:  # off-map, ignore
+                if ti is None:
                     continue
                 if ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET:
-                    break  # If already routed ignore
+                    break  # already connected, skip
             else:
                 RouteToFoundry.set_pos(cand.position)
                 return
@@ -29658,33 +29932,46 @@ class RouteToFoundry:
                 bad_sinks.add(curr)
 
         sx, sy = cls.from_pos.x, cls.from_pos.y
-        best: int | None = None
-        best_d = 1000000
+
+        # Build the filtered candidate set first, then let OreClusterPlanner
+        # bias the selection toward ore-cluster-central leaves.
+        valid_candidates: set[int] = set()
         for c in candidates:
-            # Trace the candidate up to its sink
             curr = c
             while nodes[curr] is not None and nodes[curr].up is not None:
                 curr = nodes[curr].up
-            
-            # Avoid picking targets if the sink it is in already has a foundry
             if nodes[curr] is not None and curr in bad_sinks:
                 continue
-
             cx = c // 56 - 3
-            cy = c % 56 - 3
+            cy = c % 56  - 3
             ti = Map.tile_info[cx][cy]
             if ti is None:
                 continue
-            if ti is not None and ti.entity_type == EntityType.BRIDGE:
-                continue # do not consider bridges.
-            
-            d = abs(cx - sx) + abs(cy - sy)
+            if ti.entity_type == EntityType.BRIDGE:
+                continue
+            valid_candidates.add(c)
 
+        if not valid_candidates:
+            return None
+
+        # If there's a meaningful ore cluster nearby, prefer a leaf that
+        # minimises combined distance to both ore types.
+        cluster_pick = OreClusterPlanner.find_cluster_leaf(valid_candidates)
+        if cluster_pick is not None:
+            print(f"RouteToFoundry: cluster-biased pick {cluster_pick}")
+            return cluster_pick
+
+        # Fallback: nearest leaf by Manhattan distance (original behaviour).
+        best: int | None = None
+        best_d = 1000000
+        for c in valid_candidates:
+            cx = c // 56 - 3
+            cy = c % 56  - 3
+            d  = abs(cx - sx) + abs(cy - sy)
             print(f"RouteToFoundry: candidate {c} at ({cx}, {cy}) has d={d}")
             if d < best_d:
                 best_d = d
-                best = c
-                
+                best   = c
         return best
 
     @classmethod
@@ -29831,6 +30118,178 @@ class RouteToFoundry:
             cls.move_to_next()
             # if Globals.ct.can_build_road(cls.from_pos):
             #     Globals.ct.build_road(cls.from_pos)
+        else:
+            cls.move_to_next()
+
+
+# ============================================================
+# RouteToFoundryInput
+# ============================================================
+
+class RouteToFoundryInput:
+    is_active:    bool          = False
+    from_pos:     Position
+    _target:      int | None    = None   # encoded foundry position
+    _is_ax:       bool          = False  # True → axionite routing rules
+    prevRoute:    list          = []
+    backTracking: bool          = False
+    killed:       set[int]      = set()
+
+    @classmethod
+    def set_pos(cls, pos: Position, target: int, is_ax: bool,
+                full_reset: bool = True):
+        enc = (((pos.x) + 3) * 56 + ((pos.y) + 3))
+
+        # Arrived at the foundry — success.
+        if enc == target:
+            if is_ax:
+                FoundryInputTracker.release_ax(target)
+            else:
+                FoundryInputTracker.release_ti(target)
+            cls.is_active = False
+            cls.prevRoute.clear()
+            cls.backTracking = False
+            return
+
+        if full_reset:
+            cls.prevRoute.clear()
+            cls.backTracking = False
+        else:
+            cls.prevRoute.append(cls.from_pos)
+            cls.backTracking = False
+
+        cls.is_active    = True
+        cls.from_pos     = pos
+        cls._target      = target
+        cls._is_ax       = is_ax
+
+    @classmethod
+    def try_build_route(cls):
+        assert cls.is_active
+        if cls._target is None:
+            cls.give_up()
+            return
+
+        target_set = {cls._target}
+
+        if cls._is_ax:
+            bridge_dist, first_target = BfsBureau.find_bridge_route_avoid_ti_adj(
+                cls.from_pos,
+                target_set,
+                avoid_pos=RouteToCore.pathFindingKill,
+            )
+        else:
+            bridge_dist, first_target = BfsBureau.find_bridge_route(
+                cls.from_pos,
+                target_set,
+                avoid_pos=RouteToCore.pathFindingKill,
+            )
+
+        
+
+        if first_target is None:
+            Debug.tee("RouteToFoundryInput: no route to foundry, giving up")
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target())
+            return
+
+        target = Position(*first_target)
+        Debug.diline(cls.from_pos, target, Color.CYAN)
+
+        dsq = cls.from_pos.distance_squared(target)
+        if dsq == 1:
+            if BuildManager.can_dbuild_conveyor(cls.from_pos):
+                BuildManager.dbuild_conveyor(
+                    cls.from_pos,
+                    cls.from_pos.direction_to(target),
+                )
+                cls.set_pos(target, cls._target, cls._is_ax, full_reset=False)
+        elif BuildManager.can_dbuild_bridge(cls.from_pos):
+            BuildManager.dbuild_bridge(cls.from_pos, target)
+            cls.set_pos(target, cls._target, cls._is_ax, full_reset=False)
+
+    @classmethod
+    def move_to_next(cls):
+        Pathfinder.move_to(cls.from_pos, ban_target_pos=True)
+
+    @classmethod
+    def should_give_up(cls) -> bool:
+        if cls._target is None:
+            return True
+
+        # Re-check capacity each tick: if the foundry is now full (another
+        # bot beat us to it), abandon and let the builder find a new target.
+        if cls._is_ax:
+            if not FoundryInputTracker.has_ax_capacity(cls._target):
+                # Subtract our reservation so the slot accounting stays clean.
+                FoundryInputTracker.release_ax(cls._target)
+                FoundryInputTracker.claim_ax(cls._target)  # keep claimed until give_up
+                Debug.tee("RouteToFoundryInput: target foundry ax-full, giving up")
+                return True
+        else:
+            if not FoundryInputTracker.has_ti_capacity(cls._target):
+                FoundryInputTracker.release_ti(cls._target)
+                FoundryInputTracker.claim_ti(cls._target)
+                Debug.tee("RouteToFoundryInput: target foundry ti-full, giving up")
+                return True
+
+        x, y = cls.from_pos.x, cls.from_pos.y
+        ti   = Map.tile_info[x][y]
+        if ti is None:
+            return False
+        if not cls.backTracking and Pathfinder.given_up:
+            return True
+        if ti.has_building:
+            if not ti.is_building_ally:
+                return True
+            if not cls.backTracking:
+                if ti.entity_type in Constants.TRANSPORTERS_SET:
+                    return True
+                if ti.entity_type != EntityType.ROAD:
+                    return True
+        return False
+
+    @classmethod
+    def give_up(cls) -> bool:
+        enc = (((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3))
+        if not cls.prevRoute:
+            cls.is_active = False
+            if cls._target is not None:
+                if cls._is_ax:
+                    FoundryInputTracker.release_ax(cls._target)
+                else:
+                    FoundryInputTracker.release_ti(cls._target)
+            cls._target = None
+            cls.killed.add(enc)
+            if Pathfinder.given_up:
+                RouteToCore.pathFindingKill.add(enc)
+            cls.backTracking = False
+            Debug.diamond(Color.CYAN)
+            print("RouteToFoundryInput: giving up from", cls.from_pos)
+            return True
+        else:
+            cls.killed.add(enc)
+            if Pathfinder.given_up:
+                RouteToCore.pathFindingKill.add(enc)
+            cls.from_pos = cls.prevRoute.pop()
+            cls.backTracking = True
+            print("RouteToFoundryInput: backtracking to", cls.from_pos)
+            return False
+
+    @classmethod
+    def do_routing(cls):
+        print("RouteToFoundryInput: routing from", cls.from_pos,
+              "ax=" + str(cls._is_ax),)
+              #"target=" + (str(((cls._target) // 56 - 3), ((cls._target) % 56 - 3)) if cls._target else 'None'))
+        if cls.should_give_up():
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target())
+            return
+
+        dsq = Globals.my_pos.distance_squared(cls.from_pos)
+        if Globals.ct.get_action_cooldown() == 0 and dsq <= 2:
+            cls.try_build_route()
+            cls.move_to_next()
         else:
             cls.move_to_next()
 
@@ -33807,6 +34266,32 @@ class StateRouteFoundry:
 
 
 # ============================================================
+# StateRouteFoundryInput
+# ============================================================
+
+class StateRouteFoundryInput:
+    @classmethod
+    def run(cls):
+        RouteToFoundryInput.do_routing()
+
+
+# ══════════════════════════════════════════════════════════════════════
+# OreClusterPlanner
+#
+# When a builder can see both titanium and axionite ores nearby,
+# it's efficient to build ONE foundry that serves both ore types
+# instead of routing the titanium all the way to the core separately.
+#
+# find_cluster_leaf() returns the titanium leaf from DarkForest.leaf_set
+# that best serves the current cluster of nearby ti + ax ores, scoring
+# each leaf by its minimum distance to each ore type.
+#
+# This is used inside a modified RouteToFoundry._pick_target() call in
+# go_build_ax_harvester to bias foundry siting toward ore clusters.
+# ══════════════════════════════════════════════════════════════════════
+
+
+# ============================================================
 # StateRush
 # ============================================================
 
@@ -34465,6 +34950,10 @@ class Builder(Unit):
         
         DarkForest.fcompute()
         
+        
+        
+        FoundryInputTracker.compute()
+        
 
         
         BfsBureau.update()
@@ -34621,6 +35110,9 @@ class Builder(Unit):
 
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
+
+        if RouteToFoundryInput.is_active:          # ← NEW
+            return ('RouteFoundryInput',)           # ← NEW
 
         if RouteToCore.is_active:
             return ('Route',)

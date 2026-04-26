@@ -40,6 +40,10 @@ class Builder({{ super() }}):
         {{ P.start() }}
         DarkForest.fcompute()
         {{ P.end('DarkForest.fcompute') }}
+        
+        {{ P.start() }}
+        FoundryInputTracker.compute()
+        {{ P.end('FoundryInputTracker.compute') }}
 
         {{ P.start() }}
         BfsBureau.update()
@@ -205,6 +209,9 @@ class Builder({{ super() }}):
 
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
+
+        if RouteToFoundryInput.is_active:          # ← NEW
+            return ('RouteFoundryInput',)           # ← NEW
 
         if RouteToCore.is_active:
             return ('Route',)

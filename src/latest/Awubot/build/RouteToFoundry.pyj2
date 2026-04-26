@@ -78,33 +78,46 @@ class RouteToFoundry:
                 bad_sinks.add(curr)
 
         sx, sy = cls.from_pos.x, cls.from_pos.y
-        best: int | None = None
-        best_d = {{ INF }}
+
+        # Build the filtered candidate set first, then let OreClusterPlanner
+        # bias the selection toward ore-cluster-central leaves.
+        valid_candidates: set[int] = set()
         for c in candidates:
-            # Trace the candidate up to its sink
             curr = c
             while nodes[curr] is not None and nodes[curr].up is not None:
                 curr = nodes[curr].up
-            
-            # Avoid picking targets if the sink it is in already has a foundry
             if nodes[curr] is not None and curr in bad_sinks:
                 continue
-
             cx = c // {{ PH }} - {{ PAD }}
-            cy = c % {{ PH }} - {{ PAD }}
+            cy = c % {{ PH }}  - {{ PAD }}
             ti = Map.tile_info[cx][cy]
             if ti is None:
                 continue
-            if ti is not None and ti.entity_type == EntityType.BRIDGE:
-                continue # do not consider bridges.
-            
-            d = abs(cx - sx) + abs(cy - sy)
+            if ti.entity_type == EntityType.BRIDGE:
+                continue
+            valid_candidates.add(c)
 
+        if not valid_candidates:
+            return None
+
+        # If there's a meaningful ore cluster nearby, prefer a leaf that
+        # minimises combined distance to both ore types.
+        cluster_pick = OreClusterPlanner.find_cluster_leaf(valid_candidates)
+        if cluster_pick is not None:
+            print(f"RouteToFoundry: cluster-biased pick {cluster_pick}")
+            return cluster_pick
+
+        # Fallback: nearest leaf by Manhattan distance (original behaviour).
+        best: int | None = None
+        best_d = {{ INF }}
+        for c in valid_candidates:
+            cx = c // {{ PH }} - {{ PAD }}
+            cy = c % {{ PH }}  - {{ PAD }}
+            d  = abs(cx - sx) + abs(cy - sy)
             print(f"RouteToFoundry: candidate {c} at ({cx}, {cy}) has d={d}")
             if d < best_d:
                 best_d = d
-                best = c
-                
+                best   = c
         return best
 
     @classmethod
