@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-27 11:46:18 (local)
+# latest,  @ 2026-04-27 11:52:36 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -24816,6 +24816,30 @@ class Globals:
 
 
 # ============================================================
+# GunnerDirectionInfo
+# ============================================================
+
+class GunnerDirectionInfo:
+    __slots__ = ('direction', 'banned', 'enemy_building_hp', 'enemy_bot_hp', 'has_enemy_turret')
+
+    @staticmethod
+    def is_better_than(a: GunnerDirectionInfo, b: GunnerDirectionInfo) -> bool:
+        if a.banned: return False
+        if b.banned: return True
+
+        if a.has_enemy_turret != b.has_enemy_turret:
+            return a.has_enemy_turret > b.has_enemy_turret
+
+        if a.enemy_building_hp != b.enemy_building_hp:
+            return a.enemy_building_hp > b.enemy_building_hp
+
+        if a.enemy_bot_hp != b.enemy_bot_hp:
+            return a.enemy_bot_hp > b.enemy_bot_hp
+
+        return False
+
+
+# ============================================================
 # GunnerDirectionPicker
 # ============================================================
 
@@ -30149,11 +30173,10 @@ class PongManager:
             mark_pos = Unit.core_pos.add(Direction.NORTHWEST).add(Direction.NORTHWEST)
             mark_id = ct.get_tile_building_id(mark_pos)
             cls.my_id = ct.get_marker_value(mark_id)
+            Debug.tee(f'my id from marker is {cls.my_id}')
 
     @classmethod
     def run(cls):
-        if Globals.my_type == EntityType.BUILDER_BOT:
-            Debug.tee(f'my id from marker is {cls.my_id}')
 
         ct = Globals.ct
 
@@ -30166,16 +30189,15 @@ class PongManager:
             if need > 0:
                 ct.convert(min(need // 4, ax))
 
-            # flush any pending markers whose target round has arrived
+            # flush pending
             while cls.pending_markers and cls.pending_markers[0][0] <= Globals.round:
                 _, mark_pos, mark_id_val = cls.pending_markers.popleft()
                 ct.place_marker(mark_pos, mark_id_val)
 
-        # --- pause buffer at round 30 ---
+        # pause
         if cls.PAUSE_ROUND <= Globals.round < cls.PAUSE_ROUND + cls.PAUSE_DURATION:
             return
 
-        # --- offset round lookup after the pause ---
         effective_round = Globals.round
         if Globals.round >= cls.PAUSE_ROUND + cls.PAUSE_DURATION:
             effective_round = Globals.round - cls.PAUSE_DURATION
@@ -30191,7 +30213,6 @@ class PongManager:
 
     @classmethod
     def dispatch(cls, action):
-        """Dispatch a single action. Returns True if succeeded, False if failed."""
         if action[0] == 'move':
             return cls.handle_move(action[1:])
         else:

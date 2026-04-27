@@ -18,7 +18,7 @@ from Generated import *
 {% from 'bbot/mode.j2' import Mode %}
 
 
-    class GunnerDirectionInfo:
+class GunnerDirectionInfo:
     __slots__ = ('direction', 'banned', 'enemy_building_hp', 'enemy_bot_hp', 'has_enemy_turret')
 
     @staticmethod
