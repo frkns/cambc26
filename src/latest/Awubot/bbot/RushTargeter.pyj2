@@ -118,8 +118,6 @@ class RushTargeter:
                     return funPos, stuff[1] 
                 else:
                     return Explore.get_target(),'M' #move
-            if (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
-                return Symmetry.enemy_core_pos,'M' #move
         elif Builder.mode == {{ Mode.EARLY_RUSH }}:
             return Symmetry.sym_pos(Unit.core_pos),'M' #move
         return None

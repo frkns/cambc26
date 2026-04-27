@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # latest,  @ 2026-04-26 19:36:44 (local)
+=======
+# latest,  @ 2026-04-26 15:44:49 (local)
+>>>>>>> rushTests2
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -6324,7 +6328,7 @@ class Constants:
 
     AXIONITE_START: int = 100 # Start producing axionite at this round
 
-    RUSH_OVER: int = 500 # stop rush attempt now
+    HEAL_OVER: int = 1200 # stop heal attempt now
 
     MAX_HP_MAP: dict[EntityType, int] = {
         EntityType.BUILDER_BOT: 40,
@@ -31077,8 +31081,6 @@ class RushTargeter:
                     return funPos, stuff[1] 
                 else:
                     return Explore.get_target(),'M' #move
-            if (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
-                return Symmetry.enemy_core_pos,'M' #move
         elif Builder.mode == 2:
             return Symmetry.sym_pos(Unit.core_pos),'M' #move
         return None
@@ -34978,7 +34980,7 @@ class SpawnManager:
         ti, ax = ct.get_global_resources()
         bot_ti, bot_ax = ct.get_builder_bot_cost()
 
-        if Globals.round <= 10 and cls.num_spawned < 5:
+        if Globals.round <= 10 and cls.num_spawned < 4:
             return True
 
         mass = 80 if cls.num_spawned < 10 else 200
@@ -36034,18 +36036,35 @@ class Builder(Unit):
         Symmetry.run_sym_check()
 
         if cls.mode == 0:
+<<<<<<< HEAD
             if Globals.round in [2,3]:
                 cls.mode = 2
                 Explore.target = Explore.new_target()
             elif Globals.round in [4]:
+=======
+            """
+            if Globals.round in [4,5]:
+                cls.mode = 2
+                Explore.target = Explore.new_target()
+            """
+            
+            if Globals.round in [3]:
+>>>>>>> rushTests2
                 cls.mode = 3
                 Explore.target = Explore.new_target()
             else:
                 cls.mode = 1
-        if Globals.round >= Constants.RUSH_OVER:
+        if cls.mode != 2 and cls.mode != 3 and (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
+            cls.mode = 2
+            Explore.target = Explore.new_target()
+        if cls.mode == 3 and Globals.round >= Constants.HEAL_OVER:
             cls.mode = 1
+<<<<<<< HEAD
             # Explore.target = Explore.new_target()
 
+=======
+            Explore.target = Explore.new_target()
+>>>>>>> rushTests2
         print("Mode:", cls.mode)
 
 
