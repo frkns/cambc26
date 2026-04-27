@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-27 14:59:52 (local)
+# latest,  @ 2026-04-27 16:16:54 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -358,7 +358,7 @@ class BfsBureau:
                 w = 1000000
                 cls.passable_int &= ~bit
 
-            weight[idx] = max(weight[idx], w)
+            weight[idx] = w
 
             if (
                 ti.env == Environment.EMPTY and
@@ -6190,7 +6190,7 @@ class BurnManager:
             tiNeeded = builderCost - ti
             axNeeded = max(0, math.ceil(tiNeeded/4))
             
-            if axNeeded > ax and axNeeded > 0 and ax > 1:
+            if axNeeded > 0 and ax > 1:
                 ct.convert(min(axNeeded, ax - 1))
             
     
@@ -6258,7 +6258,8 @@ class Comms:
             Comms.handle_simple1(((val >> 30) & 1), ((val >> 29) & 1), ((val >> 28) & 1), ((val >> 22) & 63), ((val >> 16) & 63))
             return
 
-        assert False
+        # Unknown message type — ignore rather than crash.
+        print(f"Comms: unknown message type {t}", file=sys.stderr)
 
 
 # ============================================================
@@ -30239,15 +30240,15 @@ class PatrolTargeter:
                 if Globals.round - cls.lastHitRound > 10:
                     cls.recentHits.clear()
                     active_targets = Map.harvester_set
-                    
-                return None
-            else:
-                # Choose a random one of the targets we haven't visited recently
-                i = random.choice(list(active_targets))
-                x, y = ((i) // 56 - 3), ((i) % 56 - 3)
-                ti = Map.tile_info[x][y]
-                if ti.is_building_ally:
-                    return Position(x, y)
+                else:
+                    return None
+
+            # Choose a random one of the targets we haven't visited recently
+            i = random.choice(list(active_targets))
+            x, y = ((i) // 56 - 3), ((i) % 56 - 3)
+            ti = Map.tile_info[x][y]
+            if ti.is_building_ally:
+                return Position(x, y)
 
         return None
 
@@ -31103,6 +31104,7 @@ class RouteToCore:
             if coolPos == None:
                 cls.give_up(True)
                 StateMoveTo.run(Explore.get_target()) # new
+                return None
             valid_pos_set = set([coolPos]) 
             bridge_dist, first_target = BfsBureau.find_bridge_route(
                 cls.from_pos,
@@ -31131,9 +31133,26 @@ class RouteToCore:
             Debug.tee("first_target is None: giving up")
             if cls.give_up(True):
                 StateMoveTo.run(Explore.get_target()) # new
-            return
+            return None
 
         target = Position(*first_target)
+
+        # Look-ahead: if target is a shield (ally conveyor feeding a harvester),
+        # verify we can continue from it before bridging onto it. Otherwise we'd
+        # leave a dangling bridge with no way forward.
+        _ti = (((target.x) + 3) * 56 + ((target.y) + 3))
+        if BfsBureau.harvester_feeder[_ti]:
+            _, _ahead_first = BfsBureau.find_bridge_route(
+                target,
+                DarkForest.core_sink_set,
+                avoid_pos = cls.pathFindingKill,
+            )
+            if _ahead_first is None:
+                Debug.tee("RouteToCore: shield first_target with no continuation, giving up")
+                if cls.give_up(True):
+                    StateMoveTo.run(Explore.get_target())
+                return
+
         Debug.diline(cls.from_pos, target, Color.GREEN)
 
         if cls.from_pos.distance_squared(target) == 1:
@@ -31206,7 +31225,7 @@ class RouteToCore:
             cls.killed.add(from_pos)
             if Pathfinder.given_up:
                 cls.pathFindingKill.add(enc)
-            from_pos = cls.prevRoute.pop()
+            cls.from_pos = cls.prevRoute.pop()
             print("RouteToCore: backtracking to", cls.from_pos)
             cls.backTracking = True
             return False
@@ -31377,6 +31396,23 @@ class RouteToFoundry:
             return
 
         target = Position(*first_target)
+
+        # Look-ahead: if target is a shield (ally conveyor feeding a harvester),
+        # verify we can continue from it before bridging onto it. Otherwise we'd
+        # leave a dangling bridge with no way forward.
+        _ti = (((target.x) + 3) * 56 + ((target.y) + 3))
+        if BfsBureau.harvester_feeder[_ti]:
+            _, _ahead_first = BfsBureau.find_bridge_route_avoid_ti_adj(
+                target,
+                target_set,
+                avoid_pos = RouteToCore.pathFindingKill,
+            )
+            if _ahead_first is None:
+                Debug.tee("RouteToFoundry: shield first_target with no continuation, giving up")
+                if cls.give_up():
+                    StateMoveTo.run(Explore.get_target())
+                return
+
         Debug.diline(cls.from_pos, target, Color.GREEN)
 
         if cls.from_pos.distance_squared(target) == 1:
@@ -31641,13 +31677,13 @@ class RouteToFoundryInput:
 
     @classmethod
     def do_routing(cls):
-        print("RouteToFoundryInput: routing from", cls.from_pos,
-              "ax=" + str(cls._is_ax),
-              "target=",((cls._target) // 56 - 3), ((cls._target) % 56 - 3))
         if cls.should_give_up():
             if cls.give_up():
                 StateMoveTo.run(Explore.get_target())
             return
+        print("RouteToFoundryInput: routing from", cls.from_pos,
+              "ax=" + str(cls._is_ax),
+              "target=", cls._target)
 
         dsq = Globals.my_pos.distance_squared(cls.from_pos)
         if Globals.ct.get_action_cooldown() == 0 and dsq <= 2:
@@ -31732,7 +31768,7 @@ class RushTargeter:
                         continue
                     env = ti.env
                     thepos = Position(x, y)
-                    if OreExecutive.state[thepos] == 2: #killed
+                    if OreExecutive.state.get(thepos, 0) == 2: #killed
                         continue
                     if ti.entity_type in [EntityType.FOUNDRY]:
                         if thepos in cls.killed:
@@ -31939,9 +31975,12 @@ class SentinelDirectionPicker:
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info0.cosine_sim = u1 * 0.0 + u2 * -1.0
+            if mu > 0:
+                u1 /= mu
+                u2 /= mu
+                info0.cosine_sim = u1 * 0.0 + u2 * -1.0
+            else:
+                info0.cosine_sim = 0
 
             infos.append(info0)
             info1 = SentinelDirectionInfo()
@@ -31953,9 +31992,12 @@ class SentinelDirectionPicker:
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info1.cosine_sim = u1 * 0.7071067811865475 + u2 * -0.7071067811865475
+            if mu > 0:
+                u1 /= mu
+                u2 /= mu
+                info1.cosine_sim = u1 * 0.7071067811865475 + u2 * -0.7071067811865475
+            else:
+                info1.cosine_sim = 0
 
             infos.append(info1)
             info2 = SentinelDirectionInfo()
@@ -31967,9 +32009,12 @@ class SentinelDirectionPicker:
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info2.cosine_sim = u1 * 1.0 + u2 * 0.0
+            if mu > 0:
+                u1 /= mu
+                u2 /= mu
+                info2.cosine_sim = u1 * 1.0 + u2 * 0.0
+            else:
+                info2.cosine_sim = 0
 
             infos.append(info2)
             info3 = SentinelDirectionInfo()
@@ -31981,9 +32026,12 @@ class SentinelDirectionPicker:
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info3.cosine_sim = u1 * 0.7071067811865475 + u2 * 0.7071067811865475
+            if mu > 0:
+                u1 /= mu
+                u2 /= mu
+                info3.cosine_sim = u1 * 0.7071067811865475 + u2 * 0.7071067811865475
+            else:
+                info3.cosine_sim = 0
 
             infos.append(info3)
             info4 = SentinelDirectionInfo()
@@ -31995,9 +32043,12 @@ class SentinelDirectionPicker:
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info4.cosine_sim = u1 * 0.0 + u2 * 1.0
+            if mu > 0:
+                u1 /= mu
+                u2 /= mu
+                info4.cosine_sim = u1 * 0.0 + u2 * 1.0
+            else:
+                info4.cosine_sim = 0
 
             infos.append(info4)
             info5 = SentinelDirectionInfo()
@@ -32009,9 +32060,12 @@ class SentinelDirectionPicker:
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info5.cosine_sim = u1 * -0.7071067811865475 + u2 * 0.7071067811865475
+            if mu > 0:
+                u1 /= mu
+                u2 /= mu
+                info5.cosine_sim = u1 * -0.7071067811865475 + u2 * 0.7071067811865475
+            else:
+                info5.cosine_sim = 0
 
             infos.append(info5)
             info6 = SentinelDirectionInfo()
@@ -32023,9 +32077,12 @@ class SentinelDirectionPicker:
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info6.cosine_sim = u1 * -1.0 + u2 * 0.0
+            if mu > 0:
+                u1 /= mu
+                u2 /= mu
+                info6.cosine_sim = u1 * -1.0 + u2 * 0.0
+            else:
+                info6.cosine_sim = 0
 
             infos.append(info6)
             info7 = SentinelDirectionInfo()
@@ -32037,9 +32094,12 @@ class SentinelDirectionPicker:
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info7.cosine_sim = u1 * -0.7071067811865475 + u2 * -0.7071067811865475
+            if mu > 0:
+                u1 /= mu
+                u2 /= mu
+                info7.cosine_sim = u1 * -0.7071067811865475 + u2 * -0.7071067811865475
+            else:
+                info7.cosine_sim = 0
 
             infos.append(info7)
 
@@ -32053,9 +32113,12 @@ class SentinelDirectionPicker:
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info0.cosine_sim = u1 * 0.0 + u2 * -1.0
+            if mu > 0:
+                u1 /= mu
+                u2 /= mu
+                info0.cosine_sim = u1 * 0.0 + u2 * -1.0
+            else:
+                info0.cosine_sim = 0
 
             infos.append(info0)
             info1 = SentinelDirectionInfo()
@@ -32067,9 +32130,12 @@ class SentinelDirectionPicker:
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info1.cosine_sim = u1 * 0.7071067811865475 + u2 * -0.7071067811865475
+            if mu > 0:
+                u1 /= mu
+                u2 /= mu
+                info1.cosine_sim = u1 * 0.7071067811865475 + u2 * -0.7071067811865475
+            else:
+                info1.cosine_sim = 0
 
             infos.append(info1)
             info2 = SentinelDirectionInfo()
@@ -32081,9 +32147,12 @@ class SentinelDirectionPicker:
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info2.cosine_sim = u1 * 1.0 + u2 * 0.0
+            if mu > 0:
+                u1 /= mu
+                u2 /= mu
+                info2.cosine_sim = u1 * 1.0 + u2 * 0.0
+            else:
+                info2.cosine_sim = 0
 
             infos.append(info2)
             info3 = SentinelDirectionInfo()
@@ -32095,9 +32164,12 @@ class SentinelDirectionPicker:
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info3.cosine_sim = u1 * 0.7071067811865475 + u2 * 0.7071067811865475
+            if mu > 0:
+                u1 /= mu
+                u2 /= mu
+                info3.cosine_sim = u1 * 0.7071067811865475 + u2 * 0.7071067811865475
+            else:
+                info3.cosine_sim = 0
 
             infos.append(info3)
             info4 = SentinelDirectionInfo()
@@ -32109,9 +32181,12 @@ class SentinelDirectionPicker:
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info4.cosine_sim = u1 * 0.0 + u2 * 1.0
+            if mu > 0:
+                u1 /= mu
+                u2 /= mu
+                info4.cosine_sim = u1 * 0.0 + u2 * 1.0
+            else:
+                info4.cosine_sim = 0
 
             infos.append(info4)
             info5 = SentinelDirectionInfo()
@@ -32123,9 +32198,12 @@ class SentinelDirectionPicker:
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info5.cosine_sim = u1 * -0.7071067811865475 + u2 * 0.7071067811865475
+            if mu > 0:
+                u1 /= mu
+                u2 /= mu
+                info5.cosine_sim = u1 * -0.7071067811865475 + u2 * 0.7071067811865475
+            else:
+                info5.cosine_sim = 0
 
             infos.append(info5)
             info6 = SentinelDirectionInfo()
@@ -32137,9 +32215,12 @@ class SentinelDirectionPicker:
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info6.cosine_sim = u1 * -1.0 + u2 * 0.0
+            if mu > 0:
+                u1 /= mu
+                u2 /= mu
+                info6.cosine_sim = u1 * -1.0 + u2 * 0.0
+            else:
+                info6.cosine_sim = 0
 
             infos.append(info6)
             info7 = SentinelDirectionInfo()
@@ -32151,9 +32232,12 @@ class SentinelDirectionPicker:
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
-            info7.cosine_sim = u1 * -0.7071067811865475 + u2 * -0.7071067811865475
+            if mu > 0:
+                u1 /= mu
+                u2 /= mu
+                info7.cosine_sim = u1 * -0.7071067811865475 + u2 * -0.7071067811865475
+            else:
+                info7.cosine_sim = 0
 
             infos.append(info7)
 
@@ -35901,6 +35985,8 @@ class StateBuildTurret:
 
             ti = Map.tile_info[x][y]
             if ti == None:
+                x += dx
+                y += dy
                 continue
             if ti.env == Environment.WALL:
                 break
@@ -37605,7 +37691,8 @@ class VisionTracker:
 
                 # can't really use sight_flowing because of backup
                 if trans.node_kind == 0 and (trans.flow > 0):
-                    if DarkForest.nodes[idx].up is None:
+                    _node = DarkForest.nodes[idx]
+                    if _node is None or _node.up is None:
                         if Globals.ct.get_stored_resource(trans.ti.building_id) in (ResourceType.TITANIUM, ResourceType.REFINED_AXIONITE):
                             if target_ti is not None and target_ti.entity_type in (None, EntityType.ROAD, EntityType.MARKER):
                                 cls.disconnected_roots.append(trans)

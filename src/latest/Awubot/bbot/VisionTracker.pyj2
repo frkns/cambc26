@@ -224,7 +224,8 @@ class VisionTracker:
 
                 # can't really use sight_flowing because of backup
                 if trans.node_kind == {{ Kind.NONE }} and (trans.flow > 0):
-                    if DarkForest.nodes[idx].up is None:
+                    _node = DarkForest.nodes[idx]
+                    if _node is None or _node.up is None:
                         if Globals.ct.get_stored_resource(trans.ti.building_id) in (ResourceType.TITANIUM, ResourceType.REFINED_AXIONITE):
                             if target_ti is not None and target_ti.entity_type in (None, EntityType.ROAD, EntityType.MARKER):
                                 cls.disconnected_roots.append(trans)

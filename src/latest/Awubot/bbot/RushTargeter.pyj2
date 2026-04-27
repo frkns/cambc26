@@ -89,7 +89,7 @@ class RushTargeter:
                         continue
                     env = ti.env
                     thepos = Position(x, y)
-                    if OreExecutive.state[thepos] == 2: #killed
+                    if OreExecutive.state.get(thepos, 0) == 2: #killed
                         continue
                     if ti.entity_type in [EntityType.FOUNDRY]:
                         if thepos in cls.killed:

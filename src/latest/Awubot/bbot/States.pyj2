@@ -146,6 +146,8 @@ class StateBuildTurret:
 
             ti = Map.tile_info[x][y]
             if ti == None:
+                x += dx
+                y += dy
                 continue
             if ti.env == Environment.WALL:
                 break

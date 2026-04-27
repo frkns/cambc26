@@ -91,7 +91,7 @@ class BfsBureau:
                 w = {{ INF }}
                 cls.passable_int &= ~bit
 
-            weight[idx] = max(weight[idx], w)
+            weight[idx] = w
 
             if (
                 ti.env == Environment.EMPTY and

@@ -106,12 +106,15 @@ class SentinelDirectionPicker:
 
             u1, u2 = ecore.x - sx, ecore.y - sy
             mu = math.hypot(u1, u2)
-            u1 /= mu
-            u2 /= mu
             {% set v1, v2 = dir.delta() %}
             {% set mv = (v1 * v1 + v2 * v2) ** 0.5 %}
             {% set v1, v2 = v1/mv, v2/mv %}
-            info{{ i }}.cosine_sim = u1 * {{ v1 }} + u2 * {{ v2 }}
+            if mu > 0:
+                u1 /= mu
+                u2 /= mu
+                info{{ i }}.cosine_sim = u1 * {{ v1 }} + u2 * {{ v2 }}
+            else:
+                info{{ i }}.cosine_sim = 0
         {% endmacro %}
 
         {% macro gen(need_ban) %}

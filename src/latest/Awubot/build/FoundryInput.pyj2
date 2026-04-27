@@ -333,13 +333,13 @@ class RouteToFoundryInput:
 
     @classmethod
     def do_routing(cls):
-        print("RouteToFoundryInput: routing from", cls.from_pos,
-              "ax=" + str(cls._is_ax),
-              "target=",{{decode_pos('cls._target') | join(', ')}})
         if cls.should_give_up():
             if cls.give_up():
                 StateMoveTo.run(Explore.get_target())
             return
+        print("RouteToFoundryInput: routing from", cls.from_pos,
+              "ax=" + str(cls._is_ax),
+              "target=", cls._target)
 
         dsq = Globals.my_pos.distance_squared(cls.from_pos)
         if Globals.ct.get_action_cooldown() == 0 and dsq <= 2:

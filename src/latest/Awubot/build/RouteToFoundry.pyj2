@@ -159,6 +159,23 @@ class RouteToFoundry:
             return
 
         target = Position(*first_target)
+
+        # Look-ahead: if target is a shield (ally conveyor feeding a harvester),
+        # verify we can continue from it before bridging onto it. Otherwise we'd
+        # leave a dangling bridge with no way forward.
+        _ti = {{ encode_pos('target.x', 'target.y') }}
+        if BfsBureau.harvester_feeder[_ti]:
+            _, _ahead_first = BfsBureau.find_bridge_route_avoid_ti_adj(
+                target,
+                target_set,
+                avoid_pos = RouteToCore.pathFindingKill,
+            )
+            if _ahead_first is None:
+                Debug.tee("RouteToFoundry: shield first_target with no continuation, giving up")
+                if cls.give_up():
+                    StateMoveTo.run(Explore.get_target())
+                return
+
         Debug.diline(cls.from_pos, target, Color.GREEN)
 
         if cls.from_pos.distance_squared(target) == 1:
