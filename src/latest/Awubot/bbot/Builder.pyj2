@@ -33,6 +33,8 @@ class Builder({{ super() }}):
     is_routing_active: bool = False
     route_from_pos: Position
 
+    should_fire: bool
+
     @classmethod
     def init(cls):
         {{ super() }}.init()
@@ -131,6 +133,8 @@ class Builder({{ super() }}):
             cls.route_from_pos = RouteTo{{ thing }}.from_pos
         {% endfor %}
 
+        cls.should_fire = Attacker.should_fire(Globals.my_pos)
+
 
 
     @classmethod
@@ -172,7 +176,8 @@ class Builder({{ super() }}):
         # if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos) and Map.num_enemies == 0:
         #     Globals.ct.fire(my_pos)
         
-        if Map.num_enemies > 0 or cls.min_dist_to_a_core <= 36:
+        # if Map.num_enemies > 0 or cls.min_dist_to_a_core <= 36:
+        if cls.min_dist_to_a_core <= 36:
             RoadspamExecutor.execute_roadspam_attempt()
 
 
@@ -214,12 +219,10 @@ class Builder({{ super() }}):
             Debug.dot(takedownpos, Color.PURPLE)
             return 'BuildGunner', takedownpos, None
 
-
         sitterpos = SitterTakedown.get_best_launcher_position()
         if sitterpos is not None:
             Debug.dot(sitterpos, Color.PURPLE)
             return 'BuildLauncher', sitterpos
-
 
         if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
@@ -238,6 +241,9 @@ class Builder({{ super() }}):
                 
         attackpos = Attacker.get_target()
         secondaryattackpos = Attacker.get_secondary_target()
+
+        if cls.should_fire:
+            return 'Attack', Globals.my_pos, 'ShouldFire'
         
         # preroute here
         if cls.is_routing_active and secondaryattackpos == cls.route_from_pos:
@@ -253,7 +259,7 @@ class Builder({{ super() }}):
         if RouteToCore.is_active:
             return ('Route',)
 
-        if misinfo is not None and not (RouteToCore.backTracking or RouteToFoundry.backTracking and not RouteToCore.is_active and not RouteToFoundry.is_active):
+        if misinfo is not None and not ((RouteToCore.backTracking or RouteToFoundry.backTracking) and not RouteToCore.is_active and not RouteToFoundry.is_active):
             if misinfo.on_ally_side:
                 return 'Reroute', misinfo.position
             else:
@@ -263,9 +269,9 @@ class Builder({{ super() }}):
         if trans is not None:
             tpos = trans.target
 
-            # if Util.dist_sq(tpos, Symmetry.enemy_core_pos) \
-            #         < Util.dist_sq(tpos, Unit.core_pos):
-            #     return 'BuildTurret', tpos 
+            if Util.dist_sq(tpos, Symmetry.enemy_core_pos) \
+                    < Util.dist_sq(tpos, Unit.core_pos):
+                return 'BuildTurret', tpos 
 
             # if tpos not in RouteToCore.killed:
             if True:

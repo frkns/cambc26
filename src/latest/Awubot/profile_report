@@ -1,26 +1,27 @@
 Mode: 1
+(possible) heal target best.position=Position(x=38, y=9) best.building_heal=0 best.building_hp=20
 total_heal=0
-running: MoveTo  @ Position(x=4, y=23) Patrol
-tag='Patrol'
- *  Profiling report A:
-[A][builder_bot] BfsBureau.bfs20: avg=146.6µs, stddev=34.4µs, max=216.0µs, count=94
-[A][builder_bot] BfsBureau.find_route: avg=107.3µs, stddev=117.9µs, max=512.0µs, count=94
-[A][builder_bot] BfsBureau.update: avg=81.8µs, stddev=12.3µs, max=110.0µs, count=94
-[A][builder_bot] DarkForest.fcompute: avg=111.0µs, stddev=6.0µs, max=147.0µs, count=94
-[A][builder_bot] HarvesterAdjacent.fill: avg=28.6µs, stddev=15.5µs, max=56.0µs, count=94
-[A][builder_bot] HealExecutor.execute_heal_attempt: avg=29.9µs, stddev=7.4µs, max=42.0µs, count=93
-[A][builder_bot] HealTargeter.fill: avg=62.5µs, stddev=12.7µs, max=95.0µs, count=94
-[A][builder_bot] Map.fill_tile_info: avg=496.3µs, stddev=113.4µs, max=681.0µs, count=94
-[A][builder_bot] Marker.attempt_mark: avg=22.7µs, stddev=3.5µs, max=31.0µs, count=93
-[A][builder_bot] OreExecutive.fill: avg=32.6µs, stddev=6.5µs, max=61.0µs, count=94
-[A][builder_bot] SitterTakedown.fill: avg=47.4µs, stddev=18.4µs, max=88.0µs, count=94
-[A][builder_bot] StalkTargeter.get_best_target: avg=17.4µs, stddev=11.6µs, max=36.0µs, count=39
-[A][builder_bot] StateBuildGunner: avg=132.2µs, stddev=28.3µs, max=179.0µs, count=5
-[A][builder_bot] StateBuildShield: avg=91.0µs, stddev=10.7µs, max=106.0µs, count=3
-[A][builder_bot] StateMoveTo: avg=133.8µs, stddev=123.6µs, max=540.0µs, count=86
-[A][builder_bot] VisionTracker.fill: avg=25.5µs, stddev=5.9µs, max=49.0µs, count=94
-[A][builder_bot] canonical_ally: avg=5.5µs, stddev=2.4µs, max=13.0µs, count=198
-scale ratio 3.77
+running: MoveTo  @ Position(x=40, y=8) [core healer]
+tag='[core healer]'
+ *  Profiling report B:
+[B][builder_bot] BfsBureau.bfs20: avg=191.7µs, stddev=8.1µs, max=258.0µs, count=663
+[B][builder_bot] BfsBureau.find_route: avg=40.8µs, stddev=18.8µs, max=104.0µs, count=663
+[B][builder_bot] BfsBureau.find_route{ variant_suffix }: avg=26.9µs, stddev=14.8µs, max=85.0µs, count=592
+[B][builder_bot] BfsBureau.update: avg=86.4µs, stddev=3.6µs, max=108.0µs, count=663
+[B][builder_bot] BfsBureau.update_enclosed_regions: avg=26.3µs, stddev=2.6µs, max=56.0µs, count=663
+[B][builder_bot] Comms.handle_message: avg=4.9µs, stddev=1.9µs, max=24.0µs, count=994
+[B][builder_bot] DarkForest.fcompute: avg=148.1µs, stddev=22.1µs, max=195.0µs, count=663
+[B][builder_bot] HarvesterAdjacent.fill: avg=102.9µs, stddev=74.1µs, max=300.0µs, count=663
+[B][builder_bot] HealExecutor.execute_heal_attempt: avg=20.8µs, stddev=1.5µs, max=38.0µs, count=662
+[B][builder_bot] HealTargeter.fill: avg=70.7µs, stddev=10.1µs, max=97.0µs, count=663
+[B][builder_bot] Map.fill_tile_info: avg=653.4µs, stddev=49.2µs, max=878.0µs, count=663
+[B][builder_bot] Marker.attempt_mark: avg=18.9µs, stddev=1.5µs, max=31.0µs, count=662
+[B][builder_bot] OreExecutive.fill: avg=34.0µs, stddev=2.4µs, max=59.0µs, count=663
+[B][builder_bot] SentinelDirectionPicker.get_best_info (x5): avg=53.2µs, stddev=39.5µs, max=123.0µs, count=663
+[B][builder_bot] SitterTakedown.fill: avg=49.2µs, stddev=8.8µs, max=74.0µs, count=663
+[B][builder_bot] StateMoveTo: avg=67.1µs, stddev=20.0µs, max=132.0µs, count=663
+[B][builder_bot] VisionTracker.fill: avg=58.9µs, stddev=15.1µs, max=95.0µs, count=663
+[B][builder_bot] canonical_ally: avg=5.0µs, stddev=2.2µs, max=19.0µs, count=1210
+scale ratio 12.62
 
 Road
-ID1909

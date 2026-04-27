@@ -19,9 +19,15 @@ from Generated import *
 
 
 class Unit:
+    {% from 'hardcode/config.j2' import HARDCODE_ENABLED %}
+
     core_pos: Position
     core_pos_list: list[tuple[int, int]]
     core_pos_set: set[int]
+
+    {% if HARDCODE_ENABLED %}
+    on_pong: bool = False
+    {% endif %}
 
     @staticmethod
     def core_pos_init():
@@ -48,15 +54,33 @@ class Unit:
         random.seed(Globals.my_id)
         BfsBureau.init()
 
-        if Globals.my_type == EntityType.BUILDER_BOT:
+        if Globals.my_type in (EntityType.BUILDER_BOT, EntityType.CORE):
             Unit.core_pos_init()
             Symmetry.predict_enemy_core()
         else:
             cls.core_pos_set = set()
 
+        {% if HARDCODE_ENABLED %}
+        if Globals.my_type in (EntityType.BUILDER_BOT, EntityType.CORE) and (Map.maxX, Map.maxY) == (49, 34):
+            cx, cy = cls.core_pos.x, cls.core_pos.y
+            isA = Globals.ct.get_team() == Team.A
+
+            if (isA and (cx, cy) == (8, 8)) or (not isA and (cx, cy) == (41, 8)):
+                PongManager.init()
+                Debug.log('PONG detected!!')
+                cls.on_pong = True
+        {% endif %}
+
 
     @classmethod
     def start_turn(cls):
+        {% if HARDCODE_ENABLED %}
+        if cls.on_pong:
+            Globals.start_tick()
+            PongManager.run()
+            raise NotImplementedError
+        {% endif %}
+
         Globals.start_tick()
         MarketMaker.refresh()
 

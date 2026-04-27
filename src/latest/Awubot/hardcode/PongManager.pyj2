@@ -1,0 +1,156 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+{% from 'bbot/mode.j2' import Mode %}
+
+
+class PongManager:
+    {% from 'hardcode/config.j2' import HARDCODE_ENABLED %}
+    {% if HARDCODE_ENABLED %}
+    {% import 'hardcode/data.j2' as raw_data %}
+
+
+    @classmethod
+    def init(cls):
+        ct = Globals.ct 
+
+        if ct.get_team() == Team.A:
+            cls.data = {{ raw_data.teamA }}
+            cls.PAUSE_ROUND = 30
+            cls.PAUSE_DURATION = 10
+        else:
+            cls.data = {{ raw_data.teamB }}
+            cls.PAUSE_ROUND = 30
+            cls.PAUSE_DURATION = 10
+
+        if Globals.my_type == EntityType.CORE:
+            id_set = set(i for round, i in cls.data.keys() if i is not None)
+            cls.id_ord = tuple(sorted(id_set))
+            cls.num_spawned = 0
+            cls.my_id = None
+            cls.pending_markers = deque()  # (target_round, pos, value)
+
+        if Globals.my_type == EntityType.BUILDER_BOT:
+            mark_pos = Unit.core_pos.add(Direction.NORTHWEST).add(Direction.NORTHWEST)
+            mark_id = ct.get_tile_building_id(mark_pos)
+            cls.my_id = ct.get_marker_value(mark_id)
+            Debug.tee(f'my id from marker is {cls.my_id}')
+
+    @classmethod
+    def run(cls):
+
+        ct = Globals.ct
+
+        my_id = cls.my_id  # changed
+        if Globals.my_type == EntityType.CORE:
+            my_id = None
+            ti, ax = ct.get_global_resources()
+            req = int(ct.get_scale_percent())
+            need = req - ti 
+            if need > 0:
+                ct.convert(min(need // 4, ax))
+
+            # flush pending
+            while cls.pending_markers and cls.pending_markers[0][0] <= Globals.round:
+                _, mark_pos, mark_id_val = cls.pending_markers.popleft()
+                ct.place_marker(mark_pos, mark_id_val)
+
+        # pause
+        if cls.PAUSE_ROUND <= Globals.round < cls.PAUSE_ROUND + cls.PAUSE_DURATION:
+            return
+
+        effective_round = Globals.round
+        if Globals.round >= cls.PAUSE_ROUND + cls.PAUSE_DURATION:
+            effective_round = Globals.round - cls.PAUSE_DURATION
+
+        key = (effective_round, my_id)
+        if key not in cls.data:
+            return
+
+        round_actions = cls.data[key]
+
+        for action in round_actions:
+            cls.dispatch(action)
+
+    @classmethod
+    def dispatch(cls, action):
+        if action[0] == 'move':
+            return cls.handle_move(action[1:])
+        else:
+            assert action[0] == 'build'
+            return cls.handle_build(action[1:])
+
+    @classmethod
+    def handle_move(cls, lst):
+        ct = Globals.ct
+        tuplepos = lst[0]
+        pos = Position(*tuplepos)
+
+        dir = ct.get_position().direction_to(pos)
+        if ct.can_move(dir):
+            ct.move(dir)
+            return True
+        else:
+            {# /* Debug.tee(f'failed moving to {pos}') */ #}
+            return False
+
+    @classmethod
+    def handle_build(cls, lst):
+        ct = Globals.ct
+        etype, tuplepos, *xargs = lst
+        pos = Position(*tuplepos)
+
+        if etype == EntityType.BUILDER_BOT:
+            if ct.can_spawn(pos):
+                mark_pos = Globals.my_pos.add(Direction.NORTHWEST).add(Direction.NORTHWEST)
+                mark_id_val = cls.id_ord[cls.num_spawned]
+                cls.num_spawned += 1
+                # queue the marker placement for next round instead of placing immediately
+                cls.pending_markers.append((Globals.round + 1, mark_pos, mark_id_val))
+                ct.spawn_builder(pos)
+            else:
+                Debug.tee(f'couldnt spawn {pos}')
+            return
+
+        # if ct.can_destroy(pos):
+        #     ct.destroy(pos)
+
+        {% for t in EntityType %}
+        if etype == {{ t }}:
+            if ct.can_build_{{ t.value }}(pos, *xargs):
+                ct.build_{{ t.value }}(pos, *xargs)
+                return True
+            else:
+                {% if t == EntityType.ARMOURED_CONVEYOR %}
+                Debug.tee(f'skipping armoured - might build normal instead {Globals.round}')
+                if ct.can_build_conveyor(pos, *xargs):
+                    ct.build_conveyor(pos, *xargs)
+                {# /* {% elif t not in no_core_passable_set %} */ #}
+                {% else %}
+                if ct.can_destroy(pos):
+                    ct.destroy(pos)
+                if ct.can_build_{{ t.value }}(pos, *xargs):
+                    ct.build_{{ t.value }}(pos, *xargs)
+                else:
+                    Debug.tee(f'try destroy, still didnt work {Globals.round} with {{ t }} @ {pos}')
+                {% endif %}
+                return
+        {% endfor %}
+
+    {% else %}
+    pass
+    {% endif %}

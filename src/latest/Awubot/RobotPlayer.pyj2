@@ -64,6 +64,8 @@ class Player:
     def run(self, ct):
         try:
             Entrypoint.run(ct)
+        except NotImplementedError:
+            pass
         except Exception as e:
             Debug.line(Position(0, 0), Color.RED)
 
