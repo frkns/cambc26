@@ -327,8 +327,8 @@ class Builder({{ super() }}):
         dist_ax = {{ INF }} if ax_target is None else my_pos.distance_squared(ax_target)
         dist_stalk = {{ INF }} if stalk_target is None else my_pos.distance_squared(stalk_target)
 
-        if my_pos.distance_squared(Symmetry.enemy_core_pos) > my_pos.distance_squared(Unit.core_pos) or attackpos is None:
-            if (dist_stalk <= 4 or (dist_stalk < dist_ti and dist_stalk < dist_ax)) and cls.mode != {{ Mode.EARLY_RUSH }}:
+        if my_pos.distance_squared(Symmetry.enemy_core_pos) > my_pos.distance_squared(Unit.core_pos) or (attackpos is None and cls.mode != {{ Mode.EARLY_RUSH }}):
+            if (dist_stalk <= 4 or (dist_stalk < dist_ti and dist_stalk < dist_ax)):
                 return 'MoveTo', stalk_target, 'Stalk'
 
         if ax_target is not None and MarketMaker.ax == 0 and cls.mode != {{ Mode.EARLY_RUSH }}:
@@ -340,9 +340,8 @@ class Builder({{ super() }}):
         if ax_target is not None and cls.mode != {{ Mode.EARLY_RUSH }}:
             return 'BuildHarvesterAx', ax_target
 
-
-        if my_pos.distance_squared(Symmetry.enemy_core_pos) > my_pos.distance_squared(Unit.core_pos) or attackpos is None:
-            if stalk_target is not None and cls.mode != {{ Mode.EARLY_RUSH }}:
+        if my_pos.distance_squared(Symmetry.enemy_core_pos) > my_pos.distance_squared(Unit.core_pos) or (attackpos is None and cls.mode != {{ Mode.EARLY_RUSH }}):
+            if stalk_target is not None:
                 return 'MoveTo', stalk_target, 'Stalk'
 
         if cls.min_dist_to_a_core <= 48:
