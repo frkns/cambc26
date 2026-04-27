@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-27 14:56:37 (local)
+# latest,  @ 2026-04-27 14:59:52 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -5923,6 +5923,9 @@ class BuildManager:
     @staticmethod
     def can_afford_harvester() -> bool:
         ti_cost, ax_cost = Globals.ct.get_harvester_cost()
+        
+        
+        ti_cost += int(40 * MarketMaker.scale_ratio)
         
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost

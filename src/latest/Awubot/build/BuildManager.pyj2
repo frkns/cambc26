@@ -21,7 +21,6 @@ from Generated import *
 class BuildManager:
     {% set ti_reserve_map = {
         EntityType.GUNNER: 0,
-        EntityType.HARVESTER: 0,
         EntityType.SENTINEL: 20,
         EntityType.LAUNCHER: 20,
         EntityType.BARRIER: 50
