@@ -18,7 +18,7 @@ from Generated import *
 {% from 'bbot/mode.j2' import Mode %}
 
 
-class GunnerDirectionInfo:
+    class GunnerDirectionInfo:
     __slots__ = ('direction', 'banned', 'enemy_building_hp', 'enemy_bot_hp', 'has_enemy_turret')
 
     @staticmethod
@@ -128,7 +128,7 @@ class GunnerDirectionPicker:
             info{{ i }}.has_enemy_turret = ti.has_turret and not ti.is_building_ally
         else:
             info{{ i }}.has_enemy_turret = False
-        {% endfor %} 
+        {% endfor %}
 
 
 

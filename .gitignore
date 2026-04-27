@@ -42,3 +42,5 @@ __pycache__/
 
 # engine source
 rust_source/
+
+my_troll/

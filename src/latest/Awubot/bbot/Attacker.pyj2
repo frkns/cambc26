@@ -48,7 +48,7 @@ class Attacker:
         #     return None
         # if not cls.should_fire(trans.position):
         #     return None
-        if trans.enemy_bot_bfs_dist_adj == 0:
+        if trans.enemy_bot_dist_adj == 0:
             return None
         return trans.position
 

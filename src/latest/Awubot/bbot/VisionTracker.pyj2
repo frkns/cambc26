@@ -24,7 +24,7 @@ class TransporterInfo:
         'bfs_dist', 'bfs_dist_adj', 'bfs_dist_target_adj', 'flow', 'entity_type',
         'harvester_adjacent', 'is_ally', 'node_kind', 'flowing_into_ally',
         'on_ally_side', 'easily_buildable', 'sight_flowing', 'adjacent_launchers',
-        'enemy_bot_bfs_dist_adj', 'enemy_bot1', 'rand_key'
+        'enemy_bot_dist_adj', 'enemy_bot1', 'rand_key'
     )
 
     @staticmethod
@@ -44,8 +44,8 @@ class TransporterInfo:
         if abs(a.bfs_dist - b.bfs_dist) > 2:
             return a.bfs_dist < b.bfs_dist
 
-        if a.enemy_bot_bfs_dist_adj != b.enemy_bot_bfs_dist_adj:
-            return a.enemy_bot_bfs_dist_adj > b.enemy_bot_bfs_dist_adj
+        if a.enemy_bot_dist_adj != b.enemy_bot_dist_adj:
+            return a.enemy_bot_dist_adj > b.enemy_bot_dist_adj
         
         # factored in with bot_bfs_dist
         # if a.adjacent_launchers != b.adjacent_launchers:
@@ -184,8 +184,8 @@ class VisionTracker:
                 trans.is_ally = ti.is_building_ally
                 trans.sight_flowing = DarkForest.sight_flowing[idx]
                 trans.adjacent_launchers = 0
-                trans.enemy_bot_bfs_dist_adj = BfsBureau.enemy_bot_dist_adj[idx]
-                trans.enemy_bot1 = trans.enemy_bot_bfs_dist_adj <= 1
+                trans.enemy_bot_dist_adj = BfsBureau.enemy_bot_dist_adj[idx]
+                trans.enemy_bot1 = trans.enemy_bot_dist_adj <= 1
                 trans.rand_key = random.random()
 
                 trans.node_kind = DarkForest.node_kind[idx]
