@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-# latest,  @ 2026-04-26 11:50:16 (local)
-=======
-# latest,  @ 2026-04-26 19:20:59 (local)
->>>>>>> main
+# latest,  @ 2026-04-26 19:54:16 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -2198,11 +2194,7 @@ class BfsBureau:
             weight[ti] = pre_weight; 
             return 1000000, None
 
-<<<<<<< HEAD
-        
-=======
 
->>>>>>> main
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = (cls.now_passable_int | _tm) & cls.board_mask
@@ -2391,12 +2383,7 @@ class BfsBureau:
                 break
             _bfs_d += 1
 
-<<<<<<< HEAD
-        
-        weight[ti] = pre_weight
-=======
         weight[ti] = pre_weight; 
->>>>>>> main
         return 1000000, None
 
 
@@ -2790,11 +2777,7 @@ class BfsBureau:
             weight[ti] = pre_weight; 
             return 1000000, None
 
-<<<<<<< HEAD
-        
-=======
 
->>>>>>> main
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = (cls.now_passable_int | _tm) & cls.board_mask
@@ -2983,12 +2966,7 @@ class BfsBureau:
                 break
             _bfs_d += 1
 
-<<<<<<< HEAD
-        
-        weight[ti] = pre_weight
-=======
         weight[ti] = pre_weight; 
->>>>>>> main
         return 1000000, None
 
 
@@ -36534,13 +36512,10 @@ class Builder(Unit):
         
         DarkForest.fcompute()
         
-<<<<<<< HEAD
         
         
         FoundryInputTracker.compute()
         
-=======
->>>>>>> main
 
         
         BfsBureau.update()
@@ -36804,15 +36779,6 @@ class Builder(Unit):
         if ax_target is not None and cls.mode != 2:
             return 'BuildHarvesterAx', ax_target
 
-<<<<<<< HEAD
-        route_pos = HarvesterAdjacent.get_best_route_position()
-        if route_pos is not None and cls.mode != 2:
-            RouteToCore.set_pos(route_pos)
-            if RouteToCore.is_active:
-                
-                return ('Route',)
-=======
->>>>>>> main
 
         if my_pos.distance_squared(Symmetry.enemy_core_pos) > my_pos.distance_squared(Unit.core_pos) or attackpos is None:
             if stalk_target is not None and cls.mode != 2:
