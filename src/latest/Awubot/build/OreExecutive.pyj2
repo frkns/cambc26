@@ -257,17 +257,6 @@ class OreExecutive:
         # Prefer cluster-aware leaf selection when nearby ores form a cluster.
         RouteToFoundry.from_pos = pos
 
-        if OreClusterPlanner.has_cluster():
-            # Offer a cluster-biased target to try_claim_target instead of
-            # the default nearest-leaf heuristic.  We set _foundry_target
-            # directly so try_claim_target's "already claimed" guard still
-            # runs correctly.
-            _candidates = DarkForest.leaf_set - RouteToFoundry.planned_foundry_positions
-            _cluster_leaf = OreClusterPlanner.find_cluster_leaf(_candidates)
-            if _cluster_leaf is not None:
-                print("go_build_ax_harvester: cluster leaf", _cluster_leaf)
-                RouteToFoundry._foundry_target = _cluster_leaf
-                #RouteToFoundry.planned_foundry_positions.add(_cluster_leaf)
 
         RouteToFoundry.try_claim_target()
         foundry_enc = RouteToFoundry._foundry_target

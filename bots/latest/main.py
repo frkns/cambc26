@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-26 19:54:16 (local)
+# latest,  @ 2026-04-26 21:31:31 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -29609,89 +29609,6 @@ class MoveManager:
 
 
 # ============================================================
-# OreClusterPlanner
-# ============================================================
-
-class OreClusterPlanner:
-    CLUSTER_RADIUS_SQ = 36   # ≈ radius-6 circle around builder
-    MIN_TI_ORES       = 2    # minimum titanium ores to call it a cluster
-    MIN_AX_ORES       = 1    # minimum axionite ores
-
-    @classmethod
-    def find_cluster_leaf(cls, candidates: set[int]) -> int | None:
-        """
-        From the set of pre-filtered candidate titanium leaves, return
-        the one that minimises a cluster-weighted score:
-
-            score = min_dist_to_any_ti + 2 * min_dist_to_any_ax
-
-        Axionite distance is weighted more because axionite routing is
-        more constrained (must avoid titanium-adjacent tiles).
-
-        Returns None if there aren't enough nearby ores to form a
-        cluster, or if candidates is empty.
-        """
-        if not candidates:
-            return None
-
-        ti_pos: list[tuple[int, int]] = []
-        ax_pos: list[tuple[int, int]] = []
-
-        my_pos = Globals.my_pos
-        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
-            if my_pos.distance_squared(pos) > cls.CLUSTER_RADIUS_SQ:
-                continue
-            if ti.has_building:
-                continue
-            if ti.env == Environment.ORE_TITANIUM:
-                ti_pos.append((x, y))
-            elif ti.env == Environment.ORE_AXIONITE:
-                ax_pos.append((x, y))
-
-        if len(ti_pos) < cls.MIN_TI_ORES or len(ax_pos) < cls.MIN_AX_ORES:
-            return None     # not a meaningful cluster — use default distance sort
-
-        best_leaf  = None
-        best_score = 1000000
-
-        for leaf in candidates:
-            lx = leaf // 56 - 3
-            ly = leaf % 56  - 3
-
-            ti_tinfo = Map.tile_info[lx][ly]
-            if ti_tinfo is None:
-                continue
-            if ti_tinfo.entity_type == EntityType.BRIDGE:
-                continue    # mirrored guard from _pick_target
-
-            min_d_ti = min(abs(lx - x) + abs(ly - y) for x, y in ti_pos)
-            min_d_ax = min(abs(lx - x) + abs(ly - y) for x, y in ax_pos)
-            score    = min_d_ti + 2 * min_d_ax
-
-            if score < best_score:
-                best_score = score
-                best_leaf  = leaf
-
-        return best_leaf
-
-    @classmethod
-    def has_cluster(cls) -> bool:
-        """Quick check: are there enough nearby ti + ax ores to form a cluster?"""
-        ti_n = ax_n = 0
-        my_pos = Globals.my_pos
-        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
-            if my_pos.distance_squared(pos) > cls.CLUSTER_RADIUS_SQ:
-                continue
-            if ti.has_building:
-                continue
-            if ti.env == Environment.ORE_TITANIUM:
-                ti_n += 1
-            elif ti.env == Environment.ORE_AXIONITE:
-                ax_n += 1
-        return ti_n >= cls.MIN_TI_ORES and ax_n >= cls.MIN_AX_ORES
-
-
-# ============================================================
 # OreExecutive
 # ============================================================
 
@@ -29961,17 +29878,6 @@ class OreExecutive:
         # Prefer cluster-aware leaf selection when nearby ores form a cluster.
         RouteToFoundry.from_pos = pos
 
-        if OreClusterPlanner.has_cluster():
-            # Offer a cluster-biased target to try_claim_target instead of
-            # the default nearest-leaf heuristic.  We set _foundry_target
-            # directly so try_claim_target's "already claimed" guard still
-            # runs correctly.
-            _candidates = DarkForest.leaf_set - RouteToFoundry.planned_foundry_positions
-            _cluster_leaf = OreClusterPlanner.find_cluster_leaf(_candidates)
-            if _cluster_leaf is not None:
-                print("go_build_ax_harvester: cluster leaf", _cluster_leaf)
-                RouteToFoundry._foundry_target = _cluster_leaf
-                #RouteToFoundry.planned_foundry_positions.add(_cluster_leaf)
 
         RouteToFoundry.try_claim_target()
         foundry_enc = RouteToFoundry._foundry_target
@@ -31065,11 +30971,10 @@ class RouteToFoundry:
                 bad_sinks.add(curr)
 
         sx, sy = cls.from_pos.x, cls.from_pos.y
-
-        # Build the filtered candidate set first, then let OreClusterPlanner
-        # bias the selection toward ore-cluster-central leaves.
-        valid_candidates: set[int] = set()
+        best: int | None = None
+        best_d = 1000000
         for c in candidates:
+            # Trace the candidate up to its sink
             curr = c
             # while nodes[curr] is not None and nodes[curr].up is not None:
             #     curr = nodes[curr].up
@@ -31077,41 +30982,29 @@ class RouteToFoundry:
                 if nodes[curr] is None or nodes[curr].up is None:
                     break
                 curr = nodes[curr].up
+
             
             # Avoid picking targets if the sink it is in already has a foundry
             if nodes[curr] is not None and curr in bad_sinks:
                 continue
+
             cx = c // 56 - 3
-            cy = c % 56  - 3
+            cy = c % 56 - 3
             ti = Map.tile_info[cx][cy]
             if ti is None:
                 continue
-            if ti.entity_type == EntityType.BRIDGE:
-                continue
-            valid_candidates.add(c)
+            if ti is not None and ti.entity_type == EntityType.BRIDGE:
+                continue # do not consider bridges.
+            
+            d = abs(cx - sx) + abs(cy - sy)
 
-        if not valid_candidates:
-            return None
-
-        # If there's a meaningful ore cluster nearby, prefer a leaf that
-        # minimises combined distance to both ore types.
-        cluster_pick = OreClusterPlanner.find_cluster_leaf(valid_candidates)
-        if cluster_pick is not None:
-            print(f"RouteToFoundry: cluster-biased pick {cluster_pick}")
-            return cluster_pick
-
-        # Fallback: nearest leaf by Manhattan distance (original behaviour).
-        best: int | None = None
-        best_d = 1000000
-        for c in valid_candidates:
-            cx = c // 56 - 3
-            cy = c % 56  - 3
-            d  = abs(cx - sx) + abs(cy - sy)
             print(f"RouteToFoundry: candidate {c} at ({cx}, {cy}) has d={d}")
             if d < best_d:
                 best_d = d
-                best   = c
+                best = c
+                
         return best
+
 
     @classmethod
     def set_pos(cls, pos: Position, fullReset = True):
@@ -31432,23 +31325,6 @@ class RouteToFoundryInput:
             cls.move_to_next()
         else:
             cls.move_to_next()
-
-
-
-# ══════════════════════════════════════════════════════════════════════
-# OreClusterPlanner
-#
-# When a builder can see both titanium and axionite ores nearby,
-# it's efficient to build ONE foundry that serves both ore types
-# instead of routing the titanium all the way to the core separately.
-#
-# find_cluster_leaf() returns the titanium leaf from DarkForest.leaf_set
-# that best serves the current cluster of nearby ti + ax ores, scoring
-# each leaf by its minimum distance to each ore type.
-#
-# This is used inside a modified RouteToFoundry._pick_target() call in
-# go_build_ax_harvester to bias foundry siting toward ore clusters.
-# ══════════════════════════════════════════════════════════════════════
 
 
 # ============================================================
