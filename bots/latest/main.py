@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-26 21:31:31 (local)
+# latest,  @ 2026-04-26 23:00:04 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -294,13 +294,13 @@ class BfsBureau:
     passable_int: int
     now_passable_int: int
     enemy_launcher: int = 0
-    # [NEW] bitmask of ally launcher positions, used to compute enemy_now_passable_int
     ally_launcher: int = 0
-    # [NEW] passable mask from the enemy bot's perspective (carved by ally launcher zones)
     enemy_now_passable_int: int = 0
     STRIDE: int
 
     passable_bridge: list[bool] = [False] * 3136
+    harvester_feeder: list[bool] = [False] * 3136
+
 
     weight: list[int] = [1000000] * 3136
     ti_ore_adj: list[bool] = [False] * 3136
@@ -369,6 +369,14 @@ class BfsBureau:
                 passable_bridge[idx] = True
             else:
                 passable_bridge[idx] = False
+            is_hf = False
+            if ti.has_building and ti.is_building_ally and ti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR):
+                targ = ti.target
+                if targ is not None:
+                    tti = Map.tile_info[targ.x][targ.y]
+                    if tti is not None and tti.has_building and tti.entity_type == EntityType.HARVESTER:
+                        is_hf = True
+            cls.harvester_feeder[idx] = is_hf
 
         cls.now_weight = weight.copy()
         now_weight = cls.now_weight
@@ -541,7 +549,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -556,7 +564,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -571,7 +579,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -586,7 +594,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -606,7 +614,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -621,7 +629,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -636,7 +644,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -651,7 +659,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -671,7 +679,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -686,7 +694,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -701,7 +709,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -716,7 +724,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -736,7 +744,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -751,7 +759,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -766,7 +774,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -781,7 +789,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -804,7 +812,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -821,7 +829,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -838,7 +846,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -855,7 +863,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -872,7 +880,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -889,7 +897,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -906,7 +914,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -923,7 +931,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -940,7 +948,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -957,7 +965,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -974,7 +982,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -991,7 +999,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1008,7 +1016,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1025,7 +1033,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1042,7 +1050,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1059,7 +1067,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1083,7 +1091,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1100,7 +1108,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1117,7 +1125,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1134,7 +1142,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1151,7 +1159,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1168,7 +1176,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1185,7 +1193,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1202,7 +1210,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1251,7 +1259,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1264,7 +1272,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1277,7 +1285,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1290,7 +1298,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1308,7 +1316,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1321,7 +1329,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1334,7 +1342,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1347,7 +1355,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1365,7 +1373,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1378,7 +1386,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1391,7 +1399,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1404,7 +1412,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1422,7 +1430,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1435,7 +1443,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1448,7 +1456,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1461,7 +1469,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1482,7 +1490,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1497,7 +1505,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1512,7 +1520,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1527,7 +1535,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1542,7 +1550,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1557,7 +1565,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1572,7 +1580,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1587,7 +1595,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1602,7 +1610,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1617,7 +1625,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1632,7 +1640,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1647,7 +1655,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1662,7 +1670,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1677,7 +1685,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1692,7 +1700,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1707,7 +1715,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1729,7 +1737,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1744,7 +1752,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1759,7 +1767,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1774,7 +1782,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1789,7 +1797,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1804,7 +1812,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1819,7 +1827,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1834,7 +1842,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
