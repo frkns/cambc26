@@ -22,7 +22,7 @@ class BuildManager:
     {% set ti_reserve_map = {
         EntityType.GUNNER: 0,
         EntityType.SENTINEL: 20,
-        EntityType.LAUNCHER: 0,
+        EntityType.LAUNCHER: 20,
         EntityType.BARRIER: 50
     } %}
     {% set ti_reserve_default = 40 %}
