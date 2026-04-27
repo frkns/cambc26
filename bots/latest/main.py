@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-27 16:16:54 (local)
+# latest,  @ 2026-04-27 18:37:46 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -37652,35 +37652,35 @@ class VisionTracker:
                 
 
                 nti = tile_info[(x )][(y -1)]
-                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                if nti is not None and nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                     trans.adjacent_launchers += 1
 
                 nti = tile_info[(x +1)][(y -1)]
-                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                if nti is not None and nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                     trans.adjacent_launchers += 1
 
                 nti = tile_info[(x +1)][(y )]
-                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                if nti is not None and nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                     trans.adjacent_launchers += 1
 
                 nti = tile_info[(x +1)][(y +1)]
-                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                if nti is not None and nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                     trans.adjacent_launchers += 1
 
                 nti = tile_info[(x )][(y +1)]
-                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                if nti is not None and nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                     trans.adjacent_launchers += 1
 
                 nti = tile_info[(x -1)][(y +1)]
-                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                if nti is not None and nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                     trans.adjacent_launchers += 1
 
                 nti = tile_info[(x -1)][(y )]
-                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                if nti is not None and nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                     trans.adjacent_launchers += 1
 
                 nti = tile_info[(x -1)][(y -1)]
-                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                if nti is not None and nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                     trans.adjacent_launchers += 1
 
                 if ti.is_building_ally:

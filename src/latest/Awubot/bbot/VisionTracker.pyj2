@@ -212,7 +212,7 @@ class VisionTracker:
                 {% set ny %}(y {{ sign0(dy) }}){% endset %}
 
                 nti = tile_info[{{ nx }}][{{ ny }}]
-                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                if nti is not None and nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                     trans.adjacent_launchers += 1
                 {% endfor %}
 
