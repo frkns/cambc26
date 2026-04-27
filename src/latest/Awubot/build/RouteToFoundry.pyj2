@@ -117,6 +117,7 @@ class RouteToFoundry:
                 
         return best
 
+
     @classmethod
     def set_pos(cls, pos: Position, fullReset = True):
         encoded = {{ encode_pos('pos.x', 'pos.y') }}

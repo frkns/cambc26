@@ -55,6 +55,10 @@ class Builder({{ super() }}):
         {{ P.start('DarkForest.fcompute') }}
         DarkForest.fcompute()
         {{ P.end('DarkForest.fcompute') }}
+        
+        {{ P.start() }}
+        FoundryInputTracker.compute()
+        {{ P.end('FoundryInputTracker.compute') }}
 
         {{ P.start('BfsBureau.update') }}
         BfsBureau.update()
@@ -63,18 +67,23 @@ class Builder({{ super() }}):
         Symmetry.run_sym_check()
 
         if cls.mode == {{ Mode.NONE }}:
-            if Globals.round in [2,3]:
+            """
+            if Globals.round in [4,5]:
                 cls.mode = {{ Mode.EARLY_RUSH }}
                 Explore.target = Explore.new_target()
-            elif Globals.round in [4]:
+            """
+            
+            if Globals.round in [3]:
                 cls.mode = {{ Mode.HEALER }}
                 Explore.target = Explore.new_target()
             else:
                 cls.mode = {{ Mode.ECON }}
-        if Globals.round >= Constants.RUSH_OVER:
+        if cls.mode != {{ Mode.EARLY_RUSH }} and cls.mode != {{ Mode.HEALER }} and (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
+            cls.mode = {{ Mode.EARLY_RUSH }}
+            Explore.target = Explore.new_target()
+        if cls.mode == {{ Mode.HEALER }} and Globals.round >= Constants.HEAL_OVER:
             cls.mode = {{ Mode.ECON }}
-            # Explore.target = Explore.new_target()
-
+            Explore.target = Explore.new_target()
         print("Mode:", cls.mode)
 
 
@@ -223,7 +232,7 @@ class Builder({{ super() }}):
         if cls.role == {{ Role.CORE_HEALER }}:
             return 'MoveTo', Unit.core_pos.add(random.choice(Constants.DIRECTIONS)), '[core healer]'
             
-        buildingFirstConveyor = RouteToCore.is_active and len(RouteToCore.prevRoute) == 0
+        buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0) or (RouteToFoundryInput.is_active and len(RouteToFoundryInput.prevRoute) == 0)
             
         if not buildingFirstConveyor:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
@@ -243,6 +252,9 @@ class Builder({{ super() }}):
 
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
+
+        if RouteToFoundryInput.is_active:
+            return ('RouteFoundryInput',)
 
         if RouteToCore.is_active:
             return ('Route',)

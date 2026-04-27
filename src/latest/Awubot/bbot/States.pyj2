@@ -97,6 +97,11 @@ class StateRouteBreach:
     def run(cls):
         RouteToBreach.do_routing()
 
+class StateRouteFoundryInput:
+    @classmethod
+    def run(cls):
+        RouteToFoundryInput.do_routing()
+
 
 class StateMoveTo:
     @classmethod

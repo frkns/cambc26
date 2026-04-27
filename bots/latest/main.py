@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-27 11:52:36 (local)
+# latest,  @ 2026-04-27 11:54:13 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -296,13 +296,13 @@ class BfsBureau:
     passable_int: int
     now_passable_int: int
     enemy_launcher: int = 0
-    # [NEW] bitmask of ally launcher positions, used to compute enemy_now_passable_int
     ally_launcher: int = 0
-    # [NEW] passable mask from the enemy bot's perspective (carved by ally launcher zones)
     enemy_now_passable_int: int = 0
     STRIDE: int
 
     passable_bridge: list[bool] = [False] * 3136
+    harvester_feeder: list[bool] = [False] * 3136
+
 
     weight: list[int] = [1000000] * 3136
     ti_ore_adj: list[bool] = [False] * 3136
@@ -371,6 +371,14 @@ class BfsBureau:
                 passable_bridge[idx] = True
             else:
                 passable_bridge[idx] = False
+            is_hf = False
+            if ti.has_building and ti.is_building_ally and ti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR):
+                targ = ti.target
+                if targ is not None:
+                    tti = Map.tile_info[targ.x][targ.y]
+                    if tti is not None and tti.has_building and tti.entity_type == EntityType.HARVESTER:
+                        is_hf = True
+            cls.harvester_feeder[idx] = is_hf
 
         cls.now_weight = weight.copy()
         now_weight = cls.now_weight
@@ -547,7 +555,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -562,7 +570,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -577,7 +585,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -592,7 +600,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -612,7 +620,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -627,7 +635,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -642,7 +650,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -657,7 +665,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -677,7 +685,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -692,7 +700,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -707,7 +715,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -722,7 +730,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -742,7 +750,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -757,7 +765,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -772,7 +780,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -787,7 +795,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -810,7 +818,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -827,7 +835,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -844,7 +852,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -861,7 +869,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -878,7 +886,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -895,7 +903,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -912,7 +920,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -929,7 +937,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -946,7 +954,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -963,7 +971,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -980,7 +988,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -997,7 +1005,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1014,7 +1022,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1031,7 +1039,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1048,7 +1056,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1065,7 +1073,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1089,7 +1097,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1106,7 +1114,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1123,7 +1131,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1140,7 +1148,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1157,7 +1165,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1174,7 +1182,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1191,7 +1199,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1208,7 +1216,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
                 and not ti_ore_adj[ni]
                 and ni not in Unit.core_pos_set
             ))
@@ -1257,7 +1265,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1270,7 +1278,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1283,7 +1291,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1296,7 +1304,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1314,7 +1322,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1327,7 +1335,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1340,7 +1348,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1353,7 +1361,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1371,7 +1379,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1384,7 +1392,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1397,7 +1405,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1410,7 +1418,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1428,7 +1436,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1441,7 +1449,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1454,7 +1462,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1467,7 +1475,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1488,7 +1496,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1503,7 +1511,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1518,7 +1526,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1533,7 +1541,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1548,7 +1556,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1563,7 +1571,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1578,7 +1586,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1593,7 +1601,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1608,7 +1616,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1623,7 +1631,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1638,7 +1646,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1653,7 +1661,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1668,7 +1676,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1683,7 +1691,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1698,7 +1706,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1713,7 +1721,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
             visited[ni] = True
@@ -1735,7 +1743,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1750,7 +1758,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1765,7 +1773,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1780,7 +1788,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1795,7 +1803,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1810,7 +1818,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1825,7 +1833,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -1840,7 +1848,7 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (ni in sink_set or (
-                passable[ni]
+                (passable[ni] or cls.harvester_feeder[ni])  # [UPDATED]
             ))
         ):
                 visited[ni] = True
@@ -6389,7 +6397,7 @@ class Constants:
 
     AXIONITE_START: int = 100 # Start producing axionite at this round
 
-    RUSH_OVER: int = 500 # stop rush attempt now
+    HEAL_OVER: int = 1200 # stop heal attempt now
 
     MAX_HP_MAP: dict[EntityType, int] = {
         EntityType.BUILDER_BOT: 40,
@@ -24781,6 +24789,156 @@ class FoundryBuild:
 
 
 # ============================================================
+# FoundryInputTracker
+# ============================================================
+
+class FoundryInputTracker:
+    MAX_INPUTS    = 4   # total cardinal slots per foundry
+    MAX_TI_INPUTS = 3   # allow ≤3 ti so at least 1 ax slot is preserved
+    MAX_AX_INPUTS = 3   # allow ≤3 ax so at least 1 ti slot is preserved
+
+    # Built-connection counts (from DarkForest, reset each tick).
+    ti_count: dict[int, int] = {}
+    ax_count: dict[int, int, ] = {}
+
+    # Pending-route reservations (persist across ticks, cleared on
+    # give-up / success).  Keyed by foundry encoded position.
+    claimed_ti: dict[int, int] = defaultdict(int)
+    claimed_ax: dict[int, int] = defaultdict(int)
+
+    @classmethod
+    def compute(cls):
+        """Count actual tree-children per foundry (ti vs ax)."""
+        ns   = DarkForest.nodes
+        ax   = DarkForest.ax_tagged
+        ti_c: dict[int, int] = {}
+        ax_c: dict[int, int] = {}
+
+        for f in DarkForest.foundry_positions:
+            t = 0
+            a = 0
+            for _d in (-1, 1, -56, 56):
+                _adj = f + _d
+                _n   = ns[_adj]
+                if _n is not None and _n.up == f:
+                    if ax[_adj]:
+                        a += 1
+                    else:
+                        t += 1
+            ti_c[f] = t
+            ax_c[f] = a
+
+        cls.ti_count = ti_c
+        cls.ax_count = ax_c
+
+    # ── capacity helpers (built + claimed) ──
+
+    @classmethod
+    def _ti_used(cls, f: int) -> int:
+        return cls.ti_count.get(f, 0) + cls.claimed_ti[f]
+
+    @classmethod
+    def _ax_used(cls, f: int) -> int:
+        return cls.ax_count.get(f, 0) + cls.claimed_ax[f]
+
+    @classmethod
+    def has_ti_capacity(cls, f: int) -> bool:
+        return (cls._ti_used(f) < cls.MAX_TI_INPUTS
+                and cls._ti_used(f) + cls._ax_used(f) < cls.MAX_INPUTS)
+
+    @classmethod
+    def has_ax_capacity(cls, f: int) -> bool:
+        return (cls._ax_used(f) < cls.MAX_AX_INPUTS
+                and cls._ti_used(f) + cls._ax_used(f) < cls.MAX_INPUTS)
+
+    # ── reservation management ──
+
+    @classmethod
+    def claim_ti(cls, f: int):
+        cls.claimed_ti[f] += 1
+
+    @classmethod
+    def release_ti(cls, f: int):
+        if cls.claimed_ti[f] > 0:
+            cls.claimed_ti[f] -= 1
+
+    @classmethod
+    def claim_ax(cls, f: int):
+        cls.claimed_ax[f] += 1
+
+    @classmethod
+    def release_ax(cls, f: int):
+        if cls.claimed_ax[f] > 0:
+            cls.claimed_ax[f] -= 1
+
+    # ── target selection ──
+
+    @classmethod
+    def get_best_ti_foundry(cls, from_pos: Position) -> int | None:
+        """
+        Nearest existing foundry (by Manhattan distance) that still has
+        a spare titanium input slot.  Returns encoded position or None.
+        """
+        sx, sy  = from_pos.x, from_pos.y
+        best    = None
+        best_d  = 1000000
+        for f in DarkForest.foundry_positions:
+            if not cls.has_ti_capacity(f):
+                continue
+            fx = f // 56 - 3
+            fy = f % 56  - 3
+            d  = abs(fx - sx) + abs(fy - sy)
+            if d < best_d:
+                best_d = d
+                best   = f
+        return best
+
+    @classmethod
+    def get_best_ax_foundry(cls, from_pos: Position) -> int | None:
+        """
+        Nearest existing foundry with a spare axionite input slot.
+        Prefers foundries that already have at least one ti input (so
+        the foundry can actually produce refined axionite).
+        """
+        sx, sy  = from_pos.x, from_pos.y
+        best    = None
+        best_d  = 1000000
+        for f in DarkForest.foundry_positions:
+            if not cls.has_ax_capacity(f):
+                continue
+            fx = f // 56 - 3
+            fy = f % 56  - 3
+            d  = abs(fx - sx) + abs(fy - sy)
+            # Prefer foundries that already have a titanium connection.
+            if cls._ti_used(f) > 0:
+                d = d // 2     # half-distance bias toward productive foundries
+            if d < best_d:
+                best_d = d
+                best   = f
+        return best
+
+
+# ══════════════════════════════════════════════════════════════════════
+# RouteToFoundryInput
+#
+# Routes a just-built harvester (titanium OR axionite) toward an
+# existing foundry that has spare input capacity.
+#
+# Titanium mode  (is_ax=False): uses find_bridge_route.
+# Axionite mode  (is_ax=True):  uses find_bridge_route_avoid_ti_adj
+#                                to keep axionite paths off titanium
+#                                territory.
+#
+# Completion: when from_pos is adjacent to the foundry and we build
+# a conveyor pointing toward it, set_pos(foundry_pos) triggers
+# deactivation (encoded == _target).
+#
+# Mirrors RouteToCore / RouteToFoundry structure so determine_state
+# can handle all three uniformly.
+# ══════════════════════════════════════════════════════════════════════
+
+
+# ============================================================
 # Globals
 # ============================================================
 
@@ -29740,8 +29898,17 @@ class OreExecutive:
 
             cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
             if cand is not None:
-                RouteToCore.set_pos(cand.position)
-                RouteToCore.isAttack = isAttack
+                # Prefer routing to an existing foundry with spare ti capacity
+                # over routing all the way back to core — it's cheaper and
+                # boosts an under-fed foundry's output.
+                fi_target = FoundryInputTracker.get_best_ti_foundry(pos)
+                if fi_target is not None and not RouteToFoundryInput.is_active and RouteToFoundry.axionite_can_reach_foundry(cand.position, fi_target):
+                    FoundryInputTracker.claim_ti(fi_target)
+                    RouteToFoundryInput.set_pos(cand.position, fi_target, is_ax=False)
+                    print("go_build_harvester: routing ti to existing foundry", fi_target)
+                else:
+                    RouteToCore.set_pos(cand.position)
+                    RouteToCore.isAttack = isAttack
 
     @classmethod
     def go_build_ax_harvester(cls, pos):
@@ -29766,7 +29933,28 @@ class OreExecutive:
             Debug.diamond(Color.RED)
             return
 
+        # ── Strategy 1: route to an existing foundry with spare ax capacity ──
+        # This is preferred because it immediately boosts an already-built
+        # foundry's refined-axionite output without needing to build a new one.
+        fi_target = FoundryInputTracker.get_best_ax_foundry(pos)
+        if (fi_target is not None
+                and not RouteToFoundryInput.is_active
+                and RouteToFoundry.axionite_can_reach_foundry(cand.position, fi_target)):
+            if BuildManager.can_dbuild_harvester(pos):
+                Debug.line(pos, Color.YELLOW)
+                BuildManager.dbuild_harvester(pos)
+                FoundryInputTracker.claim_ax(fi_target)
+                RouteToFoundryInput.set_pos(cand.position, fi_target, is_ax=True)
+                print("go_build_ax_harvester: routing ax to existing foundry", fi_target)
+            else:
+                RouteToFoundry.give_up(True)
+            return
+
+        # ── Strategy 2: route to a new foundry leaf (existing behaviour) ──
+        # Prefer cluster-aware leaf selection when nearby ores form a cluster.
         RouteToFoundry.from_pos = pos
+
+
         RouteToFoundry.try_claim_target()
         foundry_enc = RouteToFoundry._foundry_target
         if foundry_enc is None or not RouteToFoundry.axionite_can_reach_foundry(cand.position, foundry_enc):
@@ -29778,14 +29966,14 @@ class OreExecutive:
         if BuildManager.can_dbuild_harvester(pos):
             Debug.line(pos, Color.YELLOW)
             BuildManager.dbuild_harvester(pos)
-            #Check if already routed naturally
+            # Check if already routed naturally
             for d in Constants.CARDINAL_DIRECTIONS:
                 newPos = pos.add(d)
                 ti = Map.tile_info[newPos.x][newPos.y]
-                if ti is None:  # off-map, ignore
+                if ti is None:
                     continue
                 if ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET:
-                    break  # If already routed ignore
+                    break  # already connected, skip
             else:
                 RouteToFoundry.set_pos(cand.position)
                 return
@@ -31187,6 +31375,7 @@ class RouteToFoundry:
                 
         return best
 
+
     @classmethod
     def set_pos(cls, pos: Position, fullReset = True):
         encoded = (((pos.x) + 3) * 56 + ((pos.y) + 3))
@@ -31336,6 +31525,179 @@ class RouteToFoundry:
 
 
 # ============================================================
+# RouteToFoundryInput
+# ============================================================
+
+class RouteToFoundryInput:
+    is_active:    bool          = False
+    from_pos:     Position
+    _target:      int | None    = None   # encoded foundry position
+    _is_ax:       bool          = False  # True → axionite routing rules
+    prevRoute:    list          = []
+    backTracking: bool          = False
+    killed:       set[int]      = set()
+
+    @classmethod
+    def set_pos(cls, pos: Position, target: int, is_ax: bool,
+                full_reset: bool = True):
+        enc = (((pos.x) + 3) * 56 + ((pos.y) + 3))
+
+        # Arrived at the foundry — success.
+        if enc == target:
+            if is_ax:
+                FoundryInputTracker.release_ax(target)
+            else:
+                FoundryInputTracker.release_ti(target)
+            cls.is_active = False
+            cls.prevRoute.clear()
+            cls.backTracking = False
+            return
+
+        if full_reset:
+            cls.prevRoute.clear()
+            cls.backTracking = False
+        else:
+            cls.prevRoute.append(cls.from_pos)
+            cls.backTracking = False
+
+        cls.is_active    = True
+        cls.from_pos     = pos
+        cls._target      = target
+        cls._is_ax       = is_ax
+
+    @classmethod
+    def try_build_route(cls):
+        assert cls.is_active
+        if cls._target is None:
+            cls.give_up()
+            return
+
+        target_set = {cls._target}
+
+        if cls._is_ax:
+            bridge_dist, first_target = BfsBureau.find_bridge_route_avoid_ti_adj(
+                cls.from_pos,
+                target_set,
+                avoid_pos=RouteToCore.pathFindingKill,
+            )
+        else:
+            bridge_dist, first_target = BfsBureau.find_bridge_route(
+                cls.from_pos,
+                target_set,
+                avoid_pos=RouteToCore.pathFindingKill.union(Unit.core_pos_set),
+            )
+
+        print(f"""{bridge_dist=}""")
+
+        if first_target is None:
+            Debug.tee("RouteToFoundryInput: no route to foundry, giving up")
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target())
+            return
+
+        target = Position(*first_target)
+        Debug.diline(cls.from_pos, target, Color.CYAN)
+
+        dsq = cls.from_pos.distance_squared(target)
+        if dsq == 1:
+            if BuildManager.can_dbuild_conveyor(cls.from_pos):
+                BuildManager.dbuild_conveyor(
+                    cls.from_pos,
+                    cls.from_pos.direction_to(target),
+                )
+                cls.set_pos(target, cls._target, cls._is_ax, full_reset=False)
+        elif BuildManager.can_dbuild_bridge(cls.from_pos):
+            BuildManager.dbuild_bridge(cls.from_pos, target)
+            cls.set_pos(target, cls._target, cls._is_ax, full_reset=False)
+
+    @classmethod
+    def move_to_next(cls):
+        Pathfinder.move_to(cls.from_pos, ban_target_pos=True)
+
+    @classmethod
+    def should_give_up(cls) -> bool:
+        if cls._target is None:
+            return True
+
+        # Re-check capacity each tick: if the foundry is now full (another
+        # bot beat us to it), abandon and let the builder find a new target.
+        if cls._is_ax:
+            if not FoundryInputTracker.has_ax_capacity(cls._target):
+                # Subtract our reservation so the slot accounting stays clean.
+                FoundryInputTracker.release_ax(cls._target)
+                FoundryInputTracker.claim_ax(cls._target)  # keep claimed until give_up
+                Debug.tee("RouteToFoundryInput: target foundry ax-full, giving up")
+                return True
+        else:
+            if not FoundryInputTracker.has_ti_capacity(cls._target):
+                FoundryInputTracker.release_ti(cls._target)
+                FoundryInputTracker.claim_ti(cls._target)
+                Debug.tee("RouteToFoundryInput: target foundry ti-full, giving up")
+                return True
+
+        x, y = cls.from_pos.x, cls.from_pos.y
+        ti   = Map.tile_info[x][y]
+        if ti is None:
+            return False
+        if not cls.backTracking and Pathfinder.given_up:
+            return True
+        if ti.has_building:
+            if not ti.is_building_ally:
+                return True
+            if not cls.backTracking:
+                if ti.entity_type in Constants.TRANSPORTERS_SET:
+                    return True
+                if ti.entity_type != EntityType.ROAD:
+                    return True
+        return False
+
+    @classmethod
+    def give_up(cls) -> bool:
+        enc = (((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3))
+        if not cls.prevRoute:
+            cls.is_active = False
+            if cls._target is not None:
+                if cls._is_ax:
+                    FoundryInputTracker.release_ax(cls._target)
+                else:
+                    FoundryInputTracker.release_ti(cls._target)
+            cls._target = None
+            cls.killed.add(enc)
+            if Pathfinder.given_up:
+                RouteToCore.pathFindingKill.add(enc)
+            cls.backTracking = False
+            Debug.diamond(Color.CYAN)
+          
+            print("RouteToFoundryInput: giving up from", cls.from_pos)
+            return True
+        else:
+            cls.killed.add(enc)
+            if Pathfinder.given_up:
+                RouteToCore.pathFindingKill.add(enc)
+            cls.from_pos = cls.prevRoute.pop()
+            cls.backTracking = True
+            print("RouteToFoundryInput: backtracking to", cls.from_pos)
+            return False
+
+    @classmethod
+    def do_routing(cls):
+        print("RouteToFoundryInput: routing from", cls.from_pos,
+              "ax=" + str(cls._is_ax),
+              "target=",((cls._target) // 56 - 3), ((cls._target) % 56 - 3))
+        if cls.should_give_up():
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target())
+            return
+
+        dsq = Globals.my_pos.distance_squared(cls.from_pos)
+        if Globals.ct.get_action_cooldown() == 0 and dsq <= 2:
+            cls.try_build_route()
+            cls.move_to_next()
+        else:
+            cls.move_to_next()
+
+
+# ============================================================
 # RushTargeter
 # ============================================================
 
@@ -31439,8 +31801,6 @@ class RushTargeter:
                     return funPos, stuff[1] 
                 else:
                     return Explore.get_target(),'M' #move
-            if (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
-                return Symmetry.enemy_core_pos,'M' #move
         elif Builder.mode == 2:
             return Symmetry.sym_pos(Unit.core_pos),'M' #move
         return None
@@ -35340,7 +35700,7 @@ class SpawnManager:
         ti, ax = ct.get_global_resources()
         bot_ti, bot_ax = ct.get_builder_bot_cost()
 
-        if Globals.round <= 10 and cls.num_spawned < 5:
+        if Globals.round <= 10 and cls.num_spawned < 4:
             return True
 
         mass = 80 if cls.num_spawned < 10 else 200
@@ -35707,6 +36067,16 @@ class StateRouteFoundry:
     @classmethod
     def run(cls):
         RouteToFoundry.do_routing()
+
+
+# ============================================================
+# StateRouteFoundryInput
+# ============================================================
+
+class StateRouteFoundryInput:
+    @classmethod
+    def run(cls):
+        RouteToFoundryInput.do_routing()
 
 
 # ============================================================
@@ -36413,6 +36783,10 @@ class Builder(Unit):
         Profiler.start(f"""DarkForest.fcompute""")
         DarkForest.fcompute()
         Profiler.end(f"""DarkForest.fcompute""")
+        
+        Profiler.start(f"""???""")
+        FoundryInputTracker.compute()
+        Profiler.end(f"""FoundryInputTracker.compute""")
 
         Profiler.start(f"""BfsBureau.update""")
         BfsBureau.update()
@@ -36421,18 +36795,23 @@ class Builder(Unit):
         Symmetry.run_sym_check()
 
         if cls.mode == 0:
-            if Globals.round in [2,3]:
+            """
+            if Globals.round in [4,5]:
                 cls.mode = 2
                 Explore.target = Explore.new_target()
-            elif Globals.round in [4]:
+            """
+            
+            if Globals.round in [3]:
                 cls.mode = 3
                 Explore.target = Explore.new_target()
             else:
                 cls.mode = 1
-        if Globals.round >= Constants.RUSH_OVER:
+        if cls.mode != 2 and cls.mode != 3 and (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
+            cls.mode = 2
+            Explore.target = Explore.new_target()
+        if cls.mode == 3 and Globals.round >= Constants.HEAL_OVER:
             cls.mode = 1
-            # Explore.target = Explore.new_target()
-
+            Explore.target = Explore.new_target()
         print("Mode:", cls.mode)
 
 
@@ -36574,7 +36953,7 @@ class Builder(Unit):
         if cls.role == 1:
             return 'MoveTo', Unit.core_pos.add(random.choice(Constants.DIRECTIONS)), '[core healer]'
             
-        buildingFirstConveyor = RouteToCore.is_active and len(RouteToCore.prevRoute) == 0
+        buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0) or (RouteToFoundryInput.is_active and len(RouteToFoundryInput.prevRoute) == 0)
             
         if not buildingFirstConveyor:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
@@ -36594,6 +36973,9 @@ class Builder(Unit):
 
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
+
+        if RouteToFoundryInput.is_active:
+            return ('RouteFoundryInput',)
 
         if RouteToCore.is_active:
             return ('Route',)
