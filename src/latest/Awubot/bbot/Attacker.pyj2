@@ -143,7 +143,7 @@ class Attacker:
         if allies_ready > 2 * enemies_ready:
             return True
 
-        if BfsBureau.enemy_bot_dist_adj[idx] > 0:
+        if BfsBureau.enemy_bot_dist_adj[idx] >= 2:
             return True
 
         return False

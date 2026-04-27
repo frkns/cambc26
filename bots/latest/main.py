@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-27 14:45:54 (local)
+# latest,  @ 2026-04-27 14:56:37 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -277,7 +277,7 @@ class Attacker:
         if allies_ready > 2 * enemies_ready:
             return True
 
-        if BfsBureau.enemy_bot_dist_adj[idx] > 0:
+        if BfsBureau.enemy_bot_dist_adj[idx] >= 2:
             return True
 
         return False
@@ -36975,6 +36975,9 @@ class Builder(Unit):
         foundry_target = FoundryBuild._pick_target()
         if foundry_target is not None:
             return 'FoundryBuild', foundry_target
+                
+        if attackpos is not None:
+            return 'Attack', attackpos, 'Primary'
 
         # Attack if position is next to route
         if secondaryattackpos is not None:
@@ -36993,9 +36996,6 @@ class Builder(Unit):
             # Attack if close to tip
             if close_to_tip:
                 return 'Attack', secondaryattackpos, 'Secondary'
-                
-        if attackpos is not None:
-            return 'Attack', attackpos, 'Primary'
                 
         ax_target = OreExecutive.get_axionite_target()
         ti_target = OreExecutive.get_titanium_target()
@@ -37022,9 +37022,8 @@ class Builder(Unit):
             if stalk_target is not None:
                 return 'MoveTo', stalk_target, 'Stalk'
 
-        if cls.min_dist_to_a_core <= 48:
-            if secondaryattackpos is not None:
-                return 'Attack', secondaryattackpos, 'secondary'
+        if secondaryattackpos is not None:
+            return 'Attack', secondaryattackpos, 'secondary'
             
         rushTarget = RushTargeter.get_best_target()
         if rushTarget is not None:
