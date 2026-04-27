@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-27 18:37:46 (local)
+# latest,  @ 2026-04-27 19:20:59 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -35897,7 +35897,7 @@ class StateBuildShield:
         
         target_dir = None
         
-        tile_info = Map.tile_info
+        tile_info = Map.tile_inrgetefo
         found_ally_harvester = False
         
         ti = tile_info[pos.x + 0][pos.y + -1]
@@ -35937,7 +35937,7 @@ class StateBuildShield:
 
         if pos != Globals.my_pos:
             if target_dir is not None:
-                if found_ally_harvester:
+                if found_ally_harvester and BuildManager.can_afford_conveyor():
                     if (
             Map.num_enemy_buildings > 0
         ) and BuildManager.can_dbuild_armoured_conveyor(pos):
@@ -35952,7 +35952,7 @@ class StateBuildShield:
                     BuildManager.build_road(pos)
         else:
             if target_dir is not None:
-                if found_ally_harvester:
+                if found_ally_harvester and BuildManager.can_afford_conveyor():
                     if (
             Map.num_enemy_buildings > 0
         ) and BuildManager.can_mbuild_armoured_conveyor():
