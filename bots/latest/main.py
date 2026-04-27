@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-# latest,  @ 2026-04-26 19:36:44 (local)
-=======
-# latest,  @ 2026-04-26 15:44:49 (local)
->>>>>>> rushTests2
+# latest,  @ 2026-04-26 19:20:59 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -36036,12 +36032,6 @@ class Builder(Unit):
         Symmetry.run_sym_check()
 
         if cls.mode == 0:
-<<<<<<< HEAD
-            if Globals.round in [2,3]:
-                cls.mode = 2
-                Explore.target = Explore.new_target()
-            elif Globals.round in [4]:
-=======
             """
             if Globals.round in [4,5]:
                 cls.mode = 2
@@ -36049,7 +36039,6 @@ class Builder(Unit):
             """
             
             if Globals.round in [3]:
->>>>>>> rushTests2
                 cls.mode = 3
                 Explore.target = Explore.new_target()
             else:
@@ -36059,12 +36048,7 @@ class Builder(Unit):
             Explore.target = Explore.new_target()
         if cls.mode == 3 and Globals.round >= Constants.HEAL_OVER:
             cls.mode = 1
-<<<<<<< HEAD
-            # Explore.target = Explore.new_target()
-
-=======
             Explore.target = Explore.new_target()
->>>>>>> rushTests2
         print("Mode:", cls.mode)
 
 
