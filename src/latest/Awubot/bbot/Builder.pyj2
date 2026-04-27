@@ -298,14 +298,26 @@ class Builder({{ super() }}):
         if foundry_target is not None:
             return 'FoundryBuild', foundry_target
 
-        
+        # Attack if position is next to route
+        if secondaryattackpos is not None:
+            # Compare position to tip of route
+            close_to_tip = False
+            if RouteToCore.is_active:
+                if len(RouteToCore.prevRoute) > 0:
+                    close_to_tip = RouteToCore.prevRoute[-1].distance_squared(secondaryattackpos) < 2
+            elif RouteToFoundry.is_active:
+                if len(RouteToFoundry.prevRoute) > 0:
+                    close_to_tip = RouteToFoundry.prevRoute[-1].distance_squared(secondaryattackpos) < 2
+            elif RouteToBreach.is_active:
+                if len(RouteToBreach.prevRoute) > 0:
+                    close_to_tip = RouteToBreach.prevRoute[-1].distance_squared(secondaryattackpos) < 2
+                    
+            # Attack if close to tip
+            if close_to_tip:
+                return 'Attack', secondaryattackpos, 'Secondary'
+                
         if attackpos is not None:
             return 'Attack', attackpos, 'Primary'
-
-        if cls.min_dist_to_a_core <= 48:
-            if secondaryattackpos is not None:
-                if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
-                    return 'Attack', secondaryattackpos, 'Secondary'
                 
         ax_target = OreExecutive.get_axionite_target()
         ti_target = OreExecutive.get_titanium_target()
@@ -333,8 +345,9 @@ class Builder({{ super() }}):
             if stalk_target is not None and cls.mode != {{ Mode.EARLY_RUSH }}:
                 return 'MoveTo', stalk_target, 'Stalk'
 
-        if secondaryattackpos is not None:
-            return 'Attack', secondaryattackpos, 'secondary'
+        if cls.min_dist_to_a_core <= 48:
+            if secondaryattackpos is not None:
+                return 'Attack', secondaryattackpos, 'secondary'
             
         rushTarget = RushTargeter.get_best_target()
         if rushTarget is not None:
