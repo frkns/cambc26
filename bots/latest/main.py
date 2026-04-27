@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-27 18:37:46 (local)
+# latest,  @ 2026-04-27 15:40:47 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -36841,12 +36841,13 @@ class Builder(Unit):
                 cls.mode = 2
                 Explore.target = Explore.new_target()
             """
-            
+            """
             if Globals.round in [3]:
                 cls.mode = 3
                 Explore.target = Explore.new_target()
             else:
-                cls.mode = 1
+            """
+            cls.mode = 1
         if cls.mode != 2 and cls.mode != 3 and (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
             cls.mode = 2
             Explore.target = Explore.new_target()
