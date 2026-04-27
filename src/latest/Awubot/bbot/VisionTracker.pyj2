@@ -24,7 +24,7 @@ class TransporterInfo:
         'bfs_dist', 'bfs_dist_adj', 'bfs_dist_target_adj', 'flow', 'entity_type',
         'harvester_adjacent', 'is_ally', 'node_kind', 'flowing_into_ally',
         'on_ally_side', 'easily_buildable', 'sight_flowing', 'adjacent_launchers',
-        'enemy_bot_bfs_dist_adj', 'enemy_bot1'
+        'enemy_bot_bfs_dist_adj', 'enemy_bot1', 'rand_key'
     )
 
     @staticmethod
@@ -45,7 +45,7 @@ class TransporterInfo:
             return a.bfs_dist < b.bfs_dist
 
         if a.enemy_bot_bfs_dist_adj != b.enemy_bot_bfs_dist_adj:
-            return a.enemy_bot_bfs_dist_adj < b.enemy_bot_bfs_dist_adj
+            return a.enemy_bot_bfs_dist_adj > b.enemy_bot_bfs_dist_adj
         
         # factored in with bot_bfs_dist
         # if a.adjacent_launchers != b.adjacent_launchers:
@@ -61,13 +61,14 @@ class TransporterInfo:
         if a.flow != b.flow:
             return a.flow > b.flow
 
-        return a.bfs_dist < b.bfs_dist
+        # return a.bfs_dist < b.bfs_dist
+        return a.rand_key < b.rand_key
 
 
     @staticmethod
     def is_better_connect_than(a: TransporterInfo, b: TransporterInfo) -> bool:
-        a_reach = a.easily_reachable and a.easily_buildable and a.on_ally_side
-        b_reach = b.easily_reachable and b.easily_buildable and b.on_ally_side
+        a_reach = a.easily_reachable and a.easily_buildable # and a.on_ally_side
+        b_reach = b.easily_reachable and b.easily_buildable # and b.on_ally_side
         if a_reach and (not b_reach): return True
         if (not a_reach) and b_reach: return False
 
@@ -185,6 +186,7 @@ class VisionTracker:
                 trans.adjacent_launchers = 0
                 trans.enemy_bot_bfs_dist_adj = BfsBureau.enemy_bot_dist_adj[idx]
                 trans.enemy_bot1 = trans.enemy_bot_bfs_dist_adj <= 1
+                trans.rand_key = random.random()
 
                 trans.node_kind = DarkForest.node_kind[idx]
                 trans.flowing_into_ally = trans.node_kind in \
