@@ -123,6 +123,27 @@ class DarkForest:
 # ===---
 # ---===
     @classmethod
+    def debug_flow(cls):
+        """Draw dots: green=low, yellow=med, orange=high, red=saturated."""
+        ns = cls.nodes
+        flow = cls.flow
+        ct = Globals.ct
+        for x in range(50):
+            for y in range(50):
+                i = {{ encode_pos('x', 'y') }}
+                if ns[i] is not None and flow[i] > 0:
+                    p = flow[i]
+                    if p <= {{ FLOW_PER_HARVESTER }}:
+                        ct.draw_indicator_dot(Position(x, y), 0, 255, 0)
+                    elif p <= {{ FLOW_PER_HARVESTER * 2 }}:
+                        ct.draw_indicator_dot(Position(x, y), 255, 255, 0)
+                    elif p <= {{ FLOW_PER_HARVESTER * 3 }}:
+                        ct.draw_indicator_dot(Position(x, y), 255, 128, 0)
+                    else:
+                        ct.draw_indicator_dot(Position(x, y), 255, 0, 0)
+# ===---
+# ---===
+    @classmethod
     def debug_sink_set(cls):
         for i in cls.core_sink_set:
             {% set x, y = decode_pos('i') %}

@@ -65,22 +65,25 @@ class Builder({{ super() }}):
         Symmetry.run_sym_check()
 
         if cls.mode == {{ Mode.NONE }}:
-            if Globals.round in [2,3]:
+            """
+            if Globals.round in [4,5]:
                 cls.mode = {{ Mode.EARLY_RUSH }}
                 Explore.target = Explore.new_target()
-            elif Globals.round in [4]:
+            """
+            
+            if Globals.round in [3]:
                 cls.mode = {{ Mode.HEALER }}
                 Explore.target = Explore.new_target()
             else:
                 cls.mode = {{ Mode.ECON }}
-        if Globals.round >= Constants.RUSH_OVER:
+        if cls.mode != {{ Mode.EARLY_RUSH }} and cls.mode != {{ Mode.HEALER }} and (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
+            cls.mode = {{ Mode.EARLY_RUSH }}
+            Explore.target = Explore.new_target()
+        if cls.mode == {{ Mode.HEALER }} and Globals.round >= Constants.HEAL_OVER:
             cls.mode = {{ Mode.ECON }}
-            # Explore.target = Explore.new_target()
-
+            Explore.target = Explore.new_target()
         print("Mode:", cls.mode)
 
-        DarkForest.debug_pressure()
-        {# /* DarkForest.debug_kind() */ #}
 
         {{ P.start('BfsBureau.bfs20') }}
         BfsBureau.bfs20()
@@ -90,10 +93,15 @@ class Builder({{ super() }}):
         BfsBureau.update_enclosed_regions()
         {{ P.end('BfsBureau.update_enclosed_regions') }}
 
+        {# /* DarkForest.debug_flow() */ #}
+        {# /* DarkForest.debug_pressure() */ #}
+        {# /* DarkForest.debug_kind() */ #}
         {# /* BfsBureau.debug_enclosed_regions() */ #}
         {# /* BfsBureau.debug_bfs20_dist_adj() */ #}
         {# /* BfsBureau.debug_bfs20() */ #}
         {# /* BfsBureau.debug_now_weight_inf() */ #}
+        {# /* BfsBureau.debug_enemy_bot_dist() */ #}
+        {# /* BfsBureau.debug_enemy_bot_dist_adj() */ #}
 
         {{ P.start('OreExecutive.fill') }}
         OreExecutive.fill()
@@ -153,18 +161,18 @@ class Builder({{ super() }}):
 
         # BfsBureau.debug_bfs20_dist_adj()
         # BfsBureau.debug_enemy_launcher_zone()
-        BfsBureau.debug_ally_launcher_zone()
+        # BfsBureau.debug_ally_launcher_zone()
 
         # if Globals.round & 1:
         #     BfsBureau.debug_now_passable_int_impassable()
         # else:
         #     BfsBureau.debug_now_weight_inf()
 
-        my_pos = Globals.my_pos
+        # my_pos = Globals.my_pos
         # if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos) and Map.num_enemies == 0:
         #     Globals.ct.fire(my_pos)
         
-        if cls.min_dist_to_a_core <= 36:
+        if Map.num_enemies > 0 or cls.min_dist_to_a_core <= 36:
             RoadspamExecutor.execute_roadspam_attempt()
 
 
@@ -255,13 +263,21 @@ class Builder({{ super() }}):
         if trans is not None:
             tpos = trans.target
 
-            if Util.dist_sq(tpos, Symmetry.enemy_core_pos) \
-                    < Util.dist_sq(tpos, Unit.core_pos):
-                return 'BuildTurret', tpos 
+            # if Util.dist_sq(tpos, Symmetry.enemy_core_pos) \
+            #         < Util.dist_sq(tpos, Unit.core_pos):
+            #     return 'BuildTurret', tpos 
 
-            if tpos not in RouteToCore.killed:
+            # if tpos not in RouteToCore.killed:
+            if True:
                 RouteToCore.set_pos(tpos)
                 return 'MoveTo', tpos, 'InitRoute'
+
+        route_pos = HarvesterAdjacent.get_best_route_position()
+        if route_pos is not None and cls.mode != {{ Mode.EARLY_RUSH }}:
+            RouteToCore.set_pos(route_pos)
+            if RouteToCore.is_active:
+                {{ D.print('[HarvesterAdjacent found route]') }}
+                return ('Route',)
 
 
         if sentinelpos is not None:
@@ -286,9 +302,10 @@ class Builder({{ super() }}):
         if attackpos is not None:
             return 'Attack', attackpos, 'Primary'
 
-        if secondaryattackpos is not None:
-            if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
-                return 'Attack', secondaryattackpos, 'Secondary'
+        if cls.min_dist_to_a_core <= 48:
+            if secondaryattackpos is not None:
+                if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
+                    return 'Attack', secondaryattackpos, 'Secondary'
                 
         ax_target = OreExecutive.get_axionite_target()
         ti_target = OreExecutive.get_titanium_target()
@@ -311,12 +328,6 @@ class Builder({{ super() }}):
         if ax_target is not None and cls.mode != {{ Mode.EARLY_RUSH }}:
             return 'BuildHarvesterAx', ax_target
 
-        route_pos = HarvesterAdjacent.get_best_route_position()
-        if route_pos is not None and cls.mode != {{ Mode.EARLY_RUSH }}:
-            RouteToCore.set_pos(route_pos)
-            if RouteToCore.is_active:
-                {{ D.print('[HarvesterAdjacent found route]') }}
-                return ('Route',)
 
         if my_pos.distance_squared(Symmetry.enemy_core_pos) > my_pos.distance_squared(Unit.core_pos) or attackpos is None:
             if stalk_target is not None and cls.mode != {{ Mode.EARLY_RUSH }}:

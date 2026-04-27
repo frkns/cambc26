@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # latest,  @ 2026-04-26 11:50:16 (local)
+=======
+# latest,  @ 2026-04-26 19:20:59 (local)
+>>>>>>> main
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -193,7 +197,7 @@ class Attacker:
             return None
         if not cls.should_fire(road.position):
             return None
-        if Builder.min_dist_to_a_core >= 20 and BuildManager.scale(100) < MarketMaker.ti:
+        if Builder.min_dist_to_a_core >= 36 and MarketMaker.ti < BuildManager.scale(100):
             return None
         return road.position
 
@@ -256,13 +260,10 @@ class Attacker:
 
     @classmethod
     def should_fire(cls, pos):
-        # if Builder.mode != 2:  eco cooked
-        if MarketMaker.est_income <= 10 and MarketMaker.ti <= 50:
-            return False
-
         x, y = pos.x, pos.y
         tile_info = Map.tile_info
         ti = tile_info[x][y]
+        idx = (((x) + 3) * 56 + ((y) + 3))
 
         # assume caller passes in position with enemy building
         if ti.is_building_ally:
@@ -274,23 +275,11 @@ class Attacker:
         if 2 * hp <= max_hp:
             return True
 
-        allies_ready, enemies_ready = cls.compute_readiness()
+        # allies_ready, enemies_ready = cls.compute_readiness()
+        # if allies_ready > 2 * enemies_ready:
+        #     return True
 
-        if allies_ready > 2 * enemies_ready:
-            return True
-
-        enemy_bots_adjacent = \
-                ((nti := tile_info[x][y]) is not None and nti.has_bot and not nti.is_bot_ally) + \
-                ((nti := tile_info[x-1][y]) is not None and nti.has_bot and not nti.is_bot_ally) + \
-                ((nti := tile_info[x+1][y]) is not None and nti.has_bot and not nti.is_bot_ally) + \
-                ((nti := tile_info[x][y-1]) is not None and nti.has_bot and not nti.is_bot_ally) + \
-                ((nti := tile_info[x][y+1]) is not None and nti.has_bot and not nti.is_bot_ally) + \
-                ((nti := tile_info[x-1][y-1]) is not None and nti.has_bot and not nti.is_bot_ally) + \
-                ((nti := tile_info[x+1][y-1]) is not None and nti.has_bot and not nti.is_bot_ally) + \
-                ((nti := tile_info[x-1][y+1]) is not None and nti.has_bot and not nti.is_bot_ally) + \
-                ((nti := tile_info[x+1][y+1]) is not None and nti.has_bot and not nti.is_bot_ally)
-
-        if enemy_bots_adjacent == 0:
+        if BfsBureau.enemy_bot_dist_adj[idx] >= 2:
             return True
 
         return False
@@ -1994,6 +1983,7 @@ class BfsBureau:
         # weight[ti] = 1 if weight[ti] < 10 else weight[ti]
         weight[ti] = 1
 
+        
 
         dist = [1000000] * 3136
         fhd  = [0]       * 3136
@@ -2012,7 +2002,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 0
             if ni == ti:
-                weight[ti] = pre_weight
+                weight[ti] = pre_weight; 
                 return w, Direction.NORTH
             _hp(heap, (w, ni))
         ni = si + 55
@@ -2021,7 +2011,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 1
             if ni == ti:
-                weight[ti] = pre_weight
+                weight[ti] = pre_weight; 
                 return w, Direction.NORTHEAST
             _hp(heap, (w, ni))
         ni = si + 56
@@ -2030,7 +2020,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 2
             if ni == ti:
-                weight[ti] = pre_weight
+                weight[ti] = pre_weight; 
                 return w, Direction.EAST
             _hp(heap, (w, ni))
         ni = si + 57
@@ -2039,7 +2029,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 3
             if ni == ti:
-                weight[ti] = pre_weight
+                weight[ti] = pre_weight; 
                 return w, Direction.SOUTHEAST
             _hp(heap, (w, ni))
         ni = si + 1
@@ -2048,7 +2038,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 4
             if ni == ti:
-                weight[ti] = pre_weight
+                weight[ti] = pre_weight; 
                 return w, Direction.SOUTH
             _hp(heap, (w, ni))
         ni = si + -55
@@ -2057,7 +2047,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 5
             if ni == ti:
-                weight[ti] = pre_weight
+                weight[ti] = pre_weight; 
                 return w, Direction.SOUTHWEST
             _hp(heap, (w, ni))
         ni = si + -56
@@ -2066,7 +2056,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 6
             if ni == ti:
-                weight[ti] = pre_weight
+                weight[ti] = pre_weight; 
                 return w, Direction.WEST
             _hp(heap, (w, ni))
         ni = si + -57
@@ -2075,7 +2065,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 7
             if ni == ti:
-                weight[ti] = pre_weight
+                weight[ti] = pre_weight; 
                 return w, Direction.NORTHWEST
             _hp(heap, (w, ni))
 
@@ -2109,7 +2099,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 55
@@ -2122,7 +2112,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 56
@@ -2135,7 +2125,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 57
@@ -2148,7 +2138,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 1
@@ -2161,7 +2151,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -55
@@ -2174,7 +2164,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -56
@@ -2187,7 +2177,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -57
@@ -2200,15 +2190,19 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
 
         if not phase2_seeds:
-            weight[ti] = pre_weight
+            weight[ti] = pre_weight; 
             return 1000000, None
 
+<<<<<<< HEAD
         
+=======
+
+>>>>>>> main
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = (cls.now_passable_int | _tm) & cls.board_mask
@@ -2290,6 +2284,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
+                        weight[ti] = pre_weight; 
                         return _md0 + _bfs_d + 1, _D[0]
                 else:
                     _fh0 = 0
@@ -2303,6 +2298,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
+                        weight[ti] = pre_weight; 
                         return _md1 + _bfs_d + 1, _D[1]
                 else:
                     _fh1 = 0
@@ -2316,6 +2312,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
+                        weight[ti] = pre_weight; 
                         return _md2 + _bfs_d + 1, _D[2]
                 else:
                     _fh2 = 0
@@ -2329,6 +2326,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
+                        weight[ti] = pre_weight; 
                         return _md3 + _bfs_d + 1, _D[3]
                 else:
                     _fh3 = 0
@@ -2342,6 +2340,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
+                        weight[ti] = pre_weight; 
                         return _md4 + _bfs_d + 1, _D[4]
                 else:
                     _fh4 = 0
@@ -2355,6 +2354,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
+                        weight[ti] = pre_weight; 
                         return _md5 + _bfs_d + 1, _D[5]
                 else:
                     _fh5 = 0
@@ -2368,6 +2368,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
+                        weight[ti] = pre_weight; 
                         return _md6 + _bfs_d + 1, _D[6]
                 else:
                     _fh6 = 0
@@ -2381,6 +2382,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
+                        weight[ti] = pre_weight; 
                         return _md7 + _bfs_d + 1, _D[7]
                 else:
                     _fh7 = 0
@@ -2389,8 +2391,12 @@ class BfsBureau:
                 break
             _bfs_d += 1
 
+<<<<<<< HEAD
         
         weight[ti] = pre_weight
+=======
+        weight[ti] = pre_weight; 
+>>>>>>> main
         return 1000000, None
 
 
@@ -2541,6 +2547,7 @@ class BfsBureau:
         # weight[ti] = 1 if weight[ti] < 10 else weight[ti]
         weight[ti] = 1
 
+        
 
         dist = [1000000] * 3136
         fhd  = [0]       * 3136
@@ -2560,7 +2567,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 0
             if ni == ti:
-                weight[ti] = pre_weight
+                weight[ti] = pre_weight; 
                 return w, Direction.NORTH
             _hp(heap, (w, ni))
         ni = si + 56
@@ -2570,7 +2577,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 2
             if ni == ti:
-                weight[ti] = pre_weight
+                weight[ti] = pre_weight; 
                 return w, Direction.EAST
             _hp(heap, (w, ni))
         ni = si + 1
@@ -2580,7 +2587,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 4
             if ni == ti:
-                weight[ti] = pre_weight
+                weight[ti] = pre_weight; 
                 return w, Direction.SOUTH
             _hp(heap, (w, ni))
         ni = si + -56
@@ -2590,7 +2597,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 6
             if ni == ti:
-                weight[ti] = pre_weight
+                weight[ti] = pre_weight; 
                 return w, Direction.WEST
             _hp(heap, (w, ni))
         ni = si + 55
@@ -2601,7 +2608,7 @@ class BfsBureau:
                 dist[ni] = w
                 fhd[ni]  = 1
                 if ni == ti:
-                    weight[ti] = pre_weight
+                    weight[ti] = pre_weight; 
                     return w, Direction.NORTHEAST
                 _hp(heap, (w, ni))
             elif w == dist[ni]:
@@ -2614,7 +2621,7 @@ class BfsBureau:
                 dist[ni] = w
                 fhd[ni]  = 3
                 if ni == ti:
-                    weight[ti] = pre_weight
+                    weight[ti] = pre_weight; 
                     return w, Direction.SOUTHEAST
                 _hp(heap, (w, ni))
             elif w == dist[ni]:
@@ -2627,7 +2634,7 @@ class BfsBureau:
                 dist[ni] = w
                 fhd[ni]  = 5
                 if ni == ti:
-                    weight[ti] = pre_weight
+                    weight[ti] = pre_weight; 
                     return w, Direction.SOUTHWEST
                 _hp(heap, (w, ni))
             elif w == dist[ni]:
@@ -2640,7 +2647,7 @@ class BfsBureau:
                 dist[ni] = w
                 fhd[ni]  = 7
                 if ni == ti:
-                    weight[ti] = pre_weight
+                    weight[ti] = pre_weight; 
                     return w, Direction.NORTHWEST
                 _hp(heap, (w, ni))
             elif w == dist[ni]:
@@ -2677,7 +2684,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 55
@@ -2691,7 +2698,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 56
@@ -2705,7 +2712,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 57
@@ -2719,7 +2726,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 1
@@ -2733,7 +2740,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -55
@@ -2747,7 +2754,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -56
@@ -2761,7 +2768,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -57
@@ -2775,15 +2782,19 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
 
         if not phase2_seeds:
-            weight[ti] = pre_weight
+            weight[ti] = pre_weight; 
             return 1000000, None
 
+<<<<<<< HEAD
         
+=======
+
+>>>>>>> main
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = (cls.now_passable_int | _tm) & cls.board_mask
@@ -2865,6 +2876,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
+                        weight[ti] = pre_weight; 
                         return _md0 + _bfs_d + 1, _D[0]
                 else:
                     _fh0 = 0
@@ -2878,6 +2890,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
+                        weight[ti] = pre_weight; 
                         return _md1 + _bfs_d + 1, _D[1]
                 else:
                     _fh1 = 0
@@ -2891,6 +2904,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
+                        weight[ti] = pre_weight; 
                         return _md2 + _bfs_d + 1, _D[2]
                 else:
                     _fh2 = 0
@@ -2904,6 +2918,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
+                        weight[ti] = pre_weight; 
                         return _md3 + _bfs_d + 1, _D[3]
                 else:
                     _fh3 = 0
@@ -2917,6 +2932,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
+                        weight[ti] = pre_weight; 
                         return _md4 + _bfs_d + 1, _D[4]
                 else:
                     _fh4 = 0
@@ -2930,6 +2946,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
+                        weight[ti] = pre_weight; 
                         return _md5 + _bfs_d + 1, _D[5]
                 else:
                     _fh5 = 0
@@ -2943,6 +2960,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
+                        weight[ti] = pre_weight; 
                         return _md6 + _bfs_d + 1, _D[6]
                 else:
                     _fh6 = 0
@@ -2956,6 +2974,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
+                        weight[ti] = pre_weight; 
                         return _md7 + _bfs_d + 1, _D[7]
                 else:
                     _fh7 = 0
@@ -2964,8 +2983,12 @@ class BfsBureau:
                 break
             _bfs_d += 1
 
+<<<<<<< HEAD
         
         weight[ti] = pre_weight
+=======
+        weight[ti] = pre_weight; 
+>>>>>>> main
         return 1000000, None
 
 
@@ -3054,6 +3077,18 @@ class BfsBureau:
     #   - NOT blocked by ENEMY launcher 3×3 zones  (those are their own launchers)
     enemy_bot_dist: list[int] = [1000000] * 3136
     _enemy_bot_dist_touched: list[int] = []
+
+    # [NEW-ADJ] ── enemy_bot_dist_adj storage ────────────────────────────────────
+    # Mirrors the relationship between bfs20_dist and bfs20_dist_adj:
+    #   enemy_bot_dist_adj[idx] = min(enemy_bot_dist[idx],
+    #                                 min over 8 neighbours of enemy_bot_dist[neighbour])
+    # In other words: the distance that the *closest reachable enemy bot* would
+    # need to reach any tile ADJACENT TO (or equal to) idx.
+    # This is useful for evaluating how threatened a tile is — even if the enemy
+    # cannot step onto idx itself, it might be able to attack from a neighbour.
+    enemy_bot_dist_adj: list[int] = [1000000] * 3136
+    _enemy_bot_dist_adj_touched: list[int] = []
+    # [END NEW-ADJ] ──────────────────────────────────────────────────────────────
     # [END NEW] ──────────────────────────────────────────────────────────────────
 
 
@@ -3304,14 +3339,6 @@ class BfsBureau:
 
     @classmethod
     def enemy_bot_bfs(cls):
-        """
-        [NEW] Multi-source unweighted bitmask BFS from all visible enemy bot positions,
-        modelled under enemy movement rules (see class-level comment block above).
-
-        Populates cls.enemy_bot_dist[padded_idx] with the distance in BFS steps
-        from the nearest visible enemy bot to every reachable tile.
-        Unreached tiles retain INF.
-        """
         IMPASSABLE = 1000000
         distances  = cls.enemy_bot_dist
         stride     = cls.STRIDE
@@ -3321,15 +3348,227 @@ class BfsBureau:
         for idx in cls._enemy_bot_dist_touched:
             distances[idx] = IMPASSABLE
 
-        # ── 2. enemy_now_passable_int was already computed in update() ─────────
-        # It equals passable_int with ally-launcher 3×3 zones carved out.
-        # We reuse it directly — no recomputation needed here.
+        # [NEW-ADJ] Reset last turn's written adj distances ─────────────────────
+        distances_adj = cls.enemy_bot_dist_adj
+        for idx in cls._enemy_bot_dist_adj_touched:
+            distances_adj[idx] = IMPASSABLE
+        # [END NEW-ADJ] ─────────────────────────────────────────────────────────
+
         enemy_passable = cls.enemy_now_passable_int
 
+        # ── 2. Build vision mask: only tiles within r²≤20 of our position ──────
+        pos = Globals.my_pos
+        px, py = pos.x, pos.y
+        vision_mask: int = 0
+        _vx = px + -4; _vy = py + -2
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -4; _vy = py + -1
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -4; _vy = py + 0
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -4; _vy = py + 1
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -4; _vy = py + 2
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -3; _vy = py + -3
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -3; _vy = py + -2
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -3; _vy = py + -1
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -3; _vy = py + 0
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -3; _vy = py + 1
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -3; _vy = py + 2
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -3; _vy = py + 3
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -2; _vy = py + -4
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -2; _vy = py + -3
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -2; _vy = py + -2
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -2; _vy = py + -1
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -2; _vy = py + 0
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -2; _vy = py + 1
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -2; _vy = py + 2
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -2; _vy = py + 3
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -2; _vy = py + 4
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -1; _vy = py + -4
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -1; _vy = py + -3
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -1; _vy = py + -2
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -1; _vy = py + -1
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -1; _vy = py + 0
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -1; _vy = py + 1
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -1; _vy = py + 2
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -1; _vy = py + 3
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + -1; _vy = py + 4
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 0; _vy = py + -4
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 0; _vy = py + -3
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 0; _vy = py + -2
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 0; _vy = py + -1
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 0; _vy = py + 0
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 0; _vy = py + 1
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 0; _vy = py + 2
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 0; _vy = py + 3
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 0; _vy = py + 4
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 1; _vy = py + -4
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 1; _vy = py + -3
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 1; _vy = py + -2
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 1; _vy = py + -1
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 1; _vy = py + 0
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 1; _vy = py + 1
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 1; _vy = py + 2
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 1; _vy = py + 3
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 1; _vy = py + 4
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 2; _vy = py + -4
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 2; _vy = py + -3
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 2; _vy = py + -2
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 2; _vy = py + -1
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 2; _vy = py + 0
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 2; _vy = py + 1
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 2; _vy = py + 2
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 2; _vy = py + 3
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 2; _vy = py + 4
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 3; _vy = py + -3
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 3; _vy = py + -2
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 3; _vy = py + -1
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 3; _vy = py + 0
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 3; _vy = py + 1
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 3; _vy = py + 2
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 3; _vy = py + 3
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 4; _vy = py + -2
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 4; _vy = py + -1
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 4; _vy = py + 0
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 4; _vy = py + 1
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        _vx = px + 4; _vy = py + 2
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+
         # ── 3. Collect seed positions from visible enemy bots ──────────────────
-        # Each enemy bot seeds at distance 0.
-        # We build a bitmask (seed_bits) for the BFS frontier and a list of
-        # (padded_idx, bit_position) pairs so we can write distances efficiently.
         seed_bits: int = 0
         seed_pairs: list[tuple[int, int]] = []
 
@@ -3340,17 +3579,16 @@ class BfsBureau:
                 seed_pairs.append((idx, b))
 
         if not seed_bits:
-            # No visible enemy bots this turn — nothing to propagate.
             cls._enemy_bot_dist_touched = []
+            # [NEW-ADJ] also clear adj touched list when no enemy bots visible
+            cls._enemy_bot_dist_adj_touched = []
+            # [END NEW-ADJ]
             return
 
-        # ── 4. Initialise BFS ──────────────────────────────────────────────────
-        # unvisited starts as enemy_passable ∪ seed positions (seeds forced in
-        # so an enemy bot temporarily on an impassable tile still propagates),
-        # then seeds are immediately removed (distance 0, already "visited").
-        unvisited: int = (enemy_passable | seed_bits) & board_mask
+        # ── 4. Initialise BFS — cap unvisited to vision_mask ──────────────────
+        unvisited: int = (enemy_passable | seed_bits) & board_mask & vision_mask
         frontier:  int = seed_bits & board_mask
-        unvisited       &= ~frontier   # seeds are visited at distance 0
+        unvisited       &= ~frontier
 
         touched_pairs = list(seed_pairs)
         for idx, _ in seed_pairs:
@@ -3358,40 +3596,96 @@ class BfsBureau:
 
         dist = 0
 
-        # ── 5. BFS expansion ───────────────────────────────────────────────────
+        # ── 5. BFS expansion (naturally stays in-vision via unvisited mask) ────
         while frontier:
             dist += 1
 
-            # Expand frontier one step in all 8 directions via integer shifts.
-            # See class-level comment for the derivation.
             horiz    = ((frontier << stride) | (frontier >> stride)) & board_mask
             vert     = ((frontier << 1)      | (frontier >> 1))      & board_mask
             diag     = ((horiz    << 1)      | (horiz    >> 1))      & board_mask
             expanded = (horiz | vert | diag) & unvisited
 
             if not expanded:
-                break   # frontier can no longer grow
+                break
 
-            unvisited &= ~expanded   # mark newly reached tiles as visited
-            frontier   =  expanded   # advance frontier
+            unvisited &= ~expanded
+            frontier   =  expanded
 
-            # ── 6. Decompose wavefront → write distances ───────────────────────
-            # Iterate over set bits in `expanded` by repeatedly isolating the
-            # lowest set bit (lsb = bits & -bits), then converting bit position
-            # back to (x, y) → padded array index.
             bits = expanded
             while bits:
-                lsb   =  bits & -bits           # isolate lowest set bit
-                bits  ^= lsb                    # clear it from the work copy
-                b     =  lsb.bit_length() - 1  # bit index = x*stride + y
-                bx    =  b // stride            # map-space x
-                by    =  b %  stride            # map-space y
-                pidx  = (((bx) + 3) * 56 + ((by) + 3))   # padded array index
+                lsb   =  bits & -bits
+                bits  ^= lsb
+                b     =  lsb.bit_length() - 1
+                bx    =  b // stride
+                by    =  b %  stride
+                pidx  = (((bx) + 3) * 56 + ((by) + 3))
                 distances[pidx] = dist
                 touched_pairs.append((pidx, b))
 
-        # ── 7. Record touched indices for next-turn reset ──────────────────────
         cls._enemy_bot_dist_touched = [i for i, _ in touched_pairs]
+
+        # [NEW-ADJ] ── Build enemy_bot_dist_adj from enemy_bot_dist ──────────────
+        # Exactly mirrors the bfs20_dist_adj logic in bfs20():
+        #   for every tile idx that has a finite enemy_bot_dist d:
+        #     • propagate d into distances_adj[idx]          (self)
+        #     • propagate d into distances_adj[neighbour]    (all 8 neighbours)
+        #       if neighbour is within vision r²≤20
+        # This means distances_adj[idx] = min enemy_bot_dist over {idx} ∪ neighbours(idx).
+        #
+        # We reuse _enemy_bot_dist_touched (all written padded indices) as the
+        # iteration source — the same set bfs20_dist_adj uses (_bfs20_touched_indices).
+        # We need the start_index for the valid_offsets check.
+        valid_offsets = cls._BFS20_VALID_OFFSETS
+        start_x = px
+        start_y = py
+        start_index = (((start_x) + 3) * 56 + ((start_y) + 3))
+
+        dist_adj_touched_set: set[int] = set()
+
+        for idx in cls._enemy_bot_dist_touched:
+            d = distances[idx]
+            if d >= IMPASSABLE:
+                continue
+            # propagate to self
+            if d < distances_adj[idx]:
+                distances_adj[idx] = d
+                dist_adj_touched_set.add(idx)
+            # propagate to all 8 neighbours that are within vision
+            ni = idx + -1
+            if (ni - start_index) in valid_offsets and d < distances_adj[ni]:
+                distances_adj[ni] = d
+                dist_adj_touched_set.add(ni)
+            ni = idx + 55
+            if (ni - start_index) in valid_offsets and d < distances_adj[ni]:
+                distances_adj[ni] = d
+                dist_adj_touched_set.add(ni)
+            ni = idx + 56
+            if (ni - start_index) in valid_offsets and d < distances_adj[ni]:
+                distances_adj[ni] = d
+                dist_adj_touched_set.add(ni)
+            ni = idx + 57
+            if (ni - start_index) in valid_offsets and d < distances_adj[ni]:
+                distances_adj[ni] = d
+                dist_adj_touched_set.add(ni)
+            ni = idx + 1
+            if (ni - start_index) in valid_offsets and d < distances_adj[ni]:
+                distances_adj[ni] = d
+                dist_adj_touched_set.add(ni)
+            ni = idx + -55
+            if (ni - start_index) in valid_offsets and d < distances_adj[ni]:
+                distances_adj[ni] = d
+                dist_adj_touched_set.add(ni)
+            ni = idx + -56
+            if (ni - start_index) in valid_offsets and d < distances_adj[ni]:
+                distances_adj[ni] = d
+                dist_adj_touched_set.add(ni)
+            ni = idx + -57
+            if (ni - start_index) in valid_offsets and d < distances_adj[ni]:
+                distances_adj[ni] = d
+                dist_adj_touched_set.add(ni)
+
+        cls._enemy_bot_dist_adj_touched = list(dist_adj_touched_set)
+        # [END NEW-ADJ] ──────────────────────────────────────────────────────────
 
 
     # [NEW] ── Convenience accessor ───────────────────────────────────────────────
@@ -3402,6 +3696,24 @@ class BfsBureau:
         return cls.enemy_bot_dist[(((pos.x) + 3) * 56 + ((pos.y) + 3))]
 
     # [END NEW] ──────────────────────────────────────────────────────────────────
+
+    # [NEW-ADJ] ── Convenience accessor for enemy_bot_dist_adj ──────────────────
+
+    @classmethod
+    def get_enemy_bot_dist_adj(cls, pos: Position) -> int:
+        """
+        [NEW-ADJ] Return the precomputed enemy_bot_dist_adj value for pos.
+
+        This equals min(enemy_bot_dist[pos], min over 8 neighbours of enemy_bot_dist[neighbour]),
+        i.e. the fewest steps an enemy bot would need to reach any tile that is
+        pos itself OR directly adjacent to pos (within the in-vision BFS frontier).
+
+        Useful for asking: "could an enemy bot attack this tile next turn?"
+        Returns INF if no enemy bot can reach pos or any of its neighbours.
+        """
+        return cls.enemy_bot_dist_adj[(((pos.x) + 3) * 56 + ((pos.y) + 3))]
+
+    # [END NEW-ADJ] ──────────────────────────────────────────────────────────────
 
 
     @classmethod
@@ -4530,6 +4842,43 @@ class BfsBureau:
                 Debug.dot(Position(tile_x, tile_y), Color.BLACK)
 
 
+    # [NEW-ADJ] ── Debug: visualise enemy_bot_dist_adj heatmap ──────────────────
+
+    @classmethod
+    def debug_enemy_bot_dist_adj(cls):
+        """
+        [NEW-ADJ] Draw dots for all tiles that have a finite enemy_bot_dist_adj value.
+
+        Colour scheme matches debug_enemy_bot_dist but applied to the adj (inflated)
+        distance, so tiles that are ADJACENT to a reachable tile also get coloured:
+          WHITE  = dist_adj 0–1  (enemy on or next to this tile)
+          YELLOW = dist_adj 2
+          ORANGE = dist_adj 3
+          RED    = dist_adj 4+
+
+        Because dist_adj is the min over a tile and its 8 neighbours, it is always
+        ≤ the corresponding enemy_bot_dist value and spreads one extra ring outward.
+        """
+        distances_adj = cls.enemy_bot_dist_adj
+        IMPASSABLE = 1000000
+
+        for x in range(Map.W):
+            for y in range(Map.H):
+                idx = (((x) + 3) * 56 + ((y) + 3))
+                d = distances_adj[idx]
+                if d < IMPASSABLE:
+                    if d <= 1:
+                        Debug.dot(Position(x, y), Color.WHITE)
+                    elif d == 2:
+                        Debug.dot(Position(x, y), Color.YELLOW)
+                    elif d == 3:
+                        Debug.dot(Position(x, y), Color.ORANGE)
+                    else:
+                        Debug.dot(Position(x, y), Color.RED)
+
+    # [END NEW-ADJ] ──────────────────────────────────────────────────────────────
+
+
     @classmethod
     def debug_enemy_launcher_zone(cls):
         stride = cls.STRIDE
@@ -4587,9 +4936,11 @@ class BfsBureau:
                 idx = (((x) + 3) * 56 + ((y) + 3))
                 d = distances[idx]
                 if d < IMPASSABLE:
-                    if d <= 3:
+                    if d <= 1:
                         Debug.dot(Position(x, y), Color.WHITE)
-                    elif d <= 7:
+                    elif d <= 2:
+                        Debug.dot(Position(x, y), Color.YELLOW)
+                    elif d <= 3:
                         Debug.dot(Position(x, y), Color.ORANGE)
                     else:
                         Debug.dot(Position(x, y), Color.RED)
@@ -5194,6 +5545,9 @@ class BuildManager:
     @staticmethod
     def can_afford_launcher() -> bool:
         ti_cost, ax_cost = Globals.ct.get_launcher_cost()
+        
+        
+        ti_cost += int(20 * MarketMaker.scale_ratio)
         
 
         return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
@@ -5992,7 +6346,7 @@ class Constants:
 
     AXIONITE_START: int = 100 # Start producing axionite at this round
 
-    RUSH_OVER: int = 500 # stop rush attempt now
+    HEAL_OVER: int = 1200 # stop heal attempt now
 
     MAX_HP_MAP: dict[EntityType, int] = {
         EntityType.BUILDER_BOT: 40,
@@ -6225,6 +6579,27 @@ class DarkForest:
                 i = (((x) + 3) * 56 + ((y) + 3))
                 if ns[i] is not None and pressure[i] > 0:
                     p = pressure[i]
+                    if p <= 12:
+                        ct.draw_indicator_dot(Position(x, y), 0, 255, 0)
+                    elif p <= 24:
+                        ct.draw_indicator_dot(Position(x, y), 255, 255, 0)
+                    elif p <= 36:
+                        ct.draw_indicator_dot(Position(x, y), 255, 128, 0)
+                    else:
+                        ct.draw_indicator_dot(Position(x, y), 255, 0, 0)
+
+
+    @classmethod
+    def debug_flow(cls):
+        """Draw dots: green=low, yellow=med, orange=high, red=saturated."""
+        ns = cls.nodes
+        flow = cls.flow
+        ct = Globals.ct
+        for x in range(50):
+            for y in range(50):
+                i = (((x) + 3) * 56 + ((y) + 3))
+                if ns[i] is not None and flow[i] > 0:
+                    p = flow[i]
                     if p <= 12:
                         ct.draw_indicator_dot(Position(x, y), 0, 255, 0)
                     elif p <= 24:
@@ -26615,6 +26990,8 @@ class HealExecutor:
         is_turret: bool
         entity_type: EntityType
         harvester_adjacent: bool
+        is_launcher: bool
+        is_gunner: bool
 
 
     cand: list[Candidate | None] = [None] * 9
@@ -26645,6 +27022,8 @@ class HealExecutor:
             ti = tile_info[nx][ny]
             cand.entity_type = ti.entity_type
             cand.harvester_adjacent = ti.harvester_adjacent
+            cand.is_launcher = cand.entity_type == EntityType.LAUNCHER
+            cand.is_gunner = cand.entity_type == EntityType.GUNNER
 
             if ti.has_building and ti.is_building_ally:
                 cand.building_heal = min(
@@ -26681,6 +27060,8 @@ class HealExecutor:
             ti = tile_info[nx][ny]
             cand.entity_type = ti.entity_type
             cand.harvester_adjacent = ti.harvester_adjacent
+            cand.is_launcher = cand.entity_type == EntityType.LAUNCHER
+            cand.is_gunner = cand.entity_type == EntityType.GUNNER
 
             if ti.has_building and ti.is_building_ally:
                 cand.building_heal = min(
@@ -26717,6 +27098,8 @@ class HealExecutor:
             ti = tile_info[nx][ny]
             cand.entity_type = ti.entity_type
             cand.harvester_adjacent = ti.harvester_adjacent
+            cand.is_launcher = cand.entity_type == EntityType.LAUNCHER
+            cand.is_gunner = cand.entity_type == EntityType.GUNNER
 
             if ti.has_building and ti.is_building_ally:
                 cand.building_heal = min(
@@ -26753,6 +27136,8 @@ class HealExecutor:
             ti = tile_info[nx][ny]
             cand.entity_type = ti.entity_type
             cand.harvester_adjacent = ti.harvester_adjacent
+            cand.is_launcher = cand.entity_type == EntityType.LAUNCHER
+            cand.is_gunner = cand.entity_type == EntityType.GUNNER
 
             if ti.has_building and ti.is_building_ally:
                 cand.building_heal = min(
@@ -26789,6 +27174,8 @@ class HealExecutor:
             ti = tile_info[nx][ny]
             cand.entity_type = ti.entity_type
             cand.harvester_adjacent = ti.harvester_adjacent
+            cand.is_launcher = cand.entity_type == EntityType.LAUNCHER
+            cand.is_gunner = cand.entity_type == EntityType.GUNNER
 
             if ti.has_building and ti.is_building_ally:
                 cand.building_heal = min(
@@ -26825,6 +27212,8 @@ class HealExecutor:
             ti = tile_info[nx][ny]
             cand.entity_type = ti.entity_type
             cand.harvester_adjacent = ti.harvester_adjacent
+            cand.is_launcher = cand.entity_type == EntityType.LAUNCHER
+            cand.is_gunner = cand.entity_type == EntityType.GUNNER
 
             if ti.has_building and ti.is_building_ally:
                 cand.building_heal = min(
@@ -26861,6 +27250,8 @@ class HealExecutor:
             ti = tile_info[nx][ny]
             cand.entity_type = ti.entity_type
             cand.harvester_adjacent = ti.harvester_adjacent
+            cand.is_launcher = cand.entity_type == EntityType.LAUNCHER
+            cand.is_gunner = cand.entity_type == EntityType.GUNNER
 
             if ti.has_building and ti.is_building_ally:
                 cand.building_heal = min(
@@ -26897,6 +27288,8 @@ class HealExecutor:
             ti = tile_info[nx][ny]
             cand.entity_type = ti.entity_type
             cand.harvester_adjacent = ti.harvester_adjacent
+            cand.is_launcher = cand.entity_type == EntityType.LAUNCHER
+            cand.is_gunner = cand.entity_type == EntityType.GUNNER
 
             if ti.has_building and ti.is_building_ally:
                 cand.building_heal = min(
@@ -26933,6 +27326,8 @@ class HealExecutor:
             ti = tile_info[nx][ny]
             cand.entity_type = ti.entity_type
             cand.harvester_adjacent = ti.harvester_adjacent
+            cand.is_launcher = cand.entity_type == EntityType.LAUNCHER
+            cand.is_gunner = cand.entity_type == EntityType.GUNNER
 
             if ti.has_building and ti.is_building_ally:
                 cand.building_heal = min(
@@ -26958,6 +27353,12 @@ class HealExecutor:
 
         if bool(a.building_heal) != bool(b.building_heal):
             return a.building_heal > b.building_heal
+
+        if a.is_launcher != b.is_launcher:
+            return a.is_launcher < b.is_launcher  # prefer non-launchers
+
+        if a.is_gunner != b.is_gunner:
+            return a.is_gunner > b.is_gunner
 
         if a.is_turret and (not b.is_turret): return True
         if (not a.is_turret) and b.is_turret: return False
@@ -27009,20 +27410,34 @@ class HealExecutor:
         if best.building_heal + best.bot_heal < (1 if best.entity_type == EntityType.ROAD or best.harvester_adjacent else 4):
             return
 
+        if best.is_launcher:
+            return
+
         Debug.line(best.position, Color.LIME)
         
-        # TODO: implement this
-        # # Replace the conveyor if it's cheaper
-        # if best.entity_type == EntityType.CONVEYOR:
-        #     if BuildManager.can_afford_conveyor():
-        #         heal = (Constants.MAX_HP_MAP[best.entity_type] - best.building_hp)
-        #         heals = math.ceil(heal / GameConstants.HEAL_AMOUNT)
-        #         heal_cost = heals * GameConstants.HEAL_COST
-        #         if heal_cost >= Globals.ct.get_conveyor_cost():
-        #             if BuildManager.can_dbuild_conveyor(best.position):
-        #                 BuildManager.dbuild_conveyor(best.position)
-        #                 return
-
+        # Replace the conveyor if it's at low health
+        if best.entity_type == EntityType.CONVEYOR:
+            if best.building_hp < 10:
+                if BuildManager.can_dbuild_conveyor(best.position):
+                    BuildManager.dbuild_conveyor(best.position, Globals.ct.get_direction(Globals.ct.get_tile_building_id(best.position)))
+                    return
+        if best.entity_type == EntityType.ARMOURED_CONVEYOR:
+            if best.building_hp < 25:
+                if BuildManager.can_dbuild_armoured_conveyor(best.position):
+                    BuildManager.dbuild_armoured_conveyor(best.position, Globals.ct.get_direction(Globals.ct.get_tile_building_id(best.position)))
+                    return
+        if best.entity_type == EntityType.SPLITTER:
+            if best.building_hp < 10:
+                if BuildManager.can_dbuild_splitter(best.position):
+                    BuildManager.dbuild_splitter(best.position, Globals.ct.get_direction(Globals.ct.get_tile_building_id(best.position)))
+                    return
+        if best.entity_type == EntityType.BRIDGE:
+            if best.building_hp < 10:
+                if BuildManager.can_dbuild_bridge(best.position):
+                    ti = Map.tile_info[best.position.x][best.position.y]
+                    BuildManager.dbuild_bridge(best.position, ti.target)
+                    return
+        
         Globals.ct.heal(best.position)
         
         
@@ -31162,8 +31577,6 @@ class RushTargeter:
                     return funPos, stuff[1] 
                 else:
                     return Explore.get_target(),'M' #move
-            if (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
-                return Symmetry.enemy_core_pos,'M' #move
         elif Builder.mode == 2:
             return Symmetry.sym_pos(Unit.core_pos),'M' #move
         return None
@@ -35063,7 +35476,7 @@ class SpawnManager:
         ti, ax = ct.get_global_resources()
         bot_ti, bot_ax = ct.get_builder_bot_cost()
 
-        if Globals.round <= 10 and cls.num_spawned < 5:
+        if Globals.round <= 10 and cls.num_spawned < 4:
             return True
 
         mass = 80 if cls.num_spawned < 10 else 200
@@ -35834,7 +36247,8 @@ class TransporterInfo:
         'ti', 'position', 'target', 'easily_reachable', 'easily_reachable_adj',
         'bfs_dist', 'bfs_dist_adj', 'bfs_dist_target_adj', 'flow', 'entity_type',
         'harvester_adjacent', 'is_ally', 'node_kind', 'flowing_into_ally',
-        'on_ally_side', 'easily_buildable', 'sight_flowing', 'adjacent_launchers'
+        'on_ally_side', 'easily_buildable', 'sight_flowing', 'adjacent_launchers',
+        'enemy_bot_bfs_dist_adj', 'enemy_bot1'
     )
 
     @staticmethod
@@ -35848,17 +36262,25 @@ class TransporterInfo:
         if a.ti.has_bot and (not b.ti.has_bot): return False
         if (not a.ti.has_bot) and b.ti.has_bot: return True
 
+        if a.enemy_bot1 != b.enemy_bot1:
+            return a.enemy_bot1 < b.enemy_bot1
+
         if abs(a.bfs_dist - b.bfs_dist) > 2:
             return a.bfs_dist < b.bfs_dist
+
+        if a.enemy_bot_bfs_dist_adj != b.enemy_bot_bfs_dist_adj:
+            return a.enemy_bot_bfs_dist_adj < b.enemy_bot_bfs_dist_adj
         
-        if a.adjacent_launchers != b.adjacent_launchers:
-            return a.adjacent_launchers > b.adjacent_launchers
+        # factored in with bot_bfs_dist
+        # if a.adjacent_launchers != b.adjacent_launchers:
+        #     return a.adjacent_launchers > b.adjacent_launchers
 
         if a.ti.building_hp != b.ti.building_hp:
             return a.ti.building_hp < b.ti.building_hp
 
         if a.harvester_adjacent and (not b.harvester_adjacent): return True
         if (not a.harvester_adjacent) and b.harvester_adjacent: return False
+
 
         if a.flow != b.flow:
             return a.flow > b.flow
@@ -35875,8 +36297,8 @@ class TransporterInfo:
 
         if a.flow != b.flow:
             return a.flow > b.flow
-        # if a.sight_flowing != b.sight_flowing:
-        #     return a.sight_flowing > b.sight_flowing
+        if a.sight_flowing != b.sight_flowing:
+            return a.sight_flowing > b.sight_flowing
 
         return a.bfs_dist_target_adj < b.bfs_dist_target_adj
 
@@ -36112,10 +36534,13 @@ class Builder(Unit):
         
         DarkForest.fcompute()
         
+<<<<<<< HEAD
         
         
         FoundryInputTracker.compute()
         
+=======
+>>>>>>> main
 
         
         BfsBureau.update()
@@ -36124,21 +36549,25 @@ class Builder(Unit):
         Symmetry.run_sym_check()
 
         if cls.mode == 0:
-            if Globals.round in [2,3]:
+            """
+            if Globals.round in [4,5]:
                 cls.mode = 2
                 Explore.target = Explore.new_target()
-            elif Globals.round in [4]:
+            """
+            
+            if Globals.round in [3]:
                 cls.mode = 3
                 Explore.target = Explore.new_target()
             else:
                 cls.mode = 1
-        if Globals.round >= Constants.RUSH_OVER:
+        if cls.mode != 2 and cls.mode != 3 and (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
+            cls.mode = 2
+            Explore.target = Explore.new_target()
+        if cls.mode == 3 and Globals.round >= Constants.HEAL_OVER:
             cls.mode = 1
-            # Explore.target = Explore.new_target()
-
+            Explore.target = Explore.new_target()
         print("Mode:", cls.mode)
 
-        DarkForest.debug_pressure()
 
         
         BfsBureau.bfs20()
@@ -36208,18 +36637,18 @@ class Builder(Unit):
 
         # BfsBureau.debug_bfs20_dist_adj()
         # BfsBureau.debug_enemy_launcher_zone()
-        BfsBureau.debug_ally_launcher_zone()
+        # BfsBureau.debug_ally_launcher_zone()
 
         # if Globals.round & 1:
         #     BfsBureau.debug_now_passable_int_impassable()
         # else:
         #     BfsBureau.debug_now_weight_inf()
 
-        my_pos = Globals.my_pos
+        # my_pos = Globals.my_pos
         # if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos) and Map.num_enemies == 0:
         #     Globals.ct.fire(my_pos)
         
-        if cls.min_dist_to_a_core <= 36:
+        if Map.num_enemies > 0 or cls.min_dist_to_a_core <= 36:
             RoadspamExecutor.execute_roadspam_attempt()
 
 
@@ -36310,13 +36739,21 @@ class Builder(Unit):
         if trans is not None:
             tpos = trans.target
 
-            if Util.dist_sq(tpos, Symmetry.enemy_core_pos) \
-                    < Util.dist_sq(tpos, Unit.core_pos):
-                return 'BuildTurret', tpos 
+            # if Util.dist_sq(tpos, Symmetry.enemy_core_pos) \
+            #         < Util.dist_sq(tpos, Unit.core_pos):
+            #     return 'BuildTurret', tpos 
 
-            if tpos not in RouteToCore.killed:
+            # if tpos not in RouteToCore.killed:
+            if True:
                 RouteToCore.set_pos(tpos)
                 return 'MoveTo', tpos, 'InitRoute'
+
+        route_pos = HarvesterAdjacent.get_best_route_position()
+        if route_pos is not None and cls.mode != 2:
+            RouteToCore.set_pos(route_pos)
+            if RouteToCore.is_active:
+                
+                return ('Route',)
 
 
         if sentinelpos is not None:
@@ -36341,9 +36778,10 @@ class Builder(Unit):
         if attackpos is not None:
             return 'Attack', attackpos, 'Primary'
 
-        if secondaryattackpos is not None:
-            if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
-                return 'Attack', secondaryattackpos, 'Secondary'
+        if cls.min_dist_to_a_core <= 48:
+            if secondaryattackpos is not None:
+                if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
+                    return 'Attack', secondaryattackpos, 'Secondary'
                 
         ax_target = OreExecutive.get_axionite_target()
         ti_target = OreExecutive.get_titanium_target()
@@ -36366,12 +36804,15 @@ class Builder(Unit):
         if ax_target is not None and cls.mode != 2:
             return 'BuildHarvesterAx', ax_target
 
+<<<<<<< HEAD
         route_pos = HarvesterAdjacent.get_best_route_position()
         if route_pos is not None and cls.mode != 2:
             RouteToCore.set_pos(route_pos)
             if RouteToCore.is_active:
                 
                 return ('Route',)
+=======
+>>>>>>> main
 
         if my_pos.distance_squared(Symmetry.enemy_core_pos) > my_pos.distance_squared(Unit.core_pos) or attackpos is None:
             if stalk_target is not None and cls.mode != 2:
@@ -36871,7 +37312,7 @@ class VisionTracker:
                 info.position = pos
                 info.hp = ti.building_hp
                 info.bfs_dist = BfsBureau.bfs20_dist[idx]
-                info.easily_reachable = info.bfs_dist <= 10
+                info.easily_reachable = info.bfs_dist <= 15
                 info.is_pointed_to = ti.is_pointed_to
 
                 cls.enemy_roads.append(info)
@@ -36888,12 +37329,14 @@ class VisionTracker:
                 trans.easily_reachable_adj = BfsBureau.bfs20_dist_adj[idx] < 20
                 trans.bfs_dist = BfsBureau.bfs20_dist[idx]
                 trans.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
-                trans.flow = DarkForest.sight_flowing[idx]
+                trans.flow = DarkForest.flow[idx]
                 trans.entity_type = ti.entity_type
                 trans.harvester_adjacent = ti.harvester_adjacent
                 trans.is_ally = ti.is_building_ally
                 trans.sight_flowing = DarkForest.sight_flowing[idx]
                 trans.adjacent_launchers = 0
+                trans.enemy_bot_bfs_dist_adj = BfsBureau.enemy_bot_dist_adj[idx]
+                trans.enemy_bot1 = trans.enemy_bot_bfs_dist_adj <= 1
 
                 trans.node_kind = DarkForest.node_kind[idx]
                 trans.flowing_into_ally = trans.node_kind in \
@@ -36952,10 +37395,11 @@ class VisionTracker:
                 else:
                     cls.enemy_transporters.append(trans)
 
-                if DarkForest.node_kind[idx] == 0 and (DarkForest.flow[idx] > 0 or DarkForest.sight_flowing[idx]):
+                # can't really use sight_flowing because of backup
+                if trans.node_kind == 0 and (trans.flow > 0):
                     if DarkForest.nodes[idx].up is None:
                         if Globals.ct.get_stored_resource(trans.ti.building_id) in (ResourceType.TITANIUM, ResourceType.REFINED_AXIONITE):
-                            if target_ti is not None and target_ti.entity_type in (None, EntityType.ROAD):
+                            if target_ti is not None and target_ti.entity_type in (None, EntityType.ROAD, EntityType.MARKER):
                                 cls.disconnected_roots.append(trans)
                                 Debug.dot(trans.position, Color.PINK)
 

@@ -32,6 +32,8 @@ class HealExecutor:
         is_turret: bool
         entity_type: EntityType
         harvester_adjacent: bool
+        is_launcher: bool
+        is_gunner: bool
 
 
     cand: list[Candidate | None] = [None] * 9
@@ -64,6 +66,8 @@ class HealExecutor:
             ti = tile_info[nx][ny]
             cand.entity_type = ti.entity_type
             cand.harvester_adjacent = ti.harvester_adjacent
+            cand.is_launcher = cand.entity_type == EntityType.LAUNCHER
+            cand.is_gunner = cand.entity_type == EntityType.GUNNER
 
             if ti.has_building and ti.is_building_ally:
                 cand.building_heal = min(
@@ -99,6 +103,12 @@ class HealExecutor:
 
         if bool(a.building_heal) != bool(b.building_heal):
             return a.building_heal > b.building_heal
+
+        if a.is_launcher != b.is_launcher:
+            return a.is_launcher < b.is_launcher  # prefer non-launchers
+
+        if a.is_gunner != b.is_gunner:
+            return a.is_gunner > b.is_gunner
 
         if a.is_turret and (not b.is_turret): return True
         if (not a.is_turret) and b.is_turret: return False
@@ -141,20 +151,34 @@ class HealExecutor:
         if best.building_heal + best.bot_heal < {{ heal_req }}:
             return
 
+        if best.is_launcher:
+            return
+
         Debug.line(best.position, Color.LIME)
         
-        # TODO: implement this
-        # # Replace the conveyor if it's cheaper
-        # if best.entity_type == EntityType.CONVEYOR:
-        #     if BuildManager.can_afford_conveyor():
-        #         heal = (Constants.MAX_HP_MAP[best.entity_type] - best.building_hp)
-        #         heals = math.ceil(heal / GameConstants.HEAL_AMOUNT)
-        #         heal_cost = heals * GameConstants.HEAL_COST
-        #         if heal_cost >= Globals.ct.get_conveyor_cost():
-        #             if BuildManager.can_dbuild_conveyor(best.position):
-        #                 BuildManager.dbuild_conveyor(best.position)
-        #                 return
-
+        # Replace the conveyor if it's at low health
+        if best.entity_type == EntityType.CONVEYOR:
+            if best.building_hp < {{ GameConstants.CONVEYOR_MAX_HP // 2 }}:
+                if BuildManager.can_dbuild_conveyor(best.position):
+                    BuildManager.dbuild_conveyor(best.position, Globals.ct.get_direction(Globals.ct.get_tile_building_id(best.position)))
+                    return
+        if best.entity_type == EntityType.ARMOURED_CONVEYOR:
+            if best.building_hp < {{ GameConstants.ARMOURED_CONVEYOR_MAX_HP // 2 }}:
+                if BuildManager.can_dbuild_armoured_conveyor(best.position):
+                    BuildManager.dbuild_armoured_conveyor(best.position, Globals.ct.get_direction(Globals.ct.get_tile_building_id(best.position)))
+                    return
+        if best.entity_type == EntityType.SPLITTER:
+            if best.building_hp < {{ GameConstants.SPLITTER_MAX_HP // 2 }}:
+                if BuildManager.can_dbuild_splitter(best.position):
+                    BuildManager.dbuild_splitter(best.position, Globals.ct.get_direction(Globals.ct.get_tile_building_id(best.position)))
+                    return
+        if best.entity_type == EntityType.BRIDGE:
+            if best.building_hp < {{ GameConstants.BRIDGE_MAX_HP // 2 }}:
+                if BuildManager.can_dbuild_bridge(best.position):
+                    ti = Map.tile_info[best.position.x][best.position.y]
+                    BuildManager.dbuild_bridge(best.position, ti.target)
+                    return
+        
         Globals.ct.heal(best.position)
         
         

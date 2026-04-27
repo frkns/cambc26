@@ -419,8 +419,9 @@ class BfsBureau:
         # weight[ti] = 1 if weight[ti] < 10 else weight[ti]
         weight[ti] = 1
 
+        {{ P.start('BfsBureau.find_route{{ variant_suffix }}') }}
         {% set before_ret -%}
-        weight[ti] = pre_weight
+        weight[ti] = pre_weight; {{ P.end('BfsBureau.find_route{{ variant_suffix }}') }}
         {%- endset %}
 
         dist = [{{ INF }}] * {{ PADDED_GRID_SIZE }}
@@ -522,7 +523,7 @@ class BfsBureau:
             {{ before_ret }}
             return {{ INF }}, None
 
-        {{ P.start('BfsBureau.find_route{{ variant_suffix }}') }}
+
         _tb = _tx * stride + _ty
         _tm = 1 << _tb
         _uc = (cls.now_passable_int | _tm) & cls.board_mask
@@ -567,6 +568,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
+                        {{ before_ret }}
                         return _md{{ dir }} + _bfs_d + 1, _D[{{ dir }}]
                 else:
                     _fh{{ dir }} = 0
@@ -576,7 +578,6 @@ class BfsBureau:
                 break
             _bfs_d += 1
 
-        {{ P.end('BfsBureau.find_route{{ variant_suffix }}') }}
         {{ before_ret }}
         return {{ INF }}, None
 # ===---
@@ -605,6 +606,18 @@ class BfsBureau:
     #   - NOT blocked by ENEMY launcher 3×3 zones  (those are their own launchers)
     enemy_bot_dist: list[int] = [{{ INF }}] * {{ PADDED_GRID_SIZE }}
     _enemy_bot_dist_touched: list[int] = []
+
+    # [NEW-ADJ] ── enemy_bot_dist_adj storage ────────────────────────────────────
+    # Mirrors the relationship between bfs20_dist and bfs20_dist_adj:
+    #   enemy_bot_dist_adj[idx] = min(enemy_bot_dist[idx],
+    #                                 min over 8 neighbours of enemy_bot_dist[neighbour])
+    # In other words: the distance that the *closest reachable enemy bot* would
+    # need to reach any tile ADJACENT TO (or equal to) idx.
+    # This is useful for evaluating how threatened a tile is — even if the enemy
+    # cannot step onto idx itself, it might be able to attack from a neighbour.
+    enemy_bot_dist_adj: list[int] = [{{ INF }}] * {{ PADDED_GRID_SIZE }}
+    _enemy_bot_dist_adj_touched: list[int] = []
+    # [END NEW-ADJ] ──────────────────────────────────────────────────────────────
     # [END NEW] ──────────────────────────────────────────────────────────────────
 
 # ---===
@@ -728,14 +741,6 @@ class BfsBureau:
 # ---===
     @classmethod
     def enemy_bot_bfs(cls):
-        """
-        [NEW] Multi-source unweighted bitmask BFS from all visible enemy bot positions,
-        modelled under enemy movement rules (see class-level comment block above).
-
-        Populates cls.enemy_bot_dist[padded_idx] with the distance in BFS steps
-        from the nearest visible enemy bot to every reachable tile.
-        Unreached tiles retain INF.
-        """
         IMPASSABLE = {{ INF }}
         distances  = cls.enemy_bot_dist
         stride     = cls.STRIDE
@@ -745,15 +750,29 @@ class BfsBureau:
         for idx in cls._enemy_bot_dist_touched:
             distances[idx] = IMPASSABLE
 
-        # ── 2. enemy_now_passable_int was already computed in update() ─────────
-        # It equals passable_int with ally-launcher 3×3 zones carved out.
-        # We reuse it directly — no recomputation needed here.
+        # [NEW-ADJ] Reset last turn's written adj distances ─────────────────────
+        distances_adj = cls.enemy_bot_dist_adj
+        for idx in cls._enemy_bot_dist_adj_touched:
+            distances_adj[idx] = IMPASSABLE
+        # [END NEW-ADJ] ─────────────────────────────────────────────────────────
+
         enemy_passable = cls.enemy_now_passable_int
 
+        # ── 2. Build vision mask: only tiles within r²≤20 of our position ──────
+        pos = Globals.my_pos
+        px, py = pos.x, pos.y
+        vision_mask: int = 0
+        {% for dx in range(-4, 5) %}
+        {% for dy in range(-4, 5) %}
+        {% if dx*dx + dy*dy <= 20 %}
+        _vx = px + {{ dx }}; _vy = py + {{ dy }}
+        if 0 <= _vx < Map.W and 0 <= _vy < Map.H:
+            vision_mask |= 1 << (_vx * stride + _vy)
+        {% endif %}
+        {% endfor %}
+        {% endfor %}
+
         # ── 3. Collect seed positions from visible enemy bots ──────────────────
-        # Each enemy bot seeds at distance 0.
-        # We build a bitmask (seed_bits) for the BFS frontier and a list of
-        # (padded_idx, bit_position) pairs so we can write distances efficiently.
         seed_bits: int = 0
         seed_pairs: list[tuple[int, int]] = []
 
@@ -764,17 +783,16 @@ class BfsBureau:
                 seed_pairs.append((idx, b))
 
         if not seed_bits:
-            # No visible enemy bots this turn — nothing to propagate.
             cls._enemy_bot_dist_touched = []
+            # [NEW-ADJ] also clear adj touched list when no enemy bots visible
+            cls._enemy_bot_dist_adj_touched = []
+            # [END NEW-ADJ]
             return
 
-        # ── 4. Initialise BFS ──────────────────────────────────────────────────
-        # unvisited starts as enemy_passable ∪ seed positions (seeds forced in
-        # so an enemy bot temporarily on an impassable tile still propagates),
-        # then seeds are immediately removed (distance 0, already "visited").
-        unvisited: int = (enemy_passable | seed_bits) & board_mask
+        # ── 4. Initialise BFS — cap unvisited to vision_mask ──────────────────
+        unvisited: int = (enemy_passable | seed_bits) & board_mask & vision_mask
         frontier:  int = seed_bits & board_mask
-        unvisited       &= ~frontier   # seeds are visited at distance 0
+        unvisited       &= ~frontier
 
         touched_pairs = list(seed_pairs)
         for idx, _ in seed_pairs:
@@ -782,40 +800,70 @@ class BfsBureau:
 
         dist = 0
 
-        # ── 5. BFS expansion ───────────────────────────────────────────────────
+        # ── 5. BFS expansion (naturally stays in-vision via unvisited mask) ────
         while frontier:
             dist += 1
 
-            # Expand frontier one step in all 8 directions via integer shifts.
-            # See class-level comment for the derivation.
             horiz    = ((frontier << stride) | (frontier >> stride)) & board_mask
             vert     = ((frontier << 1)      | (frontier >> 1))      & board_mask
             diag     = ((horiz    << 1)      | (horiz    >> 1))      & board_mask
             expanded = (horiz | vert | diag) & unvisited
 
             if not expanded:
-                break   # frontier can no longer grow
+                break
 
-            unvisited &= ~expanded   # mark newly reached tiles as visited
-            frontier   =  expanded   # advance frontier
+            unvisited &= ~expanded
+            frontier   =  expanded
 
-            # ── 6. Decompose wavefront → write distances ───────────────────────
-            # Iterate over set bits in `expanded` by repeatedly isolating the
-            # lowest set bit (lsb = bits & -bits), then converting bit position
-            # back to (x, y) → padded array index.
             bits = expanded
             while bits:
-                lsb   =  bits & -bits           # isolate lowest set bit
-                bits  ^= lsb                    # clear it from the work copy
-                b     =  lsb.bit_length() - 1  # bit index = x*stride + y
-                bx    =  b // stride            # map-space x
-                by    =  b %  stride            # map-space y
-                pidx  = {{ encode_pos('bx', 'by') }}   # padded array index
+                lsb   =  bits & -bits
+                bits  ^= lsb
+                b     =  lsb.bit_length() - 1
+                bx    =  b // stride
+                by    =  b %  stride
+                pidx  = {{ encode_pos('bx', 'by') }}
                 distances[pidx] = dist
                 touched_pairs.append((pidx, b))
 
-        # ── 7. Record touched indices for next-turn reset ──────────────────────
         cls._enemy_bot_dist_touched = [i for i, _ in touched_pairs]
+
+        # [NEW-ADJ] ── Build enemy_bot_dist_adj from enemy_bot_dist ──────────────
+        # Exactly mirrors the bfs20_dist_adj logic in bfs20():
+        #   for every tile idx that has a finite enemy_bot_dist d:
+        #     • propagate d into distances_adj[idx]          (self)
+        #     • propagate d into distances_adj[neighbour]    (all 8 neighbours)
+        #       if neighbour is within vision r²≤20
+        # This means distances_adj[idx] = min enemy_bot_dist over {idx} ∪ neighbours(idx).
+        #
+        # We reuse _enemy_bot_dist_touched (all written padded indices) as the
+        # iteration source — the same set bfs20_dist_adj uses (_bfs20_touched_indices).
+        # We need the start_index for the valid_offsets check.
+        valid_offsets = cls._BFS20_VALID_OFFSETS
+        start_x = px
+        start_y = py
+        start_index = {{ encode_pos('start_x', 'start_y') }}
+
+        dist_adj_touched_set: set[int] = set()
+
+        for idx in cls._enemy_bot_dist_touched:
+            d = distances[idx]
+            if d >= IMPASSABLE:
+                continue
+            # propagate to self
+            if d < distances_adj[idx]:
+                distances_adj[idx] = d
+                dist_adj_touched_set.add(idx)
+            # propagate to all 8 neighbours that are within vision
+            {% for dir in range(8) %}
+            ni = idx + {{ Dir.dx[dir] * PH + Dir.dy[dir] }}
+            if (ni - start_index) in valid_offsets and d < distances_adj[ni]:
+                distances_adj[ni] = d
+                dist_adj_touched_set.add(ni)
+            {% endfor %}
+
+        cls._enemy_bot_dist_adj_touched = list(dist_adj_touched_set)
+        # [END NEW-ADJ] ──────────────────────────────────────────────────────────
 # ===---
 
     # [NEW] ── Convenience accessor ───────────────────────────────────────────────
@@ -826,6 +874,24 @@ class BfsBureau:
         return cls.enemy_bot_dist[{{ encode_pos('pos.x', 'pos.y') }}]
 # ===---
     # [END NEW] ──────────────────────────────────────────────────────────────────
+
+    # [NEW-ADJ] ── Convenience accessor for enemy_bot_dist_adj ──────────────────
+# ---===
+    @classmethod
+    def get_enemy_bot_dist_adj(cls, pos: Position) -> int:
+        """
+        [NEW-ADJ] Return the precomputed enemy_bot_dist_adj value for pos.
+
+        This equals min(enemy_bot_dist[pos], min over 8 neighbours of enemy_bot_dist[neighbour]),
+        i.e. the fewest steps an enemy bot would need to reach any tile that is
+        pos itself OR directly adjacent to pos (within the in-vision BFS frontier).
+
+        Useful for asking: "could an enemy bot attack this tile next turn?"
+        Returns INF if no enemy bot can reach pos or any of its neighbours.
+        """
+        return cls.enemy_bot_dist_adj[{{ encode_pos('pos.x', 'pos.y') }}]
+# ===---
+    # [END NEW-ADJ] ──────────────────────────────────────────────────────────────
 
 # ---===
     @classmethod
@@ -877,6 +943,43 @@ class BfsBureau:
         {% endfor %}
         {% endfor %}
 # ===---
+
+    # [NEW-ADJ] ── Debug: visualise enemy_bot_dist_adj heatmap ──────────────────
+# ---===
+    @classmethod
+    def debug_enemy_bot_dist_adj(cls):
+        """
+        [NEW-ADJ] Draw dots for all tiles that have a finite enemy_bot_dist_adj value.
+
+        Colour scheme matches debug_enemy_bot_dist but applied to the adj (inflated)
+        distance, so tiles that are ADJACENT to a reachable tile also get coloured:
+          WHITE  = dist_adj 0–1  (enemy on or next to this tile)
+          YELLOW = dist_adj 2
+          ORANGE = dist_adj 3
+          RED    = dist_adj 4+
+
+        Because dist_adj is the min over a tile and its 8 neighbours, it is always
+        ≤ the corresponding enemy_bot_dist value and spreads one extra ring outward.
+        """
+        distances_adj = cls.enemy_bot_dist_adj
+        IMPASSABLE = {{ INF }}
+
+        for x in range(Map.W):
+            for y in range(Map.H):
+                idx = {{ encode_pos('x', 'y') }}
+                d = distances_adj[idx]
+                if d < IMPASSABLE:
+                    if d <= 1:
+                        Debug.dot(Position(x, y), Color.WHITE)
+                    elif d == 2:
+                        Debug.dot(Position(x, y), Color.YELLOW)
+                    elif d == 3:
+                        Debug.dot(Position(x, y), Color.ORANGE)
+                    else:
+                        Debug.dot(Position(x, y), Color.RED)
+# ===---
+    # [END NEW-ADJ] ──────────────────────────────────────────────────────────────
+
 # ---===
     @classmethod
     def debug_enemy_launcher_zone(cls):
@@ -935,9 +1038,11 @@ class BfsBureau:
                 idx = {{ encode_pos('x', 'y') }}
                 d = distances[idx]
                 if d < IMPASSABLE:
-                    if d <= 3:
+                    if d <= 1:
                         Debug.dot(Position(x, y), Color.WHITE)
-                    elif d <= 7:
+                    elif d <= 2:
+                        Debug.dot(Position(x, y), Color.YELLOW)
+                    elif d <= 3:
                         Debug.dot(Position(x, y), Color.ORANGE)
                     else:
                         Debug.dot(Position(x, y), Color.RED)
