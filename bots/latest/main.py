@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-27 19:20:59 (local)
+# latest,  @ 2026-04-27 20:24:47 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -29721,6 +29721,11 @@ class OreExecutive:
                 heapq.heappop(cls.ti_queue)
                 cls.state[pos] = 3
                 continue
+            
+            if not VisionTracker.me_is_canonical_ally(pos):
+                heapq.heappop(cls.ti_queue)
+                cls.state[pos] = 5
+                continue
 
             if not ti.has_bot and MarketMaker.should_build_harvester(pos):  # fixed: was should_build_ax_harvester
                 ret = pos
@@ -29731,16 +29736,11 @@ class OreExecutive:
         if ret is None:
             return None
 
-        if not VisionTracker.me_is_canonical_ally(ret):
-            # just kill?
-            return None
-
 
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + -1]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
-                cls.state[ret] = 2
                 return None
 
 
@@ -29748,7 +29748,6 @@ class OreExecutive:
         ti: TileInfo = Map.tile_info[ret.x + 1][ret.y + 0]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
-                cls.state[ret] = 2
                 return None
 
 
@@ -29756,7 +29755,6 @@ class OreExecutive:
         ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + 1]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
-                cls.state[ret] = 2
                 return None
 
 
@@ -29764,7 +29762,6 @@ class OreExecutive:
         ti: TileInfo = Map.tile_info[ret.x + -1][ret.y + 0]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
-                cls.state[ret] = 2
                 return None
 
 
@@ -29794,8 +29791,13 @@ class OreExecutive:
                 heapq.heappop(cls.ax_queue)
                 cls.state[pos] = 3
                 continue
+            
+            if not VisionTracker.me_is_canonical_ally(pos):
+                heapq.heappop(cls.ax_queue)
+                cls.state[pos] = 5
+                continue
 
-            if not ti.has_bot and MarketMaker.should_build_harvester(pos):
+            if not ti.has_bot and MarketMaker.should_build_ax_harvester(pos):
                 ret = pos
                 break
             else:
@@ -29804,17 +29806,11 @@ class OreExecutive:
         if ret is None:
             return None
 
-        if not VisionTracker.me_is_canonical_ally(ret):
-            # just kill?
-            cls.state[ret] = 2
-            return None
-
 
         # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
         ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + -1]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
-                cls.state[ret] = 2
                 return None
 
 
@@ -29822,7 +29818,6 @@ class OreExecutive:
         ti: TileInfo = Map.tile_info[ret.x + 1][ret.y + 0]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
-                cls.state[ret] = 2
                 return None
 
 
@@ -29830,7 +29825,6 @@ class OreExecutive:
         ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + 1]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
-                cls.state[ret] = 2
                 return None
 
 
@@ -29838,7 +29832,6 @@ class OreExecutive:
         ti: TileInfo = Map.tile_info[ret.x + -1][ret.y + 0]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
-                cls.state[ret] = 2
                 return None
 
 
@@ -35897,7 +35890,7 @@ class StateBuildShield:
         
         target_dir = None
         
-        tile_info = Map.tile_inrgetefo
+        tile_info = Map.tile_info
         found_ally_harvester = False
         
         ti = tile_info[pos.x + 0][pos.y + -1]

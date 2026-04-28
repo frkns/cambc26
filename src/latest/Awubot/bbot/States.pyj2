@@ -234,7 +234,7 @@ class StateBuildShield:
         
         target_dir = None
         
-        tile_info = Map.tile_inrgetefo
+        tile_info = Map.tile_info
         found_ally_harvester = False
         
         {% for dir in cardinal_directions %}
