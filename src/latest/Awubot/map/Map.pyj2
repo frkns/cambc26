@@ -225,7 +225,7 @@ class Map:
                     num_enemy_buildings += 1
             else:
                 etype = None
-                is_building_ally = False
+                ti.is_building_ally = False
 
             ti.entity_type = etype
 
