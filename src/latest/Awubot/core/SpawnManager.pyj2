@@ -66,9 +66,11 @@ class SpawnManager:
 
         {% for dir in directions|reverse %}
         pos = my_pos.add({{ dir }})
+
         if Globals.ct.can_spawn(pos):
             Globals.ct.spawn_builder(pos)
             cls.num_spawned += 1
+            cls.dangerous_enemy_counter = 0
         {% endfor %}
 
 

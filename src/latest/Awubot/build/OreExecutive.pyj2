@@ -29,7 +29,7 @@ class OreExecutive:
     ax_queue: list[tuple[int, Position]] = []
     # nearby_ti_queue removed (reverted c187f820)
 
-    hard_building_set: set[EntityType] = {EntityType.HARVESTER, EntityType.FOUNDRY, EntityType.SENTINEL}
+    hard_building_set: set[EntityType] = {EntityType.HARVESTER, EntityType.FOUNDRY, EntityType.SENTINEL, EntityType.GUNNER}
 
     @classmethod
     def fill(cls):
@@ -95,7 +95,7 @@ class OreExecutive:
                 continue
             if ti.entity_type == EntityType.FOUNDRY:
                 heapq.heappop(cls.ti_queue)
-                cls.state[pos] = {{ HAS_HARD_BUILDING }}  # just to prevent requeuing, doesn't matter much
+                cls.state[pos] = {{ HAS_HARD_BUILDING }}
                 continue
 
             if ti.has_building and not ti.is_building_ally:

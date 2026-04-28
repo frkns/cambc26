@@ -1,0 +1,438 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+
+class TransporterInfo:
+    __slots__ = (
+        'ti', 'position', 'target', 'easily_reachable', 'easily_reachable_adj',
+        'bfs_dist', 'bfs_dist_adj', 'bfs_dist_target_adj', 'flow', 'entity_type',
+        'harvester_adjacent', 'is_ally', 'node_kind', 'flowing_into_ally',
+        'on_ally_side', 'easily_buildable', 'sight_flowing', 'adjacent_launchers',
+        'enemy_bot_dist_adj', 'enemy_bot1', 'rand_key'
+    )
+
+    @staticmethod
+    def is_better_trans_atk_target_than(a: TransporterInfo, b: TransporterInfo) -> bool:
+        if a.flowing_into_ally: return False
+        if b.flowing_into_ally: return True
+
+        if not a.easily_reachable: return False
+        if not b.easily_reachable: return True
+
+        if a.ti.has_bot and (not b.ti.has_bot): return False
+        if (not a.ti.has_bot) and b.ti.has_bot: return True
+
+        if a.enemy_bot1 != b.enemy_bot1:
+            return a.enemy_bot1 < b.enemy_bot1
+
+        if abs(a.bfs_dist - b.bfs_dist) > 2:
+            return a.bfs_dist < b.bfs_dist
+
+        if a.enemy_bot_dist_adj != b.enemy_bot_dist_adj:
+            return a.enemy_bot_dist_adj > b.enemy_bot_dist_adj
+        
+        # factored in with bot_bfs_dist
+        # if a.adjacent_launchers != b.adjacent_launchers:
+        #     return a.adjacent_launchers > b.adjacent_launchers
+
+        if a.ti.building_hp != b.ti.building_hp:
+            return a.ti.building_hp < b.ti.building_hp
+
+        if a.harvester_adjacent and (not b.harvester_adjacent): return True
+        if (not a.harvester_adjacent) and b.harvester_adjacent: return False
+
+
+        if a.flow != b.flow:
+            return a.flow > b.flow
+
+        # return a.bfs_dist < b.bfs_dist
+        return a.rand_key < b.rand_key
+
+
+    @staticmethod
+    def is_better_connect_than(a: TransporterInfo, b: TransporterInfo) -> bool:
+        a_reach = a.easily_reachable and a.easily_buildable # and a.on_ally_side
+        b_reach = b.easily_reachable and b.easily_buildable # and b.on_ally_side
+        if a_reach and (not b_reach): return True
+        if (not a_reach) and b_reach: return False
+
+        if a.flow != b.flow:
+            return a.flow > b.flow
+        if a.sight_flowing != b.sight_flowing:
+            return a.sight_flowing > b.sight_flowing
+
+        return a.bfs_dist_target_adj < b.bfs_dist_target_adj
+
+
+    @staticmethod
+    def is_better_misrouted_than(a: TransporterInfo, b: TransporterInfo) -> bool:
+        if a.easily_reachable_adj and (not b.easily_reachable_adj): return True
+        if (not a.easily_reachable_adj) and b.easily_reachable_adj: return False
+        if a.on_ally_side and (not b.on_ally_side): return True
+        if (not a.on_ally_side) and b.on_ally_side: return False
+        return a.bfs_dist_adj < b.bfs_dist_adj
+
+
+class ConnectManager:
+    @classmethod
+    def get_connect_target_info(cls) -> TransporterInfo | None:
+        roots = VisionTracker.disconnected_roots
+        if not roots:
+            return None
+
+        best: TransporterInfo = roots[0]
+        for cand in roots[1:]:
+            if TransporterInfo.is_better_connect_than(cand, best):
+                best = cand
+
+        if best.bfs_dist_target_adj >= 20:
+            return None
+        if not best.easily_buildable:
+            return None
+        if not VisionTracker.me_is_canonical_ally(best.target):
+            return None
+
+        return best
+
+
+class BotInfo(NamedTuple):
+    position: Position
+    id: int
+
+
+class RoadInfo:
+    __slots__ = ('position', 'hp', 'bfs_dist', 'easily_reachable', 'is_pointed_to')
+
+    def is_better_road_atk_target_than(a: RoadInfo, b: RoadInfo) -> bool:
+        if not a.easily_reachable: return False
+        if not b.easily_reachable: return True
+
+        if a.is_pointed_to != b.is_pointed_to:
+            return a.is_pointed_to > b.is_pointed_to  # prefer targets of transporters
+
+        if a.bfs_dist != b.bfs_dist:
+            return a.bfs_dist < b.bfs_dist
+
+        return a.hp < b.hp
+
+
+class VisionTracker:
+    allies: list[BotInfo]
+    enemy_roads: list[RoadInfo]  # roads
+    enemy_roads_harvester: list[RoadInfo]  # roads adjacent to ti harvester
+    enemy_transporters: list[TransporterInfo]
+    disconnected_roots: list[TransporterInfo]
+    misrouted_transporters: list[TransporterInfo]  # ally transporters 
+
+    @classmethod
+    def fill(cls):
+        cls.enemy_transporters = []
+        cls.enemy_roads = []
+        cls.enemy_roads_harvester = []
+        cls.disconnected_roots = []
+        cls.allies = [BotInfo(Globals.my_pos, Globals.my_id)]
+        cls.misrouted_transporters = []
+
+        tile_info = Map.tile_info
+
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            ti: TileInfo
+            if ti.has_bot and ti.is_bot_ally:
+                cls.allies.append(BotInfo(pos, ti.bot_id))
+
+            if ti.entity_type == EntityType.ROAD and not ti.is_building_ally:
+                info = RoadInfo()
+                info.position = pos
+                info.hp = ti.building_hp
+                info.bfs_dist = BfsBureau.bfs20_dist[idx]
+                info.easily_reachable = info.bfs_dist <= 15
+                info.is_pointed_to = ti.is_pointed_to
+
+                cls.enemy_roads.append(info)
+                if ti.harvester_adjacent: 
+                    cls.enemy_roads_harvester.append(info)
+
+
+            if ti.target is not None:
+                trans = TransporterInfo()
+                trans.ti = ti
+                trans.position = pos
+                trans.target = ti.target
+                trans.easily_reachable = BfsBureau.bfs20_dist[idx] < 20
+                trans.easily_reachable_adj = BfsBureau.bfs20_dist_adj[idx] < 20
+                trans.bfs_dist = BfsBureau.bfs20_dist[idx]
+                trans.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
+                trans.flow = DarkForest.flow[idx]
+                trans.entity_type = ti.entity_type
+                trans.harvester_adjacent = ti.harvester_adjacent
+                trans.is_ally = ti.is_building_ally
+                trans.sight_flowing = DarkForest.sight_flowing[idx]
+                trans.adjacent_launchers = 0
+                trans.enemy_bot_dist_adj = BfsBureau.enemy_bot_dist_adj[idx]
+                trans.enemy_bot1 = trans.enemy_bot_dist_adj <= 1
+                trans.rand_key = random.random()
+
+                trans.node_kind = DarkForest.node_kind[idx]
+                trans.flowing_into_ally = trans.node_kind in \
+                    (1, 3)
+
+                tx, ty = ti.target.x, ti.target.y
+                tidx = (((tx) + 3) * 56 + ((ty) + 3))
+                trans.bfs_dist_target_adj = BfsBureau.bfs20_dist_adj[tidx]
+
+                target_ti = tile_info[tx][ty]
+                trans.easily_buildable = \
+                    target_ti is not None and \
+                    not target_ti.has_bot and \
+                    ((not target_ti.has_building) or 
+                    (target_ti.entity_type == EntityType.ROAD and target_ti.is_building_ally)) and \
+                    trans.bfs_dist_target_adj < 20
+
+                trans.on_ally_side = pos.distance_squared(Unit.core_pos) < pos.distance_squared(Symmetry.enemy_core_pos)
+                
+
+                nti = tile_info[(x )][(y -1)]
+                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                    trans.adjacent_launchers += 1
+
+                nti = tile_info[(x +1)][(y -1)]
+                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                    trans.adjacent_launchers += 1
+
+                nti = tile_info[(x +1)][(y )]
+                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                    trans.adjacent_launchers += 1
+
+                nti = tile_info[(x +1)][(y +1)]
+                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                    trans.adjacent_launchers += 1
+
+                nti = tile_info[(x )][(y +1)]
+                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                    trans.adjacent_launchers += 1
+
+                nti = tile_info[(x -1)][(y +1)]
+                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                    trans.adjacent_launchers += 1
+
+                nti = tile_info[(x -1)][(y )]
+                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                    trans.adjacent_launchers += 1
+
+                nti = tile_info[(x -1)][(y -1)]
+                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                    trans.adjacent_launchers += 1
+
+                if ti.is_building_ally:
+                    if target_ti is not None and target_ti.has_building and not target_ti.is_building_ally:
+                        cls.misrouted_transporters.append(trans)
+                else:
+                    cls.enemy_transporters.append(trans)
+
+                # can't really use sight_flowing because of backup
+                if trans.node_kind == 0 and (trans.flow > 0):
+                    if DarkForest.nodes[idx].up is None:
+                        if Globals.ct.get_stored_resource(trans.ti.building_id) in (ResourceType.TITANIUM, ResourceType.REFINED_AXIONITE):
+                            if target_ti is not None and target_ti.entity_type in (None, EntityType.ROAD, EntityType.MARKER):
+                                cls.disconnected_roots.append(trans)
+                                Debug.dot(trans.position, Color.PINK)
+
+
+
+    @classmethod
+    def canonical_ally(cls, from_pos: Position) -> BotInfo:
+        Profiler.start(f"""canonical_ally""")
+        ret = min(cls.allies, key=
+            lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
+        )
+        Profiler.end(f"""canonical_ally""")
+        return ret
+    
+    @classmethod
+    def canonical_ally_index(cls, from_pos: Position) -> int:
+        Profiler.start(f"""canonical_ally""")
+        allyIndex = list(map(lambda x: x.position, sorted(cls.allies, key=
+            lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
+        )))
+        if Globals.my_pos in allyIndex:
+            i = allyIndex.index(Globals.my_pos)
+        else:
+            Debug.warn("my_pos not found in canonical ally list!")
+            i = 0
+        Profiler.end(f"""canonical_ally""")
+        return i
+
+
+    canon_map: dict[Position, int] = {}
+
+    @classmethod
+    def me_is_canonical_ally(cls, from_pos: Position) -> bool:
+
+        canon_map = cls.canon_map
+        round = Globals.round
+        ret = VisionTracker.canonical_ally(from_pos).id == Globals.my_id
+
+        if not ret:
+            canon_map[from_pos] = round
+            return False
+
+        if from_pos not in canon_map:
+            return True
+
+        stored_round = canon_map[from_pos]
+        if stored_round == round or round - stored_round >= 2:
+            return True
+
+        return False
+
+
+    @classmethod
+    def get_best_trans_atk_target(cls) -> TransporterInfo | None:
+        enemy_transporters = cls.enemy_transporters
+        if not enemy_transporters:
+            return None
+
+        best: TransporterInfo = enemy_transporters[0]
+
+        for cand in enemy_transporters[1:]:
+            if TransporterInfo.is_better_trans_atk_target_than(cand, best):
+                best = cand
+        return best 
+
+
+
+
+    @classmethod
+    def get_best_road_atk_target(cls) -> RoadInfo | None:
+        roads = cls.enemy_roads
+        if not roads:
+            return None
+
+        best: RoadInfo = roads[0]
+
+        for cand in roads[1:]:
+            if RoadInfo.is_better_road_atk_target_than(cand, best):
+                best = cand
+        return best 
+    
+    @classmethod
+    def get_best_trans_shield_atk_target(cls) -> RoadInfo | None:
+        enemy_transporters = cls.enemy_transporters
+        if not enemy_transporters:
+            return None
+
+        best: TransporterInfo = enemy_transporters[0]
+
+        for cand in enemy_transporters[1:]:
+            if TransporterInfo.is_better_trans_atk_target_than(cand, best):
+                best = cand
+                
+        best_shield = None
+        best_shield_dist = 1000000
+        
+        tile_info = Map.tile_info
+        
+        bx, by = best.position.x, best.position.y
+        
+
+        nti = tile_info[(bx )][(by -1)]
+        if nti is not None and nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.ROAD:
+            dist = BfsBureau.bfs20_dist_adj[((((bx )) + 3) * 56 + (((by -1)) + 3))]
+            if dist < best_shield_dist:
+                best_shield = Position((bx ), (by -1))
+                best_shield_dist = dist
+
+        nti = tile_info[(bx +1)][(by -1)]
+        if nti is not None and nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.ROAD:
+            dist = BfsBureau.bfs20_dist_adj[((((bx +1)) + 3) * 56 + (((by -1)) + 3))]
+            if dist < best_shield_dist:
+                best_shield = Position((bx +1), (by -1))
+                best_shield_dist = dist
+
+        nti = tile_info[(bx +1)][(by )]
+        if nti is not None and nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.ROAD:
+            dist = BfsBureau.bfs20_dist_adj[((((bx +1)) + 3) * 56 + (((by )) + 3))]
+            if dist < best_shield_dist:
+                best_shield = Position((bx +1), (by ))
+                best_shield_dist = dist
+
+        nti = tile_info[(bx +1)][(by +1)]
+        if nti is not None and nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.ROAD:
+            dist = BfsBureau.bfs20_dist_adj[((((bx +1)) + 3) * 56 + (((by +1)) + 3))]
+            if dist < best_shield_dist:
+                best_shield = Position((bx +1), (by +1))
+                best_shield_dist = dist
+
+        nti = tile_info[(bx )][(by +1)]
+        if nti is not None and nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.ROAD:
+            dist = BfsBureau.bfs20_dist_adj[((((bx )) + 3) * 56 + (((by +1)) + 3))]
+            if dist < best_shield_dist:
+                best_shield = Position((bx ), (by +1))
+                best_shield_dist = dist
+
+        nti = tile_info[(bx -1)][(by +1)]
+        if nti is not None and nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.ROAD:
+            dist = BfsBureau.bfs20_dist_adj[((((bx -1)) + 3) * 56 + (((by +1)) + 3))]
+            if dist < best_shield_dist:
+                best_shield = Position((bx -1), (by +1))
+                best_shield_dist = dist
+
+        nti = tile_info[(bx -1)][(by )]
+        if nti is not None and nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.ROAD:
+            dist = BfsBureau.bfs20_dist_adj[((((bx -1)) + 3) * 56 + (((by )) + 3))]
+            if dist < best_shield_dist:
+                best_shield = Position((bx -1), (by ))
+                best_shield_dist = dist
+
+        nti = tile_info[(bx -1)][(by -1)]
+        if nti is not None and nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.ROAD:
+            dist = BfsBureau.bfs20_dist_adj[((((bx -1)) + 3) * 56 + (((by -1)) + 3))]
+            if dist < best_shield_dist:
+                best_shield = Position((bx -1), (by -1))
+                best_shield_dist = dist
+
+        return best_shield
+    
+    @classmethod
+    def get_best_shield_atk_target(cls) -> RoadInfo | None:
+        roads = cls.enemy_roads_harvester
+        if not roads:
+            return None
+
+        best: RoadInfo = roads[0]
+
+        for cand in roads[1:]:
+            if RoadInfo.is_better_road_atk_target_than(cand, best):
+                best = cand
+        return best 
+
+
+    @classmethod
+    def get_best_misrouted_target(cls) -> TransporterInfo | None:
+        misrouted = cls.misrouted_transporters
+        if not misrouted:
+            return None
+
+        best: TransporterInfo = misrouted[0]
+        for cand in misrouted[1:]:
+            if TransporterInfo.is_better_misrouted_than(cand, best):
+                best = cand
+
+        if not best.easily_reachable_adj:
+            return None
+
+        if not VisionTracker.me_is_canonical_ally(best.position):
+            return None
+
+        return best

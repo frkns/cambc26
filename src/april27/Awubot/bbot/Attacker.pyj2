@@ -1,0 +1,149 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+{% from 'bbot/mode.j2' import Mode %}
+
+
+class Attacker:
+    {% set ATTACK_RANDOM_ROAD_TI = 100 %}
+
+    @classmethod
+    def get_target(cls) -> Position | None:
+        # if Builder.mode == {{ Mode.HEALER }} and Globals.my_pos.distance_squared(Unit.core_pos) > 16:
+        #     return
+        
+        t = cls.get_road_shield_target()
+        if t is not None: 
+            return t
+        return cls.get_trans_target()
+    
+    @classmethod        
+    def get_secondary_target(cls) -> Position | None:
+        return cls.get_road_target()
+
+    @classmethod
+    def get_trans_target(cls) -> Position | None:
+        trans: TransporterInfo = VisionTracker.get_best_trans_atk_target()
+        if trans is None:
+            return None
+        if not trans.bfs_dist < 10: 
+            return None
+        if trans.flowing_into_ally:
+            return None
+        # if not trans.harvester_adjacent and trans.flow == 0 and not trans.sight_flowing:
+        #     return None
+        # if not cls.should_fire(trans.position):
+        #     return None
+        if trans.enemy_bot_dist_adj == 0:
+            return None
+        return trans.position
+
+
+    @classmethod
+    def get_road_shield_target(cls) -> Position | None:
+        road: RoadInfo = VisionTracker.get_best_shield_atk_target()
+        if road is None:
+            return None
+        if not road.bfs_dist < 10: 
+            return None
+        if not VisionTracker.me_is_canonical_ally(road.position):
+            return None
+        # if not cls.should_fire(road.position):
+        #     return None
+        return road.position
+
+
+    @classmethod
+    def get_road_target(cls) -> Position | None:
+        road: RoadInfo = VisionTracker.get_best_road_atk_target()
+        if road is None:
+            return None
+        if not road.bfs_dist < 10: 
+            return None
+        if not VisionTracker.me_is_canonical_ally(road.position):
+            return None
+        if not cls.should_fire(road.position):
+            return None
+        if Builder.min_dist_to_a_core >= 36 and MarketMaker.ti < BuildManager.scale({{ ATTACK_RANDOM_ROAD_TI }}):
+            return None
+        return road.position
+
+    @classmethod
+    def compute_readiness(cls):
+        allies_ready = 0
+        lst: tuple[int, int] = []
+
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            {% set cond1 -%}
+            (
+                ti.entity_type in Constants.ATTACKABLE_TRANSPORTERS_SET
+            )
+            {%- endset %}
+
+            {% set cond2 -%}
+            (
+                ti.harvester_adjacent and ti.entity_type in Constants.PASSABLE_ATTACKABLE_SET  # fix
+            )
+            {%- endset %}
+
+            if (ti.has_bot and ti.is_bot_ally) and (ti.has_building and not ti.is_building_ally) and \
+                    ({{ cond1 }} or {{ cond2 }}):
+                allies_ready += 1
+                lst.append((x, y))
+
+        enemies_ready_set: set[int] = set()  # hashed pos
+        tile_info = Map.tile_info
+
+        for x, y in lst:
+            {% for dir in directions[:8] %}
+            {% set dx, dy = dir.delta() %}
+            {% set nx %}(x {{ sign0(dx) }}){% endset %}
+            {% set ny %}(y {{ sign0(dy) }}){% endset %}
+
+            nti = tile_info[{{ nx }}][{{ ny }}]
+            if nti is not None and nti.has_bot and not nti.is_bot_ally:
+                enemies_ready_set.add(({{ nx }} << 6) | {{ ny }})
+            {% endfor %}
+
+        return allies_ready, len(enemies_ready_set)
+
+
+    @classmethod
+    def should_fire(cls, pos):
+        x, y = pos.x, pos.y
+        tile_info = Map.tile_info
+        ti = tile_info[x][y]
+        idx = {{ encode_pos('x', 'y') }}
+
+        # assume caller passes in position with enemy building
+        if ti.is_building_ally or ti.entity_type not in Constants.PASSABLE_ATTACKABLE_SET:        
+            return False
+        
+        hp = ti.building_hp
+        max_hp = Constants.MAX_HP_MAP[ti.entity_type]
+
+        if 2 * hp <= max_hp:
+            return True
+
+        allies_ready, enemies_ready = cls.compute_readiness()
+        if allies_ready > 2 * enemies_ready:
+            return True
+
+        if BfsBureau.enemy_bot_dist_adj[idx] >= 2:
+            return True
+
+        return False

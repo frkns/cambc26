@@ -30,7 +30,7 @@ class TileInfo:
         'ally_transporters_adjacent', 'enemy_transporters_adjacent',
         'resource_id', 'resource_type',
         'ally_outward_transporters_adjacent',
-        'is_pointed_to',
+        'is_pointed_to', 'ally_non_road_buildings_adjacent'
     )
 
 class Map:
@@ -112,6 +112,7 @@ class Map:
         PASSABLE_SET = Constants.PASSABLE_SET
         TRANSPORTERS_SET = Constants.TRANSPORTERS_SET
         HARVESTER = EntityType.HARVESTER
+        ROAD = EntityType.ROAD
         MARKER = EntityType.MARKER
         SENTINEL = EntityType.SENTINEL
         GUNNER = EntityType.GUNNER
@@ -393,6 +394,16 @@ class Map:
             nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
             ti.allied_bots_adjacent = cnt
 
+            ti.ally_non_road_buildings_adjacent = (
+                {% for dir in directions[:8] %}
+                {% set dx, dy = dir.delta() %}
+                {% set row = 'row_x' if dx == 0 else ('row_xm1' if dx < 0 else 'row_xp1') %}
+                {% set col = 'y' if dy == 0 else ('ym1' if dy < 0 else 'yp1') %}
+                ({{ row }}[{{ col }}] is not None and {{ row }}[{{ col }}].has_building and {{ row }}[{{ col }}].is_building_ally and {{ row }}[{{ col }}].entity_type != ROAD)
+                {% if not loop.last %} + {% endif %}
+                {% endfor %}
+            )
+
             # turret/transporter adjacency: only for harvesters
             if ti.entity_type == HARVESTER:
                 ally_turrets = 0
@@ -405,15 +416,18 @@ class Map:
                 {% set dx, dy = dir.delta() %}
                 nti = tile_info[x {{ sign0(dx) }}][y {{ sign0(dy) }}]
                 if nti is not None:
+
                     if nti.has_turret:
                         if nti.is_building_ally:
                             ally_turrets += 1
                         else:
                             enemy_turrets += 1
-                    if nti.entity_type in TRANSPORTERS_SET:
+
+                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos):
+                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1

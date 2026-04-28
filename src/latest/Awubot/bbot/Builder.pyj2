@@ -95,7 +95,7 @@ class Builder({{ super() }}):
         BfsBureau.update_enclosed_regions()
         {{ P.end('BfsBureau.update_enclosed_regions') }}
 
-        {# /* DarkForest.debug_flow() */ #}
+        DarkForest.debug_flow()
         {# /* DarkForest.debug_pressure() */ #}
         {# /* DarkForest.debug_kind() */ #}
         {# /* BfsBureau.debug_enclosed_regions() */ #}
@@ -104,6 +104,7 @@ class Builder({{ super() }}):
         {# /* BfsBureau.debug_now_weight_inf() */ #}
         {# /* BfsBureau.debug_enemy_bot_dist() */ #}
         {# /* BfsBureau.debug_enemy_bot_dist_adj() */ #}
+        {# /* BfsBureau.debug_penalty() */ #}
 
         {{ P.start('OreExecutive.fill') }}
         OreExecutive.fill()
@@ -176,9 +177,7 @@ class Builder({{ super() }}):
         # if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos) and Map.num_enemies == 0:
         #     Globals.ct.fire(my_pos)
         
-        # if Map.num_enemies > 0 or cls.min_dist_to_a_core <= 36:
-        if cls.min_dist_to_a_core <= 36:
-            RoadspamExecutor.execute_roadspam_attempt()
+        RoadspamExecutor.execute_roadspam_attempt()
 
 
 
@@ -204,8 +203,6 @@ class Builder({{ super() }}):
         # now changed to sentinel/gunner pos near enemy?
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
         
-        if RouteToBreach.is_active:
-            return ('RouteBreach',)
 
         if (
              HealExecutor.last_healed is not None 
@@ -242,13 +239,13 @@ class Builder({{ super() }}):
         attackpos = Attacker.get_target()
         secondaryattackpos = Attacker.get_secondary_target()
 
-        if cls.should_fire:
-            return 'Attack', Globals.my_pos, 'ShouldFire'
         
         # preroute here
         if cls.is_routing_active and secondaryattackpos == cls.route_from_pos:
             return 'Attack', secondaryattackpos, 'Preroute'
 
+        if RouteToBreach.is_active:
+            return ('RouteBreach',)
 
         if RouteToFoundry.is_active:
             return ('RouteFoundry',)
@@ -258,6 +255,7 @@ class Builder({{ super() }}):
 
         if RouteToCore.is_active:
             return ('Route',)
+
 
         if misinfo is not None and not ((RouteToCore.backTracking or RouteToFoundry.backTracking) and not RouteToCore.is_active and not RouteToFoundry.is_active):
             if misinfo.on_ally_side:
@@ -270,21 +268,26 @@ class Builder({{ super() }}):
             tpos = trans.target
 
             if Util.dist_sq(tpos, Symmetry.enemy_core_pos) \
-                    < Util.dist_sq(tpos, Unit.core_pos):
+                    < Util.dist_sq(tpos, Unit.core_pos) or not trans.ti.is_building_ally:
                 return 'BuildTurret', tpos 
 
-            # if tpos not in RouteToCore.killed:
-            if True:
+            if tpos not in RouteToCore.killed:
                 RouteToCore.set_pos(tpos)
                 return 'MoveTo', tpos, 'InitRoute'
 
         route_pos = HarvesterAdjacent.get_best_route_position()
         if route_pos is not None and cls.mode != {{ Mode.EARLY_RUSH }}:
-            RouteToCore.set_pos(route_pos)
-            if RouteToCore.is_active:
-                {{ D.print('[HarvesterAdjacent found route]') }}
-                return ('Route',)
+            if Util.dist_sq(route_pos, Symmetry.enemy_core_pos) \
+                    < Util.dist_sq(route_pos, Unit.core_pos):
+                return 'BuildTurret', route_pos 
 
+            if route_pos not in RouteToCore.killed:
+                {{ D.print('[HarvesterAdjacent found route]') }}
+                RouteToCore.set_pos(route_pos)
+                return 'MoveTo', route_pos, 'InitRoute'
+
+        if cls.should_fire:
+            return 'Attack', Globals.my_pos, 'ShouldFire'
 
         if sentinelpos is not None:
             Debug.dot(sentinelpos, Color.PURPLE)
