@@ -43,16 +43,16 @@ class PatrolTargeter:
                 if Globals.round - cls.lastHitRound > 10:
                     cls.recentHits.clear()
                     active_targets = Map.harvester_set
-                else:
-                    return None
-
-            # Choose a random one of the targets we haven't visited recently
-            i = random.choice(list(active_targets))
-            {% set x, y = decode_pos('i') %}
-            x, y = {{ x }}, {{ y }}
-            ti = Map.tile_info[x][y]
-            if ti.is_building_ally:
-                return Position(x, y)
+                
+                return None
+            else:
+                # Choose a random one of the targets we haven't visited recently
+                i = random.choice(list(active_targets))
+                {% set x, y = decode_pos('i') %}
+                x, y = {{ x }}, {{ y }}
+                ti = Map.tile_info[x][y]
+                if ti.is_building_ally:
+                    return Position(x, y)
 
         return None
 

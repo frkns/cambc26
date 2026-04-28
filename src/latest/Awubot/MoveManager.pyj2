@@ -63,6 +63,6 @@ class MoveManager:
         print()
         print('can_fill_move')
         {% for dir in directions %}
-        print(f'{{ short_directions[loop.index0] }}:{cls.can_move({{ dir }})}', end=' ')
+        print(f'{{ short_directions[loop.index0] }}:{cls.can_fill_move({{ dir }})}', end=' ')
         {% endfor %}
         print()

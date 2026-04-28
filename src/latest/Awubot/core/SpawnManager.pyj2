@@ -76,16 +76,16 @@ class SpawnManager:
     def should_spawn(cls):
         ct = Globals.ct
         num_units = ct.get_unit_count()
-
+        
         ti, ax = ct.get_global_resources()
         bot_ti, bot_ax = ct.get_builder_bot_cost()
 
         if Globals.round <= 10 and cls.num_spawned < 4:
             return True
 
-        mass = 80 if cls.num_spawned < 10 else 200
+        mass = 40#80 if cls.num_spawned < 10 else 200
 
-        if ti - bot_ti >= num_units * mass:
+        if (MarketMaker.est_income > 4 or num_units < 4) and ti - bot_ti >= num_units * mass:
             return True
 
         return False

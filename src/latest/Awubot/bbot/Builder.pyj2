@@ -176,8 +176,8 @@ class Builder({{ super() }}):
         # if Globals.ct.can_fire(my_pos) and Attacker.should_fire(my_pos) and Map.num_enemies == 0:
         #     Globals.ct.fire(my_pos)
         
-        # if Map.num_enemies > 0 or cls.min_dist_to_a_core <= 36:
-        if cls.min_dist_to_a_core <= 36:
+        if Map.num_enemies_8 > 0 or cls.min_dist_to_a_core <= 36: # Count nearby enemies to stop launchers
+        # if cls.min_dist_to_a_core <= 36:
             RoadspamExecutor.execute_roadspam_attempt()
 
 
@@ -211,7 +211,7 @@ class Builder({{ super() }}):
              HealExecutor.last_healed is not None 
              and HealExecutor.last_healed.is_turret
              and (Globals.round - HealExecutor.last_healed_round) <= 5
-             and misinfo is not None
+             and misinfo is None
         ):
             if healpos is not None:  # redundant, OK
                 return 'MoveTo', healpos, '[lrh: move to heal]'
@@ -225,7 +225,7 @@ class Builder({{ super() }}):
             Debug.dot(sitterpos, Color.PURPLE)
             return 'BuildLauncher', sitterpos
 
-        if healpos is not None and misinfo is not None:
+        if healpos is not None and misinfo is None:
             return 'MoveTo', healpos, 'Heal'
 
 
