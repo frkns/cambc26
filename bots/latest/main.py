@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-27 17:50:48 (local)
+# latest,  @ 2026-04-27 17:52:33 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -27808,7 +27808,7 @@ class Map:
                     num_enemy_buildings += 1
             else:
                 etype = None
-                is_building_ally = False
+                ti.is_building_ally = False
 
             ti.entity_type = etype
 
@@ -28179,7 +28179,7 @@ class Map:
                     num_enemy_buildings += 1
             else:
                 etype = None
-                is_building_ally = False
+                ti.is_building_ally = False
 
             ti.entity_type = etype
 
@@ -28550,7 +28550,7 @@ class Map:
                     num_enemy_buildings += 1
             else:
                 etype = None
-                is_building_ally = False
+                ti.is_building_ally = False
 
             ti.entity_type = etype
 
@@ -28900,7 +28900,7 @@ class Map:
                     num_enemy_buildings += 1
             else:
                 etype = None
-                is_building_ally = False
+                ti.is_building_ally = False
 
             ti.entity_type = etype
 
