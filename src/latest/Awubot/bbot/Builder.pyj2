@@ -95,7 +95,8 @@ class Builder({{ super() }}):
         BfsBureau.update_enclosed_regions()
         {{ P.end('BfsBureau.update_enclosed_regions') }}
 
-        DarkForest.debug_flow()
+        DarkForest.debug_ax_tagged()
+        {# /* DarkForest.debug_flow() */ #}
         {# /* DarkForest.debug_pressure() */ #}
         {# /* DarkForest.debug_kind() */ #}
         {# /* BfsBureau.debug_enclosed_regions() */ #}

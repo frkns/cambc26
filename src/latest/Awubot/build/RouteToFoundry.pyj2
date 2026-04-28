@@ -159,7 +159,7 @@ class RouteToFoundry:
             return
 
         target = Position(*first_target)
-        Debug.diline(cls.from_pos, target, Color.GREEN)
+        Debug.line(cls.from_pos, target, Color.GREEN)
 
         if cls.from_pos.distance_squared(target) == 1:
             if BuildManager.can_dbuild_conveyor(cls.from_pos):

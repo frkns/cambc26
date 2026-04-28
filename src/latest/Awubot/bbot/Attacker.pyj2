@@ -133,6 +133,10 @@ class Attacker:
         if not ti.has_building or ti.is_building_ally or ti.entity_type not in Constants.PASSABLE_ATTACKABLE_SET:        
             return False
 
+        if DarkForest.ax_tagged[idx]:
+            return False
+
+
         hp = ti.building_hp
         max_hp = Constants.MAX_HP_MAP[ti.entity_type]
 

@@ -248,7 +248,7 @@ class RouteToFoundryInput:
             return
 
         target = Position(*first_target)
-        Debug.diline(cls.from_pos, target, Color.CYAN)
+        Debug.line(cls.from_pos, target, Color.CYAN)
 
         dsq = cls.from_pos.distance_squared(target)
         if dsq == 1:

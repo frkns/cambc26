@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-28 10:51:18 (local)
+# latest,  @ 2026-04-28 12:32:51 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -266,6 +266,10 @@ class Attacker:
         # assume caller passes in position with enemy building
         if not ti.has_building or ti.is_building_ally or ti.entity_type not in Constants.PASSABLE_ATTACKABLE_SET:        
             return False
+
+        if DarkForest.ax_tagged[idx]:
+            return False
+
 
         hp = ti.building_hp
         max_hp = Constants.MAX_HP_MAP[ti.entity_type]
@@ -6678,6 +6682,8 @@ class DarkForest:
 
     @classmethod
     def add_edge(cls, u: int, v: int):
+        if u < v:
+            cls.add_edge(v, u)
         # register (u,v) edge: u.up = v
         ns = cls.nodes
         if ns[u] is None:
@@ -31157,7 +31163,7 @@ class RouteToBreach:
             return
 
         target = Position(*first_target)
-        Debug.diline(cls.from_pos, target, Color.GREEN)
+        Debug.line(cls.from_pos, target, Color.GREEN)
 
         if cls.from_pos.distance_squared(target) == 1:
             if BuildManager.can_dbuild_conveyor(cls.from_pos):
@@ -31344,7 +31350,7 @@ class RouteToCore:
             return
 
         target = Position(*first_target)
-        Debug.diline(cls.from_pos, target, Color.GREEN)
+        Debug.line(cls.from_pos, target, Color.GREEN)
 
         if cls.from_pos.distance_squared(target) == 1:
             if BuildManager.can_dbuild_conveyor(cls.from_pos):
@@ -31587,7 +31593,7 @@ class RouteToFoundry:
             return
 
         target = Position(*first_target)
-        Debug.diline(cls.from_pos, target, Color.GREEN)
+        Debug.line(cls.from_pos, target, Color.GREEN)
 
         if cls.from_pos.distance_squared(target) == 1:
             if BuildManager.can_dbuild_conveyor(cls.from_pos):
@@ -31766,7 +31772,7 @@ class RouteToFoundryInput:
             return
 
         target = Position(*first_target)
-        Debug.diline(cls.from_pos, target, Color.CYAN)
+        Debug.line(cls.from_pos, target, Color.CYAN)
 
         dsq = cls.from_pos.distance_squared(target)
         if dsq == 1:
@@ -37011,7 +37017,7 @@ class Builder(Unit):
         BfsBureau.update_enclosed_regions()
         Profiler.end(f"""BfsBureau.update_enclosed_regions""")
 
-        DarkForest.debug_flow()
+        DarkForest.debug_ax_tagged()
 
         Profiler.start(f"""OreExecutive.fill""")
         OreExecutive.fill()
