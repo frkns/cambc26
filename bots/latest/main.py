@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-28 15:41:00 (local)
+# latest,  @ 2026-04-28 13:50:28 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -27432,6 +27432,10 @@ class HealExecutor:
 
         Debug.line(best.position, Color.LIME)
         
+
+        cls.last_healed_round = Globals.round
+        cls.last_healed = best
+        
         # Replace the conveyor if it's at low health
         if best.entity_type == EntityType.CONVEYOR:
             if best.building_hp < 10:
@@ -27456,10 +27460,6 @@ class HealExecutor:
                     return
         
         Globals.ct.heal(best.position)
-        
-        
-        cls.last_healed_round = Globals.round
-        cls.last_healed = best
 
 
 # ============================================================
@@ -30961,6 +30961,10 @@ class RouteToBreach:
                 if tile.has_building and (not tile.is_building_ally):
                     continue
                 if tile.has_building and tile.entity_type in Constants.TURRET_SET:
+                    continue
+                if tile.has_building and tile.entity_type in Constants.TRANSPORTERS_SET:
+                    continue
+                if tile.has_building and tile.entity_type in [EntityType.HARVESTER,EntityType.FOUNDRY]:
                     continue
                 d = currLoc.distance_squared(candidate)
                 if d < best_attack_dist:
