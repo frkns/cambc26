@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-28 15:44:05 (local)
+# latest,  @ 2026-04-28 16:14:16 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -26274,6 +26274,8 @@ class HarvesterAdjacent:
 
     @classmethod
     def get_best_sentinel_position(cls) -> Position | None:
+        if not BuildManager.can_afford_sentinel() and Globals.round < 250: 
+            return None 
 
         if not cls.infos:
             return None
