@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-28 15:16:16 (local)
+# latest,  @ 2026-04-28 15:16:36 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -30327,9 +30327,6 @@ class PongManager:
                 FIRST_BRIDGE_POS = Position(44, 6)
                 THIRD_HARVESTER_POS = Position(43, 5)
                 CONVEYOR_POS = Position(44, 5)
-                        
-            if ct.get_current_round() == 300:
-                ct.resign()
                 
             if ct.get_id() == ACTIVE_ID:
                 if ct.get_position() not in (STAND_POS, FIRST_BRIDGE_POS):
@@ -30394,7 +30391,7 @@ class PongManager:
                         if ct.can_build_conveyor(CONVEYOR_POS, CONVEYOR_POS.direction_to(FIRST_BRIDGE_POS)):
                             ct.build_conveyor(CONVEYOR_POS, CONVEYOR_POS.direction_to(FIRST_BRIDGE_POS))
                             return
-                    
+
                         
             return
         
