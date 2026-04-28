@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-28 09:55:29 (local)
+# latest,  @ 2026-04-28 10:24:50 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -29633,9 +29633,6 @@ class MarketMaker:
         if not (2 * n_ax <= n_ti):
             return False
 
-        if MarketMaker.est_income < 4:
-            return False
-
         """ #cannot figure out what this is trying to do-
         if MarketMaker.ax > 0:
             pbt = MarketMaker.harvester_payback(apos)
@@ -30995,9 +30992,11 @@ class RouteToBreach:
         Debug.diline(cls.from_pos, target, Color.GREEN)
 
         if cls.from_pos.distance_squared(target) == 1:
-            if BuildManager.can_dbuild_conveyor(cls.from_pos):
-                BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
-                cls.set_pos(target,False)
+            ti = Map.tile_info[cls.from_pos.x][cls.from_pos.y]
+            if not ti.has_building or not ti.is_building_ally or target != ti.target:
+                if BuildManager.can_dbuild_conveyor(cls.from_pos):
+                    BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
+                    cls.set_pos(target,False)
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
             cls.set_pos(target,False)
@@ -31200,12 +31199,14 @@ class RouteToCore:
         Debug.diline(cls.from_pos, target, Color.GREEN)
 
         if cls.from_pos.distance_squared(target) == 1:
-            if BuildManager.can_dbuild_conveyor(cls.from_pos):
-                if BuildManager.should_build_armoured(cls.from_pos) and BuildManager.can_dbuild_armoured_conveyor(cls.from_pos):
-                    BuildManager.dbuild_armoured_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
-                else:
-                    BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
-                cls.set_pos(target,False)
+            ti = Map.tile_info[cls.from_pos.x][cls.from_pos.y]
+            if not ti.has_building or not ti.is_building_ally or target != ti.target:
+                if BuildManager.can_dbuild_conveyor(cls.from_pos):
+                    if BuildManager.should_build_armoured(cls.from_pos) and BuildManager.can_dbuild_armoured_conveyor(cls.from_pos):
+                        BuildManager.dbuild_armoured_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
+                    else:
+                        BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
+                    cls.set_pos(target,False)
 
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
@@ -31460,9 +31461,11 @@ class RouteToFoundry:
         Debug.diline(cls.from_pos, target, Color.GREEN)
 
         if cls.from_pos.distance_squared(target) == 1:
-            if BuildManager.can_dbuild_conveyor(cls.from_pos):
-                BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
-                cls.set_pos(target,False)
+            ti = Map.tile_info[cls.from_pos.x][cls.from_pos.y]
+            if not ti.has_building or not ti.is_building_ally or target != ti.target:
+                if BuildManager.can_dbuild_conveyor(cls.from_pos):
+                    BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
+                    cls.set_pos(target,False)
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
             cls.set_pos(target,False)
@@ -31640,12 +31643,14 @@ class RouteToFoundryInput:
 
         dsq = cls.from_pos.distance_squared(target)
         if dsq == 1:
-            if BuildManager.can_dbuild_conveyor(cls.from_pos):
-                BuildManager.dbuild_conveyor(
-                    cls.from_pos,
-                    cls.from_pos.direction_to(target),
-                )
-                cls.set_pos(target, cls._target, cls._is_ax, full_reset=False)
+            ti = Map.tile_info[cls.from_pos.x][cls.from_pos.y]
+            if not ti.has_building or not ti.is_building_ally or target != ti.target:
+                if BuildManager.can_dbuild_conveyor(cls.from_pos):
+                    BuildManager.dbuild_conveyor(
+                        cls.from_pos,
+                        cls.from_pos.direction_to(target),
+                    )
+                    cls.set_pos(target, cls._target, cls._is_ax, full_reset=False)
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
             cls.set_pos(target, cls._target, cls._is_ax, full_reset=False)

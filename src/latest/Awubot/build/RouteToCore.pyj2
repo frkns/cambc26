@@ -107,12 +107,14 @@ class RouteToCore:
         Debug.diline(cls.from_pos, target, Color.GREEN)
 
         if cls.from_pos.distance_squared(target) == 1:
-            if BuildManager.can_dbuild_conveyor(cls.from_pos):
-                if BuildManager.should_build_armoured(cls.from_pos) and BuildManager.can_dbuild_armoured_conveyor(cls.from_pos):
-                    BuildManager.dbuild_armoured_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
-                else:
-                    BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
-                cls.set_pos(target,False)
+            ti = Map.tile_info[cls.from_pos.x][cls.from_pos.y]
+            if not ti.has_building or not ti.is_building_ally or target != ti.target:
+                if BuildManager.can_dbuild_conveyor(cls.from_pos):
+                    if BuildManager.should_build_armoured(cls.from_pos) and BuildManager.can_dbuild_armoured_conveyor(cls.from_pos):
+                        BuildManager.dbuild_armoured_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
+                    else:
+                        BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
+                    cls.set_pos(target,False)
 
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)

@@ -252,12 +252,14 @@ class RouteToFoundryInput:
 
         dsq = cls.from_pos.distance_squared(target)
         if dsq == 1:
-            if BuildManager.can_dbuild_conveyor(cls.from_pos):
-                BuildManager.dbuild_conveyor(
-                    cls.from_pos,
-                    cls.from_pos.direction_to(target),
-                )
-                cls.set_pos(target, cls._target, cls._is_ax, full_reset=False)
+            ti = Map.tile_info[cls.from_pos.x][cls.from_pos.y]
+            if not ti.has_building or not ti.is_building_ally or target != ti.target:
+                if BuildManager.can_dbuild_conveyor(cls.from_pos):
+                    BuildManager.dbuild_conveyor(
+                        cls.from_pos,
+                        cls.from_pos.direction_to(target),
+                    )
+                    cls.set_pos(target, cls._target, cls._is_ax, full_reset=False)
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
             cls.set_pos(target, cls._target, cls._is_ax, full_reset=False)
