@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-28 15:41:00 (local)
+# latest,  @ 2026-04-28 16:49:22 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -27432,6 +27432,10 @@ class HealExecutor:
 
         Debug.line(best.position, Color.LIME)
         
+
+        cls.last_healed_round = Globals.round
+        cls.last_healed = best
+        
         # Replace the conveyor if it's at low health
         if best.entity_type == EntityType.CONVEYOR:
             if best.building_hp < 10:
@@ -27456,10 +27460,6 @@ class HealExecutor:
                     return
         
         Globals.ct.heal(best.position)
-        
-        
-        cls.last_healed_round = Globals.round
-        cls.last_healed = best
 
 
 # ============================================================
@@ -29866,7 +29866,7 @@ class OreExecutive:
             cls.state[pos] = 2
             return
         ti = Map.tile_info[cand.position.x][cand.position.y]
-        if ti.entity_type in Constants.TRANSPORTERS_SET and not BfsBureau.harvester_feeder[(((ti.pos.x) + 3) * 56 + ((ti.pos.y) + 3))]:
+        if ti.entity_type in Constants.TRANSPORTERS_SET and not BfsBureau.harvester_feeder[(((cand.position.x) + 3) * 56 + ((cand.position.y) + 3))]:
             cls.state[pos] = 2
             Debug.line(pos, Color.RED)
             Debug.diamond(Color.RED)
