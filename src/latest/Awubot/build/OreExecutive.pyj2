@@ -216,7 +216,7 @@ class OreExecutive:
             cls.state[pos] = {{ KILLED }}
             return
         ti = Map.tile_info[cand.position.x][cand.position.y]
-        if ti.entity_type in Constants.TRANSPORTERS_SET and not feeder[{{ encode_pos('ti.pos.x','ti.pos.y') }}]:
+        if ti.entity_type in Constants.TRANSPORTERS_SET and not BfsBureau.harvester_feeder[{{ encode_pos('ti.pos.x','ti.pos.y') }}]:
             cls.state[pos] = {{ KILLED }}
             Debug.line(pos, Color.RED)
             Debug.diamond(Color.RED)

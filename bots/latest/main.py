@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-27 21:31:19 (local)
+# latest,  @ 2026-04-27 22:52:20 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -29856,7 +29856,7 @@ class OreExecutive:
             cls.state[pos] = 2
             return
         ti = Map.tile_info[cand.position.x][cand.position.y]
-        if ti.entity_type in Constants.TRANSPORTERS_SET and not feeder[(((ti.pos.x) + 3) * 56 + ((ti.pos.y) + 3))]:
+        if ti.entity_type in Constants.TRANSPORTERS_SET and not BfsBureau.harvester_feeder[(((ti.pos.x) + 3) * 56 + ((ti.pos.y) + 3))]:
             cls.state[pos] = 2
             Debug.line(pos, Color.RED)
             Debug.diamond(Color.RED)
