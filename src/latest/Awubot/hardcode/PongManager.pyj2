@@ -56,6 +56,48 @@ class PongManager:
         ct = Globals.ct
 
         my_id = cls.my_id  # changed
+        
+        if Globals.round > 250:
+            ACTIVE_ID = None
+            if ct.get_team() == Team.A:
+                ACTIVE_ID = 3
+                STAND_POS = Position(5, 7)
+                HARVESTER_POS = Position(4, 7)
+                FOUNDRY_POS = Position(4, 8)
+            else:
+                ACTIVE_ID = 4
+                STAND_POS = Position(44, 7)
+                HARVESTER_POS = Position(45, 7)
+                FOUNDRY_POS = Position(45, 8)
+            if ct.get_id() == ACTIVE_ID:
+                if ct.get_position() != STAND_POS:
+                    dir_to_stand = ct.get_position().direction_to(STAND_POS)
+                    if ct.get_tile_building_id(ct.get_position().add(dir_to_stand)) is None:
+                        ct.build_road(ct.get_position().add(dir_to_stand))
+                    elif ct.get_tile_building_id(ct.get_position().add(dir_to_stand.rotate_left())) is None:
+                        ct.build_road(ct.get_position().add(dir_to_stand.rotate_left()))
+                    elif ct.get_tile_building_id(ct.get_position().add(dir_to_stand.rotate_right())) is None:
+                        ct.build_road(ct.get_position().add(dir_to_stand.rotate_right()))
+                    if ct.can_move(dir_to_stand):
+                        ct.move(dir_to_stand)
+                    elif ct.can_move(dir_to_stand.rotate_left()):
+                        ct.move(dir_to_stand.rotate_left())
+                    elif ct.can_move(dir_to_stand.rotate_right()):
+                        ct.move(dir_to_stand.rotate_right())
+                    Debug.tee(f'moving to stand {STAND_POS} from {ct.get_position()}')
+                if ct.get_position() == STAND_POS and ct.get_action_cooldown() == 0:
+                    harvester_current = ct.get_tile_building_id(HARVESTER_POS)
+                    if harvester_current is None:
+                        ct.build_harvester(HARVESTER_POS)
+                    else:
+                        foundry_current = ct.get_tile_building_id(FOUNDRY_POS)
+                        if ct.get_entity_type(foundry_current) != EntityType.FOUNDRY:
+                            if ct.can_destroy(FOUNDRY_POS):
+                                ct.destroy(FOUNDRY_POS)
+                            if ct.can_build_foundry(FOUNDRY_POS):
+                                ct.build_foundry(FOUNDRY_POS)
+            return
+        
         if Globals.my_type == EntityType.CORE:
             my_id = None
             ti, ax = ct.get_global_resources()
