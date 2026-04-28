@@ -107,6 +107,9 @@ class MarketMaker:
         if not (2 * n_ax <= n_ti):
             return False
 
+        if not BuildManager.can_afford_foundry():
+            return False
+
         """ #cannot figure out what this is trying to do-
         if MarketMaker.ax > 0:
             pbt = MarketMaker.harvester_payback(apos)

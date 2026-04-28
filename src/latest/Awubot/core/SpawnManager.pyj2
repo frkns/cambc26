@@ -85,7 +85,7 @@ class SpawnManager:
 
         mass = 40#80 if cls.num_spawned < 10 else 200
 
-        if (MarketMaker.est_income > 4 or num_units < 4) and ti - bot_ti >= num_units * mass:
+        if (MarketMaker.est_income > 10 or num_units < 4) and ti - bot_ti >= num_units * mass:
             return True
 
         return False
