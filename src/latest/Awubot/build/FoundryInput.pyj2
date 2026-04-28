@@ -36,9 +36,9 @@ from Generated import *
 # ══════════════════════════════════════════════════════════════════════
 
 class FoundryInputTracker:
-    MAX_INPUTS    = 4   # total cardinal slots per foundry
-    MAX_TI_INPUTS = 3   # allow ≤3 ti so at least 1 ax slot is preserved
-    MAX_AX_INPUTS = 3   # allow ≤3 ax so at least 1 ti slot is preserved
+    MAX_INPUTS    = 8
+    MAX_TI_INPUTS = 4 
+    MAX_AX_INPUTS = 4
 
     # Built-connection counts (from DarkForest, reset each tick).
     ti_count: dict[int, int] = {}
