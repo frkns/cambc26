@@ -50,6 +50,7 @@ class Map:
     num_enemies_8: int
     num_enemy_buildings: int
     harvester_set: set[int] = set()
+    ax_harvester_set: set[int] = set()
     ti_ally_harvester_set: set[int] = set()
     ax_ally_harvester_set: set[int] = set()
     enemy_route_set: set[int] = set()
@@ -125,6 +126,7 @@ class Map:
         CORE = EntityType.CORE
         BUILDER_BOT = EntityType.BUILDER_BOT
         ORE_TITANIUM = Environment.ORE_TITANIUM
+        ORE_AXIONITE = Environment.ORE_AXIONITE
         WALL = Environment.WALL
 
         messages_read = 0
@@ -141,6 +143,7 @@ class Map:
         {% endif %}
 
         harvester_set = cls.harvester_set
+        ax_harvester_set = cls.ax_harvester_set
         ti_ally_harvester_set = cls.ti_ally_harvester_set
         ax_ally_harvester_set = cls.ax_ally_harvester_set
 
@@ -329,6 +332,9 @@ class Map:
             # --- harvester set tracking ---
             if etype == HARVESTER:
                 harvester_set.add(pos_idx)
+                if tile_env == ORE_AXIONITE:
+                    ax_harvester_set.add(pos_idx)
+
                 if is_building_ally:
                     if tile_env == ORE_TITANIUM:
                         ti_ally_harvester_set.add(pos_idx)
@@ -340,6 +346,7 @@ class Map:
             else:
                 if pos_idx in harvester_set:
                     harvester_set.discard(pos_idx)
+                    ax_harvester_set.discard(pos_idx)
                     ti_ally_harvester_set.discard(pos_idx)
                     ax_ally_harvester_set.discard(pos_idx)
 

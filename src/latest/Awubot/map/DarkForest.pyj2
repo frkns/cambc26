@@ -93,6 +93,11 @@ class DarkForest:
 
     @classmethod
     def add_edge(cls, u: int, v: int):
+
+        {# /* # infinite loop test */ #}
+        {# /* if u < v: */ #}
+            {# /* cls.add_edge(v, u) */ #}
+
         # register (u,v) edge: u.up = v
         ns = cls.nodes
         if ns[u] is None:
@@ -213,20 +218,23 @@ class DarkForest:
             for y in range(50):
                 i = {{ encode_pos('x', 'y') }}
                 if ns[i] is not None and ax[i]:
-                    ct.draw_indicator_dot(Position(x, y), 255, 128, 0)
+                    Debug.dot(Position(x, y), Color.ORANGE)
 # ===---
 
 
 # ---===
     @classmethod
     def fcompute(cls):
+
+        {# /* Debug.log('called fcompute') */ #}
+
         {% set N = PADDED_GRID_SIZE %}
 
         ns       = cls.nodes
         kind     = cls.kind
         core_pos_set = Unit.core_pos_set
         harvesters   = Map.harvester_set
-        ax_harvesters = Map.ax_ally_harvester_set   # axionite harvesters
+        ax_harvesters = Map.ax_harvester_set   # axionite harvesters
 
         flow     = [0] * {{ N }}
         cc       = [0] * {{ N }}
@@ -252,6 +260,8 @@ class DarkForest:
                     if _is_ax:
                         ax_tagged[_n{{ loop.index0 }}] = True
                 {% endfor %}
+
+        # TODO: Maybe weight higher
         # ── foundries as refined-axionite sources (act like titanium harvesters) ──
         _fo = ({{ -1 }}, {{ 1 }}, {{ -PH }}, {{ PH }})
         for _f in cls.foundry_positions:
@@ -389,10 +399,6 @@ class DarkForest:
         cls.core_sink_set = core_sink_set
         cls.sink_set      = core_sink_set   # backward-compat alias
 
-        # ── refined axionite lines ──
-        # For each foundry, find its ALLY_CORE-tree neighbours (output side) and
-        # trace each one upward to the root.  Every node on that path is ineligible
-        # as a future foundry site.
         _ral: set[int] = set()
         _ALLY_CORE_K = {{ Kind.ALLY_CORE }}
         _ral_off = ({{ -1 }}, {{ 1 }}, {{ -PH }}, {{ PH }})
@@ -401,13 +407,16 @@ class DarkForest:
                 _adj = _f + _d
                 if ns[_adj] is not None and nk[_adj] == _ALLY_CORE_K:
                     _curr = _adj
-                    for _ in range(len(q)):
+                    _visited: set[int] = set()
+                    while True:
+                        if _curr in _visited:
+                            break
+                        _visited.add(_curr)
                         _ral.add(_curr)
                         _pn = ns[_curr]
                         if _pn is None or _pn.up is None:
                             break
                         _curr = _pn.up
-
         cls.refined_ax_line = _ral
 
         # ── titanium leaf set ──
@@ -419,4 +428,6 @@ class DarkForest:
                     and u not in _ral):
                 _ti_leaves.add(u)
         cls.leaf_set = _ti_leaves
+
+        {# /* Debug.log('exited fcompute') */ #}
 # ===---

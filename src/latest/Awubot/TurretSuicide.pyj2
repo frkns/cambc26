@@ -67,4 +67,5 @@ class TurretSuicide:
             Debug.diamond(Color.ORANGE)
             Debug.log(f'This {Globals.my_type} is self-destructing :(')
             Globals.ct.self_destruct()
+            raise NotImplementedError
 

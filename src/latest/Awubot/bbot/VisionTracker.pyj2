@@ -24,7 +24,7 @@ class TransporterInfo:
         'bfs_dist', 'bfs_dist_adj', 'bfs_dist_target_adj', 'flow', 'entity_type',
         'harvester_adjacent', 'is_ally', 'node_kind', 'flowing_into_ally',
         'on_ally_side', 'easily_buildable', 'has_resource', 'adjacent_launchers',
-        'enemy_bot_dist_adj', 'enemy_bot1', 'rand_key'
+        'enemy_bot_dist_adj', 'enemy_bot1', 'rand_key', 'is_ax'
     )
 
     @staticmethod
@@ -34,6 +34,9 @@ class TransporterInfo:
 
         if not a.easily_reachable: return False
         if not b.easily_reachable: return True
+
+        if a.is_ax: return False
+        if b.is_ax: return True
 
         if a.ti.has_bot and (not b.ti.has_bot): return False
         if (not a.ti.has_bot) and b.ti.has_bot: return True
@@ -67,8 +70,8 @@ class TransporterInfo:
 
     @staticmethod
     def is_better_connect_than(a: TransporterInfo, b: TransporterInfo) -> bool:
-        a_reach = a.easily_reachable and a.easily_buildable # and a.on_ally_side
-        b_reach = b.easily_reachable and b.easily_buildable # and b.on_ally_side
+        a_reach = a.easily_reachable and a.easily_buildable and not a.is_ax
+        b_reach = b.easily_reachable and b.easily_buildable and not b.is_ax
         if a_reach and (not b_reach): return True
         if (not a_reach) and b_reach: return False
 
@@ -84,6 +87,8 @@ class TransporterInfo:
     def is_better_misrouted_than(a: TransporterInfo, b: TransporterInfo) -> bool:
         if a.easily_reachable_adj and (not b.easily_reachable_adj): return True
         if (not a.easily_reachable_adj) and b.easily_reachable_adj: return False
+        if a.is_ax: return False
+        if b.is_ax: return True
         if a.on_ally_side and (not b.on_ally_side): return True
         if (not a.on_ally_side) and b.on_ally_side: return False
         return a.bfs_dist_adj < b.bfs_dist_adj
@@ -187,6 +192,7 @@ class VisionTracker:
                 trans.enemy_bot_dist_adj = BfsBureau.enemy_bot_dist_adj[idx]
                 trans.enemy_bot1 = trans.enemy_bot_dist_adj <= 1
                 trans.rand_key = random.random()
+                trans.is_ax = DarkForest.ax_tagged[idx]
 
                 trans.node_kind = DarkForest.node_kind[idx]
                 trans.flowing_into_ally = trans.node_kind in \

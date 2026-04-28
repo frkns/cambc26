@@ -50,8 +50,19 @@ class Pathfinder:
         MoveManager.move(best_dir)
         return True
 
+
     @classmethod
     def move_to(cls, target: Position, ban_target_pos: bool = False, orbit: bool = False):
+        {% set TRACE = LOCAL and False %}
+
+        {% if TRACE %}
+        Debug.log('entered Pathfinder.move_to()')
+        {% endif %}
+
+        {% set before_ret %}{% if TRACE -%}
+        Debug.log('exited Pathfinder.move_to()')
+        {%- endif %}{% endset %}
+
         if Globals.ct.get_move_cooldown() != 0:
             return
 
@@ -94,10 +105,12 @@ class Pathfinder:
             if (dsq == 1 or dsq == 2) and dsq < ndsq: 
                 if BfsBureau.now_weight[midx] <= 3:
                     if not MoveManager.can_fill_move(my_pos.direction_to(target)):
+                        {{ before_ret }}
                         return
 
         if dir is None:
             cls.given_up = True
+            {{ before_ret }}
             return
 
         if MoveManager.can_move(dir):
@@ -105,3 +118,6 @@ class Pathfinder:
         elif MoveManager.can_fill_move(dir):
             Globals.ct.build_road(my_pos.add(dir))
             MoveManager.move(dir)
+
+        {{ before_ret }}
+
