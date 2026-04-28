@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-28 15:16:36 (local)
+# latest,  @ 2026-04-28 15:41:00 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -37084,6 +37084,11 @@ class Builder(Unit):
         if healpos is not None and misinfo is None:
             return 'MoveTo', healpos, 'Heal'
 
+        if misinfo is not None and not ((RouteToCore.backTracking or RouteToFoundry.backTracking) and not RouteToCore.is_active and not RouteToFoundry.is_active):
+            if misinfo.on_ally_side:
+                return 'Reroute', misinfo.position
+            else:
+                return 'Reroute', misinfo.position  # same
 
         # reinstating CORE_HEALER
         if cls.role == 1:
@@ -37115,12 +37120,6 @@ class Builder(Unit):
 
         if RouteToCore.is_active:
             return ('Route',)
-
-        if misinfo is not None and not ((RouteToCore.backTracking or RouteToFoundry.backTracking) and not RouteToCore.is_active and not RouteToFoundry.is_active):
-            if misinfo.on_ally_side:
-                return 'Reroute', misinfo.position
-            else:
-                return 'Reroute', misinfo.position  # same
 
         trans: TransporterInfo = ConnectManager.get_connect_target_info()
         if trans is not None:
