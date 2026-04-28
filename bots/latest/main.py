@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-27 20:24:47 (local)
+# latest,  @ 2026-04-27 17:50:48 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -24752,9 +24752,9 @@ class FoundryBuild:
 # ============================================================
 
 class FoundryInputTracker:
-    MAX_INPUTS    = 4   # total cardinal slots per foundry
-    MAX_TI_INPUTS = 3   # allow ≤3 ti so at least 1 ax slot is preserved
-    MAX_AX_INPUTS = 3   # allow ≤3 ax so at least 1 ti slot is preserved
+    MAX_INPUTS    = 8
+    MAX_TI_INPUTS = 4 
+    MAX_AX_INPUTS = 4
 
     # Built-connection counts (from DarkForest, reset each tick).
     ti_count: dict[int, int] = {}
@@ -36965,6 +36965,7 @@ class Builder(Unit):
              HealExecutor.last_healed is not None 
              and HealExecutor.last_healed.is_turret
              and (Globals.round - HealExecutor.last_healed_round) <= 5
+             and misinfo is not None
         ):
             if healpos is not None:  # redundant, OK
                 return 'MoveTo', healpos, '[lrh: move to heal]'
@@ -36978,7 +36979,7 @@ class Builder(Unit):
             Debug.dot(sitterpos, Color.PURPLE)
             return 'BuildLauncher', sitterpos
 
-        if healpos is not None:
+        if healpos is not None and misinfo is not None:
             return 'MoveTo', healpos, 'Heal'
 
 
