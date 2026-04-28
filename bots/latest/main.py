@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-28 13:55:42 (local)
+# latest,  @ 2026-04-28 15:38:38 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -35818,6 +35818,8 @@ class SpawnManager:
         
         ti, ax = ct.get_global_resources()
         bot_ti, bot_ax = ct.get_builder_bot_cost()
+        if bot_ti > ti:
+            return False
 
         if Globals.round <= 10 and cls.num_spawned < 4:
             return True
@@ -35825,6 +35827,8 @@ class SpawnManager:
         mass = 40#80 if cls.num_spawned < 10 else 200
 
         if (MarketMaker.est_income > 10 or num_units < 4) and ti - bot_ti >= num_units * mass:
+            return True
+        if MarketMaker.est_income >= 20 and BuildManager.can_afford_builder_bot():
             return True
 
         return False
