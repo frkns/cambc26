@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-27 17:52:33 (local)
+# latest,  @ 2026-04-27 20:54:37 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -29741,6 +29741,7 @@ class OreExecutive:
         ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + -1]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
+                cls.state[ret] = 2  # don't want to keep trying to build here
                 return None
 
 
@@ -29748,6 +29749,7 @@ class OreExecutive:
         ti: TileInfo = Map.tile_info[ret.x + 1][ret.y + 0]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
+                cls.state[ret] = 2  # don't want to keep trying to build here
                 return None
 
 
@@ -29755,6 +29757,7 @@ class OreExecutive:
         ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + 1]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
+                cls.state[ret] = 2  # don't want to keep trying to build here
                 return None
 
 
@@ -29762,6 +29765,7 @@ class OreExecutive:
         ti: TileInfo = Map.tile_info[ret.x + -1][ret.y + 0]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
+                cls.state[ret] = 2  # don't want to keep trying to build here
                 return None
 
 
@@ -29811,6 +29815,7 @@ class OreExecutive:
         ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + -1]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
+                cls.state[ret] = 2  # don't want to keep trying to build here
                 return None
 
 
@@ -29818,6 +29823,7 @@ class OreExecutive:
         ti: TileInfo = Map.tile_info[ret.x + 1][ret.y + 0]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
+                cls.state[ret] = 2  # don't want to keep trying to build here
                 return None
 
 
@@ -29825,6 +29831,7 @@ class OreExecutive:
         ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + 1]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
+                cls.state[ret] = 2  # don't want to keep trying to build here
                 return None
 
 
@@ -29832,6 +29839,7 @@ class OreExecutive:
         ti: TileInfo = Map.tile_info[ret.x + -1][ret.y + 0]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
+                cls.state[ret] = 2  # don't want to keep trying to build here
                 return None
 
 
