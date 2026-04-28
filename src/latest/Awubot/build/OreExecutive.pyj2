@@ -125,6 +125,7 @@ class OreExecutive:
         ti: TileInfo = Map.tile_info[ret.x + {{ dx }}][ret.y + {{ dy }}]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
+                cls.state[ret] = {{ KILLED }}  # don't want to keep trying to build here
                 return None
 
         {% endfor %}
@@ -177,6 +178,7 @@ class OreExecutive:
         ti: TileInfo = Map.tile_info[ret.x + {{ dx }}][ret.y + {{ dy }}]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
+                cls.state[ret] = {{ KILLED }}  # don't want to keep trying to build here
                 return None
 
         {% endfor %}
