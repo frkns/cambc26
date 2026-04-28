@@ -107,13 +107,14 @@ class MarketMaker:
         if not (2 * n_ax <= n_ti):
             return False
 
+        """ #cannot figure out what this is trying to do-
         if MarketMaker.ax > 0:
             pbt = MarketMaker.harvester_payback(apos)
             {# /* {{ D.show('[ax]pbt') }} */ #}
             if int(pbt * 1.5 + 100) < Util.get_rounds_left():
                 return True
-
-        return False
+        """
+        return True
 
 
     @staticmethod

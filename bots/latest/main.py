@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-27 20:54:37 (local)
+# latest,  @ 2026-04-27 21:31:19 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -29560,12 +29560,13 @@ class MarketMaker:
         if not (2 * n_ax <= n_ti):
             return False
 
+        """ #cannot figure out what this is trying to do-
         if MarketMaker.ax > 0:
             pbt = MarketMaker.harvester_payback(apos)
             if int(pbt * 1.5 + 100) < Util.get_rounds_left():
                 return True
-
-        return False
+        """
+        return True
 
 
     @staticmethod
@@ -29807,43 +29808,7 @@ class OreExecutive:
             else:
                 break
 
-        if ret is None:
-            return None
-
-
-        # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
-        ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + -1]
-        if ti is not None:
-            if ti.has_turret and not ti.is_building_ally:
-                cls.state[ret] = 2  # don't want to keep trying to build here
-                return None
-
-
-        # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
-        ti: TileInfo = Map.tile_info[ret.x + 1][ret.y + 0]
-        if ti is not None:
-            if ti.has_turret and not ti.is_building_ally:
-                cls.state[ret] = 2  # don't want to keep trying to build here
-                return None
-
-
-        # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
-        ti: TileInfo = Map.tile_info[ret.x + 0][ret.y + 1]
-        if ti is not None:
-            if ti.has_turret and not ti.is_building_ally:
-                cls.state[ret] = 2  # don't want to keep trying to build here
-                return None
-
-
-        # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
-        ti: TileInfo = Map.tile_info[ret.x + -1][ret.y + 0]
-        if ti is not None:
-            if ti.has_turret and not ti.is_building_ally:
-                cls.state[ret] = 2  # don't want to keep trying to build here
-                return None
-
-
-        return ret
+        return ret # can be None
 
 
     @classmethod
@@ -29891,7 +29856,7 @@ class OreExecutive:
             cls.state[pos] = 2
             return
         ti = Map.tile_info[cand.position.x][cand.position.y]
-        if ti.entity_type in Constants.TRANSPORTERS_SET:
+        if ti.entity_type in Constants.TRANSPORTERS_SET and not feeder[(((ti.pos.x) + 3) * 56 + ((ti.pos.y) + 3))]:
             cls.state[pos] = 2
             Debug.line(pos, Color.RED)
             Debug.diamond(Color.RED)
