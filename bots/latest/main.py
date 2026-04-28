@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # latest,  @ 2026-04-28 15:38:38 (local)
+=======
+# latest,  @ 2026-04-28 17:16:53 (local)
+>>>>>>> 8fbfbb17f910994be7a032ae449bfb5663d16281
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
