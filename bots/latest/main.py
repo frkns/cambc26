@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-28 18:32:21 (local)
+# latest,  @ 2026-04-28 19:07:37 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -163,6 +163,8 @@ class Attacker:
             return None
         if trans.is_ax:
             return None
+        if not trans.probably_flowing:
+            return None
         # if not trans.harvester_adjacent and trans.flow == 0 and not trans.sight_flowing:
         #     return None
         # if not cls.should_fire(trans.position):
@@ -271,6 +273,9 @@ class Attacker:
             return False
 
         if DarkForest.ax_tagged[idx]:
+            return False
+
+        if not DarkForest.sight_flowing[idx] and not DarkForest.flow[idx] > 0:
             return False
 
 
@@ -36674,7 +36679,7 @@ class TransporterInfo:
         'ti', 'position', 'target', 'easily_reachable', 'easily_reachable_adj',
         'bfs_dist', 'bfs_dist_adj', 'bfs_dist_target_adj', 'flow', 'entity_type',
         'harvester_adjacent', 'is_ally', 'node_kind', 'flowing_into_ally',
-        'on_ally_side', 'easily_buildable', 'has_resource', 'adjacent_launchers',
+        'on_ally_side', 'easily_buildable', 'probably_flowing', 'adjacent_launchers',
         'enemy_bot_dist_adj', 'enemy_bot1', 'rand_key', 'is_ax'
     )
 
@@ -36688,6 +36693,9 @@ class TransporterInfo:
 
         if a.is_ax: return False
         if b.is_ax: return True
+
+        if a.probably_flowing != b.probably_flowing:
+            return a.probably_flowing > b.probably_flowing
 
         if a.ti.has_bot and (not b.ti.has_bot): return False
         if (not a.ti.has_bot) and b.ti.has_bot: return True
@@ -36726,10 +36734,10 @@ class TransporterInfo:
         if a_reach and (not b_reach): return True
         if (not a_reach) and b_reach: return False
 
+        if a.probably_flowing != b.probably_flowing:
+            return a.probably_flowing > b.probably_flowing
         if a.flow != b.flow:
             return a.flow > b.flow
-        if a.has_resource != b.has_resource:
-            return a.has_resource > b.has_resource
 
         return a.bfs_dist_target_adj < b.bfs_dist_target_adj
 
@@ -37158,7 +37166,7 @@ class Builder(Unit):
             
         buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0) or (RouteToFoundryInput.is_active and len(RouteToFoundryInput.prevRoute) == 0)
             
-        if not buildingFirstConveyor:
+        if not buildingFirstConveyor and sentinelpos is None:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
             if shieldpos is not None:
                 return 'BuildShield', shieldpos
@@ -37166,7 +37174,6 @@ class Builder(Unit):
         attackpos = Attacker.get_target()
         secondaryattackpos = Attacker.get_secondary_target()
 
-        
         # preroute here
         if cls.is_routing_active and secondaryattackpos == cls.route_from_pos:
             return 'Attack', secondaryattackpos, 'Preroute'
@@ -37206,19 +37213,23 @@ class Builder(Unit):
         if route_pos is not None and cls.mode != 2:
             if Util.dist_sq(route_pos, Symmetry.enemy_core_pos) \
                     < Util.dist_sq(route_pos, Unit.core_pos):
-                return 'BuildTurret', route_pos 
 
-            if route_pos not in RouteToCore.killed:
+                # if sentinelpos is not None:
+                #     return 'BuildTurret', sentinelpos, None
+                pass
+
+            elif route_pos not in RouteToCore.killed:
                 print("""[HarvesterAdjacent found route]""")
                 RouteToCore.set_pos(route_pos)
                 return 'MoveTo', route_pos, 'InitRoute'
 
-        if cls.should_fire:
-            return 'Attack', Globals.my_pos, 'ShouldFire'
 
         if sentinelpos is not None:
             Debug.dot(sentinelpos, Color.PURPLE)
             return 'BuildTurret', sentinelpos, None
+
+        if cls.should_fire:
+            return 'Attack', Globals.my_pos, 'ShouldFire'
             
         if buildingFirstConveyor:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
@@ -37788,7 +37799,7 @@ class VisionTracker:
                 trans.entity_type = ti.entity_type
                 trans.harvester_adjacent = ti.harvester_adjacent
                 trans.is_ally = ti.is_building_ally
-                trans.has_resource = DarkForest.sight_flowing[idx] or Globals.ct.get_stored_resource(trans.ti.building_id) in (ResourceType.TITANIUM, ResourceType.REFINED_AXIONITE)
+                trans.probably_flowing = DarkForest.sight_flowing[idx] or Globals.ct.get_stored_resource(trans.ti.building_id) in (ResourceType.TITANIUM, ResourceType.REFINED_AXIONITE)
                 trans.adjacent_launchers = 0
                 trans.enemy_bot_dist_adj = BfsBureau.enemy_bot_dist_adj[idx]
                 trans.enemy_bot1 = trans.enemy_bot_dist_adj <= 1
@@ -37852,9 +37863,9 @@ class VisionTracker:
                 else:
                     cls.enemy_transporters.append(trans)
 
-                if trans.node_kind == 0 and (trans.flow > 0 or trans.has_resource):
+                if trans.node_kind == 0 and (trans.flow > 0 or trans.probably_flowing):
                     # if DarkForest.nodes[idx].up is None:
-                        if trans.has_resource:
+                        if trans.probably_flowing:
                             if target_ti is not None and target_ti.entity_type in (None, EntityType.ROAD, EntityType.MARKER):
                                 cls.disconnected_roots.append(trans)
                                 Debug.dot(trans.position, Color.PINK)

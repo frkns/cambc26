@@ -46,6 +46,8 @@ class Attacker:
             return None
         if trans.is_ax:
             return None
+        if not trans.probably_flowing:
+            return None
         # if not trans.harvester_adjacent and trans.flow == 0 and not trans.sight_flowing:
         #     return None
         # if not cls.should_fire(trans.position):

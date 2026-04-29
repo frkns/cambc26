@@ -233,7 +233,7 @@ class Builder({{ super() }}):
             
         buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0) or (RouteToFoundryInput.is_active and len(RouteToFoundryInput.prevRoute) == 0)
             
-        if not buildingFirstConveyor:
+        if not buildingFirstConveyor and sentinelpos is None:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
             if shieldpos is not None:
                 return 'BuildShield', shieldpos
@@ -241,7 +241,6 @@ class Builder({{ super() }}):
         attackpos = Attacker.get_target()
         secondaryattackpos = Attacker.get_secondary_target()
 
-        
         # preroute here
         if cls.is_routing_active and secondaryattackpos == cls.route_from_pos:
             return 'Attack', secondaryattackpos, 'Preroute'
@@ -281,19 +280,23 @@ class Builder({{ super() }}):
         if route_pos is not None and cls.mode != {{ Mode.EARLY_RUSH }}:
             if Util.dist_sq(route_pos, Symmetry.enemy_core_pos) \
                     < Util.dist_sq(route_pos, Unit.core_pos):
-                return 'BuildTurret', route_pos 
 
-            if route_pos not in RouteToCore.killed:
+                # if sentinelpos is not None:
+                #     return 'BuildTurret', sentinelpos, None
+                pass
+
+            elif route_pos not in RouteToCore.killed:
                 {{ D.print('[HarvesterAdjacent found route]') }}
                 RouteToCore.set_pos(route_pos)
                 return 'MoveTo', route_pos, 'InitRoute'
 
-        if cls.should_fire:
-            return 'Attack', Globals.my_pos, 'ShouldFire'
 
         if sentinelpos is not None:
             Debug.dot(sentinelpos, Color.PURPLE)
             return 'BuildTurret', sentinelpos, None
+
+        if cls.should_fire:
+            return 'Attack', Globals.my_pos, 'ShouldFire'
             
         if buildingFirstConveyor:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
