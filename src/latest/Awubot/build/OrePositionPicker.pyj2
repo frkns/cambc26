@@ -23,15 +23,21 @@ class OrePositionPicker:
         position: Position
         ti: TileInfo | None  # if None, it is outside map
         build_metric: int  # manhattan, but if directly on top, need to ~take a step back~
+        dist_to_target: int  # squared distance to caller-supplied target (0 if none)
         is_accessible: bool
         empty: bool
 
     cand: list[Candidate | None] = [None] * 4
 
     @classmethod
-    def precompute(cls, ore_pos: Position):
+    def precompute(cls, ore_pos: Position, target_pos: Position | None = None):
         my_pos = Globals.my_pos
         me_x, me_y = my_pos.x, my_pos.y
+
+        if target_pos is not None:
+            tx, ty = target_pos.x, target_pos.y
+        else:
+            tx, ty = 0, 0
 
         x, y = ore_pos.x, ore_pos.y
 
@@ -40,9 +46,14 @@ class OrePositionPicker:
 
         nx, ny = x {{ sign0(dx) }}, y {{ sign0(dy) }}
 
-        build_metric = max(abs(nx - me_x), abs(ny - me_y)) 
+        build_metric = max(abs(nx - me_x), abs(ny - me_y))
         if build_metric == 0:
             build_metric += 2
+
+        if target_pos is not None:
+            dist_to_target = (nx - tx) * (nx - tx) + (ny - ty) * (ny - ty)
+        else:
+            dist_to_target = 0
 
         ti = Map.tile_info[nx][ny]
 
@@ -50,6 +61,7 @@ class OrePositionPicker:
             Position(nx, ny),
             ti,
             build_metric,
+            dist_to_target,
             ti is not None and ti.env != Environment.WALL,
             ti is not None and ti.env == Environment.EMPTY,
         )
@@ -63,7 +75,7 @@ class OrePositionPicker:
         # 2. empty
         # 3. no building
         # 4. has ally building AND is road
-        # 5. no builder bot
+        # 5. dist to target (if supplied) - prefer closer to target, shorter outgoing route
         # 6. build metric
         # 7. arbitrary
 
@@ -90,10 +102,10 @@ class OrePositionPicker:
             if (not a_cond) and b_cond:
                 return False
 
-        if a.ti.has_bot and (not b.ti.has_bot):
-            return False
-        if (not a.ti.has_bot) and b.ti.has_bot:
-            return True
+        # When a target was supplied (only by callers that opt in via pick_best_candidate
+        # with target_pos), prefer the cell closest to it — shorter outgoing route.
+        if a.dist_to_target != b.dist_to_target:
+            return a.dist_to_target < b.dist_to_target
 
         if a.build_metric != b.build_metric:
             return a.build_metric < b.build_metric
@@ -101,8 +113,8 @@ class OrePositionPicker:
         return True  # arbitrary
 
     @classmethod
-    def pick_best_candidate(cls, ore_pos: Position) -> Candidate:
-        cls.precompute(ore_pos)
+    def pick_best_candidate(cls, ore_pos: Position, target_pos: Position | None = None) -> Candidate:
+        cls.precompute(ore_pos, target_pos)
 
         best = cls.cand[3]
         {% for i in range(3)|reverse %}

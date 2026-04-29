@@ -62,7 +62,17 @@ class SpawnManager:
     @classmethod
     def spawn(cls):
         # rework this
-        my_pos = Globals.my_pos
+        my_pos = Globals.my_pos        
+        
+        if cls.nearest_dangerous_enemy != None:
+            enemy_dir = my_pos.direction_to(cls.nearest_dangerous_enemy)
+            {% for dir in ['enemy_dir', 'enemy_dir.rotate_left()', 'enemy_dir.rotate_right()'] %}
+            pos = my_pos.add({{ dir }})
+            if Globals.ct.can_spawn(pos):
+                Globals.ct.spawn_builder(pos)
+                cls.num_spawned += 1
+            {% endfor %}
+
 
         {% for dir in directions|reverse %}
         pos = my_pos.add({{ dir }})
