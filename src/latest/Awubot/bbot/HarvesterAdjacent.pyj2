@@ -142,8 +142,8 @@ class HarvesterAdjacent:
 
     @classmethod
     def get_best_sentinel_position(cls) -> Position | None:
-        {# /* if not BuildManager.can_afford_sentinel(): */ #}
-            {# /* return None */ #}
+        if not BuildManager.can_afford_sentinel() and Globals.round < 250: 
+            return None 
 
         if not cls.infos:
             return None

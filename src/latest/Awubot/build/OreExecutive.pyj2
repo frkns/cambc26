@@ -24,6 +24,8 @@ class OreExecutive:
     {% set KILLED = 2 %}
     {% set HAS_HARD_BUILDING = 3 %}
     {% set AX_QUEUED = 4 %}
+    {% set NON_CANONICAL = 5 %}
+    {% set PATHFINDING_KILL = 6 %}
     state: dict[Position, int] = defaultdict(int)
     ti_queue: list[tuple[int, Position]] = []
     ax_queue: list[tuple[int, Position]] = []
@@ -43,6 +45,10 @@ class OreExecutive:
 
             if cls.state[pos] == {{ KILLED }}:
                 continue
+
+            if cls.state[pos] == {{ PATHFINDING_KILL }}:
+                if BfsBureau.bfs20_dist[idx] > 30: #you can work with this
+                    continue
             env = ti.env
 
             if ti.entity_type in cls.hard_building_set:
@@ -102,6 +108,11 @@ class OreExecutive:
                 heapq.heappop(cls.ti_queue)
                 cls.state[pos] = {{ HAS_HARD_BUILDING }}
                 continue
+            
+            if not VisionTracker.me_is_canonical_ally(pos):
+                heapq.heappop(cls.ti_queue)
+                cls.state[pos] = {{ NON_CANONICAL }}
+                continue
 
             if not ti.has_bot and MarketMaker.should_build_harvester(pos):  # fixed: was should_build_ax_harvester
                 ret = pos
@@ -112,11 +123,6 @@ class OreExecutive:
         if ret is None:
             return None
 
-        if not VisionTracker.me_is_canonical_ally(ret):
-            # just kill?
-            {# /* cls.state[ret] = {{ KILLED }} */ #}
-            return None
-
         {% for dir in cardinal_directions %}
         {% set dx, dy = dir.delta() %}
 
@@ -124,7 +130,7 @@ class OreExecutive:
         ti: TileInfo = Map.tile_info[ret.x + {{ dx }}][ret.y + {{ dy }}]
         if ti is not None:
             if ti.has_turret and not ti.is_building_ally:
-                cls.state[ret] = {{ KILLED }}
+                cls.state[ret] = {{ KILLED }}  # don't want to keep trying to build here
                 return None
 
         {% endfor %}
@@ -155,34 +161,19 @@ class OreExecutive:
                 heapq.heappop(cls.ax_queue)
                 cls.state[pos] = {{ HAS_HARD_BUILDING }}
                 continue
+            
+            if not VisionTracker.me_is_canonical_ally(pos):
+                heapq.heappop(cls.ax_queue)
+                cls.state[pos] = {{ NON_CANONICAL }}
+                continue
 
-            if not ti.has_bot and MarketMaker.should_build_harvester(pos):
+            if not ti.has_bot and MarketMaker.should_build_ax_harvester(pos):
                 ret = pos
                 break
             else:
                 break
 
-        if ret is None:
-            return None
-
-        if not VisionTracker.me_is_canonical_ally(ret):
-            # just kill?
-            cls.state[ret] = {{ KILLED }}
-            return None
-
-        {% for dir in cardinal_directions %}
-        {% set dx, dy = dir.delta() %}
-
-        # Don't build harvesters next to enemy buildings (because they can destroy them and build a turret)
-        ti: TileInfo = Map.tile_info[ret.x + {{ dx }}][ret.y + {{ dy }}]
-        if ti is not None:
-            if ti.has_turret and not ti.is_building_ally:
-                cls.state[ret] = {{ KILLED }}
-                return None
-
-        {% endfor %}
-
-        return ret
+        return ret # can be None
 
 
     @classmethod
@@ -192,7 +183,7 @@ class OreExecutive:
         if Pathfinder.given_up:
             Debug.line(pos, Color.RED)
             Debug.diamond(Color.RED)
-            cls.state[pos] = {{ KILLED }}
+            cls.state[pos] = {{ PATHFINDING_KILL }}
             return
 
         if BuildManager.can_dbuild_harvester(pos):
@@ -220,7 +211,7 @@ class OreExecutive:
         if Pathfinder.given_up:
             Debug.line(pos, Color.RED)
             Debug.diamond(Color.RED)
-            cls.state[pos] = {{ KILLED }}
+            cls.state[pos] = {{ PATHFINDING_KILL }}
             return
 
         cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
@@ -230,7 +221,7 @@ class OreExecutive:
             cls.state[pos] = {{ KILLED }}
             return
         ti = Map.tile_info[cand.position.x][cand.position.y]
-        if ti.entity_type in Constants.TRANSPORTERS_SET:
+        if ti.entity_type in Constants.TRANSPORTERS_SET and not BfsBureau.harvester_feeder[{{ encode_pos('cand.position.x','cand.position.y') }}]:
             cls.state[pos] = {{ KILLED }}
             Debug.line(pos, Color.RED)
             Debug.diamond(Color.RED)

@@ -48,4 +48,5 @@ class Comms:
             return
         {% endfor %}
 
-        assert False
+        # Unknown message type — ignore rather than crash.
+        print(f"Comms: unknown message type {t}", file=sys.stderr)

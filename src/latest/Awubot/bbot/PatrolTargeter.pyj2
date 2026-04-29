@@ -43,7 +43,7 @@ class PatrolTargeter:
                 if Globals.round - cls.lastHitRound > 10:
                     cls.recentHits.clear()
                     active_targets = Map.harvester_set
-                    
+                
                 return None
             else:
                 # Choose a random one of the targets we haven't visited recently

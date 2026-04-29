@@ -48,9 +48,6 @@ class HealTargetInfo:
         if not a.is_transporter:
             if a.harvester_adjacent != b.harvester_adjacent:
                 return a.harvester_adjacent > b.harvester_adjacent
-    
-        if a.has_enemy_bot != b.has_enemy_bot:
-            return a.has_enemy_bot > b.has_enemy_bot
         
         ahp = a.building_hp
         bhp = b.building_hp
@@ -62,6 +59,9 @@ class HealTargetInfo:
 
         if ahp != bhp:
             return ahp < bhp
+    
+        if a.has_enemy_bot != b.has_enemy_bot:
+            return a.has_enemy_bot > b.has_enemy_bot
 
         if adist != bdist:
             return adist < bdist

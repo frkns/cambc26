@@ -59,6 +59,10 @@ class RouteToBreach:
                     continue
                 if tile.has_building and tile.entity_type in Constants.TURRET_SET:
                     continue
+                if tile.has_building and tile.entity_type in Constants.TRANSPORTERS_SET:
+                    continue
+                if tile.has_building and tile.entity_type in [EntityType.HARVESTER,EntityType.FOUNDRY]:
+                    continue
                 d = currLoc.distance_squared(candidate)
                 if d < best_attack_dist:
                     best_attack_dist = d
@@ -113,9 +117,11 @@ class RouteToBreach:
         Debug.line(cls.from_pos, target, Color.GREEN)
 
         if cls.from_pos.distance_squared(target) == 1:
-            if BuildManager.can_dbuild_conveyor(cls.from_pos):
-                BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
-                cls.set_pos(target,False)
+            ti = Map.tile_info[cls.from_pos.x][cls.from_pos.y]
+            if not ti.has_building or not ti.is_building_ally or target != ti.target:
+                if BuildManager.can_dbuild_conveyor(cls.from_pos):
+                    BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
+                    cls.set_pos(target,False)
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
             cls.set_pos(target,False)

@@ -72,10 +72,17 @@ class MarketMaker:
         
         {{ P.start('BfsBureau.find_bridge_route') }}
         bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.core_sink_set)
+        if bridges >= {{ INF }}:
+            # Fallback: route through ally conveyors/bridges, but only ones that are
+            # currently sight_flowing and below the pressure threshold (so we don't
+            # clog already-saturated lines).
+            bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.core_sink_set, use_ally_routing=True)
         {{ P.end('BfsBureau.find_bridge_route') }}
         h_cost, _ = Globals.ct.get_harvester_cost()
         b_cost, _ = Globals.ct.get_bridge_cost()
-        cls.hres = h_cost + b_cost * bridges 
+        if bridges >= {{ INF }}:
+            return {{ INF }} # Don't cache INF because of vision edge cases
+        cls.hres = h_cost + b_cost * bridges
         cls.hpos = apos
         cls.hround = Globals.round
         return cls.hres
@@ -100,13 +107,17 @@ class MarketMaker:
         if not (2 * n_ax <= n_ti):
             return False
 
+        if not BuildManager.can_afford_foundry():
+            return False
+
+        """ #cannot figure out what this is trying to do-
         if MarketMaker.ax > 0:
             pbt = MarketMaker.harvester_payback(apos)
             {# /* {{ D.show('[ax]pbt') }} */ #}
             if int(pbt * 1.5 + 100) < Util.get_rounds_left():
                 return True
-
-        return False
+        """
+        return True
 
 
     @staticmethod

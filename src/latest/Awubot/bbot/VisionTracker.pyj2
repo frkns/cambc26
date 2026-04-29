@@ -52,7 +52,7 @@ class TransporterInfo:
 
         if a.enemy_bot_dist_adj != b.enemy_bot_dist_adj:
             return a.enemy_bot_dist_adj > b.enemy_bot_dist_adj
-        
+
         # factored in with bot_bfs_dist
         # if a.adjacent_launchers != b.adjacent_launchers:
         #     return a.adjacent_launchers > b.adjacent_launchers
@@ -157,7 +157,7 @@ class VisionTracker:
     enemy_roads_harvester: list[RoadInfo]  # roads adjacent to ti harvester
     enemy_transporters: list[TransporterInfo]
     disconnected_roots: list[TransporterInfo]
-    misrouted_transporters: list[TransporterInfo]  # ally transporters 
+    misrouted_transporters: list[TransporterInfo]  # ally transporters
     ally_harvesters: list[HarvesterInfo]
 
     @classmethod
@@ -194,7 +194,7 @@ class VisionTracker:
                 info.is_pointed_to = ti.is_pointed_to
 
                 cls.enemy_roads.append(info)
-                if ti.harvester_adjacent: 
+                if ti.harvester_adjacent:
                     cls.enemy_roads_harvester.append(info)
 
 
@@ -230,19 +230,19 @@ class VisionTracker:
                 trans.easily_buildable = \
                     target_ti is not None and \
                     not target_ti.has_bot and \
-                    ((not target_ti.has_building) or 
+                    ((not target_ti.has_building) or
                     (target_ti.entity_type == EntityType.ROAD and target_ti.is_building_ally)) and \
                     trans.bfs_dist_target_adj < 20
 
                 trans.on_ally_side = pos.distance_squared(Unit.core_pos) < pos.distance_squared(Symmetry.enemy_core_pos)
-                
+
                 {% for dir in directions[:8] %}
                 {% set dx, dy = dir.delta() %}
                 {% set nx %}(x {{ sign0(dx) }}){% endset %}
                 {% set ny %}(y {{ sign0(dy) }}){% endset %}
 
                 nti = tile_info[{{ nx }}][{{ ny }}]
-                if nti is not None and nti.has_bot and nti.is_bot_ally and nti.entity_type == EntityType.LAUNCHER:
+                if nti is not None and nti.has_building and nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                     trans.adjacent_launchers += 1
                 {% endfor %}
 
@@ -269,7 +269,7 @@ class VisionTracker:
         )
         {{ P.end('canonical_ally') }}
         return ret
-    
+
     @classmethod
     def canonical_ally_index(cls, from_pos: Position) -> int:
         {{ P.start('canonical_ally') }}
@@ -320,7 +320,7 @@ class VisionTracker:
         for cand in enemy_transporters[1:]:
             if TransporterInfo.is_better_trans_atk_target_than(cand, best):
                 best = cand
-        return best 
+        return best
 
 
     @classmethod
@@ -356,8 +356,8 @@ class VisionTracker:
         for cand in roads[1:]:
             if RoadInfo.is_better_road_atk_target_than(cand, best):
                 best = cand
-        return best 
-    
+        return best
+
     @classmethod
     def get_best_trans_shield_atk_target(cls) -> RoadInfo | None:
         enemy_transporters = cls.enemy_transporters
@@ -369,14 +369,14 @@ class VisionTracker:
         for cand in enemy_transporters[1:]:
             if TransporterInfo.is_better_trans_atk_target_than(cand, best):
                 best = cand
-                
+
         best_shield = None
         best_shield_dist = {{ INF }}
-        
+
         tile_info = Map.tile_info
-        
+
         bx, by = best.position.x, best.position.y
-        
+
         {% for dir in directions[:8] %}
         {% set dx, dy = dir.delta() %}
         {% set nx %}(bx {{ sign0(dx) }}){% endset %}
@@ -391,7 +391,7 @@ class VisionTracker:
         {% endfor %}
 
         return best_shield
-    
+
     @classmethod
     def get_best_shield_atk_target(cls) -> RoadInfo | None:
         roads = cls.enemy_roads_harvester
@@ -403,7 +403,7 @@ class VisionTracker:
         for cand in roads[1:]:
             if RoadInfo.is_better_road_atk_target_than(cand, best):
                 best = cand
-        return best 
+        return best
 
 
     @classmethod
@@ -425,5 +425,5 @@ class VisionTracker:
 
         return best
 
-    
-    
+
+

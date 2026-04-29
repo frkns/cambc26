@@ -172,7 +172,7 @@ class BuildManager:
 
         leftover_unscaled_ti = 0
 
-        {% if etype in slow %}
+        {% if etype in slow and etype != EntityType.HARVESTER %}
         if Globals.round > 50:
             leftover_unscaled_ti += {{ req }}
         {% else %}

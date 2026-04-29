@@ -56,6 +56,95 @@ class PongManager:
         ct = Globals.ct
 
         my_id = cls.my_id  # changed
+        
+        if Globals.round > 250:
+            ACTIVE_ID = None
+            if ct.get_team() == Team.A:
+                ACTIVE_ID = 3
+                STAND_POS = Position(5, 7)
+                HARVESTER_POS = Position(4, 7)
+                FOUNDRY_POS = Position(4, 8)
+                SECOND_HARVESTER_POS = Position(4, 6)
+                FIRST_BRIDGE_POS = Position(5, 6)
+                THIRD_HARVESTER_POS = Position(6, 5)
+                CONVEYOR_POS = Position(5, 5)
+            else:
+                ACTIVE_ID = 4
+                STAND_POS = Position(44, 7)
+                HARVESTER_POS = Position(45, 7)
+                FOUNDRY_POS = Position(45, 8)
+                SECOND_HARVESTER_POS = Position(45, 6)
+                FIRST_BRIDGE_POS = Position(44, 6)
+                THIRD_HARVESTER_POS = Position(43, 5)
+                CONVEYOR_POS = Position(44, 5)
+                
+            if ct.get_id() == ACTIVE_ID:
+                if ct.get_position() not in (STAND_POS, FIRST_BRIDGE_POS):
+                    dir_to_stand = ct.get_position().direction_to(STAND_POS)
+                    if ct.get_tile_building_id(ct.get_position().add(dir_to_stand)) is None:
+                        ct.build_road(ct.get_position().add(dir_to_stand))
+                    elif ct.get_tile_building_id(ct.get_position().add(dir_to_stand.rotate_left())) is None:
+                        ct.build_road(ct.get_position().add(dir_to_stand.rotate_left()))
+                    elif ct.get_tile_building_id(ct.get_position().add(dir_to_stand.rotate_right())) is None:
+                        ct.build_road(ct.get_position().add(dir_to_stand.rotate_right()))
+                    if ct.can_move(dir_to_stand):
+                        ct.move(dir_to_stand)
+                    elif ct.can_move(dir_to_stand.rotate_left()):
+                        ct.move(dir_to_stand.rotate_left())
+                    elif ct.can_move(dir_to_stand.rotate_right()):
+                        ct.move(dir_to_stand.rotate_right())
+                    Debug.tee(f'moving to stand {STAND_POS} from {ct.get_position()}')
+                elif ct.get_action_cooldown() == 0:
+                    harvester_current = ct.get_tile_building_id(HARVESTER_POS)
+                    if harvester_current is None:
+                        ct.build_harvester(HARVESTER_POS)
+                        return
+                    
+                    foundry_current = ct.get_tile_building_id(FOUNDRY_POS)
+                    if ct.get_entity_type(foundry_current) != EntityType.FOUNDRY:
+                        if ct.can_destroy(FOUNDRY_POS):
+                            ct.destroy(FOUNDRY_POS)
+                        if ct.can_build_foundry(FOUNDRY_POS):
+                            ct.build_foundry(FOUNDRY_POS)
+                            return
+                        
+                    second_harvester_current = ct.get_tile_building_id(SECOND_HARVESTER_POS)
+                    if second_harvester_current is None:
+                        if ct.can_destroy(SECOND_HARVESTER_POS):
+                            ct.destroy(SECOND_HARVESTER_POS)
+                        if ct.can_build_harvester(SECOND_HARVESTER_POS):
+                            ct.build_harvester(SECOND_HARVESTER_POS)
+                            return
+                        
+                    first_bridge_current = ct.get_tile_building_id(FIRST_BRIDGE_POS)
+                    if first_bridge_current is None:
+                        if ct.can_destroy(FIRST_BRIDGE_POS):
+                            ct.destroy(FIRST_BRIDGE_POS)
+                        if ct.can_build_bridge(FIRST_BRIDGE_POS, FOUNDRY_POS):
+                            ct.build_bridge(FIRST_BRIDGE_POS, FOUNDRY_POS)
+                            return
+                        
+                    if ct.get_position() != FIRST_BRIDGE_POS:
+                        ct.move(ct.get_position().direction_to(FIRST_BRIDGE_POS))
+                        Debug.tee(f'moving to bridge {FIRST_BRIDGE_POS} from {ct.get_position()}')
+                        
+                    third_harvester_current = ct.get_tile_building_id(THIRD_HARVESTER_POS)
+                    if third_harvester_current is None:
+                        if ct.can_destroy(THIRD_HARVESTER_POS):
+                            ct.destroy(THIRD_HARVESTER_POS)
+                        if ct.can_build_harvester(THIRD_HARVESTER_POS):
+                            ct.build_harvester(THIRD_HARVESTER_POS)
+                            return
+                        
+                    conveyor_current = ct.get_tile_building_id(CONVEYOR_POS)
+                    if conveyor_current is None:
+                        if ct.can_build_conveyor(CONVEYOR_POS, CONVEYOR_POS.direction_to(FIRST_BRIDGE_POS)):
+                            ct.build_conveyor(CONVEYOR_POS, CONVEYOR_POS.direction_to(FIRST_BRIDGE_POS))
+                            return
+
+                        
+            return
+        
         if Globals.my_type == EntityType.CORE:
             my_id = None
             ti, ax = ct.get_global_resources()
