@@ -283,6 +283,7 @@ class HarvesterAdjacent:
             consider_route = hti.ally_outward_transporters_adjacent == 0 \
                 and hti.enemy_transporters_adjacent == 0 \
                 and hti.enemy_turrets_adjacent == 0 \
+                and not hti.ally_core_adj \
                 and my_pos.distance_squared(spos) <= 15  # can see all adjacent
             dist_to_ally_core = spos.distance_squared(Unit.core_pos)
             is_canonical_ally_harvester = VisionTracker.me_is_canonical_ally(spos)

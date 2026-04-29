@@ -30,7 +30,7 @@ class TileInfo:
         'ally_transporters_adjacent', 'enemy_transporters_adjacent',
         'resource_id', 'resource_type',
         'ally_outward_transporters_adjacent',
-        'is_pointed_to',
+        'is_pointed_to', 'ally_core_adj'
     )
 
 class Map:
@@ -404,6 +404,7 @@ class Map:
             ti.allied_bots_adjacent = cnt
 
             # turret/transporter adjacency: only for harvesters
+            ally_core_adj = False
             if ti.entity_type == HARVESTER:
                 ally_turrets = 0
                 enemy_turrets = 0
@@ -427,6 +428,8 @@ class Map:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
+                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                        ally_core_adj = True
                 {% endfor %}
 
                 ti.ally_turrets_adjacent = ally_turrets
@@ -434,6 +437,7 @@ class Map:
                 ti.turrets_adjacent = ally_turrets + enemy_turrets
                 ti.ally_transporters_adjacent = ally_transporters
                 ti.ally_outward_transporters_adjacent = ally_outward_transporters
+                ti.ally_core_adj = ally_core_adj
                 ti.enemy_transporters_adjacent = enemy_transporters
 
     {% endfor %}
