@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-28 17:08:31 (local)
+# latest,  @ 2026-04-28 20:47:42 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -5104,8 +5104,9 @@ class BreachBuild:
                 and Globals.ct.get_action_cooldown() == 0:
             BuildManager.destroy(pos)
         """
-        if ti.has_building and ti.entity_type != EntityType.GUNNER:
-            if (Globals.ct.get_global_resources()[0] > Globals.ct.get_gunner_cost()[0]) \
+        if ti.has_building and ti.entity_type != EntityType.BREACH:
+            if (Globals.ct.get_global_resources()[0] > Globals.ct.get_breach_cost()[0]) \
+                and (Globals.ct.get_global_resources()[1] > Globals.ct.get_breach_cost()[1]) \
                 and Globals.ct.can_destroy(pos) \
                 and Globals.ct.get_action_cooldown() == 0:
                 BuildManager.destroy(pos)
@@ -24720,7 +24721,7 @@ class FoundryBuild:
         print("Foundry cost:", Globals.ct.get_foundry_cost()[0])
 
         ti = Map.tile_info[pos.x][pos.y]
-        if not ti.is_building_ally or ti.entity_type == EntityType.FOUNDRY:    
+        if (ti.has_building and not ti.is_building_ally) or ti.entity_type == EntityType.FOUNDRY:
             RouteToFoundry._foundry_target = None
             return
 
@@ -31702,15 +31703,11 @@ class RouteToFoundryInput:
         # bot beat us to it), abandon and let the builder find a new target.
         if cls._is_ax:
             if not FoundryInputTracker.has_ax_capacity(cls._target):
-                # Subtract our reservation so the slot accounting stays clean.
-                FoundryInputTracker.release_ax(cls._target)
-                FoundryInputTracker.claim_ax(cls._target)  # keep claimed until give_up
+                # keep claimed until give_up
                 Debug.tee("RouteToFoundryInput: target foundry ax-full, giving up")
                 return True
         else:
             if not FoundryInputTracker.has_ti_capacity(cls._target):
-                FoundryInputTracker.release_ti(cls._target)
-                FoundryInputTracker.claim_ti(cls._target)
                 Debug.tee("RouteToFoundryInput: target foundry ti-full, giving up")
                 return True
 
@@ -36065,15 +36062,15 @@ class StateBuildShield:
                     if (
             Map.num_enemy_buildings > 0
         ) and BuildManager.can_mbuild_armoured_conveyor():
-                        BuildManager.dbuild_armoured_conveyor(pos, target_dir)
+                        BuildManager.mbuild_armoured_conveyor(target_dir)
                     elif BuildManager.can_mbuild_conveyor():
-                        BuildManager.dbuild_conveyor(pos, target_dir)  # mbuild check but dbuild
+                        BuildManager.mbuild_conveyor(target_dir)
                 else:
                     if BuildManager.can_mbuild_road():
-                        BuildManager.dbuild_road(pos)
+                        BuildManager.mbuild_road()
             else:
                 if BuildManager.can_mbuild_road():
-                    BuildManager.dbuild_road(pos)
+                    BuildManager.mbuild_road()
 
 
 # ============================================================
