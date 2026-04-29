@@ -50,14 +50,12 @@ class FoundryBuild:
 
         Pathfinder.move_to(pos, ban_target_pos=True)
 
-        # if Globals.ct.get_global_resources()[0] > Globals.ct.get_foundry_cost()[0] \
-        #         and Globals.ct.can_destroy(pos) \
-        #         and Globals.ct.get_action_cooldown() == 0:
-        #     BuildManager.destroy(pos)
-        # if Globals.ct.can_build_foundry(pos):
-
-        if BuildManager.can_dbuild_foundry(pos):
-            BuildManager.dbuild_foundry(pos)
+        if Globals.ct.get_global_resources()[0] > Globals.ct.get_foundry_cost()[0] \
+                and Globals.ct.can_destroy(pos) \
+                and Globals.ct.get_action_cooldown() == 0:
+            BuildManager.destroy(pos)
+        if Globals.ct.can_build_foundry(pos):
+            Globals.ct.build_foundry(pos)
 
             cls.register_foundry(pos)          # fixed: was register_foundry(encoded)
 
