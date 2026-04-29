@@ -82,7 +82,7 @@ class Attacker:
             return None
         if not cls.should_fire(road.position):
             return None
-        if Builder.min_dist_to_a_core >= 20 and MarketMaker.ti < BuildManager.scale({{ ATTACK_RANDOM_ROAD_TI }}):
+        if Builder.min_dist_to_a_core >= 36 and MarketMaker.ti < BuildManager.scale({{ ATTACK_RANDOM_ROAD_TI }}):
             return None
         return road.position
 
@@ -141,8 +141,9 @@ class Attacker:
         if DarkForest.ax_tagged[idx]:
             return False
 
-        if not DarkForest.sight_flowing[idx] and not DarkForest.flow[idx] > 0:
-            return False
+        if etype in (EntityType.CONVEYOR, EntityType.BRIDGE):
+            if not DarkForest.sight_flowing[idx] and not DarkForest.flow[idx] > 0:
+                return False
 
 
         hp = ti.building_hp

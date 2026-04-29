@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-28 19:07:37 (local)
+# latest,  @ 2026-04-28 20:38:13 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -199,7 +199,7 @@ class Attacker:
             return None
         if not cls.should_fire(road.position):
             return None
-        if Builder.min_dist_to_a_core >= 20 and MarketMaker.ti < BuildManager.scale(150):
+        if Builder.min_dist_to_a_core >= 36 and MarketMaker.ti < BuildManager.scale(150):
             return None
         return road.position
 
@@ -275,8 +275,9 @@ class Attacker:
         if DarkForest.ax_tagged[idx]:
             return False
 
-        if not DarkForest.sight_flowing[idx] and not DarkForest.flow[idx] > 0:
-            return False
+        if etype in (EntityType.CONVEYOR, EntityType.BRIDGE):
+            if not DarkForest.sight_flowing[idx] and not DarkForest.flow[idx] > 0:
+                return False
 
 
         hp = ti.building_hp
@@ -613,6 +614,71 @@ class BfsBureau:
             _cfa(ni)
             _cra(ni)
 
+        conv_next = []
+        _cna = conv_next.append
+        for cidx in conv_front:
+            _fh = first_hop[cidx]
+            ni = cidx + 56
+            if (
+            not visited[ni] and
+            ni not in avoid_pos and
+            not enclosed_region[ni] and
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
+        ):
+                visited[ni] = True
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+            ni = cidx + -56
+            if (
+            not visited[ni] and
+            ni not in avoid_pos and
+            not enclosed_region[ni] and
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
+        ):
+                visited[ni] = True
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+            ni = cidx + 1
+            if (
+            not visited[ni] and
+            ni not in avoid_pos and
+            not enclosed_region[ni] and
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
+        ):
+                visited[ni] = True
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+            ni = cidx + -1
+            if (
+            not visited[ni] and
+            ni not in avoid_pos and
+            not enclosed_region[ni] and
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
+        ):
+                visited[ni] = True
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+        conv_front = conv_next
         conv_next = []
         _cna = conv_next.append
         for cidx in conv_front:
@@ -1380,6 +1446,63 @@ class BfsBureau:
             _cfa(ni)
             _cra(ni)
 
+        conv_next = []
+        _cna = conv_next.append
+        for cidx in conv_front:
+            _fh = first_hop[cidx]
+            ni = cidx + 56
+            if (
+            not visited[ni] and
+            ni not in avoid_pos and
+            not enclosed_region[ni] and
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
+        ):
+                visited[ni] = True
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+            ni = cidx + -56
+            if (
+            not visited[ni] and
+            ni not in avoid_pos and
+            not enclosed_region[ni] and
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
+        ):
+                visited[ni] = True
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+            ni = cidx + 1
+            if (
+            not visited[ni] and
+            ni not in avoid_pos and
+            not enclosed_region[ni] and
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
+        ):
+                visited[ni] = True
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+            ni = cidx + -1
+            if (
+            not visited[ni] and
+            ni not in avoid_pos and
+            not enclosed_region[ni] and
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
+        ):
+                visited[ni] = True
+                first_hop[ni] = _fh
+                _cna(ni)
+                _cra(ni)
+        conv_front = conv_next
         conv_next = []
         _cna = conv_next.append
         for cidx in conv_front:
@@ -5238,7 +5361,7 @@ class BuildManager:
             ct.get_unit_count() < 50 and
             ct.get_action_cooldown() == 0 and
             ct.get_move_cooldown() == 0 and
-            BuildManager.can_afford_builder_bot()
+            BuildManager.can_afford_builder_bot(pos)
         )
 
 
@@ -5279,7 +5402,7 @@ class BuildManager:
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             not Map.tile_info[pos.x][pos.y].has_bot and
-            BuildManager.can_afford_builder_bot()
+            BuildManager.can_afford_builder_bot(pos)
         )
 
     @staticmethod
@@ -5287,11 +5410,17 @@ class BuildManager:
         return Globals.ct.can_build_builder_bot(*a)
 
     @staticmethod
-    def can_afford_builder_bot() -> bool:
+    def can_afford_builder_bot(pos=None) -> bool:
+
         ti_cost, ax_cost = Globals.ct.get_builder_bot_cost()
         
+
+        leftover_unscaled_ti = 0
+
+        leftover_unscaled_ti += 50
+
         
-        return (MarketMaker.ti - ti_cost) >= int(50 * MarketMaker.scale_ratio) \
+        return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
 
@@ -5320,7 +5449,7 @@ class BuildManager:
             ct.get_unit_count() < 50 and
             ct.get_action_cooldown() == 0 and
             ct.get_move_cooldown() == 0 and
-            BuildManager.can_afford_gunner()
+            BuildManager.can_afford_gunner(pos)
         )
 
 
@@ -5361,7 +5490,7 @@ class BuildManager:
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             not Map.tile_info[pos.x][pos.y].has_bot and
-            BuildManager.can_afford_gunner()
+            BuildManager.can_afford_gunner(pos)
         )
 
     @staticmethod
@@ -5369,11 +5498,17 @@ class BuildManager:
         return Globals.ct.can_build_gunner(*a)
 
     @staticmethod
-    def can_afford_gunner() -> bool:
+    def can_afford_gunner(pos=None) -> bool:
+
         ti_cost, ax_cost = Globals.ct.get_gunner_cost()
         
+
+        leftover_unscaled_ti = 0
+
+        leftover_unscaled_ti += 0
+
         
-        return (MarketMaker.ti - ti_cost) >= int(0 * MarketMaker.scale_ratio) \
+        return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
 
@@ -5402,7 +5537,7 @@ class BuildManager:
             ct.get_unit_count() < 50 and
             ct.get_action_cooldown() == 0 and
             ct.get_move_cooldown() == 0 and
-            BuildManager.can_afford_sentinel()
+            BuildManager.can_afford_sentinel(pos)
         )
 
 
@@ -5443,7 +5578,7 @@ class BuildManager:
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             not Map.tile_info[pos.x][pos.y].has_bot and
-            BuildManager.can_afford_sentinel()
+            BuildManager.can_afford_sentinel(pos)
         )
 
     @staticmethod
@@ -5451,11 +5586,17 @@ class BuildManager:
         return Globals.ct.can_build_sentinel(*a)
 
     @staticmethod
-    def can_afford_sentinel() -> bool:
+    def can_afford_sentinel(pos=None) -> bool:
+
         ti_cost, ax_cost = Globals.ct.get_sentinel_cost()
         
+
+        leftover_unscaled_ti = 0
+
+        leftover_unscaled_ti += 0
+
         
-        return (MarketMaker.ti - ti_cost) >= int(0 * MarketMaker.scale_ratio) \
+        return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
 
@@ -5484,7 +5625,7 @@ class BuildManager:
             ct.get_unit_count() < 50 and
             ct.get_action_cooldown() == 0 and
             ct.get_move_cooldown() == 0 and
-            BuildManager.can_afford_breach()
+            BuildManager.can_afford_breach(pos)
         )
 
 
@@ -5525,7 +5666,7 @@ class BuildManager:
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             not Map.tile_info[pos.x][pos.y].has_bot and
-            BuildManager.can_afford_breach()
+            BuildManager.can_afford_breach(pos)
         )
 
     @staticmethod
@@ -5533,11 +5674,17 @@ class BuildManager:
         return Globals.ct.can_build_breach(*a)
 
     @staticmethod
-    def can_afford_breach() -> bool:
+    def can_afford_breach(pos=None) -> bool:
+
         ti_cost, ax_cost = Globals.ct.get_breach_cost()
         
+
+        leftover_unscaled_ti = 0
+
+        leftover_unscaled_ti += 50
+
         
-        return (MarketMaker.ti - ti_cost) >= int(50 * MarketMaker.scale_ratio) \
+        return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
 
@@ -5566,7 +5713,7 @@ class BuildManager:
             ct.get_unit_count() < 50 and
             ct.get_action_cooldown() == 0 and
             ct.get_move_cooldown() == 0 and
-            BuildManager.can_afford_launcher()
+            BuildManager.can_afford_launcher(pos)
         )
 
 
@@ -5607,7 +5754,7 @@ class BuildManager:
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             not Map.tile_info[pos.x][pos.y].has_bot and
-            BuildManager.can_afford_launcher()
+            BuildManager.can_afford_launcher(pos)
         )
 
     @staticmethod
@@ -5615,11 +5762,17 @@ class BuildManager:
         return Globals.ct.can_build_launcher(*a)
 
     @staticmethod
-    def can_afford_launcher() -> bool:
+    def can_afford_launcher(pos=None) -> bool:
+
         ti_cost, ax_cost = Globals.ct.get_launcher_cost()
         
+
+        leftover_unscaled_ti = 0
+
+        leftover_unscaled_ti += 0
+
         
-        return (MarketMaker.ti - ti_cost) >= int(0 * MarketMaker.scale_ratio) \
+        return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
 
@@ -5647,7 +5800,7 @@ class BuildManager:
             (ct.can_destroy(pos) or Map.tile_info[pos.x][pos.y].entity_type is None) and
             ct.get_action_cooldown() == 0 and
             ct.get_move_cooldown() == 0 and
-            BuildManager.can_afford_conveyor()
+            BuildManager.can_afford_conveyor(pos)
         )
 
 
@@ -5684,7 +5837,7 @@ class BuildManager:
         return (
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
-            BuildManager.can_afford_conveyor()
+            BuildManager.can_afford_conveyor(pos)
         )
 
     @staticmethod
@@ -5692,11 +5845,20 @@ class BuildManager:
         return Globals.ct.can_build_conveyor(*a)
 
     @staticmethod
-    def can_afford_conveyor() -> bool:
+    def can_afford_conveyor(pos=None) -> bool:
+
         ti_cost, ax_cost = Globals.ct.get_conveyor_cost()
         
+
+        leftover_unscaled_ti = 0
+
+        if Globals.round > 50:
+            leftover_unscaled_ti += 50
+
+        if pos is not None:
+            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 5
         
-        return (MarketMaker.ti - ti_cost) >= int(50 * MarketMaker.scale_ratio) \
+        return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
 
@@ -5724,7 +5886,7 @@ class BuildManager:
             (ct.can_destroy(pos) or Map.tile_info[pos.x][pos.y].entity_type is None) and
             ct.get_action_cooldown() == 0 and
             ct.get_move_cooldown() == 0 and
-            BuildManager.can_afford_splitter()
+            BuildManager.can_afford_splitter(pos)
         )
 
 
@@ -5761,7 +5923,7 @@ class BuildManager:
         return (
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
-            BuildManager.can_afford_splitter()
+            BuildManager.can_afford_splitter(pos)
         )
 
     @staticmethod
@@ -5769,11 +5931,20 @@ class BuildManager:
         return Globals.ct.can_build_splitter(*a)
 
     @staticmethod
-    def can_afford_splitter() -> bool:
+    def can_afford_splitter(pos=None) -> bool:
+
         ti_cost, ax_cost = Globals.ct.get_splitter_cost()
         
+
+        leftover_unscaled_ti = 0
+
+        if Globals.round > 50:
+            leftover_unscaled_ti += 50
+
+        if pos is not None:
+            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 5
         
-        return (MarketMaker.ti - ti_cost) >= int(50 * MarketMaker.scale_ratio) \
+        return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
 
@@ -5801,7 +5972,7 @@ class BuildManager:
             (ct.can_destroy(pos) or Map.tile_info[pos.x][pos.y].entity_type is None) and
             ct.get_action_cooldown() == 0 and
             ct.get_move_cooldown() == 0 and
-            BuildManager.can_afford_armoured_conveyor()
+            BuildManager.can_afford_armoured_conveyor(pos)
         )
 
 
@@ -5838,7 +6009,7 @@ class BuildManager:
         return (
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
-            BuildManager.can_afford_armoured_conveyor()
+            BuildManager.can_afford_armoured_conveyor(pos)
         )
 
     @staticmethod
@@ -5846,11 +6017,20 @@ class BuildManager:
         return Globals.ct.can_build_armoured_conveyor(*a)
 
     @staticmethod
-    def can_afford_armoured_conveyor() -> bool:
+    def can_afford_armoured_conveyor(pos=None) -> bool:
+
         ti_cost, ax_cost = Globals.ct.get_armoured_conveyor_cost()
         
+
+        leftover_unscaled_ti = 0
+
+        if Globals.round > 50:
+            leftover_unscaled_ti += 50
+
+        if pos is not None:
+            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 5
         
-        return (MarketMaker.ti - ti_cost) >= int(50 * MarketMaker.scale_ratio) \
+        return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
 
@@ -5878,7 +6058,7 @@ class BuildManager:
             (ct.can_destroy(pos) or Map.tile_info[pos.x][pos.y].entity_type is None) and
             ct.get_action_cooldown() == 0 and
             ct.get_move_cooldown() == 0 and
-            BuildManager.can_afford_bridge()
+            BuildManager.can_afford_bridge(pos)
         )
 
 
@@ -5915,7 +6095,7 @@ class BuildManager:
         return (
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
-            BuildManager.can_afford_bridge()
+            BuildManager.can_afford_bridge(pos)
         )
 
     @staticmethod
@@ -5923,11 +6103,20 @@ class BuildManager:
         return Globals.ct.can_build_bridge(*a)
 
     @staticmethod
-    def can_afford_bridge() -> bool:
+    def can_afford_bridge(pos=None) -> bool:
+
         ti_cost, ax_cost = Globals.ct.get_bridge_cost()
         
+
+        leftover_unscaled_ti = 0
+
+        if Globals.round > 50:
+            leftover_unscaled_ti += 50
+
+        if pos is not None:
+            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 5
         
-        return (MarketMaker.ti - ti_cost) >= int(50 * MarketMaker.scale_ratio) \
+        return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
 
@@ -5955,7 +6144,7 @@ class BuildManager:
             (ct.can_destroy(pos) or Map.tile_info[pos.x][pos.y].entity_type is None) and
             ct.get_action_cooldown() == 0 and
             ct.get_move_cooldown() == 0 and
-            BuildManager.can_afford_harvester()
+            BuildManager.can_afford_harvester(pos)
         )
 
 
@@ -5995,7 +6184,7 @@ class BuildManager:
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             not Map.tile_info[pos.x][pos.y].has_bot and
-            BuildManager.can_afford_harvester()
+            BuildManager.can_afford_harvester(pos)
         )
 
     @staticmethod
@@ -6003,11 +6192,20 @@ class BuildManager:
         return Globals.ct.can_build_harvester(*a)
 
     @staticmethod
-    def can_afford_harvester() -> bool:
+    def can_afford_harvester(pos=None) -> bool:
+
         ti_cost, ax_cost = Globals.ct.get_harvester_cost()
         
+
+        leftover_unscaled_ti = 0
+
+        if Globals.round > 50:
+            leftover_unscaled_ti += 20
+
+        if pos is not None:
+            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 5
         
-        return (MarketMaker.ti - ti_cost) >= int(20 * MarketMaker.scale_ratio) \
+        return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
 
@@ -6035,7 +6233,7 @@ class BuildManager:
             (ct.can_destroy(pos) or Map.tile_info[pos.x][pos.y].entity_type is None) and
             ct.get_action_cooldown() == 0 and
             ct.get_move_cooldown() == 0 and
-            BuildManager.can_afford_foundry()
+            BuildManager.can_afford_foundry(pos)
         )
 
 
@@ -6075,7 +6273,7 @@ class BuildManager:
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             not Map.tile_info[pos.x][pos.y].has_bot and
-            BuildManager.can_afford_foundry()
+            BuildManager.can_afford_foundry(pos)
         )
 
     @staticmethod
@@ -6083,11 +6281,17 @@ class BuildManager:
         return Globals.ct.can_build_foundry(*a)
 
     @staticmethod
-    def can_afford_foundry() -> bool:
+    def can_afford_foundry(pos=None) -> bool:
+
         ti_cost, ax_cost = Globals.ct.get_foundry_cost()
         
+
+        leftover_unscaled_ti = 0
+
+        leftover_unscaled_ti += 0
+
         
-        return (MarketMaker.ti - ti_cost) >= int(50 * MarketMaker.scale_ratio) \
+        return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
 
@@ -6115,7 +6319,7 @@ class BuildManager:
             (ct.can_destroy(pos) or Map.tile_info[pos.x][pos.y].entity_type is None) and
             ct.get_action_cooldown() == 0 and
             ct.get_move_cooldown() == 0 and
-            BuildManager.can_afford_road()
+            BuildManager.can_afford_road(pos)
         )
 
 
@@ -6152,7 +6356,7 @@ class BuildManager:
         return (
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
-            BuildManager.can_afford_road()
+            BuildManager.can_afford_road(pos)
         )
 
     @staticmethod
@@ -6160,11 +6364,20 @@ class BuildManager:
         return Globals.ct.can_build_road(*a)
 
     @staticmethod
-    def can_afford_road() -> bool:
+    def can_afford_road(pos=None) -> bool:
+
         ti_cost, ax_cost = Globals.ct.get_road_cost()
         
+
+        leftover_unscaled_ti = 0
+
+        if Globals.round > 50:
+            leftover_unscaled_ti += 50
+
+        if pos is not None:
+            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 5
         
-        return (MarketMaker.ti - ti_cost) >= int(50 * MarketMaker.scale_ratio) \
+        return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
 
@@ -6192,7 +6405,7 @@ class BuildManager:
             (ct.can_destroy(pos) or Map.tile_info[pos.x][pos.y].entity_type is None) and
             ct.get_action_cooldown() == 0 and
             ct.get_move_cooldown() == 0 and
-            BuildManager.can_afford_barrier()
+            BuildManager.can_afford_barrier(pos)
         )
 
 
@@ -6232,7 +6445,7 @@ class BuildManager:
             Globals.ct.get_action_cooldown() == 0 and
             BuildManager.is_dbuildable(pos) and 
             not Map.tile_info[pos.x][pos.y].has_bot and
-            BuildManager.can_afford_barrier()
+            BuildManager.can_afford_barrier(pos)
         )
 
     @staticmethod
@@ -6240,11 +6453,17 @@ class BuildManager:
         return Globals.ct.can_build_barrier(*a)
 
     @staticmethod
-    def can_afford_barrier() -> bool:
+    def can_afford_barrier(pos=None) -> bool:
+
         ti_cost, ax_cost = Globals.ct.get_barrier_cost()
         
+
+        leftover_unscaled_ti = 0
+
+        leftover_unscaled_ti += 50
+
         
-        return (MarketMaker.ti - ti_cost) >= int(50 * MarketMaker.scale_ratio) \
+        return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
 
@@ -27103,6 +27322,21 @@ class HarvesterAdjacent:
 
 
 # ============================================================
+# HarvesterInfo
+# ============================================================
+
+class HarvesterInfo:
+    __slots__ = ('position', 'should_destroy', 'bfs_dist_adj')
+
+    @staticmethod
+    def is_better_destroy_than(a: HarvesterInfo, b: HarvesterInfo):
+        if not a.should_destroy: return False
+        if not b.should_destroy: return True
+
+        return a.bfs_dist_adj < b.bfs_dist_adj
+
+
+# ============================================================
 # HealExecutor
 # ============================================================
 
@@ -28113,15 +28347,12 @@ class Map:
             nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
             ti.allied_bots_adjacent = cnt
 
+            # cardinal only
             ti.ally_non_road_buildings_adjacent = (
                 (row_x[ym1] is not None and row_x[ym1].has_building and row_x[ym1].is_building_ally and row_x[ym1].entity_type != ROAD)
- +                 (row_xp1[ym1] is not None and row_xp1[ym1].has_building and row_xp1[ym1].is_building_ally and row_xp1[ym1].entity_type != ROAD)
  +                 (row_xp1[y] is not None and row_xp1[y].has_building and row_xp1[y].is_building_ally and row_xp1[y].entity_type != ROAD)
- +                 (row_xp1[yp1] is not None and row_xp1[yp1].has_building and row_xp1[yp1].is_building_ally and row_xp1[yp1].entity_type != ROAD)
  +                 (row_x[yp1] is not None and row_x[yp1].has_building and row_x[yp1].is_building_ally and row_x[yp1].entity_type != ROAD)
- +                 (row_xm1[yp1] is not None and row_xm1[yp1].has_building and row_xm1[yp1].is_building_ally and row_xm1[yp1].entity_type != ROAD)
  +                 (row_xm1[y] is not None and row_xm1[y].has_building and row_xm1[y].is_building_ally and row_xm1[y].entity_type != ROAD)
- +                 (row_xm1[ym1] is not None and row_xm1[ym1].has_building and row_xm1[ym1].is_building_ally and row_xm1[ym1].entity_type != ROAD)
             )
 
             # turret/transporter adjacency: only for harvesters
@@ -28514,15 +28745,12 @@ class Map:
             nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
             ti.allied_bots_adjacent = cnt
 
+            # cardinal only
             ti.ally_non_road_buildings_adjacent = (
                 (row_x[ym1] is not None and row_x[ym1].has_building and row_x[ym1].is_building_ally and row_x[ym1].entity_type != ROAD)
- +                 (row_xp1[ym1] is not None and row_xp1[ym1].has_building and row_xp1[ym1].is_building_ally and row_xp1[ym1].entity_type != ROAD)
  +                 (row_xp1[y] is not None and row_xp1[y].has_building and row_xp1[y].is_building_ally and row_xp1[y].entity_type != ROAD)
- +                 (row_xp1[yp1] is not None and row_xp1[yp1].has_building and row_xp1[yp1].is_building_ally and row_xp1[yp1].entity_type != ROAD)
  +                 (row_x[yp1] is not None and row_x[yp1].has_building and row_x[yp1].is_building_ally and row_x[yp1].entity_type != ROAD)
- +                 (row_xm1[yp1] is not None and row_xm1[yp1].has_building and row_xm1[yp1].is_building_ally and row_xm1[yp1].entity_type != ROAD)
  +                 (row_xm1[y] is not None and row_xm1[y].has_building and row_xm1[y].is_building_ally and row_xm1[y].entity_type != ROAD)
- +                 (row_xm1[ym1] is not None and row_xm1[ym1].has_building and row_xm1[ym1].is_building_ally and row_xm1[ym1].entity_type != ROAD)
             )
 
             # turret/transporter adjacency: only for harvesters
@@ -28915,15 +29143,12 @@ class Map:
             nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
             ti.allied_bots_adjacent = cnt
 
+            # cardinal only
             ti.ally_non_road_buildings_adjacent = (
                 (row_x[ym1] is not None and row_x[ym1].has_building and row_x[ym1].is_building_ally and row_x[ym1].entity_type != ROAD)
- +                 (row_xp1[ym1] is not None and row_xp1[ym1].has_building and row_xp1[ym1].is_building_ally and row_xp1[ym1].entity_type != ROAD)
  +                 (row_xp1[y] is not None and row_xp1[y].has_building and row_xp1[y].is_building_ally and row_xp1[y].entity_type != ROAD)
- +                 (row_xp1[yp1] is not None and row_xp1[yp1].has_building and row_xp1[yp1].is_building_ally and row_xp1[yp1].entity_type != ROAD)
  +                 (row_x[yp1] is not None and row_x[yp1].has_building and row_x[yp1].is_building_ally and row_x[yp1].entity_type != ROAD)
- +                 (row_xm1[yp1] is not None and row_xm1[yp1].has_building and row_xm1[yp1].is_building_ally and row_xm1[yp1].entity_type != ROAD)
  +                 (row_xm1[y] is not None and row_xm1[y].has_building and row_xm1[y].is_building_ally and row_xm1[y].entity_type != ROAD)
- +                 (row_xm1[ym1] is not None and row_xm1[ym1].has_building and row_xm1[ym1].is_building_ally and row_xm1[ym1].entity_type != ROAD)
             )
 
             # turret/transporter adjacency: only for harvesters
@@ -29295,15 +29520,12 @@ class Map:
             nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
             ti.allied_bots_adjacent = cnt
 
+            # cardinal only
             ti.ally_non_road_buildings_adjacent = (
                 (row_x[ym1] is not None and row_x[ym1].has_building and row_x[ym1].is_building_ally and row_x[ym1].entity_type != ROAD)
- +                 (row_xp1[ym1] is not None and row_xp1[ym1].has_building and row_xp1[ym1].is_building_ally and row_xp1[ym1].entity_type != ROAD)
  +                 (row_xp1[y] is not None and row_xp1[y].has_building and row_xp1[y].is_building_ally and row_xp1[y].entity_type != ROAD)
- +                 (row_xp1[yp1] is not None and row_xp1[yp1].has_building and row_xp1[yp1].is_building_ally and row_xp1[yp1].entity_type != ROAD)
  +                 (row_x[yp1] is not None and row_x[yp1].has_building and row_x[yp1].is_building_ally and row_x[yp1].entity_type != ROAD)
- +                 (row_xm1[yp1] is not None and row_xm1[yp1].has_building and row_xm1[yp1].is_building_ally and row_xm1[yp1].entity_type != ROAD)
  +                 (row_xm1[y] is not None and row_xm1[y].has_building and row_xm1[y].is_building_ally and row_xm1[y].entity_type != ROAD)
- +                 (row_xm1[ym1] is not None and row_xm1[ym1].has_building and row_xm1[ym1].is_building_ally and row_xm1[ym1].entity_type != ROAD)
             )
 
             # turret/transporter adjacency: only for harvesters
@@ -36190,6 +36412,24 @@ class StateBuildTurret:
 
 
 # ============================================================
+# StateDestroy
+# ============================================================
+
+class StateDestroy:
+    @classmethod
+    def run(cls, pos):
+        ct = Globals.ct
+
+        if ct.can_destroy(pos):
+            BuildManager.destroy(pos)
+        else:
+            Pathfinder.move_to(pos)
+
+        if ct.can_destroy(pos):
+            BuildManager.destroy(pos)
+
+
+# ============================================================
 # StateFoundryBuild
 # ============================================================
 
@@ -37037,7 +37277,6 @@ class Builder(Unit):
         BfsBureau.update_enclosed_regions()
         Profiler.end(f"""BfsBureau.update_enclosed_regions""")
 
-        DarkForest.debug_sight_flowing()
 
         Profiler.start(f"""OreExecutive.fill""")
         OreExecutive.fill()
@@ -37137,6 +37376,11 @@ class Builder(Unit):
 
         # now changed to sentinel/gunner pos near enemy?
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
+
+        destroypos = VisionTracker.get_best_destroy_position()
+
+        if destroypos is not None:
+            return 'Destroy', destroypos
         
 
         if (
@@ -37158,7 +37402,6 @@ class Builder(Unit):
 
         if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
-
 
         # reinstating CORE_HEALER
         if cls.role == 1:
@@ -37249,10 +37492,9 @@ class Builder(Unit):
         if attackpos is not None:
             return 'Attack', attackpos, 'Primary'
 
-        if cls.min_dist_to_a_core <= 48:
-            if secondaryattackpos is not None:
-                if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
-                    return 'Attack', secondaryattackpos, 'Secondary'
+        if secondaryattackpos is not None:
+            if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
+                return 'Attack', secondaryattackpos, 'Secondary'
                 
         ax_target = OreExecutive.get_axionite_target()
         ti_target = OreExecutive.get_titanium_target()
@@ -37756,6 +37998,7 @@ class VisionTracker:
     enemy_transporters: list[TransporterInfo]
     disconnected_roots: list[TransporterInfo]
     misrouted_transporters: list[TransporterInfo]  # ally transporters 
+    ally_harvesters: list[HarvesterInfo]
 
     @classmethod
     def fill(cls):
@@ -37765,6 +38008,7 @@ class VisionTracker:
         cls.disconnected_roots = []
         cls.allies = [BotInfo(Globals.my_pos, Globals.my_id)]
         cls.misrouted_transporters = []
+        cls.ally_harvesters = []
 
         tile_info = Map.tile_info
 
@@ -37772,6 +38016,14 @@ class VisionTracker:
             ti: TileInfo
             if ti.has_bot and ti.is_bot_ally:
                 cls.allies.append(BotInfo(pos, ti.bot_id))
+
+            if ti.entity_type == EntityType.HARVESTER:
+                info = HarvesterInfo()
+                info.position = pos
+                info.should_destroy = ti.is_building_ally and ti.enemy_turrets_adjacent > 0 and ti.ally_non_road_buildings_adjacent == 0
+                info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
+
+                cls.ally_harvesters.append(info)
 
             if ti.entity_type == EntityType.ROAD and not ti.is_building_ally:
                 info = RoadInfo()
@@ -37932,6 +38184,26 @@ class VisionTracker:
                 best = cand
         return best 
 
+
+    @classmethod
+    def get_best_destroy_position(cls) -> Position | None:
+        lst = cls.ally_harvesters
+        if not lst:
+            return None
+
+        best: HarvesterInfo = lst[0]
+
+        for cand in lst[1:]:
+            if HarvesterInfo.is_better_destroy_than(cand, best):
+                best = cand
+
+        if not best.should_destroy:
+            return None
+
+        if best.bfs_dist_adj > 20:
+            return None
+
+        return best.position
 
 
 

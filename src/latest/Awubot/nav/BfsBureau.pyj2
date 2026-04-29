@@ -291,7 +291,8 @@ class BfsBureau:
         q = deque()
         _qa = q.append
 
-        {% set CONVEYOR_DEPTH = 5 %}
+        {# /* {% set CONVEYOR_DEPTH = 5 %} */ #}
+        {% set CONVEYOR_DEPTH = 6 %}
 
         conv_reached = []
         _cra = conv_reached.append

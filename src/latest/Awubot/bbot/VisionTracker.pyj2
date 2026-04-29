@@ -140,6 +140,17 @@ class RoadInfo:
         return a.hp < b.hp
 
 
+class HarvesterInfo:
+    __slots__ = ('position', 'should_destroy', 'bfs_dist_adj')
+
+    @staticmethod
+    def is_better_destroy_than(a: HarvesterInfo, b: HarvesterInfo):
+        if not a.should_destroy: return False
+        if not b.should_destroy: return True
+
+        return a.bfs_dist_adj < b.bfs_dist_adj
+
+
 class VisionTracker:
     allies: list[BotInfo]
     enemy_roads: list[RoadInfo]  # roads
@@ -147,6 +158,7 @@ class VisionTracker:
     enemy_transporters: list[TransporterInfo]
     disconnected_roots: list[TransporterInfo]
     misrouted_transporters: list[TransporterInfo]  # ally transporters 
+    ally_harvesters: list[HarvesterInfo]
 
     @classmethod
     def fill(cls):
@@ -156,6 +168,7 @@ class VisionTracker:
         cls.disconnected_roots = []
         cls.allies = [BotInfo(Globals.my_pos, Globals.my_id)]
         cls.misrouted_transporters = []
+        cls.ally_harvesters = []
 
         tile_info = Map.tile_info
 
@@ -163,6 +176,14 @@ class VisionTracker:
             ti: TileInfo
             if ti.has_bot and ti.is_bot_ally:
                 cls.allies.append(BotInfo(pos, ti.bot_id))
+
+            if ti.entity_type == EntityType.HARVESTER:
+                info = HarvesterInfo()
+                info.position = pos
+                info.should_destroy = ti.is_building_ally and ti.enemy_turrets_adjacent > 0 and ti.ally_non_road_buildings_adjacent == 0
+                info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
+
+                cls.ally_harvesters.append(info)
 
             if ti.entity_type == EntityType.ROAD and not ti.is_building_ally:
                 info = RoadInfo()
@@ -302,6 +323,26 @@ class VisionTracker:
         return best 
 
 
+    @classmethod
+    def get_best_destroy_position(cls) -> Position | None:
+        lst = cls.ally_harvesters
+        if not lst:
+            return None
+
+        best: HarvesterInfo = lst[0]
+
+        for cand in lst[1:]:
+            if HarvesterInfo.is_better_destroy_than(cand, best):
+                best = cand
+
+        if not best.should_destroy:
+            return None
+
+        if best.bfs_dist_adj > 20:
+            return None
+
+        return best.position
+
 
 
     @classmethod
@@ -383,3 +424,6 @@ class VisionTracker:
             return None
 
         return best
+
+    
+    

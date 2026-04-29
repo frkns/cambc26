@@ -95,7 +95,7 @@ class Builder({{ super() }}):
         BfsBureau.update_enclosed_regions()
         {{ P.end('BfsBureau.update_enclosed_regions') }}
 
-        DarkForest.debug_sight_flowing()
+        {# /* DarkForest.debug_sight_flowing() */ #}
         {# /* DarkForest.debug_ax_tagged() */ #}
         {# /* DarkForest.debug_flow() */ #}
         {# /* DarkForest.debug_pressure() */ #}
@@ -204,6 +204,11 @@ class Builder({{ super() }}):
 
         # now changed to sentinel/gunner pos near enemy?
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
+
+        destroypos = VisionTracker.get_best_destroy_position()
+
+        if destroypos is not None:
+            return 'Destroy', destroypos
         
 
         if (
@@ -225,7 +230,6 @@ class Builder({{ super() }}):
 
         if healpos is not None:
             return 'MoveTo', healpos, 'Heal'
-
 
         # reinstating CORE_HEALER
         if cls.role == {{ Role.CORE_HEALER }}:
@@ -316,10 +320,9 @@ class Builder({{ super() }}):
         if attackpos is not None:
             return 'Attack', attackpos, 'Primary'
 
-        if cls.min_dist_to_a_core <= 48:
-            if secondaryattackpos is not None:
-                if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
-                    return 'Attack', secondaryattackpos, 'Secondary'
+        if secondaryattackpos is not None:
+            if Globals.my_pos.distance_squared(secondaryattackpos) <= 2:
+                return 'Attack', secondaryattackpos, 'Secondary'
                 
         ax_target = OreExecutive.get_axionite_target()
         ti_target = OreExecutive.get_titanium_target()
