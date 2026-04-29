@@ -47,7 +47,7 @@ class OreExecutive:
                 continue
 
             if cls.state[pos] == {{ PATHFINDING_KILL }}:
-                if BfsBureau.bfs20_dist[idx] > 30: #you can work with this
+                if BfsBureau.bfs20_dist[idx] >= {{ INF }}: #you can work with this
                     continue
             env = ti.env
 
@@ -92,6 +92,10 @@ class OreExecutive:
             if cls.state[pos] == {{ KILLED }}:
                 heapq.heappop(cls.ti_queue)
                 continue
+            if cls.state[pos] == {{ PATHFINDING_KILL }}:
+                if BfsBureau.bfs20_dist[{{ encode_pos('pos.x','pos.y') }}] >= {{ INF }}: #you can work with this
+                    heapq.heappop(cls.ti_queue)
+                    continue
 
             ti = Map.tile_info[pos.x][pos.y]
 
@@ -149,6 +153,10 @@ class OreExecutive:
             if cls.state[pos] == {{ KILLED }}:
                 heapq.heappop(cls.ax_queue)
                 continue
+            if cls.state[pos] == {{ PATHFINDING_KILL }}:
+                if BfsBureau.bfs20_dist[{{ encode_pos('pos.x','pos.y') }}] >= {{ INF }}: #you can work with this
+                    heapq.heappop(cls.ax_queue)
+                    continue
 
             ti = Map.tile_info[pos.x][pos.y]
 

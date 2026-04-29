@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-28 21:45:46 (local)
+# latest,  @ 2026-04-28 23:00:19 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -29734,7 +29734,7 @@ class OreExecutive:
                 continue
 
             if cls.state[pos] == 6:
-                if BfsBureau.bfs20_dist[idx] > 30: #you can work with this
+                if BfsBureau.bfs20_dist[idx] >= 1000000: #you can work with this
                     continue
             env = ti.env
 
@@ -29770,6 +29770,10 @@ class OreExecutive:
             if cls.state[pos] == 2:
                 heapq.heappop(cls.ti_queue)
                 continue
+            if cls.state[pos] == 6:
+                if BfsBureau.bfs20_dist[(((pos.x) + 3) * 56 + ((pos.y) + 3))] >= 1000000: #you can work with this
+                    heapq.heappop(cls.ti_queue)
+                    continue
 
             ti = Map.tile_info[pos.x][pos.y]
 
@@ -29848,6 +29852,10 @@ class OreExecutive:
             if cls.state[pos] == 2:
                 heapq.heappop(cls.ax_queue)
                 continue
+            if cls.state[pos] == 6:
+                if BfsBureau.bfs20_dist[(((pos.x) + 3) * 56 + ((pos.y) + 3))] >= 1000000: #you can work with this
+                    heapq.heappop(cls.ax_queue)
+                    continue
 
             ti = Map.tile_info[pos.x][pos.y]
 
