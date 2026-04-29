@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-28 20:47:42 (local)
+# latest,  @ 2026-04-28 21:30:55 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -6556,6 +6556,13 @@ class DarkForest:
             return
         cls.nodes[u] = None
         cls.kind[u] = 0
+
+    @classmethod
+    def detach_node(cls, u: int):
+        #severe it from parent/tree
+        n = cls.nodes[u]
+        if n is not None:
+            n.up = None
 
     @classmethod
     def register_sink(cls, u: int, k: int):
@@ -27729,6 +27736,11 @@ class Map:
         ORE_TITANIUM = Environment.ORE_TITANIUM
         WALL = Environment.WALL
 
+        # Transporter types that register DarkForest edges — used for type-change
+        # detection to ensure stale edges are removed when a tile transitions away
+        # from being a transporter (destruction, replacement, or type swap).
+        _TRANSPORTER_TYPES = (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE)
+
         messages_read = 0
         num_allies = 0
         num_enemies = 0
@@ -27849,6 +27861,11 @@ class Map:
                     ti.easily_passable = True
 
             ti.has_turret = False
+
+            _was_transporter = old_etype in _TRANSPORTER_TYPES
+            if _was_transporter and etype != old_etype:
+                # Detach for now
+                DarkForest.detach_node(pos_idx)
 
             if etype == CONVEYOR or etype == ARMOURED_CONVEYOR:
                 tpos = pos.add(get_direction(building_id))
@@ -28100,6 +28117,11 @@ class Map:
         ORE_TITANIUM = Environment.ORE_TITANIUM
         WALL = Environment.WALL
 
+        # Transporter types that register DarkForest edges — used for type-change
+        # detection to ensure stale edges are removed when a tile transitions away
+        # from being a transporter (destruction, replacement, or type swap).
+        _TRANSPORTER_TYPES = (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE)
+
         messages_read = 0
         num_allies = 0
         num_enemies = 0
@@ -28220,6 +28242,11 @@ class Map:
                     ti.easily_passable = True
 
             ti.has_turret = False
+
+            _was_transporter = old_etype in _TRANSPORTER_TYPES
+            if _was_transporter and etype != old_etype:
+                # Detach for now
+                DarkForest.detach_node(pos_idx)
 
             if etype == CONVEYOR or etype == ARMOURED_CONVEYOR:
                 tpos = pos.add(get_direction(building_id))
@@ -28471,6 +28498,11 @@ class Map:
         ORE_TITANIUM = Environment.ORE_TITANIUM
         WALL = Environment.WALL
 
+        # Transporter types that register DarkForest edges — used for type-change
+        # detection to ensure stale edges are removed when a tile transitions away
+        # from being a transporter (destruction, replacement, or type swap).
+        _TRANSPORTER_TYPES = (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE)
+
         messages_read = 0
         num_allies = 0
         num_enemies = 0
@@ -28591,6 +28623,11 @@ class Map:
                     ti.easily_passable = True
 
             ti.has_turret = False
+
+            _was_transporter = old_etype in _TRANSPORTER_TYPES
+            if _was_transporter and etype != old_etype:
+                # Detach for now
+                DarkForest.detach_node(pos_idx)
 
             if etype == CONVEYOR or etype == ARMOURED_CONVEYOR:
                 tpos = pos.add(get_direction(building_id))
@@ -28842,6 +28879,11 @@ class Map:
         ORE_TITANIUM = Environment.ORE_TITANIUM
         WALL = Environment.WALL
 
+        # Transporter types that register DarkForest edges — used for type-change
+        # detection to ensure stale edges are removed when a tile transitions away
+        # from being a transporter (destruction, replacement, or type swap).
+        _TRANSPORTER_TYPES = (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE)
+
         messages_read = 0
         num_allies = 0
         num_enemies = 0
@@ -28941,6 +28983,11 @@ class Map:
                     ti.easily_passable = True
 
             ti.has_turret = False
+
+            _was_transporter = old_etype in _TRANSPORTER_TYPES
+            if _was_transporter and etype != old_etype:
+                # Detach for now
+                DarkForest.detach_node(pos_idx)
 
             if etype == CONVEYOR or etype == ARMOURED_CONVEYOR:
                 tpos = pos.add(get_direction(building_id))

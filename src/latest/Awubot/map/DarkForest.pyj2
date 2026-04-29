@@ -80,6 +80,13 @@ class DarkForest:
         cls.kind[u] = {{ Kind.NONE }}
 
     @classmethod
+    def detach_node(cls, u: int):
+        #severe it from parent/tree
+        n = cls.nodes[u]
+        if n is not None:
+            n.up = None
+
+    @classmethod
     def register_sink(cls, u: int, k: int):
         """Mark position u as a sink of class k and ensure a root node exists there."""
         cls.kind[u] = k
