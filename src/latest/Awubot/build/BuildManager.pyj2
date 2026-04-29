@@ -24,10 +24,15 @@ class BuildManager:
         EntityType.SENTINEL: 0,
         EntityType.LAUNCHER: 0,
         EntityType.FOUNDRY: 0,
+        EntityType.ROAD: 20,
         EntityType.HARVESTER: 20,
-        EntityType.BARRIER: 50
+        EntityType.SPLITTER: 20,
+        EntityType.BRIDGE: 20,
+        EntityType.CONVEYOR: 20,
+        EntityType.ARMOURED_CONVEYOR: 20,
+        EntityType.BARRIER: 40
     } %}
-    {% set ti_reserve_default = 50 %}
+    {% set ti_reserve_default = 40 %}
 
     @staticmethod
     def scale(cost: int) -> int:
@@ -181,7 +186,7 @@ class BuildManager:
 
         {% if etype in slow %}
         if pos is not None:
-            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 5
+            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 2
         {% endif %}
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \

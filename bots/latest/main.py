@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-28 22:06:51 (local)
+# latest,  @ 2026-04-29 12:21:57 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -5439,7 +5439,7 @@ class BuildManager:
 
         leftover_unscaled_ti = 0
 
-        leftover_unscaled_ti += 50
+        leftover_unscaled_ti += 40
 
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
@@ -5703,7 +5703,7 @@ class BuildManager:
 
         leftover_unscaled_ti = 0
 
-        leftover_unscaled_ti += 50
+        leftover_unscaled_ti += 40
 
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
@@ -5875,10 +5875,10 @@ class BuildManager:
         leftover_unscaled_ti = 0
 
         if Globals.round > 50:
-            leftover_unscaled_ti += 50
+            leftover_unscaled_ti += 20
 
         if pos is not None:
-            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 5
+            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 2
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
@@ -5961,10 +5961,10 @@ class BuildManager:
         leftover_unscaled_ti = 0
 
         if Globals.round > 50:
-            leftover_unscaled_ti += 50
+            leftover_unscaled_ti += 20
 
         if pos is not None:
-            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 5
+            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 2
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
@@ -6047,10 +6047,10 @@ class BuildManager:
         leftover_unscaled_ti = 0
 
         if Globals.round > 50:
-            leftover_unscaled_ti += 50
+            leftover_unscaled_ti += 20
 
         if pos is not None:
-            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 5
+            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 2
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
@@ -6133,10 +6133,10 @@ class BuildManager:
         leftover_unscaled_ti = 0
 
         if Globals.round > 50:
-            leftover_unscaled_ti += 50
+            leftover_unscaled_ti += 20
 
         if pos is not None:
-            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 5
+            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 2
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
@@ -6224,7 +6224,7 @@ class BuildManager:
         leftover_unscaled_ti += 20
 
         if pos is not None:
-            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 5
+            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 2
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
@@ -6393,10 +6393,10 @@ class BuildManager:
         leftover_unscaled_ti = 0
 
         if Globals.round > 50:
-            leftover_unscaled_ti += 50
+            leftover_unscaled_ti += 20
 
         if pos is not None:
-            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 5
+            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 2
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
@@ -6481,7 +6481,7 @@ class BuildManager:
 
         leftover_unscaled_ti = 0
 
-        leftover_unscaled_ti += 50
+        leftover_unscaled_ti += 40
 
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
@@ -36210,6 +36210,7 @@ class SitterTargetInfo:
 class SpawnManager:
     nearest_dangerous_enemy: Position | None
     dangerous_enemy_counter: int = 0
+    last_spawned: int = 0
 
     # persistent
     num_spawned: int = 0
@@ -36259,54 +36260,63 @@ class SpawnManager:
             Globals.ct.spawn_builder(pos)
             cls.num_spawned += 1
             cls.dangerous_enemy_counter = 0
+            cls.last_spawned = Globals.round
         pos = my_pos.add(Direction.NORTHWEST)
 
         if Globals.ct.can_spawn(pos):
             Globals.ct.spawn_builder(pos)
             cls.num_spawned += 1
             cls.dangerous_enemy_counter = 0
+            cls.last_spawned = Globals.round
         pos = my_pos.add(Direction.WEST)
 
         if Globals.ct.can_spawn(pos):
             Globals.ct.spawn_builder(pos)
             cls.num_spawned += 1
             cls.dangerous_enemy_counter = 0
+            cls.last_spawned = Globals.round
         pos = my_pos.add(Direction.SOUTHWEST)
 
         if Globals.ct.can_spawn(pos):
             Globals.ct.spawn_builder(pos)
             cls.num_spawned += 1
             cls.dangerous_enemy_counter = 0
+            cls.last_spawned = Globals.round
         pos = my_pos.add(Direction.SOUTH)
 
         if Globals.ct.can_spawn(pos):
             Globals.ct.spawn_builder(pos)
             cls.num_spawned += 1
             cls.dangerous_enemy_counter = 0
+            cls.last_spawned = Globals.round
         pos = my_pos.add(Direction.SOUTHEAST)
 
         if Globals.ct.can_spawn(pos):
             Globals.ct.spawn_builder(pos)
             cls.num_spawned += 1
             cls.dangerous_enemy_counter = 0
+            cls.last_spawned = Globals.round
         pos = my_pos.add(Direction.EAST)
 
         if Globals.ct.can_spawn(pos):
             Globals.ct.spawn_builder(pos)
             cls.num_spawned += 1
             cls.dangerous_enemy_counter = 0
+            cls.last_spawned = Globals.round
         pos = my_pos.add(Direction.NORTHEAST)
 
         if Globals.ct.can_spawn(pos):
             Globals.ct.spawn_builder(pos)
             cls.num_spawned += 1
             cls.dangerous_enemy_counter = 0
+            cls.last_spawned = Globals.round
         pos = my_pos.add(Direction.NORTH)
 
         if Globals.ct.can_spawn(pos):
             Globals.ct.spawn_builder(pos)
             cls.num_spawned += 1
             cls.dangerous_enemy_counter = 0
+            cls.last_spawned = Globals.round
 
 
     @classmethod
@@ -36317,20 +36327,29 @@ class SpawnManager:
         ti, ax = ct.get_global_resources()
         bot_ti, bot_ax = ct.get_builder_bot_cost()
 
-        if Globals.round <= 10 and cls.num_spawned < 4:
-            return True
+        if Globals.round <= 20 or MarketMaker.ti <= 10:
+            return cls.num_spawned < 4
 
-        mass = 80 if cls.num_spawned < 10 else 200
+        rem_ti = ti - bot_ti
 
-        if ti - bot_ti >= num_units * mass:
+        if rem_ti >= int(cls.require_leftover() * MarketMaker.scale_ratio):
             return True
 
         return False
 
 
     @classmethod
+    def require_leftover(cls):
+        if cls.num_spawned < 8:
+            return 100
+        if cls.num_spawned < 16:
+            return 120
+        return 120 + (10 * ct.get_unit_count())
+
+
+    @classmethod
     def should_spawn_emergency(cls):
-        if cls.dangerous_enemy_counter >= 3: # Only spawn emergency if there's been a dangerous enemy for 3 or more rounds in a row
+        if cls.dangerous_enemy_counter >= 5 or (cls.dangerous_enemy_counter >= 1 and cls.last_spawned - Globals.round >= 5):
             return True
         
         lost_short = CoreHistory.hp_delta(1) < 0 
