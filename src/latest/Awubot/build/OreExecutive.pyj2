@@ -25,6 +25,7 @@ class OreExecutive:
     {% set HAS_HARD_BUILDING = 3 %}
     {% set AX_QUEUED = 4 %}
     {% set NON_CANONICAL = 5 %}
+    {% set PATHFINDING_KILL = 6 %}
     state: dict[Position, int] = defaultdict(int)
     ti_queue: list[tuple[int, Position]] = []
     ax_queue: list[tuple[int, Position]] = []
@@ -44,6 +45,10 @@ class OreExecutive:
 
             if cls.state[pos] == {{ KILLED }}:
                 continue
+
+            if cls.state[pos] == {{ PATHFINDING_KILL }}:
+                if BfsBureau.bfs20_dist[idx] > 30: #you can work with this
+                    continue
             env = ti.env
 
             if ti.entity_type in cls.hard_building_set:
@@ -178,7 +183,7 @@ class OreExecutive:
         if Pathfinder.given_up:
             Debug.line(pos, Color.RED)
             Debug.diamond(Color.RED)
-            cls.state[pos] = {{ KILLED }}
+            cls.state[pos] = {{ PATHFINDING_KILL }}
             return
 
         if BuildManager.can_dbuild_harvester(pos):
@@ -206,7 +211,7 @@ class OreExecutive:
         if Pathfinder.given_up:
             Debug.line(pos, Color.RED)
             Debug.diamond(Color.RED)
-            cls.state[pos] = {{ KILLED }}
+            cls.state[pos] = {{ PATHFINDING_KILL }}
             return
 
         cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)

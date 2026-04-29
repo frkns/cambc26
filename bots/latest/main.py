@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-28 17:16:53 (local)
+# latest,  @ 2026-04-28 17:08:31 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -26274,6 +26274,8 @@ class HarvesterAdjacent:
 
     @classmethod
     def get_best_sentinel_position(cls) -> Position | None:
+        if not BuildManager.can_afford_sentinel() and Globals.round < 250: 
+            return None 
 
         if not cls.infos:
             return None
@@ -29682,6 +29684,10 @@ class OreExecutive:
 
             if cls.state[pos] == 2:
                 continue
+
+            if cls.state[pos] == 6:
+                if BfsBureau.bfs20_dist[idx] > 30: #you can work with this
+                    continue
             env = ti.env
 
             if ti.entity_type in cls.hard_building_set:
@@ -29828,7 +29834,7 @@ class OreExecutive:
         if Pathfinder.given_up:
             Debug.line(pos, Color.RED)
             Debug.diamond(Color.RED)
-            cls.state[pos] = 2
+            cls.state[pos] = 6
             return
 
         if BuildManager.can_dbuild_harvester(pos):
@@ -29856,7 +29862,7 @@ class OreExecutive:
         if Pathfinder.given_up:
             Debug.line(pos, Color.RED)
             Debug.diamond(Color.RED)
-            cls.state[pos] = 2
+            cls.state[pos] = 6
             return
 
         cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
@@ -35818,6 +35824,8 @@ class SpawnManager:
         
         ti, ax = ct.get_global_resources()
         bot_ti, bot_ax = ct.get_builder_bot_cost()
+        if bot_ti > ti:
+            return False
 
         if Globals.round <= 10 and cls.num_spawned < 4:
             return True
@@ -35825,6 +35833,8 @@ class SpawnManager:
         mass = 40#80 if cls.num_spawned < 10 else 200
 
         if (MarketMaker.est_income > 10 or num_units < 4) and ti - bot_ti >= num_units * mass:
+            return True
+        if MarketMaker.est_income >= 20 and BuildManager.can_afford_builder_bot():
             return True
 
         return False
@@ -36946,7 +36956,7 @@ class Builder(Unit):
                 Explore.target = Explore.new_target()
             else:
                 cls.mode = 1
-        if cls.mode != 2 and cls.mode != 3 and (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 50 and Globals.round > 100):
+        if cls.mode != 2 and cls.mode != 3 and (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 20 and Globals.round > 100):
             cls.mode = 2
             Explore.target = Explore.new_target()
         if cls.mode == 3 and Globals.round >= Constants.HEAL_OVER:
@@ -37217,7 +37227,7 @@ class Builder(Unit):
         if rushTarget is not None:
             return 'Rush', rushTarget
 
-        if ct.get_unit_count() < 15 or Globals.my_id % 3 == 0:
+        if ct.get_unit_count() < 15 or Globals.my_id % 3 == 1:
             patrolTarget = PatrolTargeter.get_best_target()
             if patrolTarget is not None:
                 return 'MoveTo', patrolTarget, 'Patrol'
