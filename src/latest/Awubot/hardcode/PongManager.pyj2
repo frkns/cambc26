@@ -21,30 +21,24 @@ from Generated import *
 class PongManager:
     {% from 'hardcode/config.j2' import HARDCODE_ENABLED %}
     {% if HARDCODE_ENABLED %}
-    {% import 'hardcode/data.j2' as raw_data %}
+    {% import 'hardcode/data.j2' as data %}
 
 
     @classmethod
     def init(cls):
         ct = Globals.ct 
 
+        cls.PAUSE_ROUND = 30
+        cls.PAUSE_DURATION = 10
+
+        cls.chunk_idx = 0
+        cls.data = {}
+
         if ct.get_team() == Team.A:
-            cls.data = {{ raw_data.teamA }}
-            cls.PAUSE_ROUND = 30
-            cls.PAUSE_DURATION = 10
+            spawn_id_map = {{ data.spawn_id_mapA }}
         else:
-            cls.data = {{ raw_data.teamB }}
-            cls.PAUSE_ROUND = 30
-            cls.PAUSE_DURATION = 10
+            spawn_id_map = {{ data.spawn_id_mapB }}
 
-        id_set = set(i for round, i in cls.data.keys() if i is not None)
-        id_ord = tuple(sorted(id_set))
-        spawn_set = set(round for round, i in cls.data.keys() if i is None)
-        spawn_ord = tuple(sorted(spawn_set))
-            
-        assert len(id_ord) == len(spawn_ord)
-
-        spawn_id_map = {spawn_ord[i]: id_ord[i] for i in range(len(id_ord))}
 
         if Globals.my_type == EntityType.BUILDER_BOT:
             effective_round = Globals.round
@@ -58,7 +52,19 @@ class PongManager:
 
 
     @classmethod
+    def load_next_chunk(cls):
+        {% for team in ('A', 'B') %}
+        {% for i in range(data.chunks) %}
+        if cls.chunk_idx == {{ i }}:
+            cls.data |= {{ data.dataA[i] }} if Globals.my_team == Team.A else {{ data.dataB[i] }}
+        {% endfor %}
+        {% endfor %}
+        cls.chunk_idx += 1
+
+
+    @classmethod
     def run(cls):
+        cls.load_next_chunk()
 
         ct = Globals.ct
 
