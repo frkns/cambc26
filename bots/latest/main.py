@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-# latest,  @ 2026-04-28 21:30:55 (local)
-=======
-# latest,  @ 2026-04-28 21:41:37 (local)
->>>>>>> foundry
+# latest,  @ 2026-04-28 21:45:46 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
