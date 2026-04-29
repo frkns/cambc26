@@ -22,7 +22,7 @@ class BuildManager:
     {% set ti_reserve_map = {
         EntityType.GUNNER: 0,
         EntityType.SENTINEL: 0,
-        EntityType.LAUNCHER: 20,
+        EntityType.LAUNCHER: 0,
         EntityType.HARVESTER: 20,
         EntityType.BARRIER: 50
     } %}
@@ -160,11 +160,9 @@ class BuildManager:
     def can_afford_{{ st }}() -> bool:
         ti_cost, ax_cost = Globals.ct.get_{{ st }}_cost()
         
-        scaled_ti_cost = int(ti_cost * MarketMaker.scale_ratio)
-        
         {% set req = ti_reserve_map.get(etype, ti_reserve_default) %}
         
-        return (MarketMaker.ti - scaled_ti_cost) >= int({{ req }} * MarketMaker.scale_ratio) \
+        return (MarketMaker.ti - ti_cost) >= int({{ req }} * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
 

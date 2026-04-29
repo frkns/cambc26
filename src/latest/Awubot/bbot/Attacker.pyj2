@@ -139,6 +139,9 @@ class Attacker:
         if DarkForest.ax_tagged[idx]:
             return False
 
+        if not DarkForest.sight_flowing[idx] and not DarkForest.flow[idx] > 0:
+            return False
+
 
         hp = ti.building_hp
         max_hp = Constants.MAX_HP_MAP[ti.entity_type]

@@ -82,9 +82,9 @@ class Symmetry:
         cls.predict_enemy_core()
         DarkForest.register_enemy_core()
 
-        {{ P.start('Map.sync_tile_infos') }}
-        # Map.sync_tile_infos()
-        {{ P.end_now('Map.sync_tile_infos') }}
+        {# /* {{ P.start('Map.sync_tile_infos') }} */ #}
+        {# /* Map.sync_tile_infos() */ #}
+        {# /* {{ P.end_now('Map.sync_tile_infos') }} */ #}
         # RouteToCore.pathFindingKill.update(cls.enemy_core_pos_set) # don't route to core anymore
 
 

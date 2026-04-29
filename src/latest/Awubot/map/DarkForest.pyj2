@@ -220,6 +220,19 @@ class DarkForest:
                 if ns[i] is not None and ax[i]:
                     Debug.dot(Position(x, y), Color.ORANGE)
 # ===---
+# ---===
+    @classmethod
+    def debug_sight_flowing(cls):
+        """Draw white dots on nodes that have active sight-based flow."""
+        ns = cls.nodes
+        sf = cls.sight_flowing
+        ct = Globals.ct
+        for x in range(50):
+            for y in range(50):
+                i = {{ encode_pos('x', 'y') }}
+                if ns[i] is not None and sf[i]:
+                    Debug.dot(Position(x, y), Color.WHITE)
+# ===---
 
 
 # ---===
