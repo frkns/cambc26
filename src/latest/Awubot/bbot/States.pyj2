@@ -277,15 +277,15 @@ class StateBuildShield:
             if target_dir is not None:
                 if found_ally_harvester and BuildManager.can_afford_conveyor():
                     if {{ should_try_armour }} and BuildManager.can_mbuild_armoured_conveyor():
-                        BuildManager.dbuild_armoured_conveyor(pos, target_dir)
+                        BuildManager.mbuild_armoured_conveyor(target_dir)
                     elif BuildManager.can_mbuild_conveyor():
-                        BuildManager.dbuild_conveyor(pos, target_dir)  # mbuild check but dbuild
+                        BuildManager.mbuild_conveyor(target_dir)
                 else:
                     if BuildManager.can_mbuild_road():
-                        BuildManager.dbuild_road(pos)
+                        BuildManager.mbuild_road()
             else:
                 if BuildManager.can_mbuild_road():
-                    BuildManager.dbuild_road(pos)
+                    BuildManager.mbuild_road()
             
 
 

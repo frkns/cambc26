@@ -277,15 +277,11 @@ class RouteToFoundryInput:
         # bot beat us to it), abandon and let the builder find a new target.
         if cls._is_ax:
             if not FoundryInputTracker.has_ax_capacity(cls._target):
-                # Subtract our reservation so the slot accounting stays clean.
-                FoundryInputTracker.release_ax(cls._target)
-                FoundryInputTracker.claim_ax(cls._target)  # keep claimed until give_up
+                # keep claimed until give_up
                 Debug.tee("RouteToFoundryInput: target foundry ax-full, giving up")
                 return True
         else:
             if not FoundryInputTracker.has_ti_capacity(cls._target):
-                FoundryInputTracker.release_ti(cls._target)
-                FoundryInputTracker.claim_ti(cls._target)
                 Debug.tee("RouteToFoundryInput: target foundry ti-full, giving up")
                 return True
 
