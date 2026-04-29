@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # latest,  @ 2026-04-28 21:30:55 (local)
+=======
+# latest,  @ 2026-04-28 21:41:37 (local)
+>>>>>>> foundry
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -24734,14 +24738,12 @@ class FoundryBuild:
 
         Pathfinder.move_to(pos, ban_target_pos=True)
 
-        # if Globals.ct.get_global_resources()[0] > Globals.ct.get_foundry_cost()[0] \
-        #         and Globals.ct.can_destroy(pos) \
-        #         and Globals.ct.get_action_cooldown() == 0:
-        #     BuildManager.destroy(pos)
-        # if Globals.ct.can_build_foundry(pos):
-
-        if BuildManager.can_dbuild_foundry(pos):
-            BuildManager.dbuild_foundry(pos)
+        if Globals.ct.get_global_resources()[0] > Globals.ct.get_foundry_cost()[0] \
+                and Globals.ct.can_destroy(pos) \
+                and Globals.ct.get_action_cooldown() == 0:
+            BuildManager.destroy(pos)
+        if Globals.ct.can_build_foundry(pos):
+            Globals.ct.build_foundry(pos)
 
             cls.register_foundry(pos)          # fixed: was register_foundry(encoded)
 
@@ -29617,8 +29619,10 @@ class MarketMaker:
         if not (2 * n_ax <= n_ti):
             return False
 
+        """ #we like don't build foundries anymore
         if not BuildManager.can_afford_foundry():
             return False
+        """
 
         """ #cannot figure out what this is trying to do-
         if MarketMaker.ax > 0:
