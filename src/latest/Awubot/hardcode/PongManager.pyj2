@@ -37,27 +37,34 @@ class PongManager:
             cls.PAUSE_ROUND = 30
             cls.PAUSE_DURATION = 10
 
-        if Globals.my_type == EntityType.CORE:
-            id_set = set(i for round, i in cls.data.keys() if i is not None)
-            cls.id_ord = tuple(sorted(id_set))
-            cls.num_spawned = 0
-            cls.my_id = None
-            cls.pending_markers = deque()  # (target_round, pos, value)
+        id_set = set(i for round, i in cls.data.keys() if i is not None)
+        id_ord = tuple(sorted(id_set))
+        spawn_set = set(round for round, i in cls.data.keys() if i is None)
+        spawn_ord = tuple(sorted(spawn_set))
+            
+        assert len(id_ord) == len(spawn_ord)
+
+        spawn_id_map = {spawn_ord[i]: id_ord[i] for i in range(len(id_ord))}
 
         if Globals.my_type == EntityType.BUILDER_BOT:
-            mark_pos = Unit.core_pos.add(Direction.NORTHWEST).add(Direction.NORTHWEST)
-            mark_id = ct.get_tile_building_id(mark_pos)
-            cls.my_id = ct.get_marker_value(mark_id)
-            Debug.tee(f'my id from marker is {cls.my_id}')
+            effective_round = Globals.round
+            if Globals.round >= cls.PAUSE_ROUND + cls.PAUSE_DURATION:
+                effective_round = Globals.round - cls.PAUSE_DURATION
+
+            cls.my_id = spawn_id_map[effective_round - 1]
+
+        if Globals.my_type == EntityType.CORE:
+            cls.my_id = None
+
 
     @classmethod
     def run(cls):
 
         ct = Globals.ct
 
-        my_id = cls.my_id  # changed
+        my_id = cls.my_id
         
-        if Globals.round > 250:
+        if Globals.round > 9999:  # update to latest `test` version
             ACTIVE_ID = None
             if ct.get_team() == Team.A:
                 ACTIVE_ID = 3
@@ -153,11 +160,6 @@ class PongManager:
             if need > 0:
                 ct.convert(min(need // 4, ax))
 
-            # flush pending
-            while cls.pending_markers and cls.pending_markers[0][0] <= Globals.round:
-                _, mark_pos, mark_id_val = cls.pending_markers.popleft()
-                ct.place_marker(mark_pos, mark_id_val)
-
         # pause
         if cls.PAUSE_ROUND <= Globals.round < cls.PAUSE_ROUND + cls.PAUSE_DURATION:
             return
@@ -205,11 +207,6 @@ class PongManager:
 
         if etype == EntityType.BUILDER_BOT:
             if ct.can_spawn(pos):
-                mark_pos = Globals.my_pos.add(Direction.NORTHWEST).add(Direction.NORTHWEST)
-                mark_id_val = cls.id_ord[cls.num_spawned]
-                cls.num_spawned += 1
-                # queue the marker placement for next round instead of placing immediately
-                cls.pending_markers.append((Globals.round + 1, mark_pos, mark_id_val))
                 ct.spawn_builder(pos)
             else:
                 Debug.tee(f'couldnt spawn {pos}')
