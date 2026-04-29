@@ -44,7 +44,12 @@ class DarkForest:
     sight_flowing: list[bool]        # sight-based flow: True if fresh valid resource seen recently
     foundry_positions: set[int] = set()  # persistent: encoded positions of built foundries
     refined_ax_line: set[int] = set()    # recomputed each tick: ALLY_CORE nodes on refined-axionite output paths
-
+    foundry_owner:        list[int]           # per-node encoded foundry pos, -1 if none
+    foundry_ti_sink_sets: dict[int, set[int]] # foundry_idx -> titanium-side reachable nodes
+    foundry_ax_sink_sets: dict[int, set[int]] # foundry_idx -> axionite-side reachable nodes
+    foundry_ti_flow: list[int]   # titanium flow at each node
+    foundry_ax_flow: list[int]   # axionite flow at each node
+    
     @classmethod
     def init(cls):
         {% set N = PADDED_GRID_SIZE %}
@@ -243,6 +248,13 @@ class DarkForest:
         _sh = (0, {{ FLOW_PER_HARVESTER }}, {{ FLOW_PER_HARVESTER // 2 }},
                {{ FLOW_PER_HARVESTER // 3 }}, {{ FLOW_PER_HARVESTER // 4 }})
 
+        # ── harvest → flow; seed ax_tagged for axionite harvester neighbours ──
+        _sh = (0, {{ FLOW_PER_HARVESTER }}, {{ FLOW_PER_HARVESTER // 2 }},
+               {{ FLOW_PER_HARVESTER // 3 }}, {{ FLOW_PER_HARVESTER // 4 }})
+
+        ti_flow = [0] * {{ N }}
+        ax_flow = [0] * {{ N }}
+
         for h in harvesters:
             _is_ax = h in ax_harvesters
             {% for d in (-1, 1, -PH, PH) %}
@@ -257,7 +269,10 @@ class DarkForest:
                 if _e{{ loop.index0 }}:
                     flow[_n{{ loop.index0 }}] += s
                     if _is_ax:
+                        ax_flow[_n{{ loop.index0 }}] += s
                         ax_tagged[_n{{ loop.index0 }}] = True
+                    else:
+                        ti_flow[_n{{ loop.index0 }}] += s
                 {% endfor %}
         # ── foundries as refined-axionite sources (act like titanium harvesters) ──
         _fo = ({{ -1 }}, {{ 1 }}, {{ -PH }}, {{ PH }})
@@ -269,6 +284,7 @@ class DarkForest:
                 _s = _sh[_cnt]
                 for _fn in _fn_list:
                     flow[_fn] += _s
+                    ti_flow[_fn] += _s   # refined axionite acts as titanium downstream
 
         # ── fix dead parents, indegree, collect active ──
         active = []
@@ -297,9 +313,10 @@ class DarkForest:
         while qi < len(q):
             u = q[qi]; qi += 1
             p = ns[u].up
-            # if p is not None:
             if p is not None and ns[p] is not None and p not in harvesters:
-                flow[p] += flow[u]
+                flow[p]    += flow[u]
+                ti_flow[p] += ti_flow[u]
+                ax_flow[p] += ax_flow[u]
                 # propagate ax taint upward
                 if ax_tagged[u]:
                     ax_tagged[p] = True
@@ -353,9 +370,13 @@ class DarkForest:
 
         cls.sight_flowing = sight_flowing
 
-        # ── top-down pass: pressure, node_kind, core_sink_set ──
-        pressure = [0] * {{ N }}
-        nk       = [0] * {{ N }}
+        # ── top-down pass: pressure, node_kind, core_sink_set, per-foundry sink sets ──
+        pressure    = [0] * {{ N }}
+        nk          = [0] * {{ N }}
+        foundry_owner = [-1] * {{ N }}   # encoded pos of the foundry this node feeds, or -1
+
+        _ALLY_CONSUMER_K = {{ Kind.ALLY_CONSUMER }}
+        _foundry_set     = cls.foundry_positions
 
         # core_sink_set: ALLY_CORE-reachable nodes that are:
         #   1. below the pressure threshold (not saturated)
@@ -370,16 +391,22 @@ class DarkForest:
 
         for u in reversed(q):
             p = ns[u].up
-            if p is None:
+            if p is None:                        # u is a root / sink
                 pressure[u] = flow[u]
                 k = kind[u]
-            elif kind[p]:
+                # foundry roots own themselves
+                fo = u if (k == _ALLY_CONSUMER_K and u in _foundry_set) else -1
+            elif kind[p]:                        # parent is a sink boundary
                 pressure[u] = flow[u]
                 k = kind[p]
+                # direct children of a foundry belong to it
+                fo = p if (kind[p] == _ALLY_CONSUMER_K and p in _foundry_set) else -1
             else:
                 pressure[u] = pressure[p]
                 k = nk[p]
+                fo = foundry_owner[p]            # inherit from parent
             nk[u] = k
+            foundry_owner[u] = fo
             if (k == {{ Kind.ALLY_CORE }}
                     and pressure[u] <= THR
                     and not ax_tagged[u]
@@ -389,12 +416,31 @@ class DarkForest:
         # cores themselves are always valid sinks regardless of the above
         core_sink_set |= core_pos_set
 
+        # ── per-foundry titanium / axionite sink sets ──
+        foundry_ti_sink_sets: dict[int, set[int]] = {f: set() for f in _foundry_set}
+        foundry_ax_sink_sets: dict[int, set[int]] = {f: set() for f in _foundry_set}
+    
+
+        for u in active:
+            fo = foundry_owner[u]
+            if fo == -1:
+                continue
+            if ax_tagged[u]:
+                foundry_ax_sink_sets[fo].add(u)
+            else:
+                foundry_ti_sink_sets[fo].add(u)
+
         cls.flow          = flow
         cls.pressure      = pressure
         cls.node_kind     = nk
         cls.ax_tagged     = ax_tagged
         cls.core_sink_set = core_sink_set
         cls.sink_set      = core_sink_set   # backward-compat alias
+        cls.foundry_owner        = foundry_owner        # per-node encoded foundry pos, -1 if none
+        cls.foundry_ti_sink_sets = foundry_ti_sink_sets # {foundry_idx -> set of ti-feeding nodes}
+        cls.foundry_ax_sink_sets = foundry_ax_sink_sets # {foundry_idx -> set of ax-feeding nodes}
+        cls.foundry_ti_flow = ti_flow   # total titanium flow at each node
+        cls.foundry_ax_flow = ax_flow   # total axionite flow at each node
 
         # ── refined axionite lines ──
         # For each foundry, find its ALLY_CORE-tree neighbours (output side) and

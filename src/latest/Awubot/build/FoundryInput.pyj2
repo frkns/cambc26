@@ -49,32 +49,37 @@ class FoundryInputTracker:
     claimed_ti: dict[int, int] = defaultdict(int)
     claimed_ax: dict[int, int] = defaultdict(int)
 
+    ti_sink_sets: dict[int, set[int]] = {}
+    ax_sink_sets: dict[int, set[int]] = {}
+
     @classmethod
     def compute(cls):
-        """Count actual tree-children per foundry (ti vs ax)."""
-        ns   = DarkForest.nodes
-        ax   = DarkForest.ax_tagged
+        """Read per-foundry ti/ax flow directly from DarkForest and sync sink sets."""
+        ti_flow = DarkForest.foundry_ti_flow
+        ax_flow = DarkForest.foundry_ax_flow
+
         ti_c: dict[int, int] = {}
         ax_c: dict[int, int] = {}
-
         for f in DarkForest.foundry_positions:
-            t = 0
-            a = 0
-            for _d in (-1, 1, -{{ PH }}, {{ PH }}):
-                _adj = f + _d
-                _n   = ns[_adj]
-                if _n is not None and _n.up == f:
-                    if ax[_adj]:
-                        a += 1
-                    else:
-                        t += 1
-            ti_c[f] = t
-            ax_c[f] = a
+            ti_c[f] = ti_flow[f]
+            ax_c[f] = ax_flow[f]
 
         cls.ti_count = ti_c
         cls.ax_count = ax_c
 
+        cls.ti_sink_sets = DarkForest.foundry_ti_sink_sets
+        cls.ax_sink_sets = DarkForest.foundry_ax_sink_sets
     # ── capacity helpers (built + claimed) ──
+
+    @classmethod
+    def get_ti_sink_set(cls, f: int) -> set[int]:
+        """Titanium-side routing targets for foundry f (empty set if unknown)."""
+        return cls.ti_sink_sets.get(f, set())
+
+    @classmethod
+    def get_ax_sink_set(cls, f: int) -> set[int]:
+        """Axionite-side routing targets for foundry f (empty set if unknown)."""
+        return cls.ax_sink_sets.get(f, set())
 
     @classmethod
     def _ti_used(cls, f: int) -> int:
@@ -224,7 +229,11 @@ class RouteToFoundryInput:
             cls.give_up()
             return
 
-        target_set = {cls._target}
+        target_set = {}
+        if cls._is_ax:
+            target_set = FoundryInputTracker.get_ax_sink_set(cls._target) | {cls._target}
+        else:
+            target_set = FoundryInputTracker.get_ti_sink_set(cls._target) | {cls._target}
 
         if cls._is_ax:
             bridge_dist, first_target = BfsBureau.find_bridge_route_avoid_ti_adj(
