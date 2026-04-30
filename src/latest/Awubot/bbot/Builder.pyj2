@@ -203,6 +203,13 @@ class Builder({{ super() }}):
 
         # now changed to sentinel/gunner pos near enemy?
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
+            
+        buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0) or (RouteToFoundryInput.is_active and len(RouteToFoundryInput.prevRoute) == 0)
+            
+        if not buildingFirstConveyor:
+            shieldpos = HarvesterAdjacent.get_best_shield_position()
+            if shieldpos is not None:
+                return 'BuildShield', shieldpos
         
         if RouteToBreach.is_active:
             return ('RouteBreach',)
@@ -237,13 +244,6 @@ class Builder({{ super() }}):
         # reinstating CORE_HEALER
         if cls.role == {{ Role.CORE_HEALER }}:
             return 'MoveTo', Unit.core_pos.add(random.choice(Constants.DIRECTIONS)), '[core healer]'
-            
-        buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0) or (RouteToFoundryInput.is_active and len(RouteToFoundryInput.prevRoute) == 0)
-            
-        if not buildingFirstConveyor:
-            shieldpos = HarvesterAdjacent.get_best_shield_position()
-            if shieldpos is not None:
-                return 'BuildShield', shieldpos
                 
         attackpos = Attacker.get_target()
         secondaryattackpos = Attacker.get_secondary_target()
