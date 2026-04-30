@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-29 22:50:15 (local)
+# latest,  @ 2026-04-30 09:57:01 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -38250,7 +38250,7 @@ class Launcher(Unit):
             print("Plausible place to throw:", best_pos)
 
             if nearby_ally_bot is not None and best_pos is not None and ct.can_launch(nearby_ally_bot, best_pos):
-                return  # -- disable supportive launchers for now --
+                # return  # -- disable supportive launchers for now --
                 ct.launch(nearby_ally_bot, best_pos)
 
     @classmethod
