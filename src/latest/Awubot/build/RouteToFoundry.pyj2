@@ -223,7 +223,7 @@ class RouteToFoundry:
                 cls.planned_foundry_positions.discard(cls._foundry_target)
                 cls._foundry_target = None
             return False
-        if len(cls.prevRoute) == 0:
+        if len(cls.prevRoute) == 0 or cls._foundry_target == None:
             cls.is_active = False
             # Release the claim so another bot (or a retry) can use this leaf.
             if cls._foundry_target is not None:
@@ -247,21 +247,12 @@ class RouteToFoundry:
 
     @classmethod
     def try_claim_target(cls):
-        if cls._foundry_target in cls.planned_foundry_positions:
-            cls._foundry_target = cls._pick_target()
-            if cls._foundry_target is None:
-                Debug.tee("RouteToFoundry: Old leaf used, no unclaimed titanium leaf available")
-                if cls.give_up():
-                    StateMoveTo.run(Explore.get_target())
+        cls._foundry_target = cls._pick_target()
+        if cls._foundry_target is None:
+            Debug.tee("RouteToFoundry: no unclaimed titanium leaf available")
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target())
             return
-        if cls._foundry_target is None: # Claim a target on first call (or if we lost one).
-            cls._foundry_target = cls._pick_target()
-            if cls._foundry_target is None:
-                Debug.tee("RouteToFoundry: no unclaimed titanium leaf available")
-                if cls.give_up():
-                    StateMoveTo.run(Explore.get_target())
-                return
-            #cls.planned_foundry_positions.add(cls._foundry_target)
     @classmethod
     def do_routing(cls):
         cls.try_claim_target()
