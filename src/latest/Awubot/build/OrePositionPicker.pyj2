@@ -25,6 +25,7 @@ class OrePositionPicker:
         build_metric: int  # manhattan, but if directly on top, need to ~take a step back~
         is_accessible: bool
         empty: bool
+        ti_ore_adj: bool
 
     cand: list[Candidate | None] = [None] * 4
 
@@ -52,17 +53,19 @@ class OrePositionPicker:
             build_metric,
             ti is not None and ti.env != Environment.WALL,
             ti is not None and ti.env == Environment.EMPTY,
+            BfsBureau.ti_ore_adj[{{ encode_pos('nx','ny') }}]
         )
         {% endfor %}
 
     @classmethod
-    def is_better_than(cls, a: Candidate, b: Candidate) -> bool:
+    def is_better_than(cls, a: Candidate, b: Candidate, forAx = False) -> bool:
         # prio:
         # 0. not null |
         # 1. on map   | collasped
-        # 2. empty
-        # 3. no building
+        # 2. empty (if not for ax)
+        # 3. no building  (if not for ax)
         # 4. has ally building AND is road
+        # 4.5 If for ax, avoid titanium ores
         # 5. no builder bot
         # 6. build metric
         # 7. arbitrary
@@ -72,13 +75,14 @@ class OrePositionPicker:
 
         EMPTY = Environment.EMPTY
 
-        if a.empty and (not b.empty): return True
-        if (not a.empty) and b.empty: return False
+        if not forAx:
+            if a.empty and (not b.empty): return True
+            if (not a.empty) and b.empty: return False
 
-        if a.ti.has_building and (not b.ti.has_building):
-            return False
-        if (not a.ti.has_building) and b.ti.has_building:
-            return True
+            if a.ti.has_building and (not b.ti.has_building):
+                return False
+            if (not a.ti.has_building) and b.ti.has_building:
+                return True
 
         if a.ti.has_building and b.ti.has_building:
             ROAD = EntityType.ROAD
@@ -89,6 +93,18 @@ class OrePositionPicker:
                 return True
             if (not a_cond) and b_cond:
                 return False
+            if a_cond and b_cond and forAx:
+                if a.ti_ore_adj != b.ti_ore_adj:
+                    return a.ti_ore_adj
+
+        if forAx: # do them here for axionite
+            if a.empty and (not b.empty): return True
+            if (not a.empty) and b.empty: return False
+
+            if a.ti.has_building and (not b.ti.has_building):
+                return False
+            if (not a.ti.has_building) and b.ti.has_building:
+                return True
 
         if a.ti.has_bot and (not b.ti.has_bot):
             return False
@@ -101,12 +117,12 @@ class OrePositionPicker:
         return True  # arbitrary
 
     @classmethod
-    def pick_best_candidate(cls, ore_pos: Position) -> Candidate:
+    def pick_best_candidate(cls, ore_pos: Position, forAx = False) -> Candidate:
         cls.precompute(ore_pos)
 
         best = cls.cand[3]
         {% for i in range(3)|reverse %}
-        if cls.is_better_than(cls.cand[{{ i }}], best):
+        if cls.is_better_than(cls.cand[{{ i }}], best, forAx):
             best = cls.cand[{{ i }}]
         {% endfor %}
 

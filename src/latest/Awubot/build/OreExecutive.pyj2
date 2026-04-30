@@ -232,7 +232,7 @@ class OreExecutive:
             cls.state[pos] = {{ PATHFINDING_KILL }}
             return
 
-        cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
+        cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos,True)
         if cand == None:
             Debug.line(pos, Color.RED)
             Debug.diamond(Color.RED)
