@@ -19,13 +19,8 @@ from Generated import *
 
 
 class OrePositionPicker:
-    class Candidate(NamedTuple):
-        position: Position
-        ti: TileInfo | None  # if None, it is outside map
-        build_metric: int  # manhattan, but if directly on top, need to ~take a step back~
-        is_accessible: bool
-        empty: bool
-        ti_ore_adj: bool
+    class Candidate:
+        __slots__ = ('position', 'ti', 'build_metric', 'is_accessible', 'empty','ti_ore_adj')
 
     cand: list[Candidate | None] = [None] * 4
 
@@ -41,20 +36,18 @@ class OrePositionPicker:
 
         nx, ny = x {{ sign0(dx) }}, y {{ sign0(dy) }}
 
-        build_metric = max(abs(nx - me_x), abs(ny - me_y)) 
-        if build_metric == 0:
-            build_metric += 2
-
         ti = Map.tile_info[nx][ny]
 
-        cls.cand[{{ loop.index0 }}] = cls.Candidate(
-            Position(nx, ny),
-            ti,
-            build_metric,
-            ti is not None and ti.env != Environment.WALL,
-            ti is not None and ti.env == Environment.EMPTY,
-            BfsBureau.ti_ore_adj[{{ encode_pos('nx','ny') }}]
-        )
+        cand = cls.Candidate()
+        cand.ti = ti
+        cand.position = Position(nx, ny)
+        cand.build_metric = abs(Unit.core_pos.x - nx) + abs(Unit.core_pos.y - ny)
+        cand.is_accessible = ti is not None and ti.env != Environment.WALL 
+        cand.empty = ti is not None and ti.env == Environment.EMPTY
+        cand.ti_ore_adj = BfsBureau.ti_ore_adj[{{ encode_pos('nx','ny') }}]
+
+        cls.cand[{{ loop.index0 }}] = cand
+        
         {% endfor %}
 
     @classmethod

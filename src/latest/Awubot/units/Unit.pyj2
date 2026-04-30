@@ -74,6 +74,10 @@ class Unit:
 
     @classmethod
     def start_turn(cls):
+        {# /* {% if LOCAL %} */ #}
+        {# /* print(end=str(Globals.my_type), file=sys.stderr) */ #}
+        {# /* {% endif %} */ #}
+
         {% if HARDCODE_ENABLED %}
         if cls.on_pong:
             Globals.start_tick()

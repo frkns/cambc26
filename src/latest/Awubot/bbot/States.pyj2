@@ -77,6 +77,9 @@ class StateRoute:
         {% endif %}
         RouteToCore.do_routing()
 
+
+
+
 class StateFoundryBuild:
     @classmethod
     def run(cls, pos):
@@ -139,6 +142,11 @@ class StateBuildTurret:
         dx, dy = direction.delta()    # unit step for this direction
 
         x, y = gunner_pos.x + dx, gunner_pos.y + dy      # start one step ahead
+
+        {% if LOCAL %}
+        assert direction != Direction.CENTRE
+        assert Util.on_the_map(Position(x, y))
+        {% endif %}
 
         while x >= 0 and y >= 0 and x < Map.W and y < Map.H:
             if (x - gunner_pos.x) ** 2 + (y - gunner_pos.y) ** 2 > {{ GameConstants.GUNNER_VISION_RADIUS_SQ }}:
@@ -262,7 +270,7 @@ class StateBuildShield:
 
         if pos != Globals.my_pos:
             if target_dir is not None:
-                if found_ally_harvester and BuildManager.can_afford_conveyor():
+                if found_ally_harvester:
                     if {{ should_try_armour }} and BuildManager.can_dbuild_armoured_conveyor(pos):
                         BuildManager.dbuild_armoured_conveyor(pos, target_dir)
                     elif BuildManager.can_dbuild_conveyor(pos):
@@ -275,19 +283,32 @@ class StateBuildShield:
                     BuildManager.build_road(pos)
         else:
             if target_dir is not None:
-                if found_ally_harvester and BuildManager.can_afford_conveyor():
+                if found_ally_harvester:
                     if {{ should_try_armour }} and BuildManager.can_mbuild_armoured_conveyor():
-                        BuildManager.mbuild_armoured_conveyor(target_dir)
+                        BuildManager.dbuild_armoured_conveyor(pos, target_dir)
                     elif BuildManager.can_mbuild_conveyor():
-                        BuildManager.mbuild_conveyor(target_dir)
+                        BuildManager.dbuild_conveyor(pos, target_dir)  # mbuild check but dbuild
                 else:
                     if BuildManager.can_mbuild_road():
-                        BuildManager.mbuild_road()
+                        BuildManager.dbuild_road(pos)
             else:
                 if BuildManager.can_mbuild_road():
-                    BuildManager.mbuild_road()
+                    BuildManager.dbuild_road(pos)
             
 
+class StateDestroy:
+    @classmethod
+    def run(cls, pos):
+        ct = Globals.ct
+
+        if ct.can_destroy(pos):
+            BuildManager.destroy(pos)
+        else:
+            Pathfinder.move_to(pos)
+
+        if ct.can_destroy(pos):
+            BuildManager.destroy(pos)
+    
 
 
 

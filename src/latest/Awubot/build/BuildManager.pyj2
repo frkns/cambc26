@@ -21,9 +21,16 @@ from Generated import *
 class BuildManager:
     {% set ti_reserve_map = {
         EntityType.GUNNER: 0,
-        EntityType.SENTINEL: 20,
-        EntityType.LAUNCHER: 20,
-        EntityType.BARRIER: 50
+        EntityType.SENTINEL: 0,
+        EntityType.LAUNCHER: 0,
+        EntityType.FOUNDRY: 0,
+        EntityType.ROAD: 20,
+        EntityType.HARVESTER: 20,
+        EntityType.SPLITTER: 20,
+        EntityType.BRIDGE: 20,
+        EntityType.CONVEYOR: 20,
+        EntityType.ARMOURED_CONVEYOR: 20,
+        EntityType.BARRIER: 40
     } %}
     {% set ti_reserve_default = 40 %}
 
@@ -85,13 +92,16 @@ class BuildManager:
         {% endif %}
         pos = Globals.my_pos
 
+        ct = Globals.ct
+
         return (
-            (Globals.ct.can_destroy(pos) or Map.tile_info[pos.x][pos.y].entity_type is None) and
+            (ct.can_destroy(pos) or Map.tile_info[pos.x][pos.y].entity_type is None) and
             {% if etype in units_set %}
-            Globals.ct.get_unit_count() < {{ GameConstants.MAX_TEAM_UNITS }} and
+            ct.get_unit_count() < {{ GameConstants.MAX_TEAM_UNITS }} and
             {% endif %}
-            Globals.ct.get_action_cooldown() == 0 and
-            BuildManager.can_afford_{{ st }}()
+            ct.get_action_cooldown() == 0 and
+            ct.get_move_cooldown() == 0 and
+            BuildManager.can_afford_{{ st }}(pos)
         )
 
 
@@ -120,6 +130,7 @@ class BuildManager:
         success = Pathfinder.move_off()
         if not success:
             Debug.tee('failed move off')
+            Debug.diamond(Color.YELLOW)
         {% else %}
         Pathfinder.move_off()
         {% endif %}
@@ -144,7 +155,7 @@ class BuildManager:
             {% if etype not in no_core_passable_set %}
             not Map.tile_info[pos.x][pos.y].has_bot and
             {% endif %}
-            BuildManager.can_afford_{{ st }}()
+            BuildManager.can_afford_{{ st }}(pos)
         )
 
     @staticmethod
@@ -152,33 +163,43 @@ class BuildManager:
         return Globals.ct.can_build_{{ st }}(*a)
 
     @staticmethod
-    def can_afford_{{ st }}() -> bool:
+    def can_afford_{{ st }}(pos=None) -> bool:
+        {% set slow = (
+            EntityType.HARVESTER, 
+            EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR, 
+            EntityType.BRIDGE, EntityType.SPLITTER, 
+            EntityType.ROAD,
+        ) %}
+
         ti_cost, ax_cost = Globals.ct.get_{{ st }}_cost()
         
         {% set req = ti_reserve_map.get(etype, ti_reserve_default) %}
-        {% if req > 0 %}
-        
-        {% if etype in (EntityType.CONVEYOR, EntityType.BRIDGE) %}
-        # est income is at least 10 almost always because of passive income
-        if MarketMaker.est_income > 10 and Globals.round > 50:
-            ti_cost += int({{ req }} * MarketMaker.scale_ratio)
+
+        leftover_unscaled_ti = 0
+
+        {% if etype in slow and etype != EntityType.HARVESTER %}
+        if Globals.round > 50:
+            leftover_unscaled_ti += {{ req }}
         {% else %}
-        ti_cost += int({{ req }} * MarketMaker.scale_ratio)
-        {% endif %}
-        
-        {% if LOCAL %}
-        assert int({{ req }} * MarketMaker.scale_ratio) >= 0
-        {% endif %}
+        leftover_unscaled_ti += {{ req }}
         {% endif %}
 
-        return MarketMaker.ti >= ti_cost and MarketMaker.ax >= ax_cost
+        {% if etype in slow %}
+        if pos is not None:
+            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 2
+        {% endif %}
+        
+        return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
+            and MarketMaker.ax >= ax_cost
+
+
 
     {% endif %}
     {% endfor %}
 
     @staticmethod
     def destroy(pos):
-        Debug.diamond(Color.RED, pos)
+        # Debug.diamond(Color.RED, pos)
         Globals.ct.destroy(pos)
 
     @staticmethod

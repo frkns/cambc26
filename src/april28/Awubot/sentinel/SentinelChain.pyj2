@@ -1,0 +1,84 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+{% from 'bbot/mode.j2' import Mode %}
+
+
+# try to coordinate attacks if multiple allied sentinels nearby
+
+class SentinelChain:
+    num_hi_seen: int
+    num_sen_seen: int
+    hi_map: list[list[int]]  # number of higher id sentinels that can see this position
+    sen_map: list[list[int]]  # number of allied sentinels that can see this position
+
+    has_shared_target: bool  # promising shared target of >18 hp i.e. >{SENTINEL_DAMAGE} hp
+
+    @classmethod
+    def init(cls):
+        cls.hi_map = [[0] * Map.H for _ in range(Map.W)]
+        cls.sen_map = [[0] * Map.H for _ in range(Map.W)]
+
+    @classmethod
+    def fill(cls):
+        num_hi_seen = 0
+        num_sen_seen = 0
+
+        hi_map = cls.hi_map
+        sen_map = cls.sen_map
+        ct = Globals.ct
+        my_id = Globals.my_id
+
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            hi_map[x][y] = 0
+            sen_map[x][y] = 0
+
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+            ti: TileInfo
+
+            if not ti.has_building or not ti.is_building_ally:
+                continue
+            if ti.entity_type != EntityType.SENTINEL:
+                continue
+
+            # if pos == Globals.my_pos: Debug.log('yay im being processed')
+
+            num_sen_seen += 1
+
+            if ti.building_id > my_id:
+                num_hi_seen += 1
+                for apos in ct.get_attackable_tiles_from(pos, ti.turret_direction, EntityType.SENTINEL):
+                    ax, ay = apos.x, apos.y
+                    sen_map[ax][ay] += 1
+                    hi_map[ax][ay] += 1
+            else:
+                for apos in ct.get_attackable_tiles_from(pos, ti.turret_direction, EntityType.SENTINEL):
+                    ax, ay = apos.x, apos.y
+                    sen_map[ax][ay] += 1
+
+        cls.num_sen_seen = num_sen_seen
+        cls.num_hi_seen = num_hi_seen
+        cls.has_shared_target = False
+
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+
+            cond1 = ti.has_building and not ti.is_building_ally \
+                and ti.building_hp > {{ GameConstants.SENTINEL_DAMAGE }}
+
+            if cond1:
+                cls.has_shared_target = True
+                break

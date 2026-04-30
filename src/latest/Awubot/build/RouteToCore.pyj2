@@ -37,7 +37,7 @@ class RouteToCore:
 
         if fullReset:
             cls.prevRoute.clear()
-            cls.backTracking = False 
+            cls.backTracking = False
         else:
             cls.prevRoute.append(cls.from_pos)
             cls.backTracking = False # Added here to clear backtracking once we resume forward progress
@@ -56,7 +56,7 @@ class RouteToCore:
                 cls.give_up(True)
                 StateMoveTo.run(Explore.get_target()) # new
                 return None
-            valid_pos_set = set([coolPos]) 
+            valid_pos_set = set([coolPos])
             bridge_dist, first_target = BfsBureau.find_bridge_route(
                 cls.from_pos,
                 valid_pos_set,
@@ -87,24 +87,24 @@ class RouteToCore:
             return None
 
         target = Position(*first_target)
+        Debug.line(cls.from_pos, target, Color.GREEN)
 
-        # Look-ahead: if target is a shield (ally conveyor feeding a harvester),
-        # verify we can continue from it before bridging onto it. Otherwise we'd
-        # leave a dangling bridge with no way forward.
-        _ti = {{ encode_pos('target.x', 'target.y') }}
-        if BfsBureau.harvester_feeder[_ti]:
-            _, _ahead_first = BfsBureau.find_bridge_route(
-                target,
-                DarkForest.core_sink_set,
-                avoid_pos = cls.pathFindingKill,
-            )
-            if _ahead_first is None:
-                Debug.tee("RouteToCore: shield first_target with no continuation, giving up")
-                if cls.give_up(True):
-                    StateMoveTo.run(Explore.get_target())
-                return
+        # # Look-ahead: if target is a shield (ally conveyor feeding a harvester),
+        # # verify we can continue from it before bridging onto it. Otherwise we'd
+        # # leave a dangling bridge with no way forward.
+        # _ti = {{ encode_pos('target.x', 'target.y') }}
+        # if BfsBureau.harvester_feeder[_ti]:
+        #     _, _ahead_first = BfsBureau.find_bridge_route(
+        #         target,
+        #         DarkForest.core_sink_set,
+        #         avoid_pos = cls.pathFindingKill,
+        #     )
+        #     if _ahead_first is None:
+        #         Debug.tee("RouteToCore: shield first_target with no continuation, giving up")
+        #         if cls.give_up(True):
+        #             StateMoveTo.run(Explore.get_target())
+        #         return
 
-        Debug.diline(cls.from_pos, target, Color.GREEN)
 
         if cls.from_pos.distance_squared(target) == 1:
             ti = Map.tile_info[cls.from_pos.x][cls.from_pos.y]

@@ -33,7 +33,10 @@ venv/
 
 # Ignore specific things inside latest
 src/latest/Generated/**
-src/latest/main.py
+src/latest/main.py    
+
+# new
+bots/latest/main.py  
 
 # Python compiled files
 __pycache__/

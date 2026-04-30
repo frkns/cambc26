@@ -22,7 +22,7 @@ class HealTargetInfo:
     __slots__ = (
         'position', 'building_heal', 'building_hp', 'bot_heal', 'bot_hp',
         'harvester_adjacent', 'is_transporter', 'is_turret',
-        'has_enemy_bot', 'bfs_dist_adj', 'entity_type', 'core_info'
+        'has_enemy_bot', 'bfs_dist_adj', 'entity_type', 'core_info', 'is_launcher'
     )
 
     @staticmethod
@@ -32,6 +32,9 @@ class HealTargetInfo:
 
         if adist >= 100: return False
         if bdist >= 100: return True
+
+        if a.is_launcher: return False
+        if b.is_launcher: return True
 
         if bool(a.building_heal) != bool(b.building_heal): # Don't compare micro values of healing because of 4 HP roads
             return a.building_heal > b.building_heal
@@ -99,6 +102,9 @@ class HealTargeter:
             if HealTargetInfo.is_better_than(cand, best):
                 best = cand
 
+        if best.is_launcher:
+            return None
+
         {% if LOCAL %}
         print(f'(possible) heal target {best.position=} {best.building_heal=} {best.building_hp=}')
         {% endif %}
@@ -158,6 +164,7 @@ class HealTargeter:
             info.has_enemy_bot = False
             info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
             info.entity_type = ti.entity_type
+            info.is_launcher = ti.entity_type == EntityType.LAUNCHER
             info.is_turret = ti.has_turret
             info.harvester_adjacent = ti.harvester_adjacent
 

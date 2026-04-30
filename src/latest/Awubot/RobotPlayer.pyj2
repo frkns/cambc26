@@ -27,6 +27,15 @@ class Entrypoint:
         Globals.init(ct)
         Map.init()
 
+        {% if LOCAL and False %}
+        import faulthandler
+        if Globals.my_type == EntityType.BUILDER_BOT:
+            faulthandler.dump_traceback_later(20, repeat=True)
+        else:
+            faulthandler.dump_traceback_later(21, repeat=True)
+        {% endif %}
+
+
         match ct.get_entity_type():
             case EntityType.CORE:
                 Core.init()
@@ -58,6 +67,7 @@ class Entrypoint:
         cls.me.start_turn()
         cls.me.run_turn()
         cls.me.end_turn()
+
 
 
 class Player:
