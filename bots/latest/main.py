@@ -1,4 +1,4 @@
-# latest,  @ 2026-04-30 18:29:39 (local)
+# latest,  @ 2026-04-30 19:04:37 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -30433,7 +30433,6 @@ class OreExecutive:
             Debug.line(pos, Color.YELLOW)
             BuildManager.dbuild_harvester(pos)
 
-            cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
             # Check if already routed naturally
             for d in Constants.CARDINAL_DIRECTIONS:
                 newPos = pos.add(d)
@@ -30449,8 +30448,7 @@ class OreExecutive:
                 # boosts an under-fed foundry's output.
                 fi_target = FoundryInputTracker.get_best_ti_foundry(pos)
                 if fi_target is not None and not RouteToFoundryInput.is_active:
-                    fx, fy = fi_target // 56 - 3, fi_target % 56 - 3
-                    target_pos = Position(fx, fy)
+                    target_pos = Position(((fi_target) // 56 - 3), ((fi_target) % 56 - 3))
                 else:
                     target_pos = Unit.core_pos
 
@@ -30542,7 +30540,7 @@ class OreExecutive:
 
 class OrePositionPicker:
     class Candidate:
-        __slots__ = ('position', 'ti', 'build_metric', 'dist_to_target','is_accessible', 'empty','ti_ore_adj')
+        __slots__ = ('position', 'ti', 'build_metric', 'dist_to_target', 'is_accessible', 'empty', 'ti_ore_adj', 'has_enemy_bot')
 
     cand: list[Candidate | None] = [None] * 4
 
@@ -30561,113 +30559,101 @@ class OrePositionPicker:
 
         nx, ny = x , y -1
 
-        build_metric = max(abs(nx - me_x), abs(ny - me_y))
-        if build_metric == 0:
-            build_metric += 2
+        # build_metric = max(abs(nx - me_x), abs(ny - me_y))
+        # if build_metric == 0:
+        #     build_metric += 2
 
         if target_pos is not None:
             dist_to_target = (nx - tx) * (nx - tx) + (ny - ty) * (ny - ty)
         else:
             dist_to_target = 0
-
+            
         ti = Map.tile_info[nx][ny]
 
         cand = cls.Candidate()
         cand.ti = ti
         cand.position = Position(nx, ny)
         cand.build_metric = abs(Unit.core_pos.x - nx) + abs(Unit.core_pos.y - ny)
-        if target_pos is not None:
-            cand.dist_to_target = (nx - tx) * (nx - tx) + (ny - ty) * (ny - ty)
-        else:
-            cand.dist_to_target = 0
+        cand.dist_to_target = dist_to_target
         cand.is_accessible = ti is not None and ti.env != Environment.WALL 
         cand.empty = ti is not None and ti.env == Environment.EMPTY
         cand.ti_ore_adj = BfsBureau.ti_ore_adj[(((nx) + 3) * 56 + ((ny) + 3))]
-
+        cand.has_enemy_bot = ti is not None and ti.has_bot and not ti.is_bot_ally
         cls.cand[0] = cand
         
 
         nx, ny = x +1, y 
 
-        build_metric = max(abs(nx - me_x), abs(ny - me_y))
-        if build_metric == 0:
-            build_metric += 2
+        # build_metric = max(abs(nx - me_x), abs(ny - me_y))
+        # if build_metric == 0:
+        #     build_metric += 2
 
         if target_pos is not None:
             dist_to_target = (nx - tx) * (nx - tx) + (ny - ty) * (ny - ty)
         else:
             dist_to_target = 0
-
+            
         ti = Map.tile_info[nx][ny]
 
         cand = cls.Candidate()
         cand.ti = ti
         cand.position = Position(nx, ny)
         cand.build_metric = abs(Unit.core_pos.x - nx) + abs(Unit.core_pos.y - ny)
-        if target_pos is not None:
-            cand.dist_to_target = (nx - tx) * (nx - tx) + (ny - ty) * (ny - ty)
-        else:
-            cand.dist_to_target = 0
+        cand.dist_to_target = dist_to_target
         cand.is_accessible = ti is not None and ti.env != Environment.WALL 
         cand.empty = ti is not None and ti.env == Environment.EMPTY
         cand.ti_ore_adj = BfsBureau.ti_ore_adj[(((nx) + 3) * 56 + ((ny) + 3))]
-
+        cand.has_enemy_bot = ti is not None and ti.has_bot and not ti.is_bot_ally
         cls.cand[1] = cand
         
 
         nx, ny = x , y +1
 
-        build_metric = max(abs(nx - me_x), abs(ny - me_y))
-        if build_metric == 0:
-            build_metric += 2
+        # build_metric = max(abs(nx - me_x), abs(ny - me_y))
+        # if build_metric == 0:
+        #     build_metric += 2
 
         if target_pos is not None:
             dist_to_target = (nx - tx) * (nx - tx) + (ny - ty) * (ny - ty)
         else:
             dist_to_target = 0
-
+            
         ti = Map.tile_info[nx][ny]
 
         cand = cls.Candidate()
         cand.ti = ti
         cand.position = Position(nx, ny)
         cand.build_metric = abs(Unit.core_pos.x - nx) + abs(Unit.core_pos.y - ny)
-        if target_pos is not None:
-            cand.dist_to_target = (nx - tx) * (nx - tx) + (ny - ty) * (ny - ty)
-        else:
-            cand.dist_to_target = 0
+        cand.dist_to_target = dist_to_target
         cand.is_accessible = ti is not None and ti.env != Environment.WALL 
         cand.empty = ti is not None and ti.env == Environment.EMPTY
         cand.ti_ore_adj = BfsBureau.ti_ore_adj[(((nx) + 3) * 56 + ((ny) + 3))]
-
+        cand.has_enemy_bot = ti is not None and ti.has_bot and not ti.is_bot_ally
         cls.cand[2] = cand
         
 
         nx, ny = x -1, y 
 
-        build_metric = max(abs(nx - me_x), abs(ny - me_y))
-        if build_metric == 0:
-            build_metric += 2
+        # build_metric = max(abs(nx - me_x), abs(ny - me_y))
+        # if build_metric == 0:
+        #     build_metric += 2
 
         if target_pos is not None:
             dist_to_target = (nx - tx) * (nx - tx) + (ny - ty) * (ny - ty)
         else:
             dist_to_target = 0
-
+            
         ti = Map.tile_info[nx][ny]
 
         cand = cls.Candidate()
         cand.ti = ti
         cand.position = Position(nx, ny)
         cand.build_metric = abs(Unit.core_pos.x - nx) + abs(Unit.core_pos.y - ny)
-        if target_pos is not None:
-            cand.dist_to_target = (nx - tx) * (nx - tx) + (ny - ty) * (ny - ty)
-        else:
-            cand.dist_to_target = 0
+        cand.dist_to_target = dist_to_target
         cand.is_accessible = ti is not None and ti.env != Environment.WALL 
         cand.empty = ti is not None and ti.env == Environment.EMPTY
         cand.ti_ore_adj = BfsBureau.ti_ore_adj[(((nx) + 3) * 56 + ((ny) + 3))]
-
+        cand.has_enemy_bot = ti is not None and ti.has_bot and not ti.is_bot_ally
         cls.cand[3] = cand
         
 
@@ -30707,11 +30693,23 @@ class OrePositionPicker:
                 return True
             if (not a_cond) and b_cond:
                 return False
+            if a_cond and b_cond and forAx:
+                if a.ti_ore_adj != b.ti_ore_adj:
+                    return a.ti_ore_adj
 
-        # When a target was supplied (only by callers that opt in via pick_best_candidate
-        # with target_pos), prefer the cell closest to it — shorter outgoing route.
-        if a.dist_to_target != b.dist_to_target:
-            return a.dist_to_target < b.dist_to_target
+        if forAx: # do them here for axionite
+            if a.empty and (not b.empty): return True
+            if (not a.empty) and b.empty: return False
+
+            if a.ti.has_building and (not b.ti.has_building):
+                return False
+            if (not a.ti.has_building) and b.ti.has_building:
+                return True
+
+        if a.has_enemy_bot and (not b.has_enemy_bot):
+            return False
+        if (not a.has_enemy_bot) and b.has_enemy_bot:
+            return True
 
         # When a target was supplied (only by callers that opt in via pick_best_candidate
         # with target_pos), prefer the cell closest to it — shorter outgoing route.
@@ -37853,7 +37851,7 @@ class Builder(Unit):
     
         buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0) or (RouteToFoundryInput.is_active and len(RouteToFoundryInput.prevRoute) == 0)
             
-        if not buildingFirstConveyor:
+        if not buildingFirstConveyor and sentinelpos is None:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
             if shieldpos is not None:
                 return 'BuildShield', shieldpos

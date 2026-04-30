@@ -198,7 +198,6 @@ class OreExecutive:
             Debug.line(pos, Color.YELLOW)
             BuildManager.dbuild_harvester(pos)
 
-            cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
             # Check if already routed naturally
             for d in Constants.CARDINAL_DIRECTIONS:
                 newPos = pos.add(d)
@@ -214,8 +213,8 @@ class OreExecutive:
                 # boosts an under-fed foundry's output.
                 fi_target = FoundryInputTracker.get_best_ti_foundry(pos)
                 if fi_target is not None and not RouteToFoundryInput.is_active:
-                    fx, fy = fi_target // {{ PH }} - {{ PAD }}, fi_target % {{ PH }} - {{ PAD }}
-                    target_pos = Position(fx, fy)
+                    {% set fx, fy = decode_pos('fi_target') %}
+                    target_pos = Position({{ fx }}, {{ fy }})
                 else:
                     target_pos = Unit.core_pos
 
