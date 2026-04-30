@@ -24,9 +24,13 @@ class MarketMaker:
     scale_ratio: float
 
     {% set HIST_LEN = 20 %}
-    ti_hist: list[int] = [GameConstants.STARTING_TITANIUM] * {{ HIST_LEN }}
+    ti_hist: list[int] = [{{ GameConstants.STARTING_TITANIUM }}] * {{ HIST_LEN }}
     ti_diff_hist: list[int] = [0] * {{ HIST_LEN }}
     est_income: int
+
+    ax_hist: list[int] = [{{ GameConstants.STARTING_AXIONITE }}] * {{ HIST_LEN }}
+    ax_diff_hist: list[int] = [0] * {{ HIST_LEN }}
+    est_income_ax: int
 
     @classmethod
     def refresh(cls):
@@ -35,10 +39,12 @@ class MarketMaker:
 
         idx = Globals.round % {{ HIST_LEN }}
         cls.ti_hist[idx] = cls.ti
-        cls.ti_diff_hist[idx] = cls.ti - cls.ti_hist[
-            idx-1 if idx-1 >= 0 else idx-1+{{ HIST_LEN }}
-        ]
+        cls.ti_diff_hist[idx] = cls.ti - cls.ti_hist[idx - 1]
         cls.est_income = max(cls.ti_diff_hist)
+
+        cls.ax_hist[idx] = cls.ax
+        cls.ax_diff_hist[idx] = cls.ax - cls.ax_hist[idx - 1]
+        cls.est_income_ax = max(cls.ax_diff_hist)
 
     {# /* @staticmethod */ #}
     {# /* def harvester_payback(apos: Position) -> int: */ #}

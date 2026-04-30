@@ -1,0 +1,22 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+
+# holder for constants and stuff. runs at the end of file so gets full context
+# alternative in init
+
+class ZHolder:
+    banned_sentinel_dir_info: SentinelDirectionInfo = SentinelDirectionInfo()
+    banned_sentinel_dir_info.banned = True
+

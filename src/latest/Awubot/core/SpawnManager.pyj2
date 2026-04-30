@@ -61,7 +61,7 @@ class SpawnManager:
 
 
     @classmethod
-    def spawn(cls):
+    def try_spawn(cls):
         # rework this
         my_pos = Globals.my_pos
 
@@ -101,7 +101,7 @@ class SpawnManager:
             return 100
         if cls.num_spawned < 16:
             return 120
-        return 120 + (10 * ct.get_unit_count())
+        return 120 + (10 * Globals.ct.get_unit_count())
 
 
     @classmethod

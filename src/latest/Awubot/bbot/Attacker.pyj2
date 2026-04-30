@@ -91,7 +91,7 @@ class Attacker:
         allies_ready = 0
         lst: tuple[int, int] = []
 
-        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
+        for pos, x, y, idx, ti in Map.inner_proc_nearby_tiles:
             {% set cond1 -%}
             (
                 ti.entity_type in Constants.ATTACKABLE_TRANSPORTERS_SET
@@ -150,18 +150,22 @@ class Attacker:
         max_hp = Constants.MAX_HP_MAP[ti.entity_type]
 
         if 2 * hp <= max_hp:
+            {{ D.print('ShouldFire since low hp') }}
             return True
 
         allies_ready, enemies_ready = cls.compute_readiness()
         if allies_ready > 2 * enemies_ready:
+            {{ D.print('ShouldFire since readiness is high') }}
             return True
 
         ebot_dist_adj = BfsBureau.enemy_bot_dist_adj[idx]
 
         if ebot_dist_adj >= 2:
+            {{ D.print('ShouldFire since enemies far away') }}
             return True
 
         if etype == EntityType.ROAD and ebot_dist_adj >= 1:
+            {{ D.print('ShouldFire since road + no adjacent enemy') }}
             return True
 
         return False
