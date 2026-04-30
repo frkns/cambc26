@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:docs.battlecode.cam)"
+      "WebFetch(domain:docs.battlecode.cam)",
+      "Bash(python -c \"import py_compile; py_compile.compile\\('bots/mythos/main.py', doraise=True\\); print\\('compiled ok'\\)\")",
+      "Bash(cambc run *)",
+      "Bash(python -c \"import py_compile; py_compile.compile\\('bots/mythos/main.py', doraise=True\\); print\\('ok'\\)\")"
     ]
   }
 }
