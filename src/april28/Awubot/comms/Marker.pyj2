@@ -1,0 +1,36 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+{% from 'bbot/mode.j2' import Mode %}
+
+
+class Marker:
+    null_pos: Position = Position(63, 63)
+
+    @classmethod
+    def attempt_mark(cls):
+        pos = MarkerPositionPicker.get_marker_pos()
+        if pos is None:
+            return
+
+        ti_pos = cls.null_pos
+        if OreExecutive.ti_queue:
+            ti_pos = OreExecutive.ti_queue[0][1]
+        val = Comms.pack_simple1(Symmetry.V, Symmetry.H, Symmetry.R, ti_pos.x, ti_pos.y)
+
+        Globals.ct.place_marker(pos, val)
+

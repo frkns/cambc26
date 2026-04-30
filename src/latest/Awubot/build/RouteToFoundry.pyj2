@@ -44,9 +44,9 @@ class RouteToFoundry:
         target_set = {foundry_encoded}
 
         _, first = BfsBureau.find_bridge_route_avoid_ti_adj(
-            ore_pos, 
-            target_set, 
-            avoid_pos = RouteToCore.pathFindingKill 
+            ore_pos,
+            target_set,
+            avoid_pos = RouteToCore.pathFindingKill
         )
         if first is not None:
             return True
@@ -68,7 +68,7 @@ class RouteToFoundry:
 
         nodes = DarkForest.nodes
         bad_sinks = set()
-        
+
         # Identify sinks that already have a foundry planned or built
         for p in cls.planned_foundry_positions:
             curr = p
@@ -95,7 +95,7 @@ class RouteToFoundry:
                     break
                 curr = nodes[curr].up
 
-            
+
             # Avoid picking targets if the sink it is in already has a foundry
             if nodes[curr] is not None and curr in bad_sinks:
                 continue
@@ -107,14 +107,14 @@ class RouteToFoundry:
                 continue
             if ti is not None and ti.entity_type == EntityType.BRIDGE:
                 continue # do not consider bridges.
-            
+
             d = abs(cx - sx) + abs(cy - sy)
 
             print(f"RouteToFoundry: candidate {c} at ({cx}, {cy}) has d={d}")
             if d < best_d:
                 best_d = d
                 best = c
-                
+
         return best
 
 
@@ -131,7 +131,7 @@ class RouteToFoundry:
 
         if fullReset:
             cls.prevRoute.clear()
-            cls.backTracking = False 
+            cls.backTracking = False
         else:
             cls.prevRoute.append(cls.from_pos)
             cls.backTracking = False # Added here to clear backtracking once we resume forward progress
@@ -147,7 +147,7 @@ class RouteToFoundry:
         bridge_dist, first_target = BfsBureau.find_bridge_route_avoid_ti_adj(
             cls.from_pos,
             target_set,
-            avoid_pos = RouteToCore.pathFindingKill 
+            avoid_pos = RouteToCore.pathFindingKill
         )
 
         {{ D.show('bridge_dist') }}
@@ -159,24 +159,24 @@ class RouteToFoundry:
             return
 
         target = Position(*first_target)
+        Debug.line(cls.from_pos, target, Color.GREEN)
 
-        # Look-ahead: if target is a shield (ally conveyor feeding a harvester),
-        # verify we can continue from it before bridging onto it. Otherwise we'd
-        # leave a dangling bridge with no way forward.
-        _ti = {{ encode_pos('target.x', 'target.y') }}
-        if BfsBureau.harvester_feeder[_ti]:
-            _, _ahead_first = BfsBureau.find_bridge_route_avoid_ti_adj(
-                target,
-                target_set,
-                avoid_pos = RouteToCore.pathFindingKill,
-            )
-            if _ahead_first is None:
-                Debug.tee("RouteToFoundry: shield first_target with no continuation, giving up")
-                if cls.give_up():
-                    StateMoveTo.run(Explore.get_target())
-                return
+        # # Look-ahead: if target is a shield (ally conveyor feeding a harvester),
+        # # verify we can continue from it before bridging onto it. Otherwise we'd
+        # # leave a dangling bridge with no way forward.
+        # _ti = {{ encode_pos('target.x', 'target.y') }}
+        # if BfsBureau.harvester_feeder[_ti]:
+        #     _, _ahead_first = BfsBureau.find_bridge_route_avoid_ti_adj(
+        #         target,
+        #         target_set,
+        #         avoid_pos = RouteToCore.pathFindingKill,
+        #     )
+        #     if _ahead_first is None:
+        #         Debug.tee("RouteToFoundry: shield first_target with no continuation, giving up")
+        #         if cls.give_up():
+        #             StateMoveTo.run(Explore.get_target())
+        #         return
 
-        Debug.diline(cls.from_pos, target, Color.GREEN)
 
         if cls.from_pos.distance_squared(target) == 1:
             ti = Map.tile_info[cls.from_pos.x][cls.from_pos.y]
@@ -212,7 +212,7 @@ class RouteToFoundry:
                         return True
                     if ti.entity_type != EntityType.ROAD:
                         return True
-            
+
         return False
 
     @classmethod
@@ -223,7 +223,7 @@ class RouteToFoundry:
                 cls.planned_foundry_positions.discard(cls._foundry_target)
                 cls._foundry_target = None
             return False
-        if len(cls.prevRoute) == 0:
+        if len(cls.prevRoute) == 0 or cls._foundry_target == None:
             cls.is_active = False
             # Release the claim so another bot (or a retry) can use this leaf.
             if cls._foundry_target is not None:
@@ -247,21 +247,12 @@ class RouteToFoundry:
 
     @classmethod
     def try_claim_target(cls):
-        if cls._foundry_target in cls.planned_foundry_positions:
-            cls._foundry_target = cls._pick_target()
-            if cls._foundry_target is None:
-                Debug.tee("RouteToFoundry: Old leaf used, no unclaimed titanium leaf available")
-                if cls.give_up():
-                    StateMoveTo.run(Explore.get_target())
+        cls._foundry_target = cls._pick_target()
+        if cls._foundry_target is None:
+            Debug.tee("RouteToFoundry: no unclaimed titanium leaf available")
+            if cls.give_up():
+                StateMoveTo.run(Explore.get_target())
             return
-        if cls._foundry_target is None: # Claim a target on first call (or if we lost one).
-            cls._foundry_target = cls._pick_target()
-            if cls._foundry_target is None:
-                Debug.tee("RouteToFoundry: no unclaimed titanium leaf available")
-                if cls.give_up():
-                    StateMoveTo.run(Explore.get_target())
-                return
-            #cls.planned_foundry_positions.add(cls._foundry_target)
     @classmethod
     def do_routing(cls):
         cls.try_claim_target()

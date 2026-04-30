@@ -19,13 +19,8 @@ from Generated import *
 
 
 class OrePositionPicker:
-    class Candidate(NamedTuple):
-        position: Position
-        ti: TileInfo | None  # if None, it is outside map
-        build_metric: int  # manhattan, but if directly on top, need to ~take a step back~
-        dist_to_target: int  # squared distance to caller-supplied target (0 if none)
-        is_accessible: bool
-        empty: bool
+    class Candidate:
+        __slots__ = ('position', 'ti', 'build_metric', 'dist_to_target','is_accessible', 'empty','ti_ore_adj')
 
     cand: list[Candidate | None] = [None] * 4
 
@@ -57,24 +52,31 @@ class OrePositionPicker:
 
         ti = Map.tile_info[nx][ny]
 
-        cls.cand[{{ loop.index0 }}] = cls.Candidate(
-            Position(nx, ny),
-            ti,
-            build_metric,
-            dist_to_target,
-            ti is not None and ti.env != Environment.WALL,
-            ti is not None and ti.env == Environment.EMPTY,
-        )
+        cand = cls.Candidate()
+        cand.ti = ti
+        cand.position = Position(nx, ny)
+        cand.build_metric = abs(Unit.core_pos.x - nx) + abs(Unit.core_pos.y - ny)
+        if target_pos is not None:
+            cand.dist_to_target = (nx - tx) * (nx - tx) + (ny - ty) * (ny - ty)
+        else:
+            cand.dist_to_target = 0
+        cand.is_accessible = ti is not None and ti.env != Environment.WALL 
+        cand.empty = ti is not None and ti.env == Environment.EMPTY
+        cand.ti_ore_adj = BfsBureau.ti_ore_adj[{{ encode_pos('nx','ny') }}]
+
+        cls.cand[{{ loop.index0 }}] = cand
+        
         {% endfor %}
 
     @classmethod
-    def is_better_than(cls, a: Candidate, b: Candidate) -> bool:
+    def is_better_than(cls, a: Candidate, b: Candidate, forAx = False) -> bool:
         # prio:
         # 0. not null |
         # 1. on map   | collasped
-        # 2. empty
-        # 3. no building
+        # 2. empty (if not for ax)
+        # 3. no building  (if not for ax)
         # 4. has ally building AND is road
+        # 4.5 If for ax, avoid titanium ores
         # 5. dist to target (if supplied) - prefer closer to target, shorter outgoing route
         # 6. build metric
         # 7. arbitrary
@@ -84,13 +86,14 @@ class OrePositionPicker:
 
         EMPTY = Environment.EMPTY
 
-        if a.empty and (not b.empty): return True
-        if (not a.empty) and b.empty: return False
+        if not forAx:
+            if a.empty and (not b.empty): return True
+            if (not a.empty) and b.empty: return False
 
-        if a.ti.has_building and (not b.ti.has_building):
-            return False
-        if (not a.ti.has_building) and b.ti.has_building:
-            return True
+            if a.ti.has_building and (not b.ti.has_building):
+                return False
+            if (not a.ti.has_building) and b.ti.has_building:
+                return True
 
         if a.ti.has_building and b.ti.has_building:
             ROAD = EntityType.ROAD
@@ -107,18 +110,23 @@ class OrePositionPicker:
         if a.dist_to_target != b.dist_to_target:
             return a.dist_to_target < b.dist_to_target
 
+        # When a target was supplied (only by callers that opt in via pick_best_candidate
+        # with target_pos), prefer the cell closest to it — shorter outgoing route.
+        if a.dist_to_target != b.dist_to_target:
+            return a.dist_to_target < b.dist_to_target
+
         if a.build_metric != b.build_metric:
             return a.build_metric < b.build_metric
 
         return True  # arbitrary
 
     @classmethod
-    def pick_best_candidate(cls, ore_pos: Position, target_pos: Position | None = None) -> Candidate:
+    def pick_best_candidate(cls, ore_pos: Position, forAx = False, target_pos: Position | None = None) -> Candidate:
         cls.precompute(ore_pos, target_pos)
 
         best = cls.cand[3]
         {% for i in range(3)|reverse %}
-        if cls.is_better_than(cls.cand[{{ i }}], best):
+        if cls.is_better_than(cls.cand[{{ i }}], best, forAx):
             best = cls.cand[{{ i }}]
         {% endfor %}
 

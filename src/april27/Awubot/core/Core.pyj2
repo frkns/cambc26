@@ -1,0 +1,60 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+{% from 'bbot/mode.j2' import Mode %}
+
+
+{% macro super() %}Unit{% endmacro %}
+
+
+class Core({{ super() }}):
+
+    @classmethod
+    def init(cls):
+        {{ super() }}.init()
+
+    @classmethod
+    def start_turn(cls):
+        {{ super() }}.start_turn()
+        CoreHistory.fill()
+        SpawnManager.fill()
+        print(f'est income: {MarketMaker.est_income}')
+
+    @classmethod
+    def run_turn(cls):
+        if BurnManager.should_burn_emergency(): 
+            BurnManager.burn()
+
+        # Emergyspawn tries to build a bot the moment it sees an enemy, which is pretty inefficient in most scenarios. 
+        """
+        # I think this is cleaner
+        if SpawnManager.should_spawn_emergency():
+            BurnManager.burn()
+        """
+        
+        if SpawnManager.should_spawn() or SpawnManager.should_spawn_emergency():
+            SpawnManager.spawn()
+
+    @classmethod
+    def end_turn(cls):
+        {{ super() }}.end_turn()
+
+        {% if LOCAL %}
+        if Globals.round > {{ ROUND_LIMIT }}:
+            Globals.ct.resign()
+            raise Exception
+        {% endif %}

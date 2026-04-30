@@ -114,7 +114,7 @@ class RouteToBreach:
             return
 
         target = Position(*first_target)
-        Debug.diline(cls.from_pos, target, Color.GREEN)
+        Debug.line(cls.from_pos, target, Color.GREEN)
 
         if cls.from_pos.distance_squared(target) == 1:
             ti = Map.tile_info[cls.from_pos.x][cls.from_pos.y]

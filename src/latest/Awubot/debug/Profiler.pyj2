@@ -24,12 +24,21 @@ class Profiler:
 
     {% set PREFIX_FSTRING = "[{Globals.my_team.__str__()[-1]}][{Globals.my_type.value}]" %}
 
+    {% set TRACE = LOCAL and False %}     
+
     @classmethod
     def start(cls, desc: str = ""):
+        {% if TRACE %}
+        Debug.log(f'start {desc}')
+        {% endif %}
         cls._stack.append((Globals.ct.get_cpu_time_elapsed(), Globals.round, desc))
 
     @classmethod
     def end(cls, desc: str):
+        {% if TRACE %}
+        Debug.log(f'end {desc}')
+        {% endif %}
+
         end_time = Globals.ct.get_cpu_time_elapsed()
         end_round = Globals.round
         if not cls._stack:
