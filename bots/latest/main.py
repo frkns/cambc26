@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-01 11:41:40 (local)
+# latest,  @ 2026-05-01 12:05:55 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -34211,6 +34211,7 @@ class RouteToCore:
     backTracking = False
     pathFindingKill: set[int] = set()
     isAttack = False
+    gunnerBeenHereTick = 0
 
     @classmethod
     def set_pos(cls, pos: Position, fullReset = True):
@@ -34228,6 +34229,7 @@ class RouteToCore:
             cls.backTracking = False # Added here to clear backtracking once we resume forward progress
         cls.is_active = True
         cls.from_pos = pos
+        cls.gunnerBeenHereTick = 0
 
 
     @classmethod
@@ -34861,6 +34863,10 @@ class RouteToCore:
                             closestGunnerPossibleDistsq = d
                             gunnerPossibleDir = Direction.CENTRE
         
+        if gunnerPossible:
+            cls.gunnerBeenHereTick += 1
+        if cls.gunnerBeenHereTick > 20:
+            gunnerPossible = False
         if gunnerPossible and BuildManager.can_dbuild_gunner(cls.from_pos):
             x, y = cls.from_pos
             ti = Map.tile_info[x][y]
