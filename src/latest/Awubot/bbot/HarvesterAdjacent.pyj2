@@ -29,6 +29,7 @@ class AdjacentInfo:
         'enemy_turrets_adjacent', 'ally_turrets_adjacent',
         'sentinel_dir_info',
         'h_outward_adj',
+        'h_has_fed_foundry'
     )
 
 
@@ -284,7 +285,9 @@ class HarvesterAdjacent:
                 and hti.enemy_transporters_adjacent == 0 \
                 and hti.enemy_turrets_adjacent == 0 \
                 and not hti.ally_core_adj \
+                and hti.ally_fed_foundries_adjacent == 0 \
                 and my_pos.distance_squared(spos) <= 15  # can see all adjacent
+
             dist_to_ally_core = spos.distance_squared(Unit.core_pos)
             is_canonical_ally_harvester = VisionTracker.me_is_canonical_ally(spos)
             
@@ -323,23 +326,41 @@ class HarvesterAdjacent:
                                 ti.entity_type == EntityType.ROAD 
                                 or ti.entity_type == EntityType.BARRIER
                                 or ti.entity_type == EntityType.LAUNCHER
-                                or (ti.entity_type in Constants.TRANSPORTERS_SET and ti.target == spos)
+                                or ti.is_shield
                             )
                         )
                     ) and not ti.has_bot
+
+                    info.h_has_fed_foundry = hti.ally_fed_foundries_adjacent > 0
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester
-                    info.is_working_shield = ti.has_building and ti.is_building_ally and (ti.entity_type != EntityType.ROAD or not is_harvester_ally)
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
+
+                    # if info.consider_route:
+                    #     Debug.diline(Position(0,0), pos, Color.BLUE)
+
+
+                    {% if LOCAL %}
+                    if info.h_has_fed_foundry:
+                        Debug.diamond(Color.BLUE, spos)
+                    {% endif %}
 
                     info.has_ally_transporter = (
                         ti.has_building 
                         and ti.is_building_ally 
                         and ti.entity_type in Constants.TRANSPORTERS_SET
-                        and ti.target != spos # not pointing back into the harvester
+                        and not ti.is_shield
                     )
+                    info.is_working_shield = ti.has_building and ti.is_building_ally and (ti.entity_type != EntityType.ROAD or not is_harvester_ally)
+                    if info.h_has_fed_foundry and info.is_working_shield and info.has_ally_transporter:
+                        {# /* {% if LOCAL %} */ #}
+                        {# /* Debug.log(idx not in DarkForest.refined_ax_line) */ #}
+                        {# /* {% endif %} */ #}
+                        if idx not in DarkForest.refined_ax_line:
+                            info.is_working_shield = False
+
                     
                     # if info.has_ally_transporter:
                     #     Debug.dot(pos, Color.LIME)

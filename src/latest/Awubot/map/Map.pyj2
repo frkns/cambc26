@@ -31,7 +31,9 @@ class TileInfo:
         'resource_id', 'resource_type',
         'ally_outward_transporters_adjacent',
         'is_pointed_to', 'ally_non_road_buildings_adjacent',
-        'ally_core_adj'
+        'ally_core_adj',
+        'is_shield',
+        'ally_fed_foundries_adjacent',  # fed by a (presumably) axionite line
     )
 
 class Map:
@@ -379,11 +381,16 @@ class Map:
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
         # + is_pointed_to
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            ti.is_shield = False
+
             if ti.target is not None:
                 targ = ti.target
                 targ_tile_info = tile_info[targ.x][targ.y]
                 if targ_tile_info is not None:
                     targ_tile_info.is_pointed_to = True
+                    if targ_tile_info.entity_type == HARVESTER:
+                        ti.is_shield = True
+                        # Debug.dot(pos, Color.RED)
 
             # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
             row_xm1 = tile_info[x - 1]
@@ -413,16 +420,6 @@ class Map:
             nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
             ti.allied_bots_adjacent = cnt
 
-            # cardinal only
-            ti.ally_non_road_buildings_adjacent = (
-                {% for dir in cardinal_directions %}
-                {% set dx, dy = dir.delta() %}
-                {% set row = 'row_x' if dx == 0 else ('row_xm1' if dx < 0 else 'row_xp1') %}
-                {% set col = 'y' if dy == 0 else ('ym1' if dy < 0 else 'yp1') %}
-                ({{ row }}[{{ col }}] is not None and {{ row }}[{{ col }}].has_building and {{ row }}[{{ col }}].is_building_ally and {{ row }}[{{ col }}].entity_type != ROAD)
-                {% if not loop.last %} + {% endif %}
-                {% endfor %}
-            )
 
             # turret/transporter adjacency: only for harvesters
             ally_core_adj = False
@@ -464,6 +461,30 @@ class Map:
                 ti.ally_core_adj = ally_core_adj
                 ti.enemy_transporters_adjacent = enemy_transporters
 
+        # --- third pass: fed foundry + ally non roads ---
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
+            row_xm1 = tile_info[x - 1]
+            row_x   = tile_info[x]
+            row_xp1 = tile_info[x + 1]
+            ym1 = y - 1
+            yp1 = y + 1
+
+            # --- fused cardinal adjacency (single pass) ---
+            ally_non_road = 0
+            foundries = 0
+
+            for nti in (row_xm1[y], row_xp1[y], row_x[ym1], row_x[yp1]):
+                if nti is not None and nti.has_building and nti.is_building_ally:
+                    if nti.entity_type != ROAD:
+                        ally_non_road += 1
+                    if nti.entity_type == FOUNDRY and nti.is_pointed_to:
+                        foundries += 1
+
+            ti.ally_non_road_buildings_adjacent = ally_non_road
+            ti.ally_fed_foundries_adjacent = foundries
+            # ---
+
     {% endfor %}
 
 
@@ -488,6 +509,17 @@ class Map:
                         Debug.dot(pos, Color.BLUE)
                     elif env == Environment.ORE_AXIONITE:
                         Debug.dot(pos, Color.ORANGE)
+# ===---
+
+# ---===
+    @classmethod
+    def debug_pointed_to(cls):
+        """Debug proc_nearby_tiles: pointed-to=RED, not pointed-to=WHITE"""
+        for pos, x, y, pos_idx, ti in cls.proc_nearby_tiles:
+            if ti.is_pointed_to:
+                Debug.dot(pos, Color.RED)
+            else:
+                Debug.dot(pos, Color.WHITE)
 # ===---
 
 # ---===

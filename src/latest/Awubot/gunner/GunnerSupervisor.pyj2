@@ -20,7 +20,10 @@ from Generated import *
 
 class GunnerTargetInfo:
     __slots__ = (
-        'position', 'has_ally_bot', 'has_enemy_bot', 'has_building',
+        'position',         # may be first road
+        'target_position', 
+        'directly_reachable',
+        'has_ally_bot', 'has_enemy_bot', 'has_building',
         'has_turret', 'has_launcher', 'can_shoot_me', 'is_road', 'is_core',
         'bot_hp', 'building_hp', 'iscore', 'ally_connected',
         'current_dir', 'rand_key', 'entity_type',
@@ -56,6 +59,9 @@ class GunnerTargetInfo:
 
         if a.has_building and (not b.has_building): return True
         if (not a.has_building) and b.has_building: return False
+
+        if a.directly_reachable and (not b.directly_reachable): return True
+        if (not a.directly_reachable) and b.directly_reachable: return False
 
         if a.harvester_adjacent and (not b.harvester_adjacent): return True
         if (not a.harvester_adjacent) and b.harvester_adjacent: return False
@@ -114,16 +120,19 @@ class GunnerSupervisor:
     @classmethod
     def try_fire(cls):
         pos = cls.get_best_target()
+
         if pos is None or pos == Globals.my_pos:
+            print(f'[try_fire] early return since get_best_target is {pos}')
             return
 
-        print(f'attempt fire @ {pos}')
+        print(f'[try_fire] OK get_best_target is {pos}')
         Debug.line(pos, Color.TEAL)
         
         ct = Globals.ct
         dirToPos = Globals.my_pos.direction_to(pos)
 
         if not ct.can_fire_from(Globals.my_pos, dirToPos, EntityType.GUNNER, pos):
+            print(f'[try_fire] can_fire_from me to {pos} is False')
             return
         
         if dirToPos != ct.get_direction(): # Rotate if the target isn't in our current direction
@@ -137,13 +146,17 @@ class GunnerSupervisor:
     @classmethod
     def get_best_target(cls) -> Position | None:
         targets = cls.targets
+
         if not targets:
+            print(f'[get_best_target] (-> None) because there are no targets')
             return None
 
         best = targets[0]
         for target in targets[1:]:
             if GunnerTargetInfo.is_better_than(target, best):
                 best = target
+
+        print(f'[get_best_target] best is {best.position}')
 
         if best.has_ally_bot:
             return None
@@ -165,6 +178,45 @@ class GunnerSupervisor:
 
 
 
+    @classmethod
+    def can_fire_from_through_roads(cls, dir: Direction, target_pos: Position):
+        my_pos = Globals.my_pos
+        pt = my_pos.add(dir)
+
+        while pt.distance_squared(my_pos) < {{ GameConstants.GUNNER_VISION_RADIUS_SQ }}:
+            if pt == target_pos: break
+
+            x, y = pt.x, pt.y
+            ti = Map.tile_info[x][y]
+
+            if ti is None: break
+            if ti.env != Environment.EMPTY: break
+            if ti.has_building and not ti.entity_type == EntityType.ROAD: break
+            if ti.has_bot: break  # ally and enemy
+
+            pt = pt.add(dir)
+
+        return pt == target_pos
+
+
+    @classmethod
+    def first_road(cls, dir: Direction, target_pos: Position) -> Position:
+        my_pos = Globals.my_pos
+        pt = my_pos.add(dir)
+
+        while pt.distance_squared(my_pos) < {{ GameConstants.GUNNER_VISION_RADIUS_SQ }}:
+            if pt == target_pos: break
+
+            x, y = pt.x, pt.y
+            ti = Map.tile_info[x][y]
+
+            if ti is None: break
+            if ti.env != Environment.EMPTY: break
+            if ti.has_building and ti.entity_type == EntityType.ROAD: return pt
+
+            pt = pt.add(dir)
+
+        assert False
 
 
 
@@ -200,6 +252,11 @@ class GunnerSupervisor:
 
         if not skip:
             for pos in ct.get_attackable_tiles_from(my_pos, {{ dir }}, EntityType.GUNNER):
+                if not cls.can_fire_from_through_roads({{ dir }}, pos):
+                    continue
+
+                # Debug.dot(pos, Color.BLUE if (my_pos.x ^ my_pos.y) & 1 else Color.RED)
+
                 x, y = pos.x, pos.y
                 ti = tile_info[x][y]
 
@@ -209,15 +266,15 @@ class GunnerSupervisor:
                     continue
                 if ti.is_building_ally:
                     continue
-                if not ct.can_fire_from(my_pos, {{ dir }}, EntityType.GUNNER, pos):
-                    continue
 
                 {# /* Debug.dot(pos, Color.GREEN) */ #}
 
                 idx = {{ encode_pos('x', 'y') }}
                 
                 info = GunnerTargetInfo()
-                info.position = pos
+                info.directly_reachable = ct.can_fire_from(my_pos, {{ dir }}, EntityType.GUNNER, pos)
+                info.position = pos if info.directly_reachable else cls.first_road({{ dir }}, pos)
+                info.target_position = pos
                 info.has_ally_bot = False
                 info.has_enemy_bot = False
                 info.has_turret = False

@@ -36,6 +36,9 @@ class Symmetry:
     enemy_core_pos_set: set[int]
     enemy_core_pos: Position
 
+    enemy_core_sentinel_set: set[int]
+    enemy_core_gunner_set: set[int]
+
     @classmethod
     def predict_enemy_core(cls):
         cls.enemy_core_pos = cls.sym_pos(Unit.core_pos)
@@ -46,6 +49,25 @@ class Symmetry:
             idx {{ sign0(dx * PH + dy) }},
             {% endfor %}
         }
+        cls.enemy_core_sentinel_set = {
+            {% for off in sentinel_hits_core_offsets %}
+            idx {{ sign0(off) }},
+            {% endfor %}
+        }
+        cls.enemy_core_gunner_set = {
+            {% for off in gunner_hits_core_offsets %}
+            idx {{ sign0(off) }},
+            {% endfor %}
+        }
+
+        # # the category Set is categorised
+        # Set = cls.enemy_core_sentinel_set if Globals.round & 1 else cls.enemy_core_gunner_set
+        # for i in Set:
+        #     {% set x, y = decode_pos('i') %}
+        #     Debug.dot(Position({{x}}, {{y}}))
+
+
+        
 
     @classmethod
     def and_sym(cls, V, H, R):

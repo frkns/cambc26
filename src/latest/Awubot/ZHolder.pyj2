@@ -24,5 +24,3 @@ from Generated import *
 class ZHolder:
     banned_sentinel_dir_info: SentinelDirectionInfo = SentinelDirectionInfo()
     banned_sentinel_dir_info.banned = True
-
-

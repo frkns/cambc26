@@ -42,8 +42,9 @@ class Builder({{ super() }}):
         DarkForest.init()
         BfsBureau.enclosed_init()
         cls.state = 'Explore'
-        if Globals.round == 5:
-            cls.role = {{ Role.CORE_HEALER }}
+
+        # if Globals.round == 5:
+        #     cls.role = {{ Role.CORE_HEALER }}
 
     @classmethod
     def start_turn(cls):
@@ -78,12 +79,15 @@ class Builder({{ super() }}):
                 Explore.target = Explore.new_target()
             else:
                 cls.mode = {{ Mode.ECON }}
+
         if cls.mode != {{ Mode.EARLY_RUSH }} and cls.mode != {{ Mode.HEALER }} and (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 40 and Globals.round > 100):
             cls.mode = {{ Mode.EARLY_RUSH }}
             Explore.target = Explore.new_target()
+
         if cls.mode == {{ Mode.HEALER }} and Globals.round >= Constants.HEAL_OVER:
             cls.mode = {{ Mode.ECON }}
             Explore.target = Explore.new_target()
+
         print("Mode:", cls.mode)
 
 
@@ -137,7 +141,6 @@ class Builder({{ super() }}):
         {% endfor %}
 
         cls.should_fire = Attacker.should_fire(Globals.my_pos)
-
 
 
     @classmethod
@@ -204,9 +207,9 @@ class Builder({{ super() }}):
 
         # now changed to sentinel/gunner pos near enemy?
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
-                
+
         destroypos = VisionTracker.get_best_destroy_position()
-        
+
         if destroypos is not None:
             return 'Destroy', destroypos
 
@@ -217,11 +220,20 @@ class Builder({{ super() }}):
              and (Globals.round - HealExecutor.last_healed_round) <= 5
              # and misinfo is None  already fixed by healpos check
         ):
-            if healpos is not None:  # redundant, OK
+            if healpos is not None:
                 return 'MoveTo', healpos, '[lrh: move to heal]'
+            elif (Globals.round - HealExecutor.last_healed_round) <= 3:
+                {% if LOCAL %}
+                Debug.dot(Globals.my_pos, Color.GREEN)
+                {% endif %}
+
+                return 'MoveTo', HealExecutor.last_healed.position, '[lrh: WAIT to heal]'
 
         if takedownpos is not None:
-            Debug.dot(takedownpos, Color.PURPLE)
+            {% if LOCAL %}
+            Debug.diamond(Color.PURPLE)
+            {% endif %}
+
             return 'BuildGunner', takedownpos, None
 
         sitterpos = SitterTakedown.get_best_launcher_position()
@@ -232,17 +244,21 @@ class Builder({{ super() }}):
         if healpos is not None and misinfo is None:
             return 'MoveTo', healpos, 'Heal'
 
-        # reinstating CORE_HEALER
-        if cls.role == {{ Role.CORE_HEALER }}:
-            return 'MoveTo', Unit.core_pos.add(random.choice(Constants.DIRECTIONS)), '[core healer]'
-    
+        if misinfo is not None: # and not ((RouteToCore.backTracking or RouteToFoundry.backTracking) and not RouteToCore.is_active and not RouteToFoundry.is_active):
+            if misinfo.on_ally_side:
+                return 'Reroute', misinfo.position
+            else:
+                return 'Reroute', misinfo.position  # same
+
+
         buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0) or (RouteToFoundryInput.is_active and len(RouteToFoundryInput.prevRoute) == 0)
-            
+
         if not buildingFirstConveyor and sentinelpos is None:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
             if shieldpos is not None:
                 return 'BuildShield', shieldpos
-                
+
+
         attackpos = Attacker.get_target()
         secondaryattackpos = Attacker.get_secondary_target()
 
@@ -251,23 +267,22 @@ class Builder({{ super() }}):
             return 'Attack', secondaryattackpos, 'Preroute'
 
         if RouteToBreach.is_active:
+            {{ D.print('(RouteToBreach)') }}
             return ('RouteBreach',)
 
         if RouteToFoundry.is_active:
+            {{ D.print('(RouteToFoundry)') }}
             return ('RouteFoundry',)
 
         if RouteToFoundryInput.is_active:
+            {{ D.print('RouteToFoundryInput') }}
             return ('RouteFoundryInput',)
 
         if RouteToCore.is_active:
+            {{ D.print('RouteToCore') }}
             return ('Route',)
 
 
-        if misinfo is not None and not ((RouteToCore.backTracking or RouteToFoundry.backTracking) and not RouteToCore.is_active and not RouteToFoundry.is_active):
-            if misinfo.on_ally_side:
-                return 'Reroute', misinfo.position
-            else:
-                return 'Reroute', misinfo.position  # same
 
         trans: TransporterInfo = ConnectManager.get_connect_target_info()
         if trans is not None:
@@ -287,7 +302,7 @@ class Builder({{ super() }}):
                     < Util.dist_sq(route_pos, Unit.core_pos):
 
                 # if sentinelpos is not None:
-                #     return 'BuildTurret', sentinelpos, None
+                #     return 'BuildTurret', sentinelpos
                 pass
 
             elif route_pos not in RouteToCore.killed:
@@ -298,7 +313,7 @@ class Builder({{ super() }}):
 
         if sentinelpos is not None:
             Debug.dot(sentinelpos, Color.PURPLE)
-            return 'BuildTurret', sentinelpos, None
+            return 'BuildTurret', sentinelpos
 
         if cls.should_fire:
             return 'Attack', Globals.my_pos, 'ShouldFire'

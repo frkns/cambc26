@@ -1,0 +1,20 @@
+{% set PROFILE = True %}
+{% set PROFILE = PROFILE and LOCAL %}
+
+{% macro start(s='???') %}
+{% if PROFILE -%}
+    Profiler.start(f"""{{ s|string }}""")
+{%- endif %}
+{% endmacro %}
+
+{% macro end(s='???') %}
+{% if PROFILE -%}
+    Profiler.end(f"""{{ s|string }}""")
+{%- endif %}
+{% endmacro %}
+
+{% macro end_now(s='???') %}
+{% if PROFILE -%}
+    Profiler.end_now(f"""{{ s|string }}""")
+{%- endif %}
+{% endmacro %}

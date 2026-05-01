@@ -205,7 +205,7 @@ class OreExecutive:
                 if ti is None:
                     continue
                 encoded = {{ encode_pos('newPos.x','newPos.y') }}
-                if ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET and not BfsBureau.harvester_feeder[encoded] and encoded in DarkForest.core_sink_set | Unit.core_pos_set:
+                if ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET and not ti.is_shield and encoded in DarkForest.core_sink_set:
                     break  # already connected, skip
             else:
                 # Prefer routing to an existing foundry with spare ti capacity
@@ -245,7 +245,7 @@ class OreExecutive:
             cls.state[pos] = {{ KILLED }}
             return
         ti = Map.tile_info[cand.position.x][cand.position.y]
-        if ti.entity_type in Constants.TRANSPORTERS_SET and not BfsBureau.harvester_feeder[{{ encode_pos('cand.position.x','cand.position.y') }}]:
+        if ti.entity_type in Constants.TRANSPORTERS_SET and not ti.is_shield:
             cls.state[pos] = {{ KILLED }}
             Debug.line(pos, Color.RED)
             Debug.diamond(Color.RED)
@@ -290,7 +290,7 @@ class OreExecutive:
                 ti = Map.tile_info[newPos.x][newPos.y]
                 if ti is None:
                     continue
-                if ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET and not BfsBureau.harvester_feeder[{{ encode_pos('newPos.x','newPos.y') }}]:
+                if ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET and not ti.is_shield:
                     break  # already connected, skip
             else:
                 RouteToFoundry.set_pos(cand.position)

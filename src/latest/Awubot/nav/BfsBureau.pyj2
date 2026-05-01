@@ -33,8 +33,6 @@ class BfsBureau:
     STRIDE: int
 
     passable_bridge: list[bool] = [{{ False }}] * {{ PADDED_GRID_SIZE }}
-    harvester_feeder: list[bool] = [False] * {{ PADDED_GRID_SIZE }}
-    ally_routing: list[bool] = [False] * {{ PADDED_GRID_SIZE }}  # any ally CONVEYOR/ARMOURED_CONVEYOR/BRIDGE
 
     # pure terrain weights — only written from update() based on tile_info
     weight: list[int] = [{{ INF }}] * {{ PADDED_GRID_SIZE }}
@@ -104,6 +102,7 @@ class BfsBureau:
                 (
                     (not ti.has_building) or
                     ((etype := ti.entity_type) == EntityType.MARKER) or
+                    (ti.is_shield) or
                     (ti.is_building_ally and (
                         etype == EntityType.ROAD or etype == EntityType.CORE))
                 )
@@ -112,18 +111,6 @@ class BfsBureau:
             else:
                 passable_bridge[idx] = False
 
-            is_hf = False
-            is_ar = False
-            if ti.has_building and ti.is_building_ally and ti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR, EntityType.BRIDGE):
-                is_ar = True
-                if ti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR):
-                    targ = ti.target
-                    if targ is not None:
-                        tti = Map.tile_info[targ.x][targ.y]
-                        if tti is not None and tti.has_building and tti.entity_type == EntityType.HARVESTER:
-                            is_hf = True
-            cls.harvester_feeder[idx] = is_hf
-            cls.ally_routing[idx] = is_ar
 
         # copy pure terrain into now_weight
         cls.now_weight = weight.copy()
@@ -244,14 +231,18 @@ class BfsBureau:
         Debug.dot(Position(x, y), Color.LIME)
         {% endif %}
 
-
-    {% for avoid_ti_adj in True, False %}
+    # generate 4 different find_bridge_route variants
+    {% for avoid_ti_adj, check_sinks in (0,0),(0,1),(1,0),(1,1) %}
+    {% set suffix -%}
+        {{- '_avoid_ti_adj' if avoid_ti_adj -}}
+        {{- '_check_sinks' if check_sinks -}}
+    {%- endset %}
 # ---===
     @classmethod
-    def find_bridge_route{{ '_avoid_ti_adj' if avoid_ti_adj }}(
-            cls, start: Position, sink_set: set[int], max_iter: int = 500, avoid_pos: set[int] = set(),
-            use_ally_routing: bool = False
-        ):
+    def find_bridge_route{{ suffix }}(
+        cls, start: Position, sink_set: set[int], max_iter: int = 500, 
+        avoid_pos: set[int] = set(),
+    ):
         {% set main_bridge_offsets = [
             (3,0),(-3,0),(0,3),(0,-3),
             (2,2),(2,-2),(-2,-2),(-2,2),
@@ -265,14 +256,7 @@ class BfsBureau:
         ] %}
 
         passable = cls.passable_bridge
-        if use_ally_routing:
-            _ar = cls.ally_routing
-            _sf = DarkForest.sight_flowing
-            _pr = DarkForest.pressure
-            {% set FLOW_THR = 12 * 3 - 12 %}
-            feeder = [_ar[_i] and _sf[_i] and _pr[_i] < {{ FLOW_THR }} for _i in range(len(_ar))]
-        else:
-            feeder = cls.harvester_feeder
+
         visited = [False] * {{ PADDED_GRID_SIZE }}
         first_hop = [None] * {{ PADDED_GRID_SIZE }}
         dist = [0] * {{ PADDED_GRID_SIZE }}
@@ -288,18 +272,29 @@ class BfsBureau:
             not visited[{{ ni }}] and
             {{ ni }} not in avoid_pos and
             not enclosed_region[{{ ni }}] and
-            ({{ ni }} in sink_set or (
-                (passable[{{ ni }}] or cls.harvester_feeder[{{ ni }}])
-                {% if avoid_ti_adj %}
-                and not ti_ore_adj[{{ ni }}]
-                and {{ ni }} not in Unit.core_pos_set
+            (
+                {% if not check_sinks %}
+                    {{ ni }} in sink_set or 
                 {% endif %}
-            ))
+                (
+                    (
+                        passable[{{ ni }}] 
+                    )
+                    {% if avoid_ti_adj %}
+                    and not ti_ore_adj[{{ ni }}]
+                    and {{ ni }} not in Unit.core_pos_set
+                    {% endif %}
+                )
+            )
         )
         {%- endmacro %}
 
         sx, sy = start.x, start.y
         si = {{ encode_pos('sx', 'sy') }}
+
+        if si in sink_set:
+            return 0, None  # special case for `start` in sink set
+
         visited[si] = True
 
         q = deque()

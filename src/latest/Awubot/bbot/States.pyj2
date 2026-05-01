@@ -116,7 +116,7 @@ class StateMoveTo:
 
 class StateRush:
     @classmethod
-    def run(cls, targ):
+    def run(cls, targ: tuple[Position, str]):
         pos = targ[0]
         type = targ[1]
         if type == 'M': #move
@@ -131,6 +131,9 @@ class StateRush:
             if Globals.my_pos.distance_squared(pos) <= 4: #sufficiently close
                 cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
                 if cand is not None and cand.ti.entity_type not in Constants.TRANSPORTERS_SET:
+                    {% if LOCAL %}
+                    Debug.log('RouteToBreach set @ StateRush')
+                    {% endif %}
                     RouteToBreach.set_pos(cand.position)
                 else:
                     RushTargeter.killed.add(pos)
@@ -170,45 +173,33 @@ class StateBuildTurret:
 
         return None
 
-    {# /* @classmethod */ #}
-    {# /* def run(cls, pos, banned_dir: Direction | None = None): */ #}
-        {# /* Pathfinder.move_to(pos, ban_target_pos=True) */ #}
-
-        {# /* core_dir = None */ #}
-        {# /* if Symmetry.is_sym_known: */ #}
-            {# /* core_dir = cls.gunner_can_hit_core(pos) */ #}
-            
-        {# /* if BuildManager.can_dbuild_gunner(pos) and core_dir is not None: */ #}
-            {# /* # who cares all turrets are the same anyways */ #}
-            {# /* BuildManager.dbuild_gunner(pos, core_dir) */ #}
-        {# /* elif BuildManager.can_dbuild_sentinel(pos): */ #}
-            {# /* {{ P.start() }} */ #}
-            {# /* dir: Direction = SentinelDirectionPicker.get_best_direction(pos) */ #}
-            {# /* {{ P.end('SentinelDirectionPicker.get_best_direction') }} */ #}
-
-            {# /* BuildManager.dbuild_sentinel(pos, dir) */ #}
-        {# /* elif Globals.ct.can_build_road(pos): */ #}
-            {# /* Globals.ct.build_road(pos) */ #}
-
     @classmethod
-    def run(cls, pos, banned_dir: Direction | None = None):
-        Pathfinder.move_to(pos, ban_target_pos=False)
-
+    def run(cls, pos, should_build_sentinel=True):
         core_dir = None
         if Symmetry.is_sym_known:
             core_dir = cls.gunner_can_hit_core(pos)
             
-        if BuildManager.can_smartbuild_gunner(pos) and core_dir is not None:
-            # who cares all turrets are the same anyways
-            BuildManager.smartbuild_gunner(pos, core_dir)
-        elif BuildManager.can_smartbuild_sentinel(pos):
-            {{ P.start('SentinelDirectionPicker.get_best_direction') }}
-            dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
-            {{ P.end('SentinelDirectionPicker.get_best_direction') }}
+        {% set try_build -%}
+        if Globals.my_pos.distance_squared(pos) <= 2:
+            if BuildManager.can_smartbuild_gunner(pos) and core_dir is not None:
+                BuildManager.smartbuild_gunner(pos, core_dir)
+            elif should_build_sentinel and BuildManager.can_smartbuild_sentinel(pos):
+                {{ P.start('SentinelDirectionPicker.get_best_direction') }}
+                dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
+                {{ P.end('SentinelDirectionPicker.get_best_direction') }}
+                BuildManager.smartbuild_sentinel(pos, dir)
+            elif BuildManager.can_build_road(pos):
+                BuildManager.build_road(pos)
+        {% endset %}
 
-            BuildManager.smartbuild_sentinel(pos, dir)
-        elif Globals.ct.can_build_road(pos):
-            Globals.ct.build_road(pos)
+
+        {{ try_build }}
+
+        if Globals.ct.get_move_cooldown() == 0:
+            Pathfinder.move_to(pos, ban_target_pos=False)
+
+        {{ try_build }}
+
 
 class StateBuildGunner:
     @classmethod

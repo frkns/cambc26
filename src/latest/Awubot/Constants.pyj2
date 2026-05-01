@@ -102,3 +102,7 @@ class Constants:
         {{ pos }}: {{ tuple(dir_indices) }},
         {% endfor %}
     }
+
+    GUNNER_HITS_CORE_OFFSETS: list[int] = {{ gunner_hits_core_offsets }}
+    SENTINEL_HITS_CORE_OFFSETS: list[int] = {{ sentinel_hits_core_offsets }}
+

@@ -111,3 +111,10 @@ class Debug:
         Globals.ct.draw_indicator_line(bottom, left, *color)
         Globals.ct.draw_indicator_line(left, top, *color)
 
+    @staticmethod
+    def debug_set(Set: set, color: Color = Color.WHITE):
+        for i in Set:
+            {% set x, y = decode_pos('i') %}
+            Debug.dot(Position({{x}}, {{y}}), color)
+
+

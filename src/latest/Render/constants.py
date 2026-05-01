@@ -135,8 +135,13 @@ def gunner_target_valid(rx, ry, direction: Direction) -> bool:
     dist_sq = rx * rx + ry * ry
     if dist_sq == 0 or dist_sq > GameConstants.GUNNER_VISION_RADIUS_SQ:
         return False
-    # Check if the signs match the direction
-    return (signInt(rx), signInt(ry)) == direction.delta()
+    dx, dy = direction.delta()
+    if dx == 0:
+        return rx == 0 and signInt(ry) == dy
+    if dy == 0:
+        return ry == 0 and signInt(rx) == dx
+    # fixed: must exact line
+    return signInt(rx) == dx and signInt(ry) == dy and rx * dy == ry * dx
 
 
 sentinel_pattern: list[list[tuple]] = [[] for _ in range(8)]
@@ -144,6 +149,9 @@ sentinel_reverse: dict[tuple, list[int]] = {}
 
 gunner_pattern: list[list[tuple]] = [[] for _ in range(8)]
 gunner_reverse: dict[tuple, list[int]] = {}
+
+gunner_hits_core_offsets: list[int] = []
+sentinel_hits_core_offsets: list[int] = []
 
 
 def _scope():
@@ -168,6 +176,45 @@ def _scope():
             if (rx, ry) not in gunner_reverse:
                 gunner_reverse[(rx, ry)] = []
             gunner_reverse[(rx, ry)].append(i)
+
+    core_set = {(x,y) for x in range(-1, 2) for y in range(-1, 2)}
+
+    
+    rd = 4
+    for dx in range(-rd, rd+1):
+        for dy in range(-rd, rd+1):
+            if (dx, dy) in core_set:
+                continue
+            found = False
+            for dir_i in range(8):
+                if found:
+                    break
+                for rx, ry in gunner_pattern[dir_i]:
+                    # gunner at (dx,dy), shooting in direction dir_i
+                    # hits tile (dx+rx, dy+ry)
+                    # we want (dx+rx, dy+ry) in core_set
+                    if (dx + rx, dy + ry) in core_set:
+                        found = True
+                        break
+            if found:
+                gunner_hits_core_offsets.append(dx * PH + dy)
+
+    rd = 5
+    rsq = 32
+    for dx in range(-rd, rd+1):
+        for dy in range(-rd, rd+1):
+            if (dx, dy) in core_set:
+                continue
+            found = False
+            for x, y in core_set:
+                if (x - dx) ** 2 + (y - dy) ** 2 <= rsq:
+                    found = True
+                    break
+            if found:
+                sentinel_hits_core_offsets.append(dx * PH + dy)
+
+    # print(len(gunner_hits_core_offsets), gunner_hits_core_offsets)
+    # print(len(sentinel_hits_core_offsets), sentinel_hits_core_offsets)
 
 
 _scope()
@@ -201,6 +248,25 @@ def register(env):
 #                     row += "  "
 #             print(row)
 #         print(f"  ({len(sentinel_pattern[i])} tiles)")
-#
 # _debug_sentinel()
 # print(sentinel_pattern)
+
+# def _debug_gunner():
+#     for i in range(8):
+#         print(f"\n=== {short_directions[i]} ===")
+#         hits = set(gunner_pattern[i])
+#         for ry in range(-6, 7):
+#             row = ""
+#             for rx in range(-6, 7):
+#                 if rx == 0 and ry == 0:
+#                     row += "O "
+#                 elif (rx, ry) in hits:
+#                     row += "# "
+#                 elif rx * rx + ry * ry <= GameConstants.GUNNER_VISION_RADIUS_SQ:
+#                     row += ". "
+#                 else:
+#                     row += "  "
+#             print(row)
+#         print(f"  ({len(gunner_pattern[i])} tiles)")
+# _debug_gunner()
+# print(gunner_pattern)

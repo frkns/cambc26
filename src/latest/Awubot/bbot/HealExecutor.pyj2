@@ -23,17 +23,11 @@ class HealExecutor:
     last_healed_round: int = -1
         
     class Candidate:
-        position: Position
-        is_accessible: bool
-        building_heal: int
-        building_hp: int
-        bot_heal: int
-        bot_hp: int
-        is_turret: bool
-        entity_type: EntityType
-        harvester_adjacent: bool
-        is_launcher: bool
-        is_gunner: bool
+        __slots__ = (
+            'position', 'is_accessible', 'building_heal', 'building_hp',
+            'bot_heal', 'bot_hp', 'is_turret', 'entity_type', 'harvester_adjacent',
+            'is_launcher', 'is_gunner',
+        )
 
 
     cand: list[Candidate | None] = [None] * 9

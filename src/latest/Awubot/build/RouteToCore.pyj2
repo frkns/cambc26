@@ -47,33 +47,72 @@ class RouteToCore:
 
     @classmethod
     def try_build_route(cls):
+        {% if LOCAL %}
         assert cls.is_active
+        {% endif %}
+
         bridge_dist = 0
         first_target = None
+        from_pos = cls.from_pos
+        from_pos_enc = {{ encode_pos('from_pos.x', 'from_pos.y') }}
+
         if cls.isAttack:
-            coolPos = RushTargeter.enemy_core_turret_target(GameConstants.SENTINEL_VISION_RADIUS_SQ)
-            if coolPos == None:
+            # coolPos = RushTargeter.enemy_core_turret_target(
+            #     5, {{ GameConstants.SENTINEL_VISION_RADIUS_SQ }}
+            # )
+            # if coolPos == None:
+            #     cls.give_up(True)
+            #     StateMoveTo.run(Explore.get_target()) # new
+            #     return None
+            # valid_pos_set = set([coolPos])
+
+            # Debug.debug_set(Symmetry.enemy_core_sentinel_set, Color.ORANGE)
+            # Debug.debug_set(Symmetry.enemy_core_gunner_set, Color.RED)
+
+            if from_pos_enc in Symmetry.enemy_core_gunner_set:
                 cls.give_up(True)
-                StateMoveTo.run(Explore.get_target()) # new
+                StateBuildTurret.run(from_pos) # attempt build
                 return None
-            valid_pos_set = set([coolPos])
-            bridge_dist, first_target = BfsBureau.find_bridge_route(
-                cls.from_pos,
-                valid_pos_set,
-                avoid_pos = cls.pathFindingKill
+
+            gun_bridge_dist, gun_first_target = BfsBureau.find_bridge_route_check_sinks(
+                from_pos,
+                Symmetry.enemy_core_gunner_set,
+                avoid_pos=cls.pathFindingKill,
+                max_iter=100
             )
+            sen_bridge_dist, sen_first_target = BfsBureau.find_bridge_route_check_sinks(
+                from_pos,
+                Symmetry.enemy_core_sentinel_set,
+                avoid_pos=cls.pathFindingKill,
+                max_iter=100
+            )
+            {# /* Debug.tee(f'{gun_bridge_dist=}, {sen_bridge_dist=}') */ #}
+
+            # switch to sentinel (instead of gunner) if we can save 2 bridges
+            if sen_bridge_dist + 2 <= gun_bridge_dist:
+                bridge_dist = sen_bridge_dist
+                first_target = sen_first_target
+
+                if from_pos_enc in Symmetry.enemy_core_sentinel_set:
+                    cls.give_up(True)
+                    StateBuildTurret.run(from_pos) # attempt build
+                    return None
+            else:
+                bridge_dist = gun_bridge_dist
+                first_target = gun_first_target
+
         else:
             # short search to core in case it's close
             bridge_dist, first_target = BfsBureau.find_bridge_route(
-                cls.from_pos,
+                from_pos,
                 Unit.core_pos_set,
                 max_iter=0,
-                avoid_pos = cls.pathFindingKill
+                avoid_pos=cls.pathFindingKill
             )
             # otherwise allow all sinks
             if first_target is None:
                 bridge_dist, first_target = BfsBureau.find_bridge_route(
-                    cls.from_pos,
+                    from_pos,
                     DarkForest.core_sink_set,  # was sink_set
                     avoid_pos = cls.pathFindingKill
                 )
@@ -81,13 +120,13 @@ class RouteToCore:
         {{ D.show('bridge_dist') }}
 
         if first_target is None:
-            Debug.tee("first_target is None: giving up")
+            {# /* Debug.tee("first_target is None: giving up") */ #}
             if cls.give_up(True):
                 StateMoveTo.run(Explore.get_target()) # new
             return None
 
         target = Position(*first_target)
-        Debug.line(cls.from_pos, target, Color.GREEN)
+        Debug.line(from_pos, target, Color.GREEN)
 
         # # Look-ahead: if target is a shield (ally conveyor feeding a harvester),
         # # verify we can continue from it before bridging onto it. Otherwise we'd
@@ -140,11 +179,11 @@ class RouteToCore:
         elif cls.from_pos.distance_squared(target) == 1:
             ti = Map.tile_info[cls.from_pos.x][cls.from_pos.y]
             if not ti.has_building or not ti.is_building_ally or target != ti.target:
-                if BuildManager.can_dbuild_conveyor(cls.from_pos):
-                    if BuildManager.should_build_armoured(cls.from_pos) and BuildManager.can_dbuild_armoured_conveyor(cls.from_pos):
-                        BuildManager.dbuild_armoured_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
+                if BuildManager.can_dbuild_conveyor(from_pos):
+                    if BuildManager.should_build_armoured(from_pos) and BuildManager.can_dbuild_armoured_conveyor(from_pos):
+                        BuildManager.dbuild_armoured_conveyor(from_pos, from_pos.direction_to(target))
                     else:
-                        BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
+                        BuildManager.dbuild_conveyor(from_pos, from_pos.direction_to(target))
                     cls.set_pos(target,False)
                     return
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
@@ -218,7 +257,7 @@ class RouteToCore:
 
     @classmethod
     def do_routing(cls):
-        print("RouteToCore: doing routing from", cls.from_pos,"Attack route",cls.isAttack)
+        print("RouteToCore: doing routing from", cls.from_pos,"(Attack Route!)",cls.isAttack)
         if cls.should_give_up():
             if cls.give_up():
                 StateMoveTo.run(Explore.get_target()) # new
@@ -234,3 +273,4 @@ class RouteToCore:
             #     Globals.ct.build_road(cls.from_pos)
         else:
             cls.move_to_next()
+

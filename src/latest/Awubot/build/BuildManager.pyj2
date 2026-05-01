@@ -30,9 +30,25 @@ class BuildManager:
         EntityType.BRIDGE: 20,
         EntityType.CONVEYOR: 20,
         EntityType.ARMOURED_CONVEYOR: 20,
-        EntityType.BARRIER: 40
+        EntityType.BARRIER: 50,
+        None: 50,
     } %}
-    {% set ti_reserve_default = 40 %}
+
+    {% set phase2_round = 150 %}
+    {% set ti_reserve_map_phase2 = {
+        EntityType.GUNNER: 0,
+        EntityType.FOUNDRY: 0,
+        EntityType.SENTINEL: 50,
+        EntityType.LAUNCHER: 50,
+        EntityType.ROAD: 50,
+        EntityType.HARVESTER: 50,
+        EntityType.SPLITTER: 50,
+        EntityType.BRIDGE: 50,
+        EntityType.CONVEYOR: 50,
+        EntityType.ARMOURED_CONVEYOR: 50,
+        EntityType.BARRIER: 50,
+        None: 50,
+    } %}
 
     @staticmethod
     def scale(cost: int) -> int:
@@ -173,20 +189,26 @@ class BuildManager:
 
         ti_cost, ax_cost = Globals.ct.get_{{ st }}_cost()
         
-        {% set req = ti_reserve_map.get(etype, ti_reserve_default) %}
+        {% set req_phase1 = ti_reserve_map.get(etype, ti_reserve_map[None]) %}
+        {% set req_phase2 = ti_reserve_map_phase2.get(etype, ti_reserve_map_phase2[None]) %}
+
+        req = {{ req_phase1 }} if Globals.round < {{ phase2_round }} else {{ req_phase2 }}
 
         leftover_unscaled_ti = 0
 
         {% if etype in slow and etype != EntityType.HARVESTER %}
         if Globals.round > 50:
-            leftover_unscaled_ti += {{ req }}
+            leftover_unscaled_ti += req
         {% else %}
-        leftover_unscaled_ti += {{ req }}
+        leftover_unscaled_ti += req
         {% endif %}
 
         {% if etype in slow %}
         if pos is not None:
-            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 2
+            leftover_unscaled_ti += min(
+                Util.linf(pos, Unit.core_pos) * 2,
+                Util.linf(pos, Symmetry.enemy_core_pos) * 2 if Symmetry.is_sym_known else {{ INF }}
+            )
         {% endif %}
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
