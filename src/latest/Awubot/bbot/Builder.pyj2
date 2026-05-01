@@ -231,7 +231,7 @@ class Builder({{ super() }}):
 
         if takedownpos is not None:
             {% if LOCAL %}
-            Debug.diamond(Color.PURPLE) 
+            Debug.diamond(Color.PURPLE)
             {% endif %}
 
             return 'BuildGunner', takedownpos, None

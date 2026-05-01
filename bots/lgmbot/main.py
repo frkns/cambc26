@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-# latest,  @ 2026-05-01 01:35:54 (local)
-=======
-# latest,  @ 2026-04-30 19:04:37 (local)
->>>>>>> main
+# latest,  @ 2026-04-30 09:57:01 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -31,7 +27,6 @@ class AdjacentInfo:
         'enemy_turrets_adjacent', 'ally_turrets_adjacent',
         'sentinel_dir_info',
         'h_outward_adj',
-        'h_has_fed_foundry'
     )
 
 
@@ -155,8 +150,6 @@ class Attacker:
     
     @classmethod        
     def get_secondary_target(cls) -> Position | None:
-        if Builder.min_dist_to_a_core >= 10 and Globals.round < 100:
-            return None
         return cls.get_road_target()
 
     @classmethod
@@ -215,7 +208,7 @@ class Attacker:
         allies_ready = 0
         lst: tuple[int, int] = []
 
-        for pos, x, y, idx, ti in Map.inner_proc_nearby_tiles:
+        for pos, x, y, idx, ti in Map.proc_nearby_tiles:
 
 
             if (ti.has_bot and ti.is_bot_ally) and (ti.has_building and not ti.is_building_ally) and \
@@ -325,6 +318,8 @@ class BfsBureau:
     STRIDE: int
 
     passable_bridge: list[bool] = [False] * 3136
+    harvester_feeder: list[bool] = [False] * 3136
+    ally_routing: list[bool] = [False] * 3136  # any ally CONVEYOR/ARMOURED_CONVEYOR/BRIDGE
 
     # pure terrain weights — only written from update() based on tile_info
     weight: list[int] = [1000000] * 3136
@@ -394,7 +389,6 @@ class BfsBureau:
                 (
                     (not ti.has_building) or
                     ((etype := ti.entity_type) == EntityType.MARKER) or
-                    (ti.is_shield) or
                     (ti.is_building_ally and (
                         etype == EntityType.ROAD or etype == EntityType.CORE))
                 )
@@ -403,6 +397,18 @@ class BfsBureau:
             else:
                 passable_bridge[idx] = False
 
+            is_hf = False
+            is_ar = False
+            if ti.has_building and ti.is_building_ally and ti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR, EntityType.BRIDGE):
+                is_ar = True
+                if ti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR):
+                    targ = ti.target
+                    if targ is not None:
+                        tti = Map.tile_info[targ.x][targ.y]
+                        if tti is not None and tti.has_building and tti.entity_type == EntityType.HARVESTER:
+                            is_hf = True
+            cls.harvester_feeder[idx] = is_hf
+            cls.ally_routing[idx] = is_ar
 
         # copy pure terrain into now_weight
         cls.now_weight = weight.copy()
@@ -517,1949 +523,23 @@ class BfsBureau:
         y = idx %  56 - 3
         cls.ally_launcher &= ~(1 << (x * cls.STRIDE + y))
 
-    # generate 4 different find_bridge_route variants
-
-    @classmethod
-    def find_bridge_route(
-        cls, start: Position, sink_set: set[int], max_iter: int = 500, 
-        avoid_pos: set[int] = set(),
-    ):
-
-
-        passable = cls.passable_bridge
-
-        visited = [False] * 3136
-        first_hop = [None] * 3136
-        dist = [0] * 3136
-
-
-        enclosed_region = cls.enclosed_region
-
-
-        sx, sy = start.x, start.y
-        si = (((sx) + 3) * 56 + ((sy) + 3))
-
-        if si in sink_set:
-            return 0, None  # special case for `start` in sink set
-
-        visited[si] = True
-
-        q = deque()
-        _qa = q.append
-
-
-        conv_reached = []
-        _cra = conv_reached.append
-
-        conv_front = []
-        _cfa = conv_front.append
-        ni = si + 56
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx +1, sy )
-            _cfa(ni)
-            _cra(ni)
-        ni = si + -56
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx -1, sy )
-            _cfa(ni)
-            _cra(ni)
-        ni = si + 1
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx , sy +1)
-            _cfa(ni)
-            _cra(ni)
-        ni = si + -1
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx , sy -1)
-            _cfa(ni)
-            _cra(ni)
-
-        conv_next = []
-        _cna = conv_next.append
-        for cidx in conv_front:
-            _fh = first_hop[cidx]
-            ni = cidx + 56
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + -56
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + 1
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + -1
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-        conv_front = conv_next
-        conv_next = []
-        _cna = conv_next.append
-        for cidx in conv_front:
-            _fh = first_hop[cidx]
-            ni = cidx + 56
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + -56
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + 1
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + -1
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-        conv_front = conv_next
-        conv_next = []
-        _cna = conv_next.append
-        for cidx in conv_front:
-            _fh = first_hop[cidx]
-            ni = cidx + 56
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + -56
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + 1
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + -1
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-        conv_front = conv_next
-        conv_next = []
-        _cna = conv_next.append
-        for cidx in conv_front:
-            _fh = first_hop[cidx]
-            ni = cidx + 56
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + -56
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + 1
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + -1
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-        conv_front = conv_next
-        conv_next = []
-        _cna = conv_next.append
-        for cidx in conv_front:
-            _fh = first_hop[cidx]
-            ni = cidx + 56
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + -56
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + 1
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + -1
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-        conv_front = conv_next
-
-        for cidx in conv_reached:
-            if cidx in sink_set:
-                return 1, first_hop[cidx]
-            _qa(cidx)
-            dist[cidx] = 1
-
-        ni = si + 168
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx +3, sy )
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + -168
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx -3, sy )
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + 3
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx , sy +3)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + -3
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx , sy -3)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + 114
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx +2, sy +2)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + 110
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx +2, sy -2)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + -114
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx -2, sy -2)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + -110
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx -2, sy +2)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + 58
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx +1, sy +2)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + 113
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx +2, sy +1)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + 111
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx +2, sy -1)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + 54
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx +1, sy -2)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + -58
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx -1, sy -2)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + -113
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx -2, sy -1)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + -111
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx -2, sy +1)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + -54
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx -1, sy +2)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-
-        it = 0
-        while q and (it := it + 1) <= max_iter:
-            idx = q.popleft()
-            d = dist[idx] + 1
-            fh = first_hop[idx]
-
-            ni = idx + 168
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                dist[ni] = d
-                first_hop[ni] = fh
-                if ni in sink_set:
-                    return d, fh
-                _qa(ni)
-            ni = idx + -168
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                dist[ni] = d
-                first_hop[ni] = fh
-                if ni in sink_set:
-                    return d, fh
-                _qa(ni)
-            ni = idx + 3
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                dist[ni] = d
-                first_hop[ni] = fh
-                if ni in sink_set:
-                    return d, fh
-                _qa(ni)
-            ni = idx + -3
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                dist[ni] = d
-                first_hop[ni] = fh
-                if ni in sink_set:
-                    return d, fh
-                _qa(ni)
-            ni = idx + 114
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                dist[ni] = d
-                first_hop[ni] = fh
-                if ni in sink_set:
-                    return d, fh
-                _qa(ni)
-            ni = idx + 110
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                dist[ni] = d
-                first_hop[ni] = fh
-                if ni in sink_set:
-                    return d, fh
-                _qa(ni)
-            ni = idx + -114
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                dist[ni] = d
-                first_hop[ni] = fh
-                if ni in sink_set:
-                    return d, fh
-                _qa(ni)
-            ni = idx + -110
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                dist[ni] = d
-                first_hop[ni] = fh
-                if ni in sink_set:
-                    return d, fh
-                _qa(ni)
-
-        return 1000000, None
-
-
-    @classmethod
-    def find_bridge_route_check_sinks(
-        cls, start: Position, sink_set: set[int], max_iter: int = 500, 
-        avoid_pos: set[int] = set(),
-    ):
-
-
-        passable = cls.passable_bridge
-
-        visited = [False] * 3136
-        first_hop = [None] * 3136
-        dist = [0] * 3136
-
-
-        enclosed_region = cls.enclosed_region
-
-
-        sx, sy = start.x, start.y
-        si = (((sx) + 3) * 56 + ((sy) + 3))
-
-        if si in sink_set:
-            return 0, None  # special case for `start` in sink set
-
-        visited[si] = True
-
-        q = deque()
-        _qa = q.append
-
-
-        conv_reached = []
-        _cra = conv_reached.append
-
-        conv_front = []
-        _cfa = conv_front.append
-        ni = si + 56
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx +1, sy )
-            _cfa(ni)
-            _cra(ni)
-        ni = si + -56
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx -1, sy )
-            _cfa(ni)
-            _cra(ni)
-        ni = si + 1
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx , sy +1)
-            _cfa(ni)
-            _cra(ni)
-        ni = si + -1
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx , sy -1)
-            _cfa(ni)
-            _cra(ni)
-
-        conv_next = []
-        _cna = conv_next.append
-        for cidx in conv_front:
-            _fh = first_hop[cidx]
-            ni = cidx + 56
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + -56
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + 1
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + -1
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-        conv_front = conv_next
-        conv_next = []
-        _cna = conv_next.append
-        for cidx in conv_front:
-            _fh = first_hop[cidx]
-            ni = cidx + 56
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + -56
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + 1
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + -1
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-        conv_front = conv_next
-        conv_next = []
-        _cna = conv_next.append
-        for cidx in conv_front:
-            _fh = first_hop[cidx]
-            ni = cidx + 56
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + -56
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + 1
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + -1
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-        conv_front = conv_next
-        conv_next = []
-        _cna = conv_next.append
-        for cidx in conv_front:
-            _fh = first_hop[cidx]
-            ni = cidx + 56
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + -56
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + 1
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + -1
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-        conv_front = conv_next
-        conv_next = []
-        _cna = conv_next.append
-        for cidx in conv_front:
-            _fh = first_hop[cidx]
-            ni = cidx + 56
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + -56
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + 1
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-            ni = cidx + -1
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                first_hop[ni] = _fh
-                _cna(ni)
-                _cra(ni)
-        conv_front = conv_next
-
-        for cidx in conv_reached:
-            if cidx in sink_set:
-                return 1, first_hop[cidx]
-            _qa(cidx)
-            dist[cidx] = 1
-
-        ni = si + 168
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx +3, sy )
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + -168
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx -3, sy )
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + 3
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx , sy +3)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + -3
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx , sy -3)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + 114
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx +2, sy +2)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + 110
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx +2, sy -2)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + -114
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx -2, sy -2)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + -110
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx -2, sy +2)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + 58
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx +1, sy +2)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + 113
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx +2, sy +1)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + 111
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx +2, sy -1)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + 54
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx +1, sy -2)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + -58
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx -1, sy -2)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + -113
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx -2, sy -1)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + -111
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx -2, sy +1)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-        ni = si + -54
-        if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-            visited[ni] = True
-            first_hop[ni] = (sx -1, sy +2)
-            if ni in sink_set:
-                return 1, first_hop[ni]
-            dist[ni] = 1
-            _qa(ni)
-
-        it = 0
-        while q and (it := it + 1) <= max_iter:
-            idx = q.popleft()
-            d = dist[idx] + 1
-            fh = first_hop[idx]
-
-            ni = idx + 168
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                dist[ni] = d
-                first_hop[ni] = fh
-                if ni in sink_set:
-                    return d, fh
-                _qa(ni)
-            ni = idx + -168
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                dist[ni] = d
-                first_hop[ni] = fh
-                if ni in sink_set:
-                    return d, fh
-                _qa(ni)
-            ni = idx + 3
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                dist[ni] = d
-                first_hop[ni] = fh
-                if ni in sink_set:
-                    return d, fh
-                _qa(ni)
-            ni = idx + -3
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                dist[ni] = d
-                first_hop[ni] = fh
-                if ni in sink_set:
-                    return d, fh
-                _qa(ni)
-            ni = idx + 114
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                dist[ni] = d
-                first_hop[ni] = fh
-                if ni in sink_set:
-                    return d, fh
-                _qa(ni)
-            ni = idx + 110
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                dist[ni] = d
-                first_hop[ni] = fh
-                if ni in sink_set:
-                    return d, fh
-                _qa(ni)
-            ni = idx + -114
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                dist[ni] = d
-                first_hop[ni] = fh
-                if ni in sink_set:
-                    return d, fh
-                _qa(ni)
-            ni = idx + -110
-            if (
-            not visited[ni] and
-            ni not in avoid_pos and
-            not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                )
-            )
-        ):
-                visited[ni] = True
-                dist[ni] = d
-                first_hop[ni] = fh
-                if ni in sink_set:
-                    return d, fh
-                _qa(ni)
-
-        return 1000000, None
 
 
     @classmethod
     def find_bridge_route_avoid_ti_adj(
-        cls, start: Position, sink_set: set[int], max_iter: int = 500, 
-        avoid_pos: set[int] = set(),
-    ):
+            cls, start: Position, sink_set: set[int], max_iter: int = 500, avoid_pos: set[int] = set(),
+            use_ally_routing: bool = False
+        ):
 
 
         passable = cls.passable_bridge
-
+        if use_ally_routing:
+            _ar = cls.ally_routing
+            _sf = DarkForest.sight_flowing
+            _pr = DarkForest.pressure
+            feeder = [_ar[_i] and _sf[_i] and _pr[_i] < 24 for _i in range(len(_ar))]
+        else:
+            feeder = cls.harvester_feeder
         visited = [False] * 3136
         first_hop = [None] * 3136
         dist = [0] * 3136
@@ -2471,10 +551,6 @@ class BfsBureau:
 
         sx, sy = start.x, start.y
         si = (((sx) + 3) * 56 + ((sy) + 3))
-
-        if si in sink_set:
-            return 0, None  # special case for `start` in sink set
-
         visited[si] = True
 
         q = deque()
@@ -2491,16 +567,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx +1, sy )
@@ -2511,16 +582,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx -1, sy )
@@ -2531,16 +597,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx , sy +1)
@@ -2551,16 +612,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx , sy -1)
@@ -2576,16 +632,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -2596,16 +647,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -2616,16 +662,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -2636,16 +677,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -2661,16 +697,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -2681,16 +712,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -2701,16 +727,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -2721,16 +742,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -2746,16 +762,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -2766,16 +777,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -2786,16 +792,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -2806,16 +807,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -2831,16 +827,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -2851,16 +842,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -2871,16 +857,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -2891,16 +872,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -2916,16 +892,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -2936,16 +907,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -2956,16 +922,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -2976,16 +937,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -3004,16 +960,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx +3, sy )
@@ -3026,16 +977,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx -3, sy )
@@ -3048,16 +994,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx , sy +3)
@@ -3070,16 +1011,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx , sy -3)
@@ -3092,16 +1028,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx +2, sy +2)
@@ -3114,16 +1045,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx +2, sy -2)
@@ -3136,16 +1062,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx -2, sy -2)
@@ -3158,16 +1079,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx -2, sy +2)
@@ -3180,16 +1096,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx +1, sy +2)
@@ -3202,16 +1113,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx +2, sy +1)
@@ -3224,16 +1130,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx +2, sy -1)
@@ -3246,16 +1147,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx +1, sy -2)
@@ -3268,16 +1164,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx -1, sy -2)
@@ -3290,16 +1181,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx -2, sy -1)
@@ -3312,16 +1198,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx -2, sy +1)
@@ -3334,16 +1215,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx -1, sy +2)
@@ -3363,16 +1239,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 dist[ni] = d
@@ -3385,16 +1256,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 dist[ni] = d
@@ -3407,16 +1273,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 dist[ni] = d
@@ -3429,16 +1290,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 dist[ni] = d
@@ -3451,16 +1307,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 dist[ni] = d
@@ -3473,16 +1324,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 dist[ni] = d
@@ -3495,16 +1341,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 dist[ni] = d
@@ -3517,16 +1358,11 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                    ni in sink_set or 
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+                and not ti_ore_adj[ni]
+                and ni not in Unit.core_pos_set
+            ))
         ):
                 visited[ni] = True
                 dist[ni] = d
@@ -3539,29 +1375,30 @@ class BfsBureau:
 
 
     @classmethod
-    def find_bridge_route_avoid_ti_adj_check_sinks(
-        cls, start: Position, sink_set: set[int], max_iter: int = 500, 
-        avoid_pos: set[int] = set(),
-    ):
+    def find_bridge_route(
+            cls, start: Position, sink_set: set[int], max_iter: int = 500, avoid_pos: set[int] = set(),
+            use_ally_routing: bool = False
+        ):
 
 
         passable = cls.passable_bridge
-
+        if use_ally_routing:
+            _ar = cls.ally_routing
+            _sf = DarkForest.sight_flowing
+            _pr = DarkForest.pressure
+            feeder = [_ar[_i] and _sf[_i] and _pr[_i] < 24 for _i in range(len(_ar))]
+        else:
+            feeder = cls.harvester_feeder
         visited = [False] * 3136
         first_hop = [None] * 3136
         dist = [0] * 3136
 
-        ti_ore_adj = cls.ti_ore_adj
 
         enclosed_region = cls.enclosed_region
 
 
         sx, sy = start.x, start.y
         si = (((sx) + 3) * 56 + ((sy) + 3))
-
-        if si in sink_set:
-            return 0, None  # special case for `start` in sink set
-
         visited[si] = True
 
         q = deque()
@@ -3578,15 +1415,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx +1, sy )
@@ -3597,15 +1428,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx -1, sy )
@@ -3616,15 +1441,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx , sy +1)
@@ -3635,15 +1454,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx , sy -1)
@@ -3659,15 +1472,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -3678,15 +1485,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -3697,15 +1498,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -3716,15 +1511,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -3740,15 +1529,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -3759,15 +1542,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -3778,15 +1555,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -3797,15 +1568,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -3821,15 +1586,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -3840,15 +1599,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -3859,15 +1612,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -3878,15 +1625,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -3902,15 +1643,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -3921,15 +1656,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -3940,15 +1669,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -3959,15 +1682,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -3983,15 +1700,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -4002,15 +1713,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -4021,15 +1726,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -4040,15 +1739,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 first_hop[ni] = _fh
@@ -4067,15 +1760,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx +3, sy )
@@ -4088,15 +1775,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx -3, sy )
@@ -4109,15 +1790,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx , sy +3)
@@ -4130,15 +1805,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx , sy -3)
@@ -4151,15 +1820,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx +2, sy +2)
@@ -4172,15 +1835,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx +2, sy -2)
@@ -4193,15 +1850,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx -2, sy -2)
@@ -4214,15 +1865,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx -2, sy +2)
@@ -4235,15 +1880,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx +1, sy +2)
@@ -4256,15 +1895,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx +2, sy +1)
@@ -4277,15 +1910,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx +2, sy -1)
@@ -4298,15 +1925,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx +1, sy -2)
@@ -4319,15 +1940,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx -1, sy -2)
@@ -4340,15 +1955,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx -2, sy -1)
@@ -4361,15 +1970,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx -2, sy +1)
@@ -4382,15 +1985,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
             visited[ni] = True
             first_hop[ni] = (sx -1, sy +2)
@@ -4410,15 +2007,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 dist[ni] = d
@@ -4431,15 +2022,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 dist[ni] = d
@@ -4452,15 +2037,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 dist[ni] = d
@@ -4473,15 +2052,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 dist[ni] = d
@@ -4494,15 +2067,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 dist[ni] = d
@@ -4515,15 +2082,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 dist[ni] = d
@@ -4536,15 +2097,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 dist[ni] = d
@@ -4557,15 +2112,9 @@ class BfsBureau:
             not visited[ni] and
             ni not in avoid_pos and
             not enclosed_region[ni] and
-            (
-                (
-                    (
-                        passable[ni] 
-                    )
-                    and not ti_ore_adj[ni]
-                    and ni not in Unit.core_pos_set
-                )
-            )
+            (ni in sink_set or (
+                (passable[ni] or cls.harvester_feeder[ni])
+            ))
         ):
                 visited[ni] = True
                 dist[ni] = d
@@ -7754,7 +5303,6 @@ class BreachBuild:
 
 class BuildManager:
 
-
     @staticmethod
     def scale(cost: int) -> int:
         return int(cost * MarketMaker.scale_ratio)
@@ -7863,11 +5411,9 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_builder_bot_cost()
         
 
-        req = 50 if Globals.round < 150 else 50
-
         leftover_unscaled_ti = 0
 
-        leftover_unscaled_ti += req
+        leftover_unscaled_ti += 40
 
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
@@ -7949,11 +5495,9 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_gunner_cost()
         
 
-        req = 0 if Globals.round < 150 else 0
-
         leftover_unscaled_ti = 0
 
-        leftover_unscaled_ti += req
+        leftover_unscaled_ti += 0
 
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
@@ -8035,11 +5579,9 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_sentinel_cost()
         
 
-        req = 0 if Globals.round < 150 else 50
-
         leftover_unscaled_ti = 0
 
-        leftover_unscaled_ti += req
+        leftover_unscaled_ti += 0
 
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
@@ -8121,11 +5663,9 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_breach_cost()
         
 
-        req = 50 if Globals.round < 150 else 50
-
         leftover_unscaled_ti = 0
 
-        leftover_unscaled_ti += req
+        leftover_unscaled_ti += 40
 
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
@@ -8207,11 +5747,9 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_launcher_cost()
         
 
-        req = 0 if Globals.round < 150 else 50
-
         leftover_unscaled_ti = 0
 
-        leftover_unscaled_ti += req
+        leftover_unscaled_ti += 0
 
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
@@ -8291,18 +5829,13 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_conveyor_cost()
         
 
-        req = 20 if Globals.round < 150 else 50
-
         leftover_unscaled_ti = 0
 
         if Globals.round > 50:
-            leftover_unscaled_ti += req
+            leftover_unscaled_ti += 20
 
         if pos is not None:
-            leftover_unscaled_ti += min(
-                Util.linf(pos, Unit.core_pos) * 2,
-                Util.linf(pos, Symmetry.enemy_core_pos) * 2 if Symmetry.is_sym_known else 1000000
-            )
+            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 2
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
@@ -8381,18 +5914,13 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_splitter_cost()
         
 
-        req = 20 if Globals.round < 150 else 50
-
         leftover_unscaled_ti = 0
 
         if Globals.round > 50:
-            leftover_unscaled_ti += req
+            leftover_unscaled_ti += 20
 
         if pos is not None:
-            leftover_unscaled_ti += min(
-                Util.linf(pos, Unit.core_pos) * 2,
-                Util.linf(pos, Symmetry.enemy_core_pos) * 2 if Symmetry.is_sym_known else 1000000
-            )
+            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 2
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
@@ -8471,18 +5999,13 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_armoured_conveyor_cost()
         
 
-        req = 20 if Globals.round < 150 else 50
-
         leftover_unscaled_ti = 0
 
         if Globals.round > 50:
-            leftover_unscaled_ti += req
+            leftover_unscaled_ti += 20
 
         if pos is not None:
-            leftover_unscaled_ti += min(
-                Util.linf(pos, Unit.core_pos) * 2,
-                Util.linf(pos, Symmetry.enemy_core_pos) * 2 if Symmetry.is_sym_known else 1000000
-            )
+            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 2
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
@@ -8561,18 +6084,13 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_bridge_cost()
         
 
-        req = 20 if Globals.round < 150 else 50
-
         leftover_unscaled_ti = 0
 
         if Globals.round > 50:
-            leftover_unscaled_ti += req
+            leftover_unscaled_ti += 20
 
         if pos is not None:
-            leftover_unscaled_ti += min(
-                Util.linf(pos, Unit.core_pos) * 2,
-                Util.linf(pos, Symmetry.enemy_core_pos) * 2 if Symmetry.is_sym_known else 1000000
-            )
+            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 2
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
@@ -8651,17 +6169,12 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_harvester_cost()
         
 
-        req = 20 if Globals.round < 150 else 50
-
         leftover_unscaled_ti = 0
 
-        leftover_unscaled_ti += req
+        leftover_unscaled_ti += 20
 
         if pos is not None:
-            leftover_unscaled_ti += min(
-                Util.linf(pos, Unit.core_pos) * 2,
-                Util.linf(pos, Symmetry.enemy_core_pos) * 2 if Symmetry.is_sym_known else 1000000
-            )
+            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 2
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
@@ -8740,11 +6253,9 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_foundry_cost()
         
 
-        req = 0 if Globals.round < 150 else 0
-
         leftover_unscaled_ti = 0
 
-        leftover_unscaled_ti += req
+        leftover_unscaled_ti += 0
 
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
@@ -8824,18 +6335,13 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_road_cost()
         
 
-        req = 20 if Globals.round < 150 else 50
-
         leftover_unscaled_ti = 0
 
         if Globals.round > 50:
-            leftover_unscaled_ti += req
+            leftover_unscaled_ti += 20
 
         if pos is not None:
-            leftover_unscaled_ti += min(
-                Util.linf(pos, Unit.core_pos) * 2,
-                Util.linf(pos, Symmetry.enemy_core_pos) * 2 if Symmetry.is_sym_known else 1000000
-            )
+            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 2
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
@@ -8914,11 +6420,9 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_barrier_cost()
         
 
-        req = 50 if Globals.round < 150 else 50
-
         leftover_unscaled_ti = 0
 
-        leftover_unscaled_ti += req
+        leftover_unscaled_ti += 40
 
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
@@ -8956,9 +6460,8 @@ class Building:
 # ============================================================
 
 class BurnManager:
-
     @classmethod
-    def burn_for_builder(cls):
+    def burn(cls):
         if not BuildManager.can_afford_builder_bot():
             ct = Globals.ct
             ti, ax = ct.get_global_resources()
@@ -8966,10 +6469,10 @@ class BurnManager:
             builderCost = Globals.ct.get_builder_bot_cost()[0]
             
             tiNeeded = builderCost - ti
-            axNeeded = max(0, (tiNeeded + 3) // 4)  # replaced with int ceil
+            axNeeded = max(0, math.ceil(tiNeeded/4))
             
-            if axNeeded > 0 and ax > 2:
-                ct.convert(min(axNeeded, ax - 2))
+            if axNeeded > 0 and ax > 1:
+                ct.convert(min(axNeeded, ax - 1))
             
     
     @classmethod
@@ -8982,25 +6485,6 @@ class BurnManager:
             return True
 
         return False
-
-    
-    @classmethod
-    def maybe_burn_for_ti(cls):
-
-        ct = Globals.ct
-        ti, ax = ct.get_global_resources()
-
-        cnf1 = int(ti * MarketMaker.scale_ratio) < 50 or MarketMaker.est_income <= 10
-        cnf2 = (MarketMaker.est_income - 10) <= MarketMaker.est_income_ax
-        cnf3 = Globals.round < 1000
-        cond = cnf1 and cnf2 and cnf3
-
-        if not cond:
-            return
-
-        amt = min(ax - 2, 30)
-        if amt > 0:
-            ct.convert(amt)
 
 
 # ============================================================
@@ -9279,9 +6763,6 @@ class Constants:
         (-2, -2): (7,),
     }
 
-    GUNNER_HITS_CORE_OFFSETS: list[int] = [-225, -224, -223, -171, -170, -169, -168, -167, -166, -165, -115, -114, -113, -112, -111, -110, -109, -60, -59, -58, -54, -53, -52, -4, -3, -2, 2, 3, 4, 52, 53, 54, 58, 59, 60, 109, 110, 111, 112, 113, 114, 115, 165, 166, 167, 168, 169, 170, 171, 223, 224, 225]
-    SENTINEL_HITS_CORE_OFFSETS: list[int] = [-285, -284, -283, -282, -281, -280, -279, -278, -277, -276, -275, -229, -228, -227, -226, -225, -224, -223, -222, -221, -220, -219, -173, -172, -171, -170, -169, -168, -167, -166, -165, -164, -163, -117, -116, -115, -114, -113, -112, -111, -110, -109, -108, -107, -61, -60, -59, -58, -54, -53, -52, -51, -5, -4, -3, -2, 2, 3, 4, 5, 51, 52, 53, 54, 58, 59, 60, 61, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285]
-
 
 # ============================================================
 # CoreHistory
@@ -9517,20 +6998,6 @@ class DarkForest:
                 i = (((x) + 3) * 56 + ((y) + 3))
                 if ns[i] is not None and sf[i]:
                     Debug.dot(Position(x, y), Color.WHITE)
-
-
-    @classmethod
-    def debug_refined_ax_line(cls):
-        """Draw cyan dots on nodes in the refined axionite line."""
-        for i in cls.refined_ax_line:
-            Debug.dot(Position(((i) // 56 - 3), ((i) % 56 - 3)), Color.CYAN)
-
-
-    @classmethod
-    def debug_foundry_positions(cls):
-        """Draw yellow dots on all known foundry positions."""
-        for i in cls.foundry_positions:
-            Debug.dot(Position(((i) // 56 - 3), ((i) % 56 - 3)), Color.YELLOW)
 
 
 
@@ -27391,11 +24858,6 @@ class Debug:
         Globals.ct.draw_indicator_line(bottom, left, *color)
         Globals.ct.draw_indicator_line(left, top, *color)
 
-    @staticmethod
-    def debug_set(Set: set, color: Color = Color.WHITE):
-        for i in Set:
-            Debug.dot(Position(((i) // 56 - 3), ((i) % 56 - 3)), color)
-
 
 # ============================================================
 # Entrypoint
@@ -28084,9 +25546,11 @@ class GunnerDirectionPicker:
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
+                info7.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+                info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -28100,9 +25564,11 @@ class GunnerDirectionPicker:
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
+                info5.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+                info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + 2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -28116,9 +25582,11 @@ class GunnerDirectionPicker:
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
+                info7.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+                info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + -1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -28150,9 +25618,11 @@ class GunnerDirectionPicker:
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
+                info5.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+                info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + -2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -28200,9 +25670,11 @@ class GunnerDirectionPicker:
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
+                info1.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+                info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + -1]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -28234,9 +25706,11 @@ class GunnerDirectionPicker:
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
+                info3.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+                info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + -2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -28250,9 +25724,11 @@ class GunnerDirectionPicker:
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
+                info1.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+                info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + 0]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -28266,9 +25742,11 @@ class GunnerDirectionPicker:
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
                 e_building_hp = ti.building_hp
+                info3.enemy_building_hp += e_building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
+                info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + 2]
         if ti is not None:
             if ti.has_building and not ti.is_building_ally:
@@ -28368,19 +25846,16 @@ class GunnerSupervisor:
     @classmethod
     def try_fire(cls):
         pos = cls.get_best_target()
-
         if pos is None or pos == Globals.my_pos:
-            print(f'[try_fire] early return since get_best_target is {pos}')
             return
 
-        print(f'[try_fire] OK get_best_target is {pos}')
+        print(f'attempt fire @ {pos}')
         Debug.line(pos, Color.TEAL)
         
         ct = Globals.ct
         dirToPos = Globals.my_pos.direction_to(pos)
 
         if not ct.can_fire_from(Globals.my_pos, dirToPos, EntityType.GUNNER, pos):
-            print(f'[try_fire] can_fire_from me to {pos} is False')
             return
         
         if dirToPos != ct.get_direction(): # Rotate if the target isn't in our current direction
@@ -28394,17 +25869,13 @@ class GunnerSupervisor:
     @classmethod
     def get_best_target(cls) -> Position | None:
         targets = cls.targets
-
         if not targets:
-            print(f'[get_best_target] (-> None) because there are no targets')
             return None
 
         best = targets[0]
         for target in targets[1:]:
             if GunnerTargetInfo.is_better_than(target, best):
                 best = target
-
-        print(f'[get_best_target] best is {best.position}')
 
         if best.has_ally_bot:
             return None
@@ -28426,45 +25897,6 @@ class GunnerSupervisor:
 
 
 
-    @classmethod
-    def can_fire_from_through_roads(cls, dir: Direction, target_pos: Position):
-        my_pos = Globals.my_pos
-        pt = my_pos.add(dir)
-
-        while pt.distance_squared(my_pos) < 13:
-            if pt == target_pos: break
-
-            x, y = pt.x, pt.y
-            ti = Map.tile_info[x][y]
-
-            if ti is None: break
-            if ti.env != Environment.EMPTY: break
-            if ti.has_building and not ti.entity_type == EntityType.ROAD: break
-            if ti.has_bot: break  # ally and enemy
-
-            pt = pt.add(dir)
-
-        return pt == target_pos
-
-
-    @classmethod
-    def first_road(cls, dir: Direction, target_pos: Position) -> Position:
-        my_pos = Globals.my_pos
-        pt = my_pos.add(dir)
-
-        while pt.distance_squared(my_pos) < 13:
-            if pt == target_pos: break
-
-            x, y = pt.x, pt.y
-            ti = Map.tile_info[x][y]
-
-            if ti is None: break
-            if ti.env != Environment.EMPTY: break
-            if ti.has_building and ti.entity_type == EntityType.ROAD: return pt
-
-            pt = pt.add(dir)
-
-        assert False
 
 
 
@@ -28509,11 +25941,6 @@ class GunnerSupervisor:
 
         if not skip:
             for pos in ct.get_attackable_tiles_from(my_pos, Direction.NORTH, EntityType.GUNNER):
-                if not cls.can_fire_from_through_roads(Direction.NORTH, pos):
-                    continue
-
-                # Debug.dot(pos, Color.BLUE if (my_pos.x ^ my_pos.y) & 1 else Color.RED)
-
                 x, y = pos.x, pos.y
                 ti = tile_info[x][y]
 
@@ -28523,14 +25950,14 @@ class GunnerSupervisor:
                     continue
                 if ti.is_building_ally:
                     continue
+                if not ct.can_fire_from(my_pos, Direction.NORTH, EntityType.GUNNER, pos):
+                    continue
 
 
                 idx = (((x) + 3) * 56 + ((y) + 3))
                 
                 info = GunnerTargetInfo()
-                info.directly_reachable = ct.can_fire_from(my_pos, Direction.NORTH, EntityType.GUNNER, pos)
-                info.position = pos if info.directly_reachable else cls.first_road(Direction.NORTH, pos)
-                info.target_position = pos
+                info.position = pos
                 info.has_ally_bot = False
                 info.has_enemy_bot = False
                 info.has_turret = False
@@ -28592,11 +26019,6 @@ class GunnerSupervisor:
 
         if not skip:
             for pos in ct.get_attackable_tiles_from(my_pos, Direction.NORTHEAST, EntityType.GUNNER):
-                if not cls.can_fire_from_through_roads(Direction.NORTHEAST, pos):
-                    continue
-
-                # Debug.dot(pos, Color.BLUE if (my_pos.x ^ my_pos.y) & 1 else Color.RED)
-
                 x, y = pos.x, pos.y
                 ti = tile_info[x][y]
 
@@ -28606,14 +26028,14 @@ class GunnerSupervisor:
                     continue
                 if ti.is_building_ally:
                     continue
+                if not ct.can_fire_from(my_pos, Direction.NORTHEAST, EntityType.GUNNER, pos):
+                    continue
 
 
                 idx = (((x) + 3) * 56 + ((y) + 3))
                 
                 info = GunnerTargetInfo()
-                info.directly_reachable = ct.can_fire_from(my_pos, Direction.NORTHEAST, EntityType.GUNNER, pos)
-                info.position = pos if info.directly_reachable else cls.first_road(Direction.NORTHEAST, pos)
-                info.target_position = pos
+                info.position = pos
                 info.has_ally_bot = False
                 info.has_enemy_bot = False
                 info.has_turret = False
@@ -28675,11 +26097,6 @@ class GunnerSupervisor:
 
         if not skip:
             for pos in ct.get_attackable_tiles_from(my_pos, Direction.EAST, EntityType.GUNNER):
-                if not cls.can_fire_from_through_roads(Direction.EAST, pos):
-                    continue
-
-                # Debug.dot(pos, Color.BLUE if (my_pos.x ^ my_pos.y) & 1 else Color.RED)
-
                 x, y = pos.x, pos.y
                 ti = tile_info[x][y]
 
@@ -28689,14 +26106,14 @@ class GunnerSupervisor:
                     continue
                 if ti.is_building_ally:
                     continue
+                if not ct.can_fire_from(my_pos, Direction.EAST, EntityType.GUNNER, pos):
+                    continue
 
 
                 idx = (((x) + 3) * 56 + ((y) + 3))
                 
                 info = GunnerTargetInfo()
-                info.directly_reachable = ct.can_fire_from(my_pos, Direction.EAST, EntityType.GUNNER, pos)
-                info.position = pos if info.directly_reachable else cls.first_road(Direction.EAST, pos)
-                info.target_position = pos
+                info.position = pos
                 info.has_ally_bot = False
                 info.has_enemy_bot = False
                 info.has_turret = False
@@ -28758,11 +26175,6 @@ class GunnerSupervisor:
 
         if not skip:
             for pos in ct.get_attackable_tiles_from(my_pos, Direction.SOUTHEAST, EntityType.GUNNER):
-                if not cls.can_fire_from_through_roads(Direction.SOUTHEAST, pos):
-                    continue
-
-                # Debug.dot(pos, Color.BLUE if (my_pos.x ^ my_pos.y) & 1 else Color.RED)
-
                 x, y = pos.x, pos.y
                 ti = tile_info[x][y]
 
@@ -28772,14 +26184,14 @@ class GunnerSupervisor:
                     continue
                 if ti.is_building_ally:
                     continue
+                if not ct.can_fire_from(my_pos, Direction.SOUTHEAST, EntityType.GUNNER, pos):
+                    continue
 
 
                 idx = (((x) + 3) * 56 + ((y) + 3))
                 
                 info = GunnerTargetInfo()
-                info.directly_reachable = ct.can_fire_from(my_pos, Direction.SOUTHEAST, EntityType.GUNNER, pos)
-                info.position = pos if info.directly_reachable else cls.first_road(Direction.SOUTHEAST, pos)
-                info.target_position = pos
+                info.position = pos
                 info.has_ally_bot = False
                 info.has_enemy_bot = False
                 info.has_turret = False
@@ -28841,11 +26253,6 @@ class GunnerSupervisor:
 
         if not skip:
             for pos in ct.get_attackable_tiles_from(my_pos, Direction.SOUTH, EntityType.GUNNER):
-                if not cls.can_fire_from_through_roads(Direction.SOUTH, pos):
-                    continue
-
-                # Debug.dot(pos, Color.BLUE if (my_pos.x ^ my_pos.y) & 1 else Color.RED)
-
                 x, y = pos.x, pos.y
                 ti = tile_info[x][y]
 
@@ -28855,14 +26262,14 @@ class GunnerSupervisor:
                     continue
                 if ti.is_building_ally:
                     continue
+                if not ct.can_fire_from(my_pos, Direction.SOUTH, EntityType.GUNNER, pos):
+                    continue
 
 
                 idx = (((x) + 3) * 56 + ((y) + 3))
                 
                 info = GunnerTargetInfo()
-                info.directly_reachable = ct.can_fire_from(my_pos, Direction.SOUTH, EntityType.GUNNER, pos)
-                info.position = pos if info.directly_reachable else cls.first_road(Direction.SOUTH, pos)
-                info.target_position = pos
+                info.position = pos
                 info.has_ally_bot = False
                 info.has_enemy_bot = False
                 info.has_turret = False
@@ -28924,11 +26331,6 @@ class GunnerSupervisor:
 
         if not skip:
             for pos in ct.get_attackable_tiles_from(my_pos, Direction.SOUTHWEST, EntityType.GUNNER):
-                if not cls.can_fire_from_through_roads(Direction.SOUTHWEST, pos):
-                    continue
-
-                # Debug.dot(pos, Color.BLUE if (my_pos.x ^ my_pos.y) & 1 else Color.RED)
-
                 x, y = pos.x, pos.y
                 ti = tile_info[x][y]
 
@@ -28938,14 +26340,14 @@ class GunnerSupervisor:
                     continue
                 if ti.is_building_ally:
                     continue
+                if not ct.can_fire_from(my_pos, Direction.SOUTHWEST, EntityType.GUNNER, pos):
+                    continue
 
 
                 idx = (((x) + 3) * 56 + ((y) + 3))
                 
                 info = GunnerTargetInfo()
-                info.directly_reachable = ct.can_fire_from(my_pos, Direction.SOUTHWEST, EntityType.GUNNER, pos)
-                info.position = pos if info.directly_reachable else cls.first_road(Direction.SOUTHWEST, pos)
-                info.target_position = pos
+                info.position = pos
                 info.has_ally_bot = False
                 info.has_enemy_bot = False
                 info.has_turret = False
@@ -29007,11 +26409,6 @@ class GunnerSupervisor:
 
         if not skip:
             for pos in ct.get_attackable_tiles_from(my_pos, Direction.WEST, EntityType.GUNNER):
-                if not cls.can_fire_from_through_roads(Direction.WEST, pos):
-                    continue
-
-                # Debug.dot(pos, Color.BLUE if (my_pos.x ^ my_pos.y) & 1 else Color.RED)
-
                 x, y = pos.x, pos.y
                 ti = tile_info[x][y]
 
@@ -29021,14 +26418,14 @@ class GunnerSupervisor:
                     continue
                 if ti.is_building_ally:
                     continue
+                if not ct.can_fire_from(my_pos, Direction.WEST, EntityType.GUNNER, pos):
+                    continue
 
 
                 idx = (((x) + 3) * 56 + ((y) + 3))
                 
                 info = GunnerTargetInfo()
-                info.directly_reachable = ct.can_fire_from(my_pos, Direction.WEST, EntityType.GUNNER, pos)
-                info.position = pos if info.directly_reachable else cls.first_road(Direction.WEST, pos)
-                info.target_position = pos
+                info.position = pos
                 info.has_ally_bot = False
                 info.has_enemy_bot = False
                 info.has_turret = False
@@ -29090,11 +26487,6 @@ class GunnerSupervisor:
 
         if not skip:
             for pos in ct.get_attackable_tiles_from(my_pos, Direction.NORTHWEST, EntityType.GUNNER):
-                if not cls.can_fire_from_through_roads(Direction.NORTHWEST, pos):
-                    continue
-
-                # Debug.dot(pos, Color.BLUE if (my_pos.x ^ my_pos.y) & 1 else Color.RED)
-
                 x, y = pos.x, pos.y
                 ti = tile_info[x][y]
 
@@ -29104,14 +26496,14 @@ class GunnerSupervisor:
                     continue
                 if ti.is_building_ally:
                     continue
+                if not ct.can_fire_from(my_pos, Direction.NORTHWEST, EntityType.GUNNER, pos):
+                    continue
 
 
                 idx = (((x) + 3) * 56 + ((y) + 3))
                 
                 info = GunnerTargetInfo()
-                info.directly_reachable = ct.can_fire_from(my_pos, Direction.NORTHWEST, EntityType.GUNNER, pos)
-                info.position = pos if info.directly_reachable else cls.first_road(Direction.NORTHWEST, pos)
-                info.target_position = pos
+                info.position = pos
                 info.has_ally_bot = False
                 info.has_enemy_bot = False
                 info.has_turret = False
@@ -29175,10 +26567,7 @@ class GunnerSupervisor:
 
 class GunnerTargetInfo:
     __slots__ = (
-        'position',         # may be first road
-        'target_position', 
-        'directly_reachable',
-        'has_ally_bot', 'has_enemy_bot', 'has_building',
+        'position', 'has_ally_bot', 'has_enemy_bot', 'has_building',
         'has_turret', 'has_launcher', 'can_shoot_me', 'is_road', 'is_core',
         'bot_hp', 'building_hp', 'iscore', 'ally_connected',
         'current_dir', 'rand_key', 'entity_type',
@@ -29213,9 +26602,6 @@ class GunnerTargetInfo:
 
         if a.has_building and (not b.has_building): return True
         if (not a.has_building) and b.has_building: return False
-
-        if a.directly_reachable and (not b.directly_reachable): return True
-        if (not a.directly_reachable) and b.directly_reachable: return False
 
         if a.harvester_adjacent and (not b.harvester_adjacent): return True
         if (not a.harvester_adjacent) and b.harvester_adjacent: return False
@@ -29396,9 +26782,7 @@ class HarvesterAdjacent:
                 and hti.enemy_transporters_adjacent == 0 \
                 and hti.enemy_turrets_adjacent == 0 \
                 and not hti.ally_core_adj \
-                and hti.ally_fed_foundries_adjacent == 0 \
                 and my_pos.distance_squared(spos) <= 15  # can see all adjacent
-
             dist_to_ally_core = spos.distance_squared(Unit.core_pos)
             is_canonical_ally_harvester = VisionTracker.me_is_canonical_ally(spos)
             
@@ -29435,34 +26819,23 @@ class HarvesterAdjacent:
                                 ti.entity_type == EntityType.ROAD 
                                 or ti.entity_type == EntityType.BARRIER
                                 or ti.entity_type == EntityType.LAUNCHER
-                                or ti.is_shield
+                                or (ti.entity_type in Constants.TRANSPORTERS_SET and ti.target == spos)
                             )
                         )
                     ) and not ti.has_bot
-
-                    info.h_has_fed_foundry = hti.ally_fed_foundries_adjacent > 0
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester
+                    info.is_working_shield = ti.has_building and ti.is_building_ally and (ti.entity_type != EntityType.ROAD or not is_harvester_ally)
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
-
-                    # if info.consider_route:
-                    #     Debug.diline(Position(0,0), pos, Color.BLUE)
-
-
 
                     info.has_ally_transporter = (
                         ti.has_building 
                         and ti.is_building_ally 
                         and ti.entity_type in Constants.TRANSPORTERS_SET
-                        and not ti.is_shield
+                        and ti.target != spos # not pointing back into the harvester
                     )
-                    info.is_working_shield = ti.has_building and ti.is_building_ally and (ti.entity_type != EntityType.ROAD or not is_harvester_ally)
-                    if info.h_has_fed_foundry and info.is_working_shield and info.has_ally_transporter:
-                        if idx not in DarkForest.refined_ax_line:
-                            info.is_working_shield = False
-
                     
                     # if info.has_ally_transporter:
                     #     Debug.dot(pos, Color.LIME)
@@ -29587,34 +26960,23 @@ class HarvesterAdjacent:
                                 ti.entity_type == EntityType.ROAD 
                                 or ti.entity_type == EntityType.BARRIER
                                 or ti.entity_type == EntityType.LAUNCHER
-                                or ti.is_shield
+                                or (ti.entity_type in Constants.TRANSPORTERS_SET and ti.target == spos)
                             )
                         )
                     ) and not ti.has_bot
-
-                    info.h_has_fed_foundry = hti.ally_fed_foundries_adjacent > 0
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester
+                    info.is_working_shield = ti.has_building and ti.is_building_ally and (ti.entity_type != EntityType.ROAD or not is_harvester_ally)
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
-
-                    # if info.consider_route:
-                    #     Debug.diline(Position(0,0), pos, Color.BLUE)
-
-
 
                     info.has_ally_transporter = (
                         ti.has_building 
                         and ti.is_building_ally 
                         and ti.entity_type in Constants.TRANSPORTERS_SET
-                        and not ti.is_shield
+                        and ti.target != spos # not pointing back into the harvester
                     )
-                    info.is_working_shield = ti.has_building and ti.is_building_ally and (ti.entity_type != EntityType.ROAD or not is_harvester_ally)
-                    if info.h_has_fed_foundry and info.is_working_shield and info.has_ally_transporter:
-                        if idx not in DarkForest.refined_ax_line:
-                            info.is_working_shield = False
-
                     
                     # if info.has_ally_transporter:
                     #     Debug.dot(pos, Color.LIME)
@@ -29739,34 +27101,23 @@ class HarvesterAdjacent:
                                 ti.entity_type == EntityType.ROAD 
                                 or ti.entity_type == EntityType.BARRIER
                                 or ti.entity_type == EntityType.LAUNCHER
-                                or ti.is_shield
+                                or (ti.entity_type in Constants.TRANSPORTERS_SET and ti.target == spos)
                             )
                         )
                     ) and not ti.has_bot
-
-                    info.h_has_fed_foundry = hti.ally_fed_foundries_adjacent > 0
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester
+                    info.is_working_shield = ti.has_building and ti.is_building_ally and (ti.entity_type != EntityType.ROAD or not is_harvester_ally)
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
-
-                    # if info.consider_route:
-                    #     Debug.diline(Position(0,0), pos, Color.BLUE)
-
-
 
                     info.has_ally_transporter = (
                         ti.has_building 
                         and ti.is_building_ally 
                         and ti.entity_type in Constants.TRANSPORTERS_SET
-                        and not ti.is_shield
+                        and ti.target != spos # not pointing back into the harvester
                     )
-                    info.is_working_shield = ti.has_building and ti.is_building_ally and (ti.entity_type != EntityType.ROAD or not is_harvester_ally)
-                    if info.h_has_fed_foundry and info.is_working_shield and info.has_ally_transporter:
-                        if idx not in DarkForest.refined_ax_line:
-                            info.is_working_shield = False
-
                     
                     # if info.has_ally_transporter:
                     #     Debug.dot(pos, Color.LIME)
@@ -29891,34 +27242,23 @@ class HarvesterAdjacent:
                                 ti.entity_type == EntityType.ROAD 
                                 or ti.entity_type == EntityType.BARRIER
                                 or ti.entity_type == EntityType.LAUNCHER
-                                or ti.is_shield
+                                or (ti.entity_type in Constants.TRANSPORTERS_SET and ti.target == spos)
                             )
                         )
                     ) and not ti.has_bot
-
-                    info.h_has_fed_foundry = hti.ally_fed_foundries_adjacent > 0
                     info.consider_route = consider_route
                     info.dist_to_ally_core = dist_to_ally_core
                     info.is_canonical_ally_harvester = is_canonical_ally_harvester
+                    info.is_working_shield = ti.has_building and ti.is_building_ally and (ti.entity_type != EntityType.ROAD or not is_harvester_ally)
                     info.harvester_ally_turrets_adjacent = hti.ally_turrets_adjacent
                     info.harvester_enemy_turrets_adjacent = hti.enemy_turrets_adjacent
-
-                    # if info.consider_route:
-                    #     Debug.diline(Position(0,0), pos, Color.BLUE)
-
-
 
                     info.has_ally_transporter = (
                         ti.has_building 
                         and ti.is_building_ally 
                         and ti.entity_type in Constants.TRANSPORTERS_SET
-                        and not ti.is_shield
+                        and ti.target != spos # not pointing back into the harvester
                     )
-                    info.is_working_shield = ti.has_building and ti.is_building_ally and (ti.entity_type != EntityType.ROAD or not is_harvester_ally)
-                    if info.h_has_fed_foundry and info.is_working_shield and info.has_ally_transporter:
-                        if idx not in DarkForest.refined_ax_line:
-                            info.is_working_shield = False
-
                     
                     # if info.has_ally_transporter:
                     #     Debug.dot(pos, Color.LIME)
@@ -30042,11 +27382,17 @@ class HealExecutor:
     last_healed_round: int = -1
         
     class Candidate:
-        __slots__ = (
-            'position', 'is_accessible', 'building_heal', 'building_hp',
-            'bot_heal', 'bot_hp', 'is_turret', 'entity_type', 'harvester_adjacent',
-            'is_launcher', 'is_gunner',
-        )
+        position: Position
+        is_accessible: bool
+        building_heal: int
+        building_hp: int
+        bot_heal: int
+        bot_hp: int
+        is_turret: bool
+        entity_type: EntityType
+        harvester_adjacent: bool
+        is_launcher: bool
+        is_gunner: bool
 
 
     cand: list[Candidate | None] = [None] * 9
@@ -31013,16 +28359,11 @@ class Map:
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
         # + is_pointed_to
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
-            ti.is_shield = False
-
             if ti.target is not None:
                 targ = ti.target
                 targ_tile_info = tile_info[targ.x][targ.y]
                 if targ_tile_info is not None:
                     targ_tile_info.is_pointed_to = True
-                    if targ_tile_info.entity_type == HARVESTER:
-                        ti.is_shield = True
-                        # Debug.dot(pos, Color.RED)
 
             # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
             row_xm1 = tile_info[x - 1]
@@ -31052,6 +28393,13 @@ class Map:
             nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
             ti.allied_bots_adjacent = cnt
 
+            # cardinal only
+            ti.ally_non_road_buildings_adjacent = (
+                (row_x[ym1] is not None and row_x[ym1].has_building and row_x[ym1].is_building_ally and row_x[ym1].entity_type != ROAD)
+ +                 (row_xp1[y] is not None and row_xp1[y].has_building and row_xp1[y].is_building_ally and row_xp1[y].entity_type != ROAD)
+ +                 (row_x[yp1] is not None and row_x[yp1].has_building and row_x[yp1].is_building_ally and row_x[yp1].entity_type != ROAD)
+ +                 (row_xm1[y] is not None and row_xm1[y].has_building and row_xm1[y].is_building_ally and row_xm1[y].entity_type != ROAD)
+            )
 
             # turret/transporter adjacency: only for harvesters
             ally_core_adj = False
@@ -31146,30 +28494,6 @@ class Map:
                 ti.ally_outward_transporters_adjacent = ally_outward_transporters
                 ti.ally_core_adj = ally_core_adj
                 ti.enemy_transporters_adjacent = enemy_transporters
-
-        # --- third pass: fed foundry + ally non roads ---
-        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
-            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
-            row_xm1 = tile_info[x - 1]
-            row_x   = tile_info[x]
-            row_xp1 = tile_info[x + 1]
-            ym1 = y - 1
-            yp1 = y + 1
-
-            # --- fused cardinal adjacency (single pass) ---
-            ally_non_road = 0
-            foundries = 0
-
-            for nti in (row_xm1[y], row_xp1[y], row_x[ym1], row_x[yp1]):
-                if nti is not None and nti.has_building and nti.is_building_ally:
-                    if nti.entity_type != ROAD:
-                        ally_non_road += 1
-                    if nti.entity_type == FOUNDRY and nti.is_pointed_to:
-                        foundries += 1
-
-            ti.ally_non_road_buildings_adjacent = ally_non_road
-            ti.ally_fed_foundries_adjacent = foundries
-            # ---
 
     @classmethod
     def fill_tile_infoH(cls):
@@ -31454,16 +28778,11 @@ class Map:
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
         # + is_pointed_to
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
-            ti.is_shield = False
-
             if ti.target is not None:
                 targ = ti.target
                 targ_tile_info = tile_info[targ.x][targ.y]
                 if targ_tile_info is not None:
                     targ_tile_info.is_pointed_to = True
-                    if targ_tile_info.entity_type == HARVESTER:
-                        ti.is_shield = True
-                        # Debug.dot(pos, Color.RED)
 
             # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
             row_xm1 = tile_info[x - 1]
@@ -31493,6 +28812,13 @@ class Map:
             nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
             ti.allied_bots_adjacent = cnt
 
+            # cardinal only
+            ti.ally_non_road_buildings_adjacent = (
+                (row_x[ym1] is not None and row_x[ym1].has_building and row_x[ym1].is_building_ally and row_x[ym1].entity_type != ROAD)
+ +                 (row_xp1[y] is not None and row_xp1[y].has_building and row_xp1[y].is_building_ally and row_xp1[y].entity_type != ROAD)
+ +                 (row_x[yp1] is not None and row_x[yp1].has_building and row_x[yp1].is_building_ally and row_x[yp1].entity_type != ROAD)
+ +                 (row_xm1[y] is not None and row_xm1[y].has_building and row_xm1[y].is_building_ally and row_xm1[y].entity_type != ROAD)
+            )
 
             # turret/transporter adjacency: only for harvesters
             ally_core_adj = False
@@ -31587,30 +28913,6 @@ class Map:
                 ti.ally_outward_transporters_adjacent = ally_outward_transporters
                 ti.ally_core_adj = ally_core_adj
                 ti.enemy_transporters_adjacent = enemy_transporters
-
-        # --- third pass: fed foundry + ally non roads ---
-        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
-            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
-            row_xm1 = tile_info[x - 1]
-            row_x   = tile_info[x]
-            row_xp1 = tile_info[x + 1]
-            ym1 = y - 1
-            yp1 = y + 1
-
-            # --- fused cardinal adjacency (single pass) ---
-            ally_non_road = 0
-            foundries = 0
-
-            for nti in (row_xm1[y], row_xp1[y], row_x[ym1], row_x[yp1]):
-                if nti is not None and nti.has_building and nti.is_building_ally:
-                    if nti.entity_type != ROAD:
-                        ally_non_road += 1
-                    if nti.entity_type == FOUNDRY and nti.is_pointed_to:
-                        foundries += 1
-
-            ti.ally_non_road_buildings_adjacent = ally_non_road
-            ti.ally_fed_foundries_adjacent = foundries
-            # ---
 
     @classmethod
     def fill_tile_infoR(cls):
@@ -31895,16 +29197,11 @@ class Map:
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
         # + is_pointed_to
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
-            ti.is_shield = False
-
             if ti.target is not None:
                 targ = ti.target
                 targ_tile_info = tile_info[targ.x][targ.y]
                 if targ_tile_info is not None:
                     targ_tile_info.is_pointed_to = True
-                    if targ_tile_info.entity_type == HARVESTER:
-                        ti.is_shield = True
-                        # Debug.dot(pos, Color.RED)
 
             # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
             row_xm1 = tile_info[x - 1]
@@ -31934,6 +29231,13 @@ class Map:
             nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
             ti.allied_bots_adjacent = cnt
 
+            # cardinal only
+            ti.ally_non_road_buildings_adjacent = (
+                (row_x[ym1] is not None and row_x[ym1].has_building and row_x[ym1].is_building_ally and row_x[ym1].entity_type != ROAD)
+ +                 (row_xp1[y] is not None and row_xp1[y].has_building and row_xp1[y].is_building_ally and row_xp1[y].entity_type != ROAD)
+ +                 (row_x[yp1] is not None and row_x[yp1].has_building and row_x[yp1].is_building_ally and row_x[yp1].entity_type != ROAD)
+ +                 (row_xm1[y] is not None and row_xm1[y].has_building and row_xm1[y].is_building_ally and row_xm1[y].entity_type != ROAD)
+            )
 
             # turret/transporter adjacency: only for harvesters
             ally_core_adj = False
@@ -32028,30 +29332,6 @@ class Map:
                 ti.ally_outward_transporters_adjacent = ally_outward_transporters
                 ti.ally_core_adj = ally_core_adj
                 ti.enemy_transporters_adjacent = enemy_transporters
-
-        # --- third pass: fed foundry + ally non roads ---
-        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
-            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
-            row_xm1 = tile_info[x - 1]
-            row_x   = tile_info[x]
-            row_xp1 = tile_info[x + 1]
-            ym1 = y - 1
-            yp1 = y + 1
-
-            # --- fused cardinal adjacency (single pass) ---
-            ally_non_road = 0
-            foundries = 0
-
-            for nti in (row_xm1[y], row_xp1[y], row_x[ym1], row_x[yp1]):
-                if nti is not None and nti.has_building and nti.is_building_ally:
-                    if nti.entity_type != ROAD:
-                        ally_non_road += 1
-                    if nti.entity_type == FOUNDRY and nti.is_pointed_to:
-                        foundries += 1
-
-            ti.ally_non_road_buildings_adjacent = ally_non_road
-            ti.ally_fed_foundries_adjacent = foundries
-            # ---
 
     @classmethod
     def fill_tile_infoUNKNOWN(cls):
@@ -32315,16 +29595,11 @@ class Map:
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
         # + is_pointed_to
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
-            ti.is_shield = False
-
             if ti.target is not None:
                 targ = ti.target
                 targ_tile_info = tile_info[targ.x][targ.y]
                 if targ_tile_info is not None:
                     targ_tile_info.is_pointed_to = True
-                    if targ_tile_info.entity_type == HARVESTER:
-                        ti.is_shield = True
-                        # Debug.dot(pos, Color.RED)
 
             # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
             row_xm1 = tile_info[x - 1]
@@ -32354,6 +29629,13 @@ class Map:
             nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
             ti.allied_bots_adjacent = cnt
 
+            # cardinal only
+            ti.ally_non_road_buildings_adjacent = (
+                (row_x[ym1] is not None and row_x[ym1].has_building and row_x[ym1].is_building_ally and row_x[ym1].entity_type != ROAD)
+ +                 (row_xp1[y] is not None and row_xp1[y].has_building and row_xp1[y].is_building_ally and row_xp1[y].entity_type != ROAD)
+ +                 (row_x[yp1] is not None and row_x[yp1].has_building and row_x[yp1].is_building_ally and row_x[yp1].entity_type != ROAD)
+ +                 (row_xm1[y] is not None and row_xm1[y].has_building and row_xm1[y].is_building_ally and row_xm1[y].entity_type != ROAD)
+            )
 
             # turret/transporter adjacency: only for harvesters
             ally_core_adj = False
@@ -32449,30 +29731,6 @@ class Map:
                 ti.ally_core_adj = ally_core_adj
                 ti.enemy_transporters_adjacent = enemy_transporters
 
-        # --- third pass: fed foundry + ally non roads ---
-        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
-            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
-            row_xm1 = tile_info[x - 1]
-            row_x   = tile_info[x]
-            row_xp1 = tile_info[x + 1]
-            ym1 = y - 1
-            yp1 = y + 1
-
-            # --- fused cardinal adjacency (single pass) ---
-            ally_non_road = 0
-            foundries = 0
-
-            for nti in (row_xm1[y], row_xp1[y], row_x[ym1], row_x[yp1]):
-                if nti is not None and nti.has_building and nti.is_building_ally:
-                    if nti.entity_type != ROAD:
-                        ally_non_road += 1
-                    if nti.entity_type == FOUNDRY and nti.is_pointed_to:
-                        foundries += 1
-
-            ti.ally_non_road_buildings_adjacent = ally_non_road
-            ti.ally_fed_foundries_adjacent = foundries
-            # ---
-
 
 
 
@@ -32496,17 +29754,6 @@ class Map:
                         Debug.dot(pos, Color.BLUE)
                     elif env == Environment.ORE_AXIONITE:
                         Debug.dot(pos, Color.ORANGE)
-
-
-
-    @classmethod
-    def debug_pointed_to(cls):
-        """Debug proc_nearby_tiles: pointed-to=RED, not pointed-to=WHITE"""
-        for pos, x, y, pos_idx, ti in cls.proc_nearby_tiles:
-            if ti.is_pointed_to:
-                Debug.dot(pos, Color.RED)
-            else:
-                Debug.dot(pos, Color.WHITE)
 
 
 
@@ -32831,13 +30078,9 @@ class MarketMaker:
     ax: int
     scale_ratio: float
 
-    ti_hist: list[int] = [500] * 20
+    ti_hist: list[int] = [GameConstants.STARTING_TITANIUM] * 20
     ti_diff_hist: list[int] = [0] * 20
     est_income: int
-
-    ax_hist: list[int] = [0] * 20
-    ax_diff_hist: list[int] = [0] * 20
-    est_income_ax: int
 
     @classmethod
     def refresh(cls):
@@ -32846,12 +30089,10 @@ class MarketMaker:
 
         idx = Globals.round % 20
         cls.ti_hist[idx] = cls.ti
-        cls.ti_diff_hist[idx] = cls.ti - cls.ti_hist[idx - 1]
+        cls.ti_diff_hist[idx] = cls.ti - cls.ti_hist[
+            idx-1 if idx-1 >= 0 else idx-1+20
+        ]
         cls.est_income = max(cls.ti_diff_hist)
-
-        cls.ax_hist[idx] = cls.ax
-        cls.ax_diff_hist[idx] = cls.ax - cls.ax_hist[idx - 1]
-        cls.est_income_ax = max(cls.ax_diff_hist)
 
 
 
@@ -32875,8 +30116,12 @@ class MarketMaker:
         
         
         bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.core_sink_set)
+        if bridges >= 1000000:
+            # Fallback: route through ally conveyors/bridges, but only ones that are
+            # currently sight_flowing and below the pressure threshold (so we don't
+            # clog already-saturated lines).
+            bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.core_sink_set, use_ally_routing=True)
         
-
         h_cost, _ = Globals.ct.get_harvester_cost()
         b_cost, _ = Globals.ct.get_bridge_cost()
         if bridges >= 1000000:
@@ -33188,6 +30433,7 @@ class OreExecutive:
             Debug.line(pos, Color.YELLOW)
             BuildManager.dbuild_harvester(pos)
 
+            cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
             # Check if already routed naturally
             for d in Constants.CARDINAL_DIRECTIONS:
                 newPos = pos.add(d)
@@ -33195,20 +30441,14 @@ class OreExecutive:
                 if ti is None:
                     continue
                 encoded = (((newPos.x) + 3) * 56 + ((newPos.y) + 3))
-                if ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET and not ti.is_shield and encoded in DarkForest.core_sink_set:
+                if ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET and not BfsBureau.harvester_feeder[encoded] and encoded in DarkForest.core_sink_set | Unit.core_pos_set:
                     break  # already connected, skip
             else:
-                # Prefer routing to an existing foundry with spare ti capacity
-                # over routing all the way back to core — it's cheaper and
-                # boosts an under-fed foundry's output.
-                fi_target = FoundryInputTracker.get_best_ti_foundry(pos)
-                if fi_target is not None and not RouteToFoundryInput.is_active:
-                    target_pos = Position(((fi_target) // 56 - 3), ((fi_target) % 56 - 3))
-                else:
-                    target_pos = Unit.core_pos
-
-                cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos, target_pos=target_pos)
                 if cand is not None:
+                    # Prefer routing to an existing foundry with spare ti capacity
+                    # over routing all the way back to core — it's cheaper and
+                    # boosts an under-fed foundry's output.
+                    fi_target = FoundryInputTracker.get_best_ti_foundry(pos)
                     if fi_target is not None and not RouteToFoundryInput.is_active and RouteToFoundry.axionite_can_reach_foundry(cand.position, fi_target):
                         FoundryInputTracker.claim_ti(fi_target)
                         RouteToFoundryInput.set_pos(cand.position, fi_target, is_ax=False)
@@ -33227,14 +30467,14 @@ class OreExecutive:
             cls.state[pos] = 6
             return
 
-        cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos, forAx=True)
+        cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos,True)
         if cand == None:
             Debug.line(pos, Color.RED)
             Debug.diamond(Color.RED)
             cls.state[pos] = 2
             return
         ti = Map.tile_info[cand.position.x][cand.position.y]
-        if ti.entity_type in Constants.TRANSPORTERS_SET and not ti.is_shield:
+        if ti.entity_type in Constants.TRANSPORTERS_SET and not BfsBureau.harvester_feeder[(((cand.position.x) + 3) * 56 + ((cand.position.y) + 3))]:
             cls.state[pos] = 2
             Debug.line(pos, Color.RED)
             Debug.diamond(Color.RED)
@@ -33279,7 +30519,7 @@ class OreExecutive:
                 ti = Map.tile_info[newPos.x][newPos.y]
                 if ti is None:
                     continue
-                if ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET and not ti.is_shield:
+                if ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET and not BfsBureau.harvester_feeder[(((newPos.x) + 3) * 56 + ((newPos.y) + 3))]:
                     break  # already connected, skip
             else:
                 RouteToFoundry.set_pos(cand.position)
@@ -33295,120 +30535,75 @@ class OreExecutive:
 
 class OrePositionPicker:
     class Candidate:
-        __slots__ = ('position', 'ti', 'build_metric', 'dist_to_target', 'is_accessible', 'empty', 'ti_ore_adj', 'has_enemy_bot')
+        __slots__ = ('position', 'ti', 'build_metric', 'is_accessible', 'empty','ti_ore_adj')
 
     cand: list[Candidate | None] = [None] * 4
 
     @classmethod
-    def precompute(cls, ore_pos: Position, target_pos: Position | None = None):
+    def precompute(cls, ore_pos: Position):
         my_pos = Globals.my_pos
         me_x, me_y = my_pos.x, my_pos.y
-
-        if target_pos is not None:
-            tx, ty = target_pos.x, target_pos.y
-        else:
-            tx, ty = 0, 0
 
         x, y = ore_pos.x, ore_pos.y
 
 
         nx, ny = x , y -1
 
-        # build_metric = max(abs(nx - me_x), abs(ny - me_y))
-        # if build_metric == 0:
-        #     build_metric += 2
-
-        if target_pos is not None:
-            dist_to_target = (nx - tx) * (nx - tx) + (ny - ty) * (ny - ty)
-        else:
-            dist_to_target = 0
-            
         ti = Map.tile_info[nx][ny]
 
         cand = cls.Candidate()
         cand.ti = ti
         cand.position = Position(nx, ny)
         cand.build_metric = abs(Unit.core_pos.x - nx) + abs(Unit.core_pos.y - ny)
-        cand.dist_to_target = dist_to_target
         cand.is_accessible = ti is not None and ti.env != Environment.WALL 
         cand.empty = ti is not None and ti.env == Environment.EMPTY
         cand.ti_ore_adj = BfsBureau.ti_ore_adj[(((nx) + 3) * 56 + ((ny) + 3))]
-        cand.has_enemy_bot = ti is not None and ti.has_bot and not ti.is_bot_ally
+
         cls.cand[0] = cand
         
 
         nx, ny = x +1, y 
 
-        # build_metric = max(abs(nx - me_x), abs(ny - me_y))
-        # if build_metric == 0:
-        #     build_metric += 2
-
-        if target_pos is not None:
-            dist_to_target = (nx - tx) * (nx - tx) + (ny - ty) * (ny - ty)
-        else:
-            dist_to_target = 0
-            
         ti = Map.tile_info[nx][ny]
 
         cand = cls.Candidate()
         cand.ti = ti
         cand.position = Position(nx, ny)
         cand.build_metric = abs(Unit.core_pos.x - nx) + abs(Unit.core_pos.y - ny)
-        cand.dist_to_target = dist_to_target
         cand.is_accessible = ti is not None and ti.env != Environment.WALL 
         cand.empty = ti is not None and ti.env == Environment.EMPTY
         cand.ti_ore_adj = BfsBureau.ti_ore_adj[(((nx) + 3) * 56 + ((ny) + 3))]
-        cand.has_enemy_bot = ti is not None and ti.has_bot and not ti.is_bot_ally
+
         cls.cand[1] = cand
         
 
         nx, ny = x , y +1
 
-        # build_metric = max(abs(nx - me_x), abs(ny - me_y))
-        # if build_metric == 0:
-        #     build_metric += 2
-
-        if target_pos is not None:
-            dist_to_target = (nx - tx) * (nx - tx) + (ny - ty) * (ny - ty)
-        else:
-            dist_to_target = 0
-            
         ti = Map.tile_info[nx][ny]
 
         cand = cls.Candidate()
         cand.ti = ti
         cand.position = Position(nx, ny)
         cand.build_metric = abs(Unit.core_pos.x - nx) + abs(Unit.core_pos.y - ny)
-        cand.dist_to_target = dist_to_target
         cand.is_accessible = ti is not None and ti.env != Environment.WALL 
         cand.empty = ti is not None and ti.env == Environment.EMPTY
         cand.ti_ore_adj = BfsBureau.ti_ore_adj[(((nx) + 3) * 56 + ((ny) + 3))]
-        cand.has_enemy_bot = ti is not None and ti.has_bot and not ti.is_bot_ally
+
         cls.cand[2] = cand
         
 
         nx, ny = x -1, y 
 
-        # build_metric = max(abs(nx - me_x), abs(ny - me_y))
-        # if build_metric == 0:
-        #     build_metric += 2
-
-        if target_pos is not None:
-            dist_to_target = (nx - tx) * (nx - tx) + (ny - ty) * (ny - ty)
-        else:
-            dist_to_target = 0
-            
         ti = Map.tile_info[nx][ny]
 
         cand = cls.Candidate()
         cand.ti = ti
         cand.position = Position(nx, ny)
         cand.build_metric = abs(Unit.core_pos.x - nx) + abs(Unit.core_pos.y - ny)
-        cand.dist_to_target = dist_to_target
         cand.is_accessible = ti is not None and ti.env != Environment.WALL 
         cand.empty = ti is not None and ti.env == Environment.EMPTY
         cand.ti_ore_adj = BfsBureau.ti_ore_adj[(((nx) + 3) * 56 + ((ny) + 3))]
-        cand.has_enemy_bot = ti is not None and ti.has_bot and not ti.is_bot_ally
+
         cls.cand[3] = cand
         
 
@@ -33421,7 +30616,7 @@ class OrePositionPicker:
         # 3. no building  (if not for ax)
         # 4. has ally building AND is road
         # 4.5 If for ax, avoid titanium ores
-        # 5. dist to target (if supplied) - prefer closer to target, shorter outgoing route
+        # 5. no builder bot
         # 6. build metric
         # 7. arbitrary
 
@@ -33461,15 +30656,10 @@ class OrePositionPicker:
             if (not a.ti.has_building) and b.ti.has_building:
                 return True
 
-        if a.has_enemy_bot and (not b.has_enemy_bot):
+        if a.ti.has_bot and (not b.ti.has_bot):
             return False
-        if (not a.has_enemy_bot) and b.has_enemy_bot:
+        if (not a.ti.has_bot) and b.ti.has_bot:
             return True
-
-        # When a target was supplied (only by callers that opt in via pick_best_candidate
-        # with target_pos), prefer the cell closest to it — shorter outgoing route.
-        if a.dist_to_target != b.dist_to_target:
-            return a.dist_to_target < b.dist_to_target
 
         if a.build_metric != b.build_metric:
             return a.build_metric < b.build_metric
@@ -33477,8 +30667,8 @@ class OrePositionPicker:
         return True  # arbitrary
 
     @classmethod
-    def pick_best_candidate(cls, ore_pos: Position, forAx = False, target_pos: Position | None = None) -> Candidate:
-        cls.precompute(ore_pos, target_pos)
+    def pick_best_candidate(cls, ore_pos: Position, forAx = False) -> Candidate:
+        cls.precompute(ore_pos)
 
         best = cls.cand[3]
         if cls.is_better_than(cls.cand[2], best, forAx):
@@ -33702,7 +30892,378 @@ class Player:
 # ============================================================
 
 class PongManager:
-    pass
+
+
+    @classmethod
+    def init(cls):
+        ct = Globals.ct 
+
+        if ct.get_team() == Team.A:
+            cls.data = {(0, None): [('build', EntityType.BUILDER_BOT, (9, 8))], (1, None): [('build', EntityType.BUILDER_BOT, (9, 7))], (2, None): [('build', EntityType.BUILDER_BOT, (8, 9))], (3, 3): [('build', EntityType.CONVEYOR, (10, 7), Direction.WEST)], (3, 5): [('build', EntityType.CONVEYOR, (10, 8), Direction.WEST)], (4, 3): [('build', EntityType.CONVEYOR, (10, 9), Direction.WEST)], (4, 5): [('move', (10, 7))], (5, 3): [('move', (10, 9))], (5, 5): [('build', EntityType.CONVEYOR, (11, 7), Direction.WEST)], (5, 9): [('build', EntityType.CONVEYOR, (8, 10), Direction.NORTH)], (6, 3): [('build', EntityType.CONVEYOR, (11, 8), Direction.WEST)], (6, 5): [('move', (11, 7))], (6, 9): [('move', (7, 9))], (7, 3): [('build', EntityType.CONVEYOR, (10, 10), Direction.NORTH)], (7, 5): [('build', EntityType.CONVEYOR, (12, 7), Direction.WEST)], (7, 9): [('build', EntityType.CONVEYOR, (6, 8), Direction.EAST)], (8, 3): [('move', (9, 9))], (8, 5): [('build', EntityType.CONVEYOR, (12, 8), Direction.WEST)], (8, 9): [('build', EntityType.CONVEYOR, (6, 9), Direction.EAST)], (9, 3): [('move', (8, 10))], (9, 5): [('move', (12, 7))], (9, 9): [('build', EntityType.CONVEYOR, (6, 10), Direction.NORTH)], (10, 3): [('build', EntityType.CONVEYOR, (8, 11), Direction.NORTH)], (10, 5): [('build', EntityType.CONVEYOR, (13, 7), Direction.WEST)], (10, 9): [('move', (6, 9))], (11, 3): [('move', (7, 9))], (11, 5): [('build', EntityType.CONVEYOR, (13, 8), Direction.WEST)], (11, 9): [('build', EntityType.CONVEYOR, (5, 8), Direction.EAST)], (12, 3): [('move', (6, 10))], (12, 5): [('move', (13, 7))], (12, 9): [('move', (5, 8))], (13, 3): [('build', EntityType.CONVEYOR, (6, 11), Direction.NORTH)], (13, 5): [('build', EntityType.CONVEYOR, (14, 7), Direction.WEST)], (13, 9): [('build', EntityType.CONVEYOR, (4, 8), Direction.EAST)], (14, 3): [('move', (6, 11))], (14, 5): [('build', EntityType.CONVEYOR, (14, 8), Direction.WEST)], (14, 9): [('move', (4, 8))], (15, 3): [('build', EntityType.HARVESTER, (7, 12))], (15, 5): [('move', (14, 7))], (15, 9): [('build', EntityType.CONVEYOR, (3, 8), Direction.EAST)], (16, 3): [('build', EntityType.ROAD, (7, 11)), ('move', (7, 11))], (16, 5): [('build', EntityType.CONVEYOR, (15, 7), Direction.WEST)], (16, 9): [('move', (3, 8))], (17, 3): [('build', EntityType.CONVEYOR, (8, 12), Direction.NORTH)], (17, 5): [('move', (15, 7))], (17, 9): [('build', EntityType.CONVEYOR, (2, 8), Direction.EAST)], (18, 3): [('move', (8, 11))], (18, 5): [('build', EntityType.CONVEYOR, (16, 7), Direction.WEST)], (18, 9): [('build', EntityType.CONVEYOR, (2, 9), Direction.NORTH)], (19, 3): [('build', EntityType.HARVESTER, (9, 12))], (19, 5): [('move', (16, 7))], (19, 9): [('move', (2, 9))], (20, 3): [('move', (8, 10))], (20, 5): [('build', EntityType.CONVEYOR, (17, 7), Direction.WEST)], (20, 9): [('build', EntityType.CONVEYOR, (2, 10), Direction.NORTH)], (21, 3): [('move', (9, 9))], (21, 5): [('build', EntityType.CONVEYOR, (17, 8), Direction.NORTH)], (21, 9): [('move', (2, 10))], (22, 3): [('move', (10, 10))], (22, 5): [('move', (15, 7))], (22, 9): [('build', EntityType.CONVEYOR, (2, 11), Direction.NORTH)], (23, 3): [('build', EntityType.CONVEYOR, (10, 11), Direction.NORTH)], (23, 5): [('move', (14, 8))], (23, 9): [('move', (2, 11))], (24, 3): [('build', EntityType.ROAD, (11, 10)), ('move', (11, 10))], (24, 5): [('build', EntityType.CONVEYOR, (14, 9), Direction.NORTH)], (24, 9): [('build', EntityType.HARVESTER, (1, 12))], (25, 3): [('build', EntityType.ROAD, (12, 11)), ('move', (12, 11))], (25, 5): [('move', (14, 9))], (25, 9): [('build', EntityType.CONVEYOR, (2, 12), Direction.NORTH)], (26, 3): [('build', EntityType.HARVESTER, (13, 12))], (26, 5): [('build', EntityType.CONVEYOR, (14, 10), Direction.NORTH)], (26, 9): [('build', EntityType.HARVESTER, (3, 12))], (27, 3): [('build', EntityType.ROAD, (13, 10)), ('move', (13, 10))], (27, 5): [('move', (14, 8))], (27, 9): [('move', (2, 12))], (28, 3): [('build', EntityType.CONVEYOR, (14, 11), Direction.NORTH)], (28, 5): [('move', (15, 7))], (28, 9): [('build', EntityType.HARVESTER, (2, 13))], (29, 3): [('move', (14, 11))], (29, 5): [('move', (16, 7))], (29, 9): [('build', EntityType.ROAD, (3, 13)), ('move', (3, 13))], (30, 3): [('build', EntityType.CONVEYOR, (14, 12), Direction.NORTH)], (30, 5): [('move', (17, 8))], (30, 9): [('build', EntityType.BRIDGE, (3, 14), (6, 14))], (31, 3): [('build', EntityType.HARVESTER, (15, 12))], (31, 9): [('move', (3, 14))], (32, 3): [('move', (14, 12))], (32, 5): [('build', EntityType.CONVEYOR, (17, 9), Direction.NORTH)], (33, 5): [('move', (17, 9))], (33, 9): [('build', EntityType.CONVEYOR, (3, 15), Direction.NORTH)], (34, 9): [('build', EntityType.ROAD, (2, 15)), ('move', (2, 15))], (35, 5): [('build', EntityType.CONVEYOR, (17, 10), Direction.NORTH)], (36, 5): [('move', (17, 10))], (37, 5): [('build', EntityType.CONVEYOR, (17, 11), Direction.NORTH)], (38, 3): [('build', EntityType.HARVESTER, (14, 13))], (38, 5): [('move', (17, 9))], (39, 3): [('build', EntityType.ROAD, (15, 13)), ('move', (15, 13))], (39, 5): [('build', EntityType.ROAD, (16, 10)), ('move', (16, 10))], (40, 3): [('build', EntityType.ROAD, (16, 13)), ('move', (16, 13))], (40, 5): [('build', EntityType.ROAD, (15, 10)), ('move', (15, 10))], (41, 3): [('build', EntityType.BRIDGE, (17, 14), (17, 11))], (41, 5): [('move', (14, 9))], (42, 3): [('move', (17, 14))], (42, 5): [('move', (13, 10))], (43, 3): [('build', EntityType.CONVEYOR, (17, 15), Direction.NORTH)], (43, 5): [('move', (14, 9))], (44, 3): [('build', EntityType.ROAD, (16, 15)), ('move', (16, 15))], (44, 5): [('move', (13, 10))], (44, 9): [('build', EntityType.HARVESTER, (1, 16))], (45, 5): [('move', (14, 9))], (45, 9): [('build', EntityType.CONVEYOR, (2, 16), Direction.EAST)], (46, 5): [('move', (13, 10))], (47, 5): [('move', (14, 9))], (48, 3): [('build', EntityType.HARVESTER, (15, 16))], (48, 5): [('move', (13, 10))], (49, 3): [('build', EntityType.CONVEYOR, (16, 16), Direction.EAST)], (49, 5): [('move', (14, 9))], (50, 5): [('move', (13, 10))], (51, 5): [('move', (14, 9))], (52, 5): [('move', (13, 10))], (53, 3): [('build', EntityType.FOUNDRY, (17, 16))], (53, 5): [('move', (14, 9))], (54, 3): [('move', (17, 15))], (54, 5): [('move', (13, 10))], (55, 3): [('build', EntityType.CONVEYOR, (18, 16), Direction.WEST)], (55, 5): [('move', (14, 9))], (56, 3): [('move', (18, 16))], (56, 5): [('move', (13, 10))], (57, 3): [('build', EntityType.HARVESTER, (19, 16))], (57, 5): [('move', (14, 9))], (58, 5): [('move', (13, 10))], (59, 3): [('build', EntityType.HARVESTER, (18, 17))], (59, 5): [('move', (14, 9))], (60, 3): [('move', (17, 15))], (60, 5): [('move', (13, 10))], (61, 3): [('move', (16, 16))], (61, 5): [('move', (14, 9))], (62, 3): [('build', EntityType.HARVESTER, (16, 17))], (62, 5): [('move', (13, 10))], (63, 3): [('build', EntityType.ROAD, (17, 17)), ('move', (17, 17))], (63, 5): [('move', (14, 9))], (64, 3): [('build', EntityType.ROAD, (16, 18)), ('move', (16, 18))], (64, 5): [('move', (13, 10))], (65, 3): [('build', EntityType.CONVEYOR, (15, 19), Direction.EAST)], (65, 5): [('move', (14, 9))], (66, 3): [('build', EntityType.CONVEYOR, (16, 19), Direction.EAST)], (66, 5): [('move', (13, 10))], (67, 3): [('build', EntityType.BRIDGE, (17, 19), (17, 16))], (67, 5): [('move', (14, 9))], (68, 3): [('move', (17, 19))], (68, 5): [('move', (13, 10))], (69, 3): [('build', EntityType.CONVEYOR, (18, 19), Direction.WEST)], (69, 5): [('move', (14, 9))], (70, 3): [('build', EntityType.HARVESTER, (17, 20))], (70, 5): [('move', (13, 10))], (71, 3): [('build', EntityType.CONVEYOR, (18, 20), Direction.NORTH)], (71, 5): [('move', (14, 9))], (72, 3): [('move', (16, 19))], (72, 5): [('move', (13, 10))], (73, 3): [('build', EntityType.HARVESTER, (15, 20))], (73, 5): [('move', (14, 9))], (74, 3): [('move', (17, 19))], (74, 5): [('move', (13, 10))], (75, 3): [('move', (18, 19))], (75, 5): [('move', (14, 9))], (76, 3): [('build', EntityType.HARVESTER, (19, 20))], (76, 5): [('move', (13, 10))], (77, 3): [('move', (18, 20))], (77, 5): [('move', (14, 9))], (78, 5): [('move', (13, 10))], (79, 5): [('move', (14, 9))], (80, 3): [('build', EntityType.HARVESTER, (18, 21))], (80, 5): [('move', (13, 10))], (81, 3): [('move', (17, 19))], (81, 5): [('move', (14, 9))], (82, 3): [('move', (16, 19))], (82, 5): [('move', (13, 10))], (83, 3): [('move', (15, 19))], (83, 5): [('move', (14, 9))], (84, 3): [('build', EntityType.ROAD, (14, 20)), ('move', (14, 20))], (84, 5): [('move', (13, 10))], (85, 3): [('build', EntityType.HARVESTER, (13, 20))], (85, 5): [('move', (14, 9))], (86, 3): [('build', EntityType.ROAD, (13, 19)), ('move', (13, 19))], (86, 5): [('move', (13, 10))], (87, 3): [('build', EntityType.CONVEYOR, (12, 19), Direction.WEST)], (87, 5): [('move', (14, 9))], (88, 3): [('build', EntityType.CONVEYOR, (12, 20), Direction.NORTH)], (88, 5): [('move', (13, 10))], (89, 3): [('build', EntityType.ROAD, (12, 18)), ('move', (12, 18))], (89, 5): [('move', (14, 9))], (90, 3): [('build', EntityType.HARVESTER, (11, 17))], (90, 5): [('move', (13, 10))], (91, 3): [('build', EntityType.CONVEYOR, (11, 19), Direction.WEST)], (91, 5): [('move', (14, 9))], (92, 3): [('build', EntityType.ARMOURED_CONVEYOR, (11, 19), Direction.WEST)], (92, 5): [('move', (13, 10))], (93, 3): [('build', EntityType.ROAD, (12, 17)), ('move', (12, 17))], (93, 5): [('move', (14, 9))], (94, 3): [('build', EntityType.CONVEYOR, (11, 16), Direction.WEST)], (94, 5): [('move', (13, 10))], (95, 3): [('build', EntityType.ARMOURED_CONVEYOR, (11, 16), Direction.WEST)], (95, 5): [('move', (14, 9))], (96, 3): [('build', EntityType.HARVESTER, (12, 16))], (96, 5): [('move', (13, 10))], (97, 3): [('move', (11, 16))], (97, 5): [('build', EntityType.ARMOURED_CONVEYOR, (14, 9), Direction.NORTH)], (98, 3): [('build', EntityType.CONVEYOR, (10, 15), Direction.NORTH)], (98, 5): [('move', (14, 9))], (99, 5): [('move', (13, 10))], (100, 3): [('build', EntityType.ARMOURED_CONVEYOR, (10, 15), Direction.NORTH)], (100, 5): [('move', (14, 9))], (101, 5): [('move', (13, 10))], (102, 5): [('build', EntityType.ARMOURED_CONVEYOR, (14, 10), Direction.NORTH)], (103, 5): [('move', (14, 9))], (104, 3): [('build', EntityType.FOUNDRY, (10, 16))], (104, 5): [('move', (13, 10))], (105, 3): [('move', (10, 15))], (105, 5): [('move', (14, 9))], (106, 5): [('build', EntityType.ARMOURED_CONVEYOR, (13, 8), Direction.WEST)], (107, 5): [('build', EntityType.ARMOURED_CONVEYOR, (14, 8), Direction.WEST)], (108, 5): [('move', (13, 10))], (109, 5): [('build', EntityType.ARMOURED_CONVEYOR, (14, 11), Direction.NORTH)], (110, 5): [('move', (14, 9))], (111, 5): [('move', (13, 10))], (111, 9): [('build', EntityType.ARMOURED_CONVEYOR, (3, 15), Direction.NORTH)], (112, 5): [('move', (14, 9))], (113, 5): [('move', (13, 10))], (113, 9): [('build', EntityType.ARMOURED_CONVEYOR, (2, 16), Direction.EAST)], (114, 5): [('move', (14, 9))], (115, 3): [('build', EntityType.BRIDGE, (10, 14), (10, 11))], (115, 5): [('move', (13, 10))], (116, 3): [('build', EntityType.CONVEYOR, (9, 16), Direction.EAST)], (116, 5): [('move', (14, 9))], (117, 3): [('build', EntityType.ARMOURED_CONVEYOR, (9, 16), Direction.EAST)], (117, 5): [('move', (13, 10))], (118, 3): [('build', EntityType.ROAD, (9, 14)), ('move', (9, 14))], (118, 5): [('move', (14, 9))], (119, 5): [('move', (13, 10))], (120, 5): [('move', (14, 9))], (121, 3): [('build', EntityType.HARVESTER, (8, 13))], (121, 5): [('move', (13, 10))], (122, 3): [('move', (10, 15))], (122, 5): [('move', (14, 9))], (123, 3): [('move', (9, 16))], (123, 5): [('move', (13, 10))], (124, 3): [('build', EntityType.HARVESTER, (8, 16))], (124, 5): [('move', (14, 9))], (125, 3): [('build', EntityType.HARVESTER, (9, 17))], (125, 5): [('move', (13, 10))], (126, 3): [('build', EntityType.ROAD, (8, 15)), ('move', (8, 15))], (126, 5): [('move', (14, 9))], (127, 3): [('build', EntityType.ROAD, (7, 15)), ('move', (7, 15))], (127, 5): [('move', (13, 10))], (127, 9): [('build', EntityType.FOUNDRY, (3, 16))], (128, 5): [('move', (14, 9))], (128, 9): [('move', (3, 15))], (129, 3): [('build', EntityType.BRIDGE, (6, 14), (6, 11))], (129, 5): [('move', (13, 10))], (129, 9): [('build', EntityType.CONVEYOR, (4, 16), Direction.WEST)], (130, 3): [('build', EntityType.ROAD, (6, 16)), ('move', (6, 16))], (130, 5): [('move', (14, 9))], (130, 9): [('build', EntityType.ARMOURED_CONVEYOR, (4, 16), Direction.WEST)], (131, 5): [('move', (13, 10))], (131, 9): [('move', (2, 16))], (132, 5): [('move', (14, 9))], (133, 3): [('build', EntityType.HARVESTER, (5, 16))], (133, 5): [('move', (13, 10))], (134, 3): [('build', EntityType.ROAD, (5, 17)), ('move', (5, 17))], (134, 5): [('move', (14, 9))], (135, 3): [('build', EntityType.HARVESTER, (4, 17))], (135, 5): [('move', (13, 10))], (136, 3): [('build', EntityType.ROAD, (4, 18)), ('move', (4, 18))], (136, 5): [('move', (14, 9))], (137, 3): [('build', EntityType.BRIDGE, (3, 19), (3, 16))], (137, 5): [('move', (13, 10))], (138, 3): [('build', EntityType.CONVEYOR, (4, 19), Direction.WEST)], (138, 5): [('move', (14, 9))], (138, 9): [('build', EntityType.HARVESTER, (2, 17))], (139, 3): [('build', EntityType.ARMOURED_CONVEYOR, (4, 19), Direction.WEST)], (139, 5): [('move', (13, 10))], (139, 9): [('move', (3, 15))], (140, 3): [('build', EntityType.CONVEYOR, (5, 19), Direction.WEST)], (140, 5): [('move', (14, 9))], (140, 9): [('build', EntityType.ROAD, (4, 14)), ('move', (4, 14))], (141, 3): [('build', EntityType.ARMOURED_CONVEYOR, (5, 19), Direction.WEST)], (141, 5): [('move', (13, 10))], (141, 9): [('build', EntityType.ROAD, (5, 13)), ('move', (5, 13))], (142, 3): [('move', (5, 19))], (142, 5): [('move', (14, 9))], (142, 9): [('build', EntityType.ROAD, (4, 12)), ('move', (4, 12))], (143, 3): [('build', EntityType.ROAD, (6, 20)), ('move', (6, 20))], (143, 5): [('move', (13, 10))], (143, 9): [('move', (3, 13))], (144, 3): [('build', EntityType.ROAD, (5, 21)), ('move', (5, 21))], (144, 5): [('move', (14, 9))], (144, 9): [('build', EntityType.ARMOURED_CONVEYOR, (2, 12), Direction.NORTH)], (145, 3): [('build', EntityType.ROAD, (4, 22)), ('move', (4, 22))], (145, 5): [('move', (13, 10))], (145, 9): [('move', (4, 12))], (146, 3): [('build', EntityType.BARRIER, (3, 23))], (146, 5): [('move', (14, 9))], (146, 9): [('move', (3, 13))], (147, 3): [('build', EntityType.BARRIER, (5, 23))], (147, 5): [('move', (13, 10))], (147, 9): [('move', (4, 12))], (148, 3): [('build', EntityType.ROAD, (3, 22)), ('move', (3, 22))], (148, 5): [('move', (14, 9))], (148, 9): [('move', (3, 13))], (149, 3): [('build', EntityType.BARRIER, (2, 23))], (149, 5): [('move', (13, 10))], (149, 9): [('move', (4, 12))], (150, 3): [('build', EntityType.ROAD, (2, 22)), ('move', (2, 22))], (150, 5): [('move', (14, 9))], (150, 9): [('move', (3, 13))], (151, 3): [('build', EntityType.BARRIER, (1, 23))], (151, 5): [('move', (13, 10))], (151, 9): [('move', (4, 12))], (152, 3): [('build', EntityType.ROAD, (1, 22)), ('move', (1, 22))], (152, 5): [('move', (14, 9))], (152, 9): [('move', (3, 13))], (153, 3): [('build', EntityType.ROAD, (0, 23)), ('move', (0, 23))], (153, 5): [('move', (13, 10))], (153, 9): [('move', (4, 12))], (154, 3): [('build', EntityType.BARRIER, (1, 24))], (154, 5): [('move', (14, 9))], (154, 9): [('move', (3, 13))], (155, 3): [('build', EntityType.ROAD, (0, 24)), ('move', (0, 24))], (155, 5): [('move', (13, 10))], (155, 9): [('move', (4, 12))], (156, 3): [('build', EntityType.BARRIER, (1, 25))], (156, 5): [('move', (14, 9))], (156, 9): [('move', (3, 13))], (157, 3): [('build', EntityType.ROAD, (0, 25)), ('move', (0, 25))], (157, 5): [('move', (13, 10))], (157, 9): [('move', (4, 12))], (158, 3): [('build', EntityType.BARRIER, (1, 26))], (158, 5): [('move', (14, 9))], (158, 9): [('move', (3, 13))], (159, 3): [('build', EntityType.ROAD, (0, 26)), ('move', (0, 26))], (159, 5): [('move', (13, 10))], (159, 9): [('move', (4, 12))], (160, 3): [('build', EntityType.ROAD, (1, 27)), ('move', (1, 27))], (160, 5): [('move', (14, 9))], (160, 9): [('move', (3, 13))], (161, 3): [('build', EntityType.BARRIER, (2, 26))], (161, 5): [('move', (13, 10))], (161, 9): [('move', (4, 12))], (162, 3): [('build', EntityType.ROAD, (2, 27)), ('move', (2, 27))], (162, 5): [('move', (14, 9))], (162, 9): [('move', (3, 13))], (163, 3): [('build', EntityType.BARRIER, (3, 26))], (163, 5): [('move', (13, 10))], (163, 9): [('move', (4, 12))], (164, 3): [('build', EntityType.ROAD, (3, 27)), ('move', (3, 27))], (164, 5): [('move', (14, 9))], (164, 9): [('move', (3, 13))], (165, 3): [('build', EntityType.ROAD, (4, 26)), ('move', (4, 26))], (165, 5): [('move', (13, 10))], (165, 9): [('move', (4, 12))], (166, 3): [('build', EntityType.BARRIER, (3, 25))], (166, 5): [('move', (14, 9))], (166, 9): [('move', (3, 13))], (167, 3): [('build', EntityType.BARRIER, (5, 25))], (167, 5): [('move', (13, 10))], (167, 9): [('move', (4, 12))], (168, 3): [('build', EntityType.BARRIER, (5, 26))], (168, 5): [('move', (14, 9))], (168, 9): [('move', (3, 13))], (169, 3): [('build', EntityType.ROAD, (4, 25)), ('move', (4, 25))], (169, 5): [('move', (13, 10))], (169, 9): [('move', (4, 12))], (170, 3): [('build', EntityType.BARRIER, (5, 24))], (170, 5): [('move', (14, 9))], (170, 9): [('move', (3, 13))], (171, 3): [('build', EntityType.ROAD, (4, 24)), ('move', (4, 24))], (171, 5): [('move', (13, 10))], (171, 9): [('move', (4, 12))], (172, 3): [('build', EntityType.ROAD, (4, 23)), ('move', (4, 23))], (172, 5): [('move', (14, 9))], (172, 9): [('move', (3, 13))], (173, 3): [('build', EntityType.ROAD, (5, 22)), ('move', (5, 22))], (173, 5): [('move', (13, 10))], (173, 9): [('move', (4, 12))], (174, 3): [('build', EntityType.BARRIER, (6, 23))], (174, 5): [('move', (14, 9))], (174, 9): [('move', (3, 13))], (175, 3): [('build', EntityType.ROAD, (6, 22)), ('move', (6, 22))], (175, 5): [('move', (13, 10))], (175, 9): [('move', (4, 12))], (176, 3): [('build', EntityType.BARRIER, (7, 23))], (176, 5): [('move', (14, 9))], (176, 9): [('move', (3, 13))], (177, 3): [('build', EntityType.ROAD, (7, 22)), ('move', (7, 22))], (177, 5): [('move', (13, 10))], (177, 9): [('move', (4, 12))], (178, 3): [('build', EntityType.ROAD, (8, 23)), ('move', (8, 23))], (178, 5): [('move', (14, 9))], (178, 9): [('move', (3, 13))], (179, 3): [('build', EntityType.ROAD, (8, 24)), ('move', (8, 24))], (179, 5): [('move', (13, 10))], (179, 9): [('move', (4, 12))], (180, 3): [('build', EntityType.BARRIER, (7, 25))], (180, 5): [('move', (14, 9))], (180, 9): [('move', (3, 13))], (181, 3): [('build', EntityType.ROAD, (8, 25)), ('move', (8, 25))], (181, 5): [('move', (13, 10))], (181, 9): [('move', (4, 12))], (182, 3): [('build', EntityType.BARRIER, (7, 26))], (182, 5): [('move', (14, 9))], (182, 9): [('move', (3, 13))], (183, 3): [('build', EntityType.ROAD, (8, 26)), ('move', (8, 26))], (183, 5): [('move', (13, 10))], (183, 9): [('move', (4, 12))], (184, 3): [('build', EntityType.ROAD, (7, 27)), ('move', (7, 27))], (184, 5): [('move', (14, 9))], (184, 9): [('move', (3, 13))], (185, 3): [('build', EntityType.BARRIER, (6, 26))], (185, 5): [('move', (13, 10))], (185, 9): [('move', (4, 12))], (186, 3): [('move', (8, 26))], (186, 5): [('move', (14, 9))], (186, 9): [('move', (3, 13))], (187, 3): [('move', (8, 25))], (187, 5): [('move', (13, 10))], (187, 9): [('move', (4, 12))], (188, 3): [('move', (8, 24))], (188, 5): [('move', (14, 9))], (188, 9): [('move', (3, 13))], (189, 3): [('move', (8, 23))], (189, 5): [('move', (13, 10))], (189, 9): [('move', (4, 12))], (190, 3): [('move', (7, 22))], (190, 5): [('move', (14, 9))], (190, 9): [('move', (3, 13))], (191, 3): [('move', (6, 22))], (191, 5): [('move', (13, 10))], (191, 9): [('move', (4, 12))], (192, 3): [('move', (5, 21))], (192, 5): [('move', (14, 9))], (192, 9): [('move', (3, 13))], (193, 3): [('build', EntityType.CONVEYOR, (4, 20), Direction.NORTH)], (193, 5): [('move', (13, 10))], (193, 9): [('move', (4, 12))], (194, 3): [('build', EntityType.ARMOURED_CONVEYOR, (4, 20), Direction.NORTH)], (194, 5): [('move', (14, 9))], (194, 9): [('move', (3, 13))], (195, 3): [('build', EntityType.HARVESTER, (5, 20))], (195, 5): [('move', (13, 10))], (195, 9): [('move', (4, 12))], (196, 3): [('build', EntityType.HARVESTER, (4, 21))], (196, 5): [('move', (14, 9))], (196, 9): [('move', (3, 13))], (197, 3): [('move', (6, 20))], (197, 5): [('move', (13, 10))], (197, 9): [('move', (4, 12))], (198, 3): [('build', EntityType.CONVEYOR, (6, 19), Direction.WEST)], (198, 5): [('move', (14, 9))], (198, 9): [('move', (3, 13))], (199, 3): [('build', EntityType.ARMOURED_CONVEYOR, (6, 19), Direction.WEST)], (199, 5): [('move', (13, 10))], (199, 9): [('move', (4, 12))], (200, 3): [('build', EntityType.CONVEYOR, (7, 19), Direction.WEST)], (200, 5): [('move', (14, 9))], (200, 9): [('move', (3, 13))], (201, 3): [('build', EntityType.ARMOURED_CONVEYOR, (7, 19), Direction.WEST)], (201, 5): [('move', (13, 10))], (201, 9): [('move', (4, 12))], (202, 3): [('build', EntityType.HARVESTER, (7, 20))], (202, 5): [('move', (14, 9))], (202, 9): [('move', (3, 13))], (203, 3): [('move', (7, 19))], (203, 5): [('move', (13, 10))], (203, 9): [('move', (4, 12))], (204, 3): [('build', EntityType.ROAD, (8, 19)), ('move', (8, 19))], (204, 5): [('move', (14, 9))], (204, 9): [('move', (3, 13))], (205, 3): [('build', EntityType.CONVEYOR, (9, 19), Direction.EAST)], (205, 5): [('move', (13, 10))], (205, 9): [('move', (4, 12))], (206, 3): [('build', EntityType.ARMOURED_CONVEYOR, (9, 19), Direction.EAST)], (206, 5): [('move', (14, 9))], (206, 9): [('move', (3, 13))], (207, 3): [('build', EntityType.HARVESTER, (9, 20))], (207, 5): [('move', (13, 10))], (207, 9): [('move', (4, 12))], (208, 3): [('move', (9, 19))], (208, 5): [('move', (14, 9))], (208, 9): [('move', (3, 13))], (209, 3): [('build', EntityType.BRIDGE, (10, 19), (10, 16))], (209, 5): [('move', (13, 10))], (209, 9): [('move', (4, 12))], (210, 3): [('build', EntityType.ROAD, (10, 20)), ('move', (10, 20))], (210, 5): [('move', (14, 9))], (210, 9): [('move', (3, 13))], (211, 3): [('build', EntityType.HARVESTER, (11, 20))], (211, 5): [('move', (13, 10))], (211, 9): [('move', (4, 12))], (212, 3): [('build', EntityType.ROAD, (11, 21)), ('move', (11, 21))], (212, 5): [('move', (14, 9))], (212, 9): [('move', (3, 13))], (213, 3): [('build', EntityType.ARMOURED_CONVEYOR, (12, 20), Direction.NORTH)], (213, 5): [('move', (13, 10))], (213, 9): [('move', (4, 12))], (214, 3): [('build', EntityType.HARVESTER, (12, 21))], (214, 5): [('move', (14, 9))], (214, 9): [('move', (3, 13))], (215, 3): [('build', EntityType.ROAD, (10, 22)), ('move', (10, 22))], (215, 5): [('move', (13, 10))], (215, 9): [('move', (4, 12))], (216, 3): [('move', (11, 21))], (216, 5): [('move', (14, 9))], (216, 9): [('move', (3, 13))], (217, 3): [('move', (10, 22))], (217, 5): [('move', (13, 10))], (217, 9): [('move', (4, 12))], (218, 3): [('move', (11, 21))], (218, 5): [('move', (14, 9))], (218, 9): [('move', (3, 13))], (219, 3): [('move', (10, 22))], (219, 5): [('move', (13, 10))], (219, 9): [('move', (4, 12))], (220, 3): [('move', (11, 21))], (220, 5): [('move', (14, 9))], (220, 9): [('move', (3, 13))], (221, 3): [('move', (10, 22))], (221, 5): [('move', (13, 10))], (221, 9): [('move', (4, 12))], (222, 3): [('move', (11, 21))], (222, 5): [('move', (14, 9))], (222, 9): [('move', (3, 13))], (223, 3): [('move', (10, 22))], (223, 5): [('move', (13, 10))], (223, 9): [('move', (4, 12))], (224, 3): [('move', (11, 21))], (224, 5): [('move', (14, 9))], (224, 9): [('move', (3, 13))], (225, 3): [('move', (10, 22))], (225, 5): [('move', (13, 10))], (225, 9): [('move', (4, 12))], (226, 3): [('move', (11, 21))], (226, 5): [('move', (14, 9))], (226, 9): [('move', (3, 13))], (227, 3): [('move', (10, 22))], (227, 5): [('move', (13, 10))], (227, 9): [('move', (4, 12))], (228, 3): [('move', (11, 21))], (228, 5): [('move', (14, 9))], (228, 9): [('move', (3, 13))], (229, 3): [('move', (10, 22))], (229, 5): [('move', (13, 10))], (229, 9): [('move', (4, 12))], (230, 3): [('move', (11, 21))], (230, 5): [('move', (14, 9))], (230, 9): [('move', (3, 13))], (231, 3): [('move', (10, 22))], (231, 5): [('move', (13, 10))], (231, 9): [('move', (4, 12))], (232, 3): [('move', (11, 21))], (232, 5): [('move', (14, 9))], (232, 9): [('move', (3, 13))], (233, 3): [('move', (10, 22))], (233, 5): [('move', (13, 10))], (233, 9): [('move', (4, 12))], (234, 3): [('move', (11, 21))], (234, 5): [('move', (14, 9))], (234, 9): [('move', (3, 13))], (235, 3): [('move', (10, 22))], (235, 5): [('move', (13, 10))], (235, 9): [('move', (4, 12))], (236, 3): [('move', (11, 21))], (236, 5): [('move', (14, 9))], (236, 9): [('move', (3, 13))], (237, 3): [('move', (10, 22))], (237, 5): [('move', (13, 10))], (237, 9): [('move', (4, 12))], (238, 3): [('move', (11, 21))], (238, 5): [('move', (14, 9))], (238, 9): [('move', (3, 13))], (239, 3): [('move', (10, 22))], (239, 5): [('move', (13, 10))], (239, 9): [('move', (4, 12))], (240, 3): [('move', (11, 21))], (240, 5): [('move', (14, 9))], (240, 9): [('move', (3, 13))], (241, 3): [('move', (10, 22))], (241, 5): [('move', (13, 10))], (241, 9): [('move', (4, 12))], (242, 3): [('move', (11, 21))], (242, 5): [('move', (14, 9))], (242, 9): [('move', (3, 13))], (243, 3): [('move', (10, 22))], (243, 5): [('move', (13, 10))], (243, 9): [('move', (4, 12))], (244, 3): [('move', (11, 21))], (244, 5): [('move', (14, 9))], (244, 9): [('move', (3, 13))], (245, 3): [('move', (10, 22))], (245, 5): [('move', (13, 10))], (245, 9): [('move', (4, 12))], (246, 3): [('move', (11, 21))], (246, 5): [('move', (14, 9))], (246, 9): [('move', (3, 13))], (247, 3): [('move', (10, 22))], (247, 5): [('move', (13, 10))], (247, 9): [('move', (4, 12))], (248, 3): [('move', (11, 21))], (248, 5): [('move', (14, 9))], (248, 9): [('move', (3, 13))], (249, 3): [('move', (10, 22))], (249, 5): [('move', (13, 10))], (249, 9): [('move', (4, 12))], (250, 3): [('move', (11, 21))], (250, 5): [('move', (14, 9))], (250, 9): [('move', (3, 13))], (251, 3): [('move', (10, 22))], (251, 5): [('move', (13, 10))], (251, 9): [('move', (4, 12))], (252, 3): [('move', (11, 21))], (252, 5): [('move', (14, 9))], (252, 9): [('move', (3, 13))], (253, 3): [('move', (10, 22))], (253, 5): [('move', (13, 10))], (253, 9): [('move', (4, 12))], (254, 3): [('move', (11, 21))], (254, 5): [('move', (14, 9))], (254, 9): [('move', (3, 13))], (255, 3): [('move', (10, 22))], (255, 5): [('move', (13, 10))], (255, 9): [('move', (4, 12))], (256, 3): [('move', (11, 21))], (256, 5): [('move', (14, 9))], (256, 9): [('move', (3, 13))], (257, 3): [('move', (10, 22))], (257, 5): [('move', (13, 10))], (257, 9): [('move', (4, 12))], (258, 3): [('move', (11, 21))], (258, 5): [('move', (14, 9))], (258, 9): [('move', (3, 13))], (259, 3): [('move', (10, 22))], (259, 5): [('move', (13, 10))], (259, 9): [('move', (4, 12))], (260, 3): [('move', (11, 21))], (260, 5): [('move', (14, 9))], (260, 9): [('move', (3, 13))], (261, 3): [('move', (10, 22))], (261, 5): [('move', (13, 10))], (261, 9): [('move', (4, 12))], (262, 3): [('move', (11, 21))], (262, 5): [('move', (14, 9))], (262, 9): [('move', (3, 13))], (263, 3): [('move', (10, 22))], (263, 5): [('move', (13, 10))], (263, 9): [('move', (4, 12))], (264, 3): [('move', (11, 21))], (264, 5): [('move', (14, 9))], (264, 9): [('move', (3, 13))], (265, 3): [('move', (10, 22))], (265, 5): [('move', (13, 10))], (265, 9): [('move', (4, 12))], (266, 3): [('move', (11, 21))], (266, 5): [('move', (14, 9))], (266, 9): [('move', (3, 13))], (267, 3): [('move', (10, 22))], (267, 5): [('move', (13, 10))], (267, 9): [('move', (4, 12))], (268, 3): [('move', (11, 21))], (268, 5): [('move', (14, 9))], (268, 9): [('move', (3, 13))], (269, 3): [('move', (10, 22))], (269, 5): [('move', (13, 10))], (269, 9): [('move', (4, 12))], (270, 3): [('move', (11, 21))], (270, 5): [('move', (14, 9))], (270, 9): [('move', (3, 13))], (271, 3): [('move', (10, 22))], (271, 5): [('move', (13, 10))], (271, 9): [('move', (4, 12))], (272, 3): [('move', (11, 21))], (272, 5): [('move', (14, 9))], (272, 9): [('move', (3, 13))], (273, 3): [('move', (10, 22))], (273, 5): [('move', (13, 10))], (273, 9): [('move', (4, 12))], (274, 3): [('move', (11, 21))], (274, 5): [('move', (14, 9))], (274, 9): [('move', (3, 13))], (275, 3): [('move', (10, 22))], (275, 5): [('move', (13, 10))], (275, 9): [('move', (4, 12))], (276, 3): [('move', (11, 21))], (276, 5): [('move', (14, 9))], (276, 9): [('move', (3, 13))], (277, 3): [('move', (10, 22))], (277, 5): [('move', (13, 10))], (277, 9): [('move', (4, 12))], (278, 3): [('move', (11, 21))], (278, 5): [('move', (14, 9))], (278, 9): [('move', (3, 13))], (279, 3): [('move', (10, 22))], (279, 5): [('move', (13, 10))], (279, 9): [('move', (4, 12))], (280, 3): [('move', (11, 21))], (280, 5): [('move', (14, 9))], (280, 9): [('move', (3, 13))], (281, 3): [('move', (10, 22))], (281, 5): [('move', (13, 10))], (281, 9): [('move', (4, 12))], (282, 3): [('move', (11, 21))], (282, 5): [('move', (14, 9))], (282, 9): [('move', (3, 13))], (283, 3): [('move', (10, 22))], (283, 5): [('move', (13, 10))], (283, 9): [('move', (4, 12))], (284, 3): [('move', (11, 21))], (284, 5): [('move', (14, 9))], (284, 9): [('move', (3, 13))], (285, 3): [('move', (10, 22))], (285, 5): [('move', (13, 10))], (285, 9): [('move', (4, 12))], (286, 3): [('move', (11, 21))], (286, 5): [('move', (14, 9))], (286, 9): [('move', (3, 13))], (287, 3): [('move', (10, 22))], (287, 5): [('move', (13, 10))], (287, 9): [('move', (4, 12))], (288, 3): [('move', (11, 21))], (288, 5): [('move', (14, 9))], (288, 9): [('move', (3, 13))], (289, 3): [('move', (10, 22))], (289, 5): [('move', (13, 10))], (289, 9): [('move', (4, 12))], (290, 3): [('move', (11, 21))], (290, 5): [('move', (14, 9))], (290, 9): [('move', (3, 13))], (291, 3): [('move', (10, 22))], (291, 5): [('move', (13, 10))], (291, 9): [('move', (4, 12))], (292, 3): [('move', (11, 21))], (292, 5): [('move', (14, 9))], (292, 9): [('move', (3, 13))], (293, 3): [('move', (10, 22))], (293, 5): [('move', (13, 10))], (293, 9): [('move', (4, 12))], (294, 3): [('move', (11, 21))], (294, 5): [('move', (14, 9))], (294, 9): [('move', (3, 13))], (295, 3): [('move', (10, 22))], (295, 5): [('move', (13, 10))], (295, 9): [('move', (4, 12))], (296, 3): [('move', (11, 21))], (296, 5): [('move', (14, 9))], (296, 9): [('move', (3, 13))], (297, 3): [('move', (10, 22))], (297, 5): [('move', (13, 10))], (297, 9): [('move', (4, 12))], (298, 3): [('move', (11, 21))], (298, 5): [('move', (14, 9))], (298, 9): [('move', (3, 13))], (299, 3): [('move', (10, 22))], (299, 5): [('move', (13, 10))], (299, 9): [('move', (4, 12))], (300, 3): [('move', (11, 21))], (300, 5): [('move', (14, 9))], (300, 9): [('move', (3, 13))], (301, 3): [('move', (10, 22))], (301, 5): [('move', (13, 10))], (301, 9): [('move', (4, 12))], (302, 3): [('move', (11, 21))], (302, 5): [('move', (14, 9))], (302, 9): [('move', (3, 13))], (303, 3): [('move', (10, 22))], (303, 5): [('move', (13, 10))], (303, 9): [('move', (4, 12))], (304, 3): [('move', (11, 21))], (304, 5): [('move', (14, 9))], (304, 9): [('move', (3, 13))], (305, 3): [('move', (10, 22))], (305, 5): [('move', (13, 10))], (305, 9): [('move', (4, 12))], (306, 3): [('move', (11, 21))], (306, 5): [('move', (14, 9))], (306, 9): [('move', (3, 13))], (307, 3): [('move', (10, 22))], (307, 5): [('move', (13, 10))], (307, 9): [('move', (4, 12))], (308, 3): [('move', (11, 21))], (308, 5): [('move', (14, 9))], (308, 9): [('move', (3, 13))], (309, 3): [('move', (10, 22))], (309, 5): [('move', (13, 10))], (309, 9): [('move', (4, 12))], (310, 3): [('move', (11, 21))], (310, 5): [('move', (14, 9))], (310, 9): [('move', (3, 13))], (311, 3): [('move', (10, 22))], (311, 5): [('move', (13, 10))], (311, 9): [('move', (4, 12))], (312, 3): [('move', (11, 21))], (312, 5): [('move', (14, 9))], (312, 9): [('move', (3, 13))], (313, 3): [('move', (10, 22))], (313, 5): [('move', (13, 10))], (313, 9): [('move', (4, 12))], (314, 3): [('move', (11, 21))], (314, 5): [('move', (14, 9))], (314, 9): [('move', (3, 13))], (315, 3): [('move', (10, 22))], (315, 5): [('move', (13, 10))], (315, 9): [('move', (4, 12))], (316, 3): [('move', (11, 21))], (316, 5): [('move', (14, 9))], (316, 9): [('move', (3, 13))], (317, 3): [('move', (10, 22))], (317, 5): [('move', (13, 10))], (317, 9): [('move', (4, 12))], (318, 3): [('move', (11, 21))], (318, 5): [('move', (14, 9))], (318, 9): [('move', (3, 13))], (319, 3): [('move', (10, 22))], (319, 5): [('move', (13, 10))], (319, 9): [('move', (4, 12))], (320, 3): [('move', (11, 21))], (320, 5): [('move', (14, 9))], (320, 9): [('move', (3, 13))], (321, 3): [('move', (10, 22))], (321, 5): [('move', (13, 10))], (321, 9): [('move', (4, 12))], (322, 3): [('move', (11, 21))], (322, 5): [('move', (14, 9))], (322, 9): [('move', (3, 13))], (323, 3): [('move', (10, 22))], (323, 5): [('move', (13, 10))], (323, 9): [('move', (4, 12))], (324, 3): [('move', (11, 21))], (324, 5): [('move', (14, 9))], (324, 9): [('move', (3, 13))], (325, 3): [('move', (10, 22))], (325, 5): [('move', (13, 10))], (325, 9): [('move', (4, 12))], (326, 3): [('move', (11, 21))], (326, 5): [('move', (14, 9))], (326, 9): [('move', (3, 13))], (327, 3): [('move', (10, 22))], (327, 5): [('move', (13, 10))], (327, 9): [('move', (4, 12))], (328, 3): [('move', (11, 21))], (328, 5): [('move', (14, 9))], (328, 9): [('move', (3, 13))], (329, 3): [('move', (10, 22))], (329, 5): [('move', (13, 10))], (329, 9): [('move', (4, 12))], (330, 3): [('move', (11, 21))], (330, 5): [('move', (14, 9))], (330, 9): [('move', (3, 13))], (331, 3): [('move', (10, 22))], (331, 5): [('move', (13, 10))], (331, 9): [('move', (4, 12))], (332, 3): [('move', (11, 21))], (332, 5): [('move', (14, 9))], (332, 9): [('move', (3, 13))], (333, 3): [('move', (10, 22))], (333, 5): [('move', (13, 10))], (333, 9): [('move', (4, 12))], (334, 3): [('move', (11, 21))], (334, 5): [('move', (14, 9))], (334, 9): [('move', (3, 13))], (335, 3): [('move', (10, 22))], (335, 5): [('move', (13, 10))], (335, 9): [('move', (4, 12))], (336, 3): [('move', (11, 21))], (336, 5): [('move', (14, 9))], (336, 9): [('move', (3, 13))], (337, 3): [('move', (10, 22))], (337, 5): [('move', (13, 10))], (337, 9): [('move', (4, 12))], (338, 3): [('move', (11, 21))], (338, 5): [('move', (14, 9))], (338, 9): [('move', (3, 13))], (339, 3): [('move', (10, 22))], (339, 5): [('move', (13, 10))], (339, 9): [('move', (4, 12))], (340, 3): [('move', (11, 21))], (340, 5): [('move', (14, 9))], (340, 9): [('move', (3, 13))], (341, 3): [('move', (10, 22))], (341, 5): [('move', (13, 10))], (341, 9): [('move', (4, 12))], (342, 3): [('move', (11, 21))], (342, 5): [('move', (14, 9))], (342, 9): [('move', (3, 13))], (343, 3): [('move', (10, 22))], (343, 5): [('move', (13, 10))], (343, 9): [('move', (4, 12))], (344, 3): [('move', (11, 21))], (344, 5): [('move', (14, 9))], (344, 9): [('move', (3, 13))], (345, 3): [('move', (10, 22))], (345, 5): [('move', (13, 10))], (345, 9): [('move', (4, 12))], (346, 3): [('move', (11, 21))], (346, 5): [('move', (14, 9))], (346, 9): [('move', (3, 13))], (347, 3): [('move', (10, 22))], (347, 5): [('move', (13, 10))], (347, 9): [('move', (4, 12))], (348, 3): [('move', (11, 21))], (348, 5): [('move', (14, 9))], (348, 9): [('move', (3, 13))], (349, 3): [('move', (10, 22))], (349, 5): [('move', (13, 10))], (349, 9): [('move', (4, 12))], (350, 3): [('move', (11, 21))], (350, 5): [('move', (14, 9))], (350, 9): [('move', (3, 13))], (351, 3): [('move', (10, 22))], (351, 5): [('move', (13, 10))], (351, 9): [('move', (4, 12))], (352, 3): [('move', (11, 21))], (352, 5): [('move', (14, 9))], (352, 9): [('move', (3, 13))], (353, 3): [('move', (10, 22))], (353, 5): [('move', (13, 10))], (353, 9): [('move', (4, 12))], (354, 3): [('move', (11, 21))], (354, 5): [('move', (14, 9))], (354, 9): [('move', (3, 13))], (355, 3): [('move', (10, 22))], (355, 5): [('move', (13, 10))], (355, 9): [('move', (4, 12))], (356, 3): [('move', (11, 21))], (356, 5): [('move', (14, 9))], (356, 9): [('move', (3, 13))], (357, 3): [('move', (10, 22))], (357, 5): [('move', (13, 10))], (357, 9): [('move', (4, 12))], (358, 3): [('move', (11, 21))], (358, 5): [('move', (14, 9))], (358, 9): [('move', (3, 13))], (359, 3): [('move', (10, 22))], (359, 5): [('move', (13, 10))], (359, 9): [('move', (4, 12))], (360, 3): [('move', (11, 21))], (360, 5): [('move', (14, 9))], (360, 9): [('move', (3, 13))], (361, 3): [('move', (10, 22))], (361, 5): [('move', (13, 10))], (361, 9): [('move', (4, 12))], (362, 3): [('move', (11, 21))], (362, 5): [('move', (14, 9))], (362, 9): [('move', (3, 13))], (363, 3): [('move', (10, 22))], (363, 5): [('move', (13, 10))], (363, 9): [('move', (4, 12))], (364, 3): [('move', (11, 21))], (364, 5): [('move', (14, 9))], (364, 9): [('move', (3, 13))], (365, 3): [('move', (10, 22))], (365, 5): [('move', (13, 10))], (365, 9): [('move', (4, 12))], (366, 3): [('move', (11, 21))], (366, 5): [('move', (14, 9))], (366, 9): [('move', (3, 13))], (367, 3): [('move', (10, 22))], (367, 5): [('move', (13, 10))], (367, 9): [('move', (4, 12))], (368, 3): [('move', (11, 21))], (368, 5): [('move', (14, 9))], (368, 9): [('move', (3, 13))], (369, 3): [('move', (10, 22))], (369, 5): [('move', (13, 10))], (369, 9): [('move', (4, 12))], (370, 3): [('move', (11, 21))], (370, 5): [('move', (14, 9))], (370, 9): [('move', (3, 13))], (371, 3): [('move', (10, 22))], (371, 5): [('move', (13, 10))], (371, 9): [('move', (4, 12))], (372, 3): [('move', (11, 21))], (372, 5): [('move', (14, 9))], (372, 9): [('move', (3, 13))], (373, 3): [('move', (10, 22))], (373, 5): [('move', (13, 10))], (373, 9): [('move', (4, 12))], (374, 3): [('move', (11, 21))], (374, 5): [('move', (14, 9))], (374, 9): [('move', (3, 13))], (375, 3): [('move', (10, 22))], (375, 5): [('move', (13, 10))], (375, 9): [('move', (4, 12))], (376, 3): [('move', (11, 21))], (376, 5): [('move', (14, 9))], (376, 9): [('move', (3, 13))], (377, 3): [('move', (10, 22))], (377, 5): [('move', (13, 10))], (377, 9): [('move', (4, 12))], (378, 3): [('move', (11, 21))], (378, 5): [('move', (14, 9))], (378, 9): [('move', (3, 13))], (379, 3): [('move', (10, 22))], (379, 5): [('move', (13, 10))], (379, 9): [('move', (4, 12))], (380, 3): [('move', (11, 21))], (380, 5): [('move', (14, 9))], (380, 9): [('move', (3, 13))], (381, 3): [('move', (10, 22))], (381, 5): [('move', (13, 10))], (381, 9): [('move', (4, 12))], (382, 3): [('move', (11, 21))], (382, 5): [('move', (14, 9))], (382, 9): [('move', (3, 13))], (383, 3): [('move', (10, 22))], (383, 5): [('move', (13, 10))], (383, 9): [('move', (4, 12))], (384, 3): [('move', (11, 21))], (384, 5): [('move', (14, 9))], (384, 9): [('move', (3, 13))], (385, 3): [('move', (10, 22))], (385, 5): [('move', (13, 10))], (385, 9): [('move', (4, 12))], (386, 3): [('move', (11, 21))], (386, 5): [('move', (14, 9))], (386, 9): [('move', (3, 13))], (387, 3): [('move', (10, 22))], (387, 5): [('move', (13, 10))], (387, 9): [('move', (4, 12))], (388, 3): [('move', (11, 21))], (388, 5): [('move', (14, 9))], (388, 9): [('move', (3, 13))], (389, 3): [('move', (10, 22))], (389, 5): [('move', (13, 10))], (389, 9): [('move', (4, 12))], (390, 3): [('move', (11, 21))], (390, 5): [('move', (14, 9))], (390, 9): [('move', (3, 13))], (391, 3): [('move', (10, 22))], (391, 5): [('move', (13, 10))], (391, 9): [('move', (4, 12))], (392, 3): [('move', (11, 21))], (392, 5): [('move', (14, 9))], (392, 9): [('move', (3, 13))], (393, 3): [('move', (10, 22))], (393, 5): [('move', (13, 10))], (393, 9): [('move', (4, 12))], (394, 3): [('move', (11, 21))], (394, 5): [('move', (14, 9))], (394, 9): [('move', (3, 13))], (395, 3): [('move', (10, 22))], (395, 5): [('move', (13, 10))], (395, 9): [('move', (4, 12))], (396, 3): [('move', (11, 21))], (396, 5): [('move', (14, 9))], (396, 9): [('move', (3, 13))], (397, 3): [('move', (10, 22))], (397, 5): [('move', (13, 10))], (397, 9): [('move', (4, 12))], (398, 3): [('move', (11, 21))], (398, 5): [('move', (14, 9))], (398, 9): [('move', (3, 13))], (399, 3): [('move', (10, 22))], (399, 5): [('move', (13, 10))], (399, 9): [('move', (4, 12))], (400, 3): [('move', (11, 21))], (400, 5): [('move', (14, 9))], (400, 9): [('move', (3, 13))], (401, 3): [('move', (10, 22))], (401, 5): [('move', (13, 10))], (401, 9): [('move', (4, 12))], (402, 3): [('move', (11, 21))], (402, 5): [('move', (14, 9))], (402, 9): [('move', (3, 13))], (403, 3): [('move', (10, 22))], (403, 5): [('move', (13, 10))], (403, 9): [('move', (4, 12))], (404, 3): [('move', (11, 21))], (404, 5): [('move', (14, 9))], (404, 9): [('move', (3, 13))], (405, 3): [('move', (10, 22))], (405, 5): [('move', (13, 10))], (405, 9): [('move', (4, 12))], (406, 3): [('move', (11, 21))], (406, 5): [('move', (14, 9))], (406, 9): [('move', (3, 13))], (407, 3): [('move', (10, 22))], (407, 5): [('move', (13, 10))], (407, 9): [('move', (4, 12))], (408, 3): [('move', (11, 21))], (408, 5): [('move', (14, 9))], (408, 9): [('move', (3, 13))], (409, 3): [('move', (10, 22))], (409, 5): [('move', (13, 10))], (409, 9): [('move', (4, 12))], (410, 3): [('move', (11, 21))], (410, 5): [('move', (14, 9))], (410, 9): [('move', (3, 13))], (411, 3): [('move', (10, 22))], (411, 5): [('move', (13, 10))], (411, 9): [('move', (4, 12))], (412, 3): [('move', (11, 21))], (412, 5): [('move', (14, 9))], (412, 9): [('move', (3, 13))], (413, 3): [('move', (10, 22))], (413, 5): [('move', (13, 10))], (413, 9): [('move', (4, 12))], (414, 3): [('move', (11, 21))], (414, 5): [('move', (14, 9))], (414, 9): [('move', (3, 13))], (415, 3): [('move', (10, 22))], (415, 5): [('move', (13, 10))], (415, 9): [('move', (4, 12))], (416, 3): [('move', (11, 21))], (416, 5): [('move', (14, 9))], (416, 9): [('move', (3, 13))], (417, 3): [('move', (10, 22))], (417, 5): [('move', (13, 10))], (417, 9): [('move', (4, 12))], (418, 3): [('move', (11, 21))], (418, 5): [('move', (14, 9))], (418, 9): [('move', (3, 13))], (419, 3): [('move', (10, 22))], (419, 5): [('move', (13, 10))], (419, 9): [('move', (4, 12))], (420, 3): [('move', (11, 21))], (420, 5): [('move', (14, 9))], (420, 9): [('move', (3, 13))], (421, 3): [('move', (10, 22))], (421, 5): [('move', (13, 10))], (421, 9): [('move', (4, 12))], (422, 3): [('move', (11, 21))], (422, 5): [('move', (14, 9))], (422, 9): [('move', (3, 13))], (423, 3): [('move', (10, 22))], (423, 5): [('move', (13, 10))], (423, 9): [('move', (4, 12))], (424, 3): [('move', (11, 21))], (424, 5): [('move', (14, 9))], (424, 9): [('move', (3, 13))], (425, 3): [('move', (10, 22))], (425, 5): [('move', (13, 10))], (425, 9): [('move', (4, 12))], (426, 3): [('move', (11, 21))], (426, 5): [('move', (14, 9))], (426, 9): [('move', (3, 13))], (427, 3): [('move', (10, 22))], (427, 5): [('move', (13, 10))], (427, 9): [('move', (4, 12))], (428, 3): [('move', (11, 21))], (428, 5): [('move', (14, 9))], (428, 9): [('move', (3, 13))], (429, 3): [('move', (10, 22))], (429, 5): [('move', (13, 10))], (429, 9): [('move', (4, 12))], (430, 3): [('move', (11, 21))], (430, 5): [('move', (14, 9))], (430, 9): [('move', (3, 13))], (431, 3): [('move', (10, 22))], (431, 5): [('move', (13, 10))], (431, 9): [('move', (4, 12))], (432, 3): [('move', (11, 21))], (432, 5): [('move', (14, 9))], (432, 9): [('move', (3, 13))], (433, 3): [('move', (10, 22))], (433, 5): [('move', (13, 10))], (433, 9): [('move', (4, 12))], (434, 3): [('move', (11, 21))], (434, 5): [('move', (14, 9))], (434, 9): [('move', (3, 13))], (435, 3): [('move', (10, 22))], (435, 5): [('move', (13, 10))], (435, 9): [('move', (4, 12))], (436, 3): [('move', (11, 21))], (436, 5): [('move', (14, 9))], (436, 9): [('move', (3, 13))], (437, 3): [('move', (10, 22))], (437, 5): [('move', (13, 10))], (437, 9): [('move', (4, 12))], (438, 3): [('move', (11, 21))], (438, 5): [('move', (14, 9))], (438, 9): [('move', (3, 13))], (439, 3): [('move', (10, 22))], (439, 5): [('move', (13, 10))], (439, 9): [('move', (4, 12))], (440, 3): [('move', (11, 21))], (440, 5): [('move', (14, 9))], (440, 9): [('move', (3, 13))], (441, 3): [('move', (10, 22))], (441, 5): [('move', (13, 10))], (441, 9): [('move', (4, 12))], (442, 3): [('move', (11, 21))], (442, 5): [('move', (14, 9))], (442, 9): [('move', (3, 13))], (443, 3): [('move', (10, 22))], (443, 5): [('move', (13, 10))], (443, 9): [('move', (4, 12))], (444, 3): [('move', (11, 21))], (444, 5): [('move', (14, 9))], (444, 9): [('move', (3, 13))], (445, 3): [('move', (10, 22))], (445, 5): [('move', (13, 10))], (445, 9): [('move', (4, 12))], (446, 3): [('move', (11, 21))], (446, 5): [('move', (14, 9))], (446, 9): [('move', (3, 13))], (447, 3): [('move', (10, 22))], (447, 5): [('move', (13, 10))], (447, 9): [('move', (4, 12))], (448, 3): [('move', (11, 21))], (448, 5): [('move', (14, 9))], (448, 9): [('move', (3, 13))], (449, 3): [('move', (10, 22))], (449, 5): [('move', (13, 10))], (449, 9): [('move', (4, 12))], (450, 3): [('move', (11, 21))], (450, 5): [('move', (14, 9))], (450, 9): [('move', (3, 13))], (451, 3): [('move', (10, 22))], (451, 5): [('move', (13, 10))], (451, 9): [('move', (4, 12))], (452, 3): [('move', (11, 21))], (452, 5): [('move', (14, 9))], (452, 9): [('move', (3, 13))], (453, 3): [('move', (10, 22))], (453, 5): [('move', (13, 10))], (453, 9): [('move', (4, 12))], (454, 3): [('move', (11, 21))], (454, 5): [('move', (14, 9))], (454, 9): [('move', (3, 13))], (455, 3): [('move', (10, 22))], (455, 5): [('move', (13, 10))], (455, 9): [('move', (4, 12))], (456, 3): [('move', (11, 21))], (456, 5): [('move', (14, 9))], (456, 9): [('move', (3, 13))], (457, 3): [('move', (10, 22))], (457, 5): [('move', (13, 10))], (457, 9): [('move', (4, 12))], (458, 3): [('move', (11, 21))], (458, 5): [('move', (14, 9))], (458, 9): [('move', (3, 13))], (459, 3): [('move', (10, 22))], (459, 5): [('move', (13, 10))], (459, 9): [('move', (4, 12))], (460, 3): [('move', (11, 21))], (460, 5): [('move', (14, 9))], (460, 9): [('move', (3, 13))], (461, 3): [('move', (10, 22))], (461, 5): [('move', (13, 10))], (461, 9): [('move', (4, 12))], (462, 3): [('move', (11, 21))], (462, 5): [('move', (14, 9))], (462, 9): [('move', (3, 13))], (463, 3): [('move', (10, 22))], (463, 5): [('move', (13, 10))], (463, 9): [('move', (4, 12))], (464, 3): [('move', (11, 21))], (464, 5): [('move', (14, 9))], (464, 9): [('move', (3, 13))], (465, 3): [('move', (10, 22))], (465, 5): [('move', (13, 10))], (465, 9): [('move', (4, 12))], (466, 3): [('move', (11, 21))], (466, 5): [('move', (14, 9))], (466, 9): [('move', (3, 13))], (467, 3): [('move', (10, 22))], (467, 5): [('move', (13, 10))], (467, 9): [('move', (4, 12))], (468, 3): [('move', (11, 21))], (468, 5): [('move', (14, 9))], (468, 9): [('move', (3, 13))], (469, 3): [('move', (10, 22))], (469, 5): [('move', (13, 10))], (469, 9): [('move', (4, 12))], (470, 3): [('move', (11, 21))], (470, 5): [('move', (14, 9))], (470, 9): [('move', (3, 13))], (471, 3): [('move', (10, 22))], (471, 5): [('move', (13, 10))], (471, 9): [('move', (4, 12))], (472, 3): [('move', (11, 21))], (472, 5): [('move', (14, 9))], (472, 9): [('move', (3, 13))], (473, 3): [('move', (10, 22))], (473, 5): [('move', (13, 10))], (473, 9): [('move', (4, 12))], (474, 3): [('move', (11, 21))], (474, 5): [('move', (14, 9))], (474, 9): [('move', (3, 13))], (475, 3): [('move', (10, 22))], (475, 5): [('move', (13, 10))], (475, 9): [('move', (4, 12))], (476, 3): [('move', (11, 21))], (476, 5): [('move', (14, 9))], (476, 9): [('move', (3, 13))], (477, 3): [('move', (10, 22))], (477, 5): [('move', (13, 10))], (477, 9): [('move', (4, 12))], (478, 3): [('move', (11, 21))], (478, 5): [('move', (14, 9))], (478, 9): [('move', (3, 13))], (479, 3): [('move', (10, 22))], (479, 5): [('move', (13, 10))], (479, 9): [('move', (4, 12))], (480, 3): [('move', (11, 21))], (480, 5): [('move', (14, 9))], (480, 9): [('move', (3, 13))], (481, 3): [('move', (10, 22))], (481, 5): [('move', (13, 10))], (481, 9): [('move', (4, 12))], (482, 3): [('move', (11, 21))], (482, 5): [('move', (14, 9))], (482, 9): [('move', (3, 13))], (483, 3): [('move', (10, 22))], (483, 5): [('move', (13, 10))], (483, 9): [('move', (4, 12))], (484, 3): [('move', (11, 21))], (484, 5): [('move', (14, 9))], (484, 9): [('move', (3, 13))], (485, 3): [('move', (10, 22))], (485, 5): [('move', (13, 10))], (485, 9): [('move', (4, 12))], (486, 3): [('move', (11, 21))], (486, 5): [('move', (14, 9))], (486, 9): [('move', (3, 13))], (487, 3): [('move', (10, 22))], (487, 5): [('move', (13, 10))], (487, 9): [('move', (4, 12))], (488, 3): [('move', (11, 21))], (488, 5): [('move', (14, 9))], (488, 9): [('move', (3, 13))], (489, 3): [('move', (10, 22))], (489, 5): [('move', (13, 10))], (489, 9): [('move', (4, 12))], (490, 3): [('move', (11, 21))], (490, 5): [('move', (14, 9))], (490, 9): [('move', (3, 13))], (491, 3): [('move', (10, 22))], (491, 5): [('move', (13, 10))], (491, 9): [('move', (4, 12))], (492, 3): [('move', (11, 21))], (492, 5): [('move', (14, 9))], (492, 9): [('move', (3, 13))], (493, 3): [('move', (10, 22))], (493, 5): [('move', (13, 10))], (493, 9): [('move', (4, 12))], (494, 3): [('move', (11, 21))], (494, 5): [('move', (14, 9))], (494, 9): [('move', (3, 13))], (495, 3): [('move', (10, 22))], (495, 5): [('move', (13, 10))], (495, 9): [('move', (4, 12))], (496, 3): [('move', (11, 21))], (496, 5): [('move', (14, 9))], (496, 9): [('move', (3, 13))], (497, 3): [('move', (10, 22))], (497, 5): [('move', (13, 10))], (497, 9): [('move', (4, 12))], (498, 3): [('move', (11, 21))], (498, 5): [('move', (14, 9))], (498, 9): [('move', (3, 13))], (499, 3): [('move', (10, 22))], (499, 5): [('move', (13, 10))], (499, 9): [('move', (4, 12))], (500, 3): [('move', (11, 21))], (500, 5): [('move', (14, 9))], (500, 9): [('move', (3, 13))], (501, 3): [('move', (10, 22))], (501, 5): [('move', (13, 10))], (501, 9): [('move', (4, 12))], (502, 3): [('move', (11, 21))], (502, 5): [('move', (14, 9))], (502, 9): [('move', (3, 13))], (503, 3): [('move', (10, 22))], (503, 5): [('move', (13, 10))], (503, 9): [('move', (4, 12))], (504, 3): [('move', (11, 21))], (504, 5): [('move', (14, 9))], (504, 9): [('move', (3, 13))], (505, 3): [('move', (10, 22))], (505, 5): [('move', (13, 10))], (505, 9): [('move', (4, 12))], (506, 3): [('move', (11, 21))], (506, 5): [('move', (14, 9))], (506, 9): [('move', (3, 13))], (507, 3): [('move', (10, 22))], (507, 5): [('move', (13, 10))], (507, 9): [('move', (4, 12))], (508, 3): [('move', (11, 21))], (508, 5): [('move', (14, 9))], (508, 9): [('move', (3, 13))], (509, 3): [('move', (10, 22))], (509, 5): [('move', (13, 10))], (509, 9): [('move', (4, 12))], (510, 3): [('move', (11, 21))], (510, 5): [('move', (14, 9))], (510, 9): [('move', (3, 13))], (511, 3): [('move', (10, 22))], (511, 5): [('move', (13, 10))], (511, 9): [('move', (4, 12))], (512, 3): [('move', (11, 21))], (512, 5): [('move', (14, 9))], (512, 9): [('move', (3, 13))], (513, 3): [('move', (10, 22))], (513, 5): [('move', (13, 10))], (513, 9): [('move', (4, 12))], (514, 3): [('move', (11, 21))], (514, 5): [('move', (14, 9))], (514, 9): [('move', (3, 13))], (515, 3): [('move', (10, 22))], (515, 5): [('move', (13, 10))], (515, 9): [('move', (4, 12))], (516, 3): [('move', (11, 21))], (516, 5): [('move', (14, 9))], (516, 9): [('move', (3, 13))], (517, 3): [('move', (10, 22))], (517, 5): [('move', (13, 10))], (517, 9): [('move', (4, 12))], (518, 3): [('move', (11, 21))], (518, 5): [('move', (14, 9))], (518, 9): [('move', (3, 13))], (519, 3): [('move', (10, 22))], (519, 5): [('move', (13, 10))], (519, 9): [('move', (4, 12))], (520, 3): [('move', (11, 21))], (520, 5): [('move', (14, 9))], (520, 9): [('move', (3, 13))], (521, 3): [('move', (10, 22))], (521, 5): [('move', (13, 10))], (521, 9): [('move', (4, 12))], (522, 3): [('move', (11, 21))], (522, 5): [('move', (14, 9))], (522, 9): [('move', (3, 13))], (523, 3): [('move', (10, 22))], (523, 5): [('move', (13, 10))], (523, 9): [('move', (4, 12))], (524, 3): [('move', (11, 21))], (524, 5): [('move', (14, 9))], (524, 9): [('move', (3, 13))], (525, 3): [('move', (10, 22))], (525, 5): [('move', (13, 10))], (525, 9): [('move', (4, 12))], (526, 3): [('move', (11, 21))], (526, 5): [('move', (14, 9))], (526, 9): [('move', (3, 13))], (527, 3): [('move', (10, 22))], (527, 5): [('move', (13, 10))], (527, 9): [('move', (4, 12))], (528, 3): [('move', (11, 21))], (528, 5): [('move', (14, 9))], (528, 9): [('move', (3, 13))], (529, 3): [('move', (10, 22))], (529, 5): [('move', (13, 10))], (529, 9): [('move', (4, 12))], (530, 3): [('move', (11, 21))], (530, 5): [('move', (14, 9))], (530, 9): [('move', (3, 13))], (531, 3): [('move', (10, 22))], (531, 5): [('move', (13, 10))], (531, 9): [('move', (4, 12))], (532, 3): [('move', (11, 21))], (532, 5): [('move', (14, 9))], (532, 9): [('move', (3, 13))], (533, 3): [('move', (10, 22))], (533, 5): [('move', (13, 10))], (533, 9): [('move', (4, 12))], (534, 3): [('move', (11, 21))], (534, 5): [('move', (14, 9))], (534, 9): [('move', (3, 13))], (535, 3): [('move', (10, 22))], (535, 5): [('move', (13, 10))], (535, 9): [('move', (4, 12))], (536, 3): [('move', (11, 21))], (536, 5): [('move', (14, 9))], (536, 9): [('move', (3, 13))], (537, 3): [('move', (10, 22))], (537, 5): [('move', (13, 10))], (537, 9): [('move', (4, 12))], (538, 3): [('move', (11, 21))], (538, 5): [('move', (14, 9))], (538, 9): [('move', (3, 13))], (539, 3): [('move', (10, 22))], (539, 5): [('move', (13, 10))], (539, 9): [('move', (4, 12))], (540, 3): [('move', (11, 21))], (540, 5): [('move', (14, 9))], (540, 9): [('move', (3, 13))], (541, 3): [('move', (10, 22))], (541, 5): [('move', (13, 10))], (541, 9): [('move', (4, 12))], (542, 3): [('move', (11, 21))], (542, 5): [('move', (14, 9))], (542, 9): [('move', (3, 13))], (543, 3): [('move', (10, 22))], (543, 5): [('move', (13, 10))], (543, 9): [('move', (4, 12))], (544, 3): [('move', (11, 21))], (544, 5): [('move', (14, 9))], (544, 9): [('move', (3, 13))], (545, 3): [('move', (10, 22))], (545, 5): [('move', (13, 10))], (545, 9): [('move', (4, 12))], (546, 3): [('move', (11, 21))], (546, 5): [('move', (14, 9))], (546, 9): [('move', (3, 13))], (547, 3): [('move', (10, 22))], (547, 5): [('move', (13, 10))], (547, 9): [('move', (4, 12))], (548, 3): [('move', (11, 21))], (548, 5): [('move', (14, 9))], (548, 9): [('move', (3, 13))], (549, 3): [('move', (10, 22))], (549, 5): [('move', (13, 10))], (549, 9): [('move', (4, 12))], (550, 3): [('move', (11, 21))], (550, 5): [('move', (14, 9))], (550, 9): [('move', (3, 13))], (551, 3): [('move', (10, 22))], (551, 5): [('move', (13, 10))], (551, 9): [('move', (4, 12))], (552, 3): [('move', (11, 21))], (552, 5): [('move', (14, 9))], (552, 9): [('move', (3, 13))], (553, 3): [('move', (10, 22))], (553, 5): [('move', (13, 10))], (553, 9): [('move', (4, 12))], (554, 3): [('move', (11, 21))], (554, 5): [('move', (14, 9))], (554, 9): [('move', (3, 13))], (555, 3): [('move', (10, 22))], (555, 5): [('move', (13, 10))], (555, 9): [('move', (4, 12))], (556, 3): [('move', (11, 21))], (556, 5): [('move', (14, 9))], (556, 9): [('move', (3, 13))], (557, 3): [('move', (10, 22))], (557, 5): [('move', (13, 10))], (557, 9): [('move', (4, 12))], (558, 3): [('move', (11, 21))], (558, 5): [('move', (14, 9))], (558, 9): [('move', (3, 13))], (559, 3): [('move', (10, 22))], (559, 5): [('move', (13, 10))], (559, 9): [('move', (4, 12))], (560, 3): [('move', (11, 21))], (560, 5): [('move', (14, 9))], (560, 9): [('move', (3, 13))], (561, 3): [('move', (10, 22))], (561, 5): [('move', (13, 10))], (561, 9): [('move', (4, 12))], (562, 3): [('move', (11, 21))], (562, 5): [('move', (14, 9))], (562, 9): [('move', (3, 13))], (563, 3): [('move', (10, 22))], (563, 5): [('move', (13, 10))], (563, 9): [('move', (4, 12))], (564, 3): [('move', (11, 21))], (564, 5): [('move', (14, 9))], (564, 9): [('move', (3, 13))], (565, 3): [('move', (10, 22))], (565, 5): [('move', (13, 10))], (565, 9): [('move', (4, 12))], (566, 3): [('move', (11, 21))], (566, 5): [('move', (14, 9))], (566, 9): [('move', (3, 13))], (567, 3): [('move', (10, 22))], (567, 5): [('move', (13, 10))], (567, 9): [('move', (4, 12))], (568, 3): [('move', (11, 21))], (568, 5): [('move', (14, 9))], (568, 9): [('move', (3, 13))], (569, 3): [('move', (10, 22))], (569, 5): [('move', (13, 10))], (569, 9): [('move', (4, 12))], (570, 3): [('move', (11, 21))], (570, 5): [('move', (14, 9))], (570, 9): [('move', (3, 13))], (571, 3): [('move', (10, 22))], (571, 5): [('move', (13, 10))], (571, 9): [('move', (4, 12))], (572, 3): [('move', (11, 21))], (572, 5): [('move', (14, 9))], (572, 9): [('move', (3, 13))], (573, 3): [('move', (10, 22))], (573, 5): [('move', (13, 10))], (573, 9): [('move', (4, 12))], (574, 3): [('move', (11, 21))], (574, 5): [('move', (14, 9))], (574, 9): [('move', (3, 13))], (575, 3): [('move', (10, 22))], (575, 5): [('move', (13, 10))], (575, 9): [('move', (4, 12))], (576, 3): [('move', (11, 21))], (576, 5): [('move', (14, 9))], (576, 9): [('move', (3, 13))], (577, 3): [('move', (10, 22))], (577, 5): [('move', (13, 10))], (577, 9): [('move', (4, 12))], (578, 3): [('move', (11, 21))], (578, 5): [('move', (14, 9))], (578, 9): [('move', (3, 13))], (579, 3): [('move', (10, 22))], (579, 5): [('move', (13, 10))], (579, 9): [('move', (4, 12))], (580, 3): [('move', (11, 21))], (580, 5): [('move', (14, 9))], (580, 9): [('move', (3, 13))], (581, 3): [('move', (10, 22))], (581, 5): [('move', (13, 10))], (581, 9): [('move', (4, 12))], (582, 3): [('move', (11, 21))], (582, 5): [('move', (14, 9))], (582, 9): [('move', (3, 13))], (583, 3): [('move', (10, 22))], (583, 5): [('move', (13, 10))], (583, 9): [('move', (4, 12))], (584, 3): [('move', (11, 21))], (584, 5): [('move', (14, 9))], (584, 9): [('move', (3, 13))], (585, 3): [('move', (10, 22))], (585, 5): [('move', (13, 10))], (585, 9): [('move', (4, 12))], (586, 3): [('move', (11, 21))], (586, 5): [('move', (14, 9))], (586, 9): [('move', (3, 13))], (587, 3): [('move', (10, 22))], (587, 5): [('move', (13, 10))], (587, 9): [('move', (4, 12))], (588, 3): [('move', (11, 21))], (588, 5): [('move', (14, 9))], (588, 9): [('move', (3, 13))], (589, 3): [('move', (10, 22))], (589, 5): [('move', (13, 10))], (589, 9): [('move', (4, 12))], (590, 3): [('move', (11, 21))], (590, 5): [('move', (14, 9))], (590, 9): [('move', (3, 13))], (591, 3): [('move', (10, 22))], (591, 5): [('move', (13, 10))], (591, 9): [('move', (4, 12))], (592, 3): [('move', (11, 21))], (592, 5): [('move', (14, 9))], (592, 9): [('move', (3, 13))], (593, 3): [('move', (10, 22))], (593, 5): [('move', (13, 10))], (593, 9): [('move', (4, 12))], (594, 3): [('move', (11, 21))], (594, 5): [('move', (14, 9))], (594, 9): [('move', (3, 13))], (595, 3): [('move', (10, 22))], (595, 5): [('move', (13, 10))], (595, 9): [('move', (4, 12))], (596, 3): [('move', (11, 21))], (596, 5): [('move', (14, 9))], (596, 9): [('move', (3, 13))], (597, 3): [('move', (10, 22))], (597, 5): [('move', (13, 10))], (597, 9): [('move', (4, 12))], (598, 3): [('move', (11, 21))], (598, 5): [('move', (14, 9))], (598, 9): [('move', (3, 13))], (599, 3): [('move', (10, 22))], (599, 5): [('move', (13, 10))], (599, 9): [('move', (4, 12))], (600, 3): [('move', (11, 21))], (600, 5): [('move', (14, 9))], (600, 9): [('move', (3, 13))], (601, 3): [('move', (10, 22))], (601, 5): [('move', (13, 10))], (601, 9): [('move', (4, 12))], (602, 3): [('move', (11, 21))], (602, 5): [('move', (14, 9))], (602, 9): [('move', (3, 13))], (603, 3): [('move', (10, 22))], (603, 5): [('move', (13, 10))], (603, 9): [('move', (4, 12))], (604, 3): [('move', (11, 21))], (604, 5): [('move', (14, 9))], (604, 9): [('move', (3, 13))], (605, 3): [('move', (10, 22))], (605, 5): [('move', (13, 10))], (605, 9): [('move', (4, 12))], (606, 3): [('move', (11, 21))], (606, 5): [('move', (14, 9))], (606, 9): [('move', (3, 13))], (607, 3): [('move', (10, 22))], (607, 5): [('move', (13, 10))], (607, 9): [('move', (4, 12))], (608, 3): [('move', (11, 21))], (608, 5): [('move', (14, 9))], (608, 9): [('move', (3, 13))], (609, 3): [('move', (10, 22))], (609, 5): [('move', (13, 10))], (609, 9): [('move', (4, 12))], (610, 3): [('move', (11, 21))], (610, 5): [('move', (14, 9))], (610, 9): [('move', (3, 13))], (611, 3): [('move', (10, 22))], (611, 5): [('move', (13, 10))], (611, 9): [('move', (4, 12))], (612, 3): [('move', (11, 21))], (612, 5): [('move', (14, 9))], (612, 9): [('move', (3, 13))], (613, 3): [('move', (10, 22))], (613, 5): [('move', (13, 10))], (613, 9): [('move', (4, 12))], (614, 3): [('move', (11, 21))], (614, 5): [('move', (14, 9))], (614, 9): [('move', (3, 13))], (615, 3): [('move', (10, 22))], (615, 5): [('move', (13, 10))], (615, 9): [('move', (4, 12))], (616, 3): [('move', (11, 21))], (616, 5): [('move', (14, 9))], (616, 9): [('move', (3, 13))], (617, 3): [('move', (10, 22))], (617, 5): [('move', (13, 10))], (617, 9): [('move', (4, 12))], (618, 3): [('move', (11, 21))], (618, 5): [('move', (14, 9))], (618, 9): [('move', (3, 13))], (619, 3): [('move', (10, 22))], (619, 5): [('move', (13, 10))], (619, 9): [('move', (4, 12))], (620, 3): [('move', (11, 21))], (620, 5): [('move', (14, 9))], (620, 9): [('move', (3, 13))], (621, 3): [('move', (10, 22))], (621, 5): [('move', (13, 10))], (621, 9): [('move', (4, 12))], (622, 3): [('move', (11, 21))], (622, 5): [('move', (14, 9))], (622, 9): [('move', (3, 13))], (623, 3): [('move', (10, 22))], (623, 5): [('move', (13, 10))], (623, 9): [('move', (4, 12))], (624, 3): [('move', (11, 21))], (624, 5): [('move', (14, 9))], (624, 9): [('move', (3, 13))], (625, 3): [('move', (10, 22))], (625, 5): [('move', (13, 10))], (625, 9): [('move', (4, 12))], (626, 3): [('move', (11, 21))], (626, 5): [('move', (14, 9))], (626, 9): [('move', (3, 13))], (627, 3): [('move', (10, 22))], (627, 5): [('move', (13, 10))], (627, 9): [('move', (4, 12))], (628, 3): [('move', (11, 21))], (628, 5): [('move', (14, 9))], (628, 9): [('move', (3, 13))], (629, 3): [('move', (10, 22))], (629, 5): [('move', (13, 10))], (629, 9): [('move', (4, 12))], (630, 3): [('move', (11, 21))], (630, 5): [('move', (14, 9))], (630, 9): [('move', (3, 13))], (631, 3): [('move', (10, 22))], (631, 5): [('move', (13, 10))], (631, 9): [('move', (4, 12))], (632, 3): [('move', (11, 21))], (632, 5): [('move', (14, 9))], (632, 9): [('move', (3, 13))], (633, 3): [('move', (10, 22))], (633, 5): [('move', (13, 10))], (633, 9): [('move', (4, 12))], (634, 3): [('move', (11, 21))], (634, 5): [('move', (14, 9))], (634, 9): [('move', (3, 13))], (635, 3): [('move', (10, 22))], (635, 5): [('move', (13, 10))], (635, 9): [('move', (4, 12))], (636, 3): [('move', (11, 21))], (636, 5): [('move', (14, 9))], (636, 9): [('move', (3, 13))], (637, 3): [('move', (10, 22))], (637, 5): [('move', (13, 10))], (637, 9): [('move', (4, 12))], (638, 3): [('move', (11, 21))], (638, 5): [('move', (14, 9))], (638, 9): [('move', (3, 13))], (639, 3): [('move', (10, 22))], (639, 5): [('move', (13, 10))], (639, 9): [('move', (4, 12))], (640, 3): [('move', (11, 21))], (640, 5): [('move', (14, 9))], (640, 9): [('move', (3, 13))], (641, 3): [('move', (10, 22))], (641, 5): [('move', (13, 10))], (641, 9): [('move', (4, 12))], (642, 3): [('move', (11, 21))], (642, 5): [('move', (14, 9))], (642, 9): [('move', (3, 13))], (643, 3): [('move', (10, 22))], (643, 5): [('move', (13, 10))], (643, 9): [('move', (4, 12))], (644, 3): [('move', (11, 21))], (644, 5): [('move', (14, 9))], (644, 9): [('move', (3, 13))], (645, 3): [('move', (10, 22))], (645, 5): [('move', (13, 10))], (645, 9): [('move', (4, 12))], (646, 3): [('move', (11, 21))], (646, 5): [('move', (14, 9))], (646, 9): [('move', (3, 13))], (647, 3): [('move', (10, 22))], (647, 5): [('move', (13, 10))], (647, 9): [('move', (4, 12))], (648, 3): [('move', (11, 21))], (648, 5): [('move', (14, 9))], (648, 9): [('move', (3, 13))], (649, 3): [('move', (10, 22))], (649, 5): [('move', (13, 10))], (649, 9): [('move', (4, 12))], (650, 3): [('move', (11, 21))], (650, 5): [('move', (14, 9))], (650, 9): [('move', (3, 13))], (651, 3): [('move', (10, 22))], (651, 5): [('move', (13, 10))], (651, 9): [('move', (4, 12))], (652, 3): [('move', (11, 21))], (652, 5): [('move', (14, 9))], (652, 9): [('move', (3, 13))], (653, 3): [('move', (10, 22))], (653, 5): [('move', (13, 10))], (653, 9): [('move', (4, 12))], (654, 3): [('move', (11, 21))], (654, 5): [('move', (14, 9))], (654, 9): [('move', (3, 13))], (655, 3): [('move', (10, 22))], (655, 5): [('move', (13, 10))], (655, 9): [('move', (4, 12))], (656, 3): [('move', (11, 21))], (656, 5): [('move', (14, 9))], (656, 9): [('move', (3, 13))], (657, 3): [('move', (10, 22))], (657, 5): [('move', (13, 10))], (657, 9): [('move', (4, 12))], (658, 3): [('move', (11, 21))], (658, 5): [('move', (14, 9))], (658, 9): [('move', (3, 13))], (659, 3): [('move', (10, 22))], (659, 5): [('move', (13, 10))], (659, 9): [('move', (4, 12))], (660, 3): [('move', (11, 21))], (660, 5): [('move', (14, 9))], (660, 9): [('move', (3, 13))], (661, 3): [('move', (10, 22))], (661, 5): [('move', (13, 10))], (661, 9): [('move', (4, 12))], (662, 3): [('move', (11, 21))], (662, 5): [('move', (14, 9))], (662, 9): [('move', (3, 13))], (663, 3): [('move', (10, 22))], (663, 5): [('move', (13, 10))], (663, 9): [('move', (4, 12))], (664, 3): [('move', (11, 21))], (664, 5): [('move', (14, 9))], (664, 9): [('move', (3, 13))], (665, 3): [('move', (10, 22))], (665, 5): [('move', (13, 10))], (665, 9): [('move', (4, 12))], (666, 3): [('move', (11, 21))], (666, 5): [('move', (14, 9))], (666, 9): [('move', (3, 13))], (667, 3): [('move', (10, 22))], (667, 5): [('move', (13, 10))], (667, 9): [('move', (4, 12))], (668, 3): [('move', (11, 21))], (668, 5): [('move', (14, 9))], (668, 9): [('move', (3, 13))], (669, 3): [('move', (10, 22))], (669, 5): [('move', (13, 10))], (669, 9): [('move', (4, 12))], (670, 3): [('move', (11, 21))], (670, 5): [('move', (14, 9))], (670, 9): [('move', (3, 13))], (671, 3): [('move', (10, 22))], (671, 5): [('move', (13, 10))], (671, 9): [('move', (4, 12))], (672, 3): [('move', (11, 21))], (672, 5): [('move', (14, 9))], (672, 9): [('move', (3, 13))], (673, 3): [('move', (10, 22))], (673, 5): [('move', (13, 10))], (673, 9): [('move', (4, 12))], (674, 3): [('move', (11, 21))], (674, 5): [('move', (14, 9))], (674, 9): [('move', (3, 13))], (675, 3): [('move', (10, 22))], (675, 5): [('move', (13, 10))], (675, 9): [('move', (4, 12))], (676, 3): [('move', (11, 21))], (676, 5): [('move', (14, 9))], (676, 9): [('move', (3, 13))], (677, 3): [('move', (10, 22))], (677, 5): [('move', (13, 10))], (677, 9): [('move', (4, 12))], (678, 3): [('move', (11, 21))], (678, 5): [('move', (14, 9))], (678, 9): [('move', (3, 13))], (679, 3): [('move', (10, 22))], (679, 5): [('move', (13, 10))], (679, 9): [('move', (4, 12))], (680, 3): [('move', (11, 21))], (680, 5): [('move', (14, 9))], (680, 9): [('move', (3, 13))], (681, 3): [('move', (10, 22))], (681, 5): [('move', (13, 10))], (681, 9): [('move', (4, 12))], (682, 3): [('move', (11, 21))], (682, 5): [('move', (14, 9))], (682, 9): [('move', (3, 13))], (683, 3): [('move', (10, 22))], (683, 5): [('move', (13, 10))], (683, 9): [('move', (4, 12))], (684, 3): [('move', (11, 21))], (684, 5): [('move', (14, 9))], (684, 9): [('move', (3, 13))], (685, 3): [('move', (10, 22))], (685, 5): [('move', (13, 10))], (685, 9): [('move', (4, 12))], (686, 3): [('move', (11, 21))], (686, 5): [('move', (14, 9))], (686, 9): [('move', (3, 13))], (687, 3): [('move', (10, 22))], (687, 5): [('move', (13, 10))], (687, 9): [('move', (4, 12))], (688, 3): [('move', (11, 21))], (688, 5): [('move', (14, 9))], (688, 9): [('move', (3, 13))], (689, 3): [('move', (10, 22))], (689, 5): [('move', (13, 10))], (689, 9): [('move', (4, 12))], (690, 3): [('move', (11, 21))], (690, 5): [('move', (14, 9))], (690, 9): [('move', (3, 13))], (691, 3): [('move', (10, 22))], (691, 5): [('move', (13, 10))], (691, 9): [('move', (4, 12))], (692, 3): [('move', (11, 21))], (692, 5): [('move', (14, 9))], (692, 9): [('move', (3, 13))], (693, 3): [('move', (10, 22))], (693, 5): [('move', (13, 10))], (693, 9): [('move', (4, 12))], (694, 3): [('move', (11, 21))], (694, 5): [('move', (14, 9))], (694, 9): [('move', (3, 13))], (695, 3): [('move', (10, 22))], (695, 5): [('move', (13, 10))], (695, 9): [('move', (4, 12))], (696, 3): [('move', (11, 21))], (696, 5): [('move', (14, 9))], (696, 9): [('move', (3, 13))], (697, 3): [('move', (10, 22))], (697, 5): [('move', (13, 10))], (697, 9): [('move', (4, 12))], (698, 3): [('move', (11, 21))], (698, 5): [('move', (14, 9))], (698, 9): [('move', (3, 13))], (699, 3): [('move', (10, 22))], (699, 5): [('move', (13, 10))], (699, 9): [('move', (4, 12))], (700, 3): [('move', (11, 21))], (700, 5): [('move', (14, 9))], (700, 9): [('move', (3, 13))], (701, 3): [('move', (10, 22))], (701, 5): [('move', (13, 10))], (701, 9): [('move', (4, 12))], (702, 3): [('move', (11, 21))], (702, 5): [('move', (14, 9))], (702, 9): [('move', (3, 13))], (703, 3): [('move', (10, 22))], (703, 5): [('move', (13, 10))], (703, 9): [('move', (4, 12))], (704, 3): [('move', (11, 21))], (704, 5): [('move', (14, 9))], (704, 9): [('move', (3, 13))], (705, 3): [('move', (10, 22))], (705, 5): [('move', (13, 10))], (705, 9): [('move', (4, 12))], (706, 3): [('move', (11, 21))], (706, 5): [('move', (14, 9))], (706, 9): [('move', (3, 13))], (707, 3): [('move', (10, 22))], (707, 5): [('move', (13, 10))], (707, 9): [('move', (4, 12))], (708, 3): [('move', (11, 21))], (708, 5): [('move', (14, 9))], (708, 9): [('move', (3, 13))], (709, 3): [('move', (10, 22))], (709, 5): [('move', (13, 10))], (709, 9): [('move', (4, 12))], (710, 3): [('move', (11, 21))], (710, 5): [('move', (14, 9))], (710, 9): [('move', (3, 13))], (711, 3): [('move', (10, 22))], (711, 5): [('move', (13, 10))], (711, 9): [('move', (4, 12))], (712, 3): [('move', (11, 21))], (712, 5): [('move', (14, 9))], (712, 9): [('move', (3, 13))], (713, 3): [('move', (10, 22))], (713, 5): [('move', (13, 10))], (713, 9): [('move', (4, 12))], (714, 3): [('move', (11, 21))], (714, 5): [('move', (14, 9))], (714, 9): [('move', (3, 13))], (715, 3): [('move', (10, 22))], (715, 5): [('move', (13, 10))], (715, 9): [('move', (4, 12))], (716, 3): [('move', (11, 21))], (716, 5): [('move', (14, 9))], (716, 9): [('move', (3, 13))], (717, 3): [('move', (10, 22))], (717, 5): [('move', (13, 10))], (717, 9): [('move', (4, 12))], (718, 3): [('move', (11, 21))], (718, 5): [('move', (14, 9))], (718, 9): [('move', (3, 13))], (719, 3): [('move', (10, 22))], (719, 5): [('move', (13, 10))], (719, 9): [('move', (4, 12))], (720, 3): [('move', (11, 21))], (720, 5): [('move', (14, 9))], (720, 9): [('move', (3, 13))], (721, 3): [('move', (10, 22))], (721, 5): [('move', (13, 10))], (721, 9): [('move', (4, 12))], (722, 3): [('move', (11, 21))], (722, 5): [('move', (14, 9))], (722, 9): [('move', (3, 13))], (723, 3): [('move', (10, 22))], (723, 5): [('move', (13, 10))], (723, 9): [('move', (4, 12))], (724, 3): [('move', (11, 21))], (724, 5): [('move', (14, 9))], (724, 9): [('move', (3, 13))], (725, 3): [('move', (10, 22))], (725, 5): [('move', (13, 10))], (725, 9): [('move', (4, 12))], (726, 3): [('move', (11, 21))], (726, 5): [('move', (14, 9))], (726, 9): [('move', (3, 13))], (727, 3): [('move', (10, 22))], (727, 5): [('move', (13, 10))], (727, 9): [('move', (4, 12))], (728, 3): [('move', (11, 21))], (728, 5): [('move', (14, 9))], (728, 9): [('move', (3, 13))], (729, 3): [('move', (10, 22))], (729, 5): [('move', (13, 10))], (729, 9): [('move', (4, 12))], (730, 3): [('move', (11, 21))], (730, 5): [('move', (14, 9))], (730, 9): [('move', (3, 13))], (731, 3): [('move', (10, 22))], (731, 5): [('move', (13, 10))], (731, 9): [('move', (4, 12))], (732, 3): [('move', (11, 21))], (732, 5): [('move', (14, 9))], (732, 9): [('move', (3, 13))], (733, 3): [('move', (10, 22))], (733, 5): [('move', (13, 10))], (733, 9): [('move', (4, 12))], (734, 3): [('move', (11, 21))], (734, 5): [('move', (14, 9))], (734, 9): [('move', (3, 13))], (735, 3): [('move', (10, 22))], (735, 5): [('move', (13, 10))], (735, 9): [('move', (4, 12))], (736, 3): [('move', (11, 21))], (736, 5): [('move', (14, 9))], (736, 9): [('move', (3, 13))], (737, 3): [('move', (10, 22))], (737, 5): [('move', (13, 10))], (737, 9): [('move', (4, 12))], (738, 3): [('move', (11, 21))], (738, 5): [('move', (14, 9))], (738, 9): [('move', (3, 13))], (739, 3): [('move', (10, 22))], (739, 5): [('move', (13, 10))], (739, 9): [('move', (4, 12))], (740, 3): [('move', (11, 21))], (740, 5): [('move', (14, 9))], (740, 9): [('move', (3, 13))], (741, 3): [('move', (10, 22))], (741, 5): [('move', (13, 10))], (741, 9): [('move', (4, 12))], (742, 3): [('move', (11, 21))], (742, 5): [('move', (14, 9))], (742, 9): [('move', (3, 13))], (743, 3): [('move', (10, 22))], (743, 5): [('move', (13, 10))], (743, 9): [('move', (4, 12))], (744, 3): [('move', (11, 21))], (744, 5): [('move', (14, 9))], (744, 9): [('move', (3, 13))], (745, 3): [('move', (10, 22))], (745, 5): [('move', (13, 10))], (745, 9): [('move', (4, 12))], (746, 3): [('move', (11, 21))], (746, 5): [('move', (14, 9))], (746, 9): [('move', (3, 13))], (747, 3): [('move', (10, 22))], (747, 5): [('move', (13, 10))], (747, 9): [('move', (4, 12))], (748, 3): [('move', (11, 21))], (748, 5): [('move', (14, 9))], (748, 9): [('move', (3, 13))], (749, 3): [('move', (10, 22))], (749, 5): [('move', (13, 10))], (749, 9): [('move', (4, 12))], (750, 3): [('move', (11, 21))], (750, 5): [('move', (14, 9))], (750, 9): [('move', (3, 13))], (751, 3): [('move', (10, 22))], (751, 5): [('move', (13, 10))], (751, 9): [('move', (4, 12))], (752, 3): [('move', (11, 21))], (752, 5): [('move', (14, 9))], (752, 9): [('move', (3, 13))], (753, 3): [('move', (10, 22))], (753, 5): [('move', (13, 10))], (753, 9): [('move', (4, 12))], (754, 3): [('move', (11, 21))], (754, 5): [('move', (14, 9))], (754, 9): [('move', (3, 13))], (755, 3): [('move', (10, 22))], (755, 5): [('move', (13, 10))], (755, 9): [('move', (4, 12))], (756, 3): [('move', (11, 21))], (756, 5): [('move', (14, 9))], (756, 9): [('move', (3, 13))], (757, 3): [('move', (10, 22))], (757, 5): [('move', (13, 10))], (757, 9): [('move', (4, 12))], (758, 3): [('move', (11, 21))], (758, 5): [('move', (14, 9))], (758, 9): [('move', (3, 13))], (759, 3): [('move', (10, 22))], (759, 5): [('move', (13, 10))], (759, 9): [('move', (4, 12))], (760, 3): [('move', (11, 21))], (760, 5): [('move', (14, 9))], (760, 9): [('move', (3, 13))], (761, 3): [('move', (10, 22))], (761, 5): [('move', (13, 10))], (761, 9): [('move', (4, 12))], (762, 3): [('move', (11, 21))], (762, 5): [('move', (14, 9))], (762, 9): [('move', (3, 13))], (763, 3): [('move', (10, 22))], (763, 5): [('move', (13, 10))], (763, 9): [('move', (4, 12))], (764, 3): [('move', (11, 21))], (764, 5): [('move', (14, 9))], (764, 9): [('move', (3, 13))], (765, 3): [('move', (10, 22))], (765, 5): [('move', (13, 10))], (765, 9): [('move', (4, 12))], (766, 3): [('move', (11, 21))], (766, 5): [('move', (14, 9))], (766, 9): [('move', (3, 13))], (767, 3): [('move', (10, 22))], (767, 5): [('move', (13, 10))], (767, 9): [('move', (4, 12))], (768, 3): [('move', (11, 21))], (768, 5): [('move', (14, 9))], (768, 9): [('move', (3, 13))], (769, 3): [('move', (10, 22))], (769, 5): [('move', (13, 10))], (769, 9): [('move', (4, 12))], (770, 3): [('move', (11, 21))], (770, 5): [('move', (14, 9))], (770, 9): [('move', (3, 13))], (771, 3): [('move', (10, 22))], (771, 5): [('move', (13, 10))], (771, 9): [('move', (4, 12))], (772, 3): [('move', (11, 21))], (772, 5): [('move', (14, 9))], (772, 9): [('move', (3, 13))], (773, 3): [('move', (10, 22))], (773, 5): [('move', (13, 10))], (773, 9): [('move', (4, 12))], (774, 3): [('move', (11, 21))], (774, 5): [('move', (14, 9))], (774, 9): [('move', (3, 13))], (775, 3): [('move', (10, 22))], (775, 5): [('move', (13, 10))], (775, 9): [('move', (4, 12))], (776, 3): [('move', (11, 21))], (776, 5): [('move', (14, 9))], (776, 9): [('move', (3, 13))], (777, 3): [('move', (10, 22))], (777, 5): [('move', (13, 10))], (777, 9): [('move', (4, 12))], (778, 3): [('move', (11, 21))], (778, 5): [('move', (14, 9))], (778, 9): [('move', (3, 13))], (779, 3): [('move', (10, 22))], (779, 5): [('move', (13, 10))], (779, 9): [('move', (4, 12))], (780, 3): [('move', (11, 21))], (780, 5): [('move', (14, 9))], (780, 9): [('move', (3, 13))], (781, 3): [('move', (10, 22))], (781, 5): [('move', (13, 10))], (781, 9): [('move', (4, 12))], (782, 3): [('move', (11, 21))], (782, 5): [('move', (14, 9))], (782, 9): [('move', (3, 13))], (783, 3): [('move', (10, 22))], (783, 5): [('move', (13, 10))], (783, 9): [('move', (4, 12))], (784, 3): [('move', (11, 21))], (784, 5): [('move', (14, 9))], (784, 9): [('move', (3, 13))], (785, 3): [('move', (10, 22))], (785, 5): [('move', (13, 10))], (785, 9): [('move', (4, 12))], (786, 3): [('move', (11, 21))], (786, 5): [('move', (14, 9))], (786, 9): [('move', (3, 13))], (787, 3): [('move', (10, 22))], (787, 5): [('move', (13, 10))], (787, 9): [('move', (4, 12))], (788, 3): [('move', (11, 21))], (788, 5): [('move', (14, 9))], (788, 9): [('move', (3, 13))], (789, 3): [('move', (10, 22))], (789, 5): [('move', (13, 10))], (789, 9): [('move', (4, 12))], (790, 3): [('move', (11, 21))], (790, 5): [('move', (14, 9))], (790, 9): [('move', (3, 13))], (791, 3): [('move', (10, 22))], (791, 5): [('move', (13, 10))], (791, 9): [('move', (4, 12))], (792, 3): [('move', (11, 21))], (792, 5): [('move', (14, 9))], (792, 9): [('move', (3, 13))], (793, 3): [('move', (10, 22))], (793, 5): [('move', (13, 10))], (793, 9): [('move', (4, 12))], (794, 3): [('move', (11, 21))], (794, 5): [('move', (14, 9))], (794, 9): [('move', (3, 13))], (795, 3): [('move', (10, 22))], (795, 5): [('move', (13, 10))], (795, 9): [('move', (4, 12))], (796, 3): [('move', (11, 21))], (796, 5): [('move', (14, 9))], (796, 9): [('move', (3, 13))], (797, 3): [('move', (10, 22))], (797, 5): [('move', (13, 10))], (797, 9): [('move', (4, 12))], (798, 3): [('move', (11, 21))], (798, 5): [('move', (14, 9))], (798, 9): [('move', (3, 13))], (799, 3): [('move', (10, 22))], (799, 5): [('move', (13, 10))], (799, 9): [('move', (4, 12))], (800, 3): [('move', (11, 21))], (800, 5): [('move', (14, 9))], (800, 9): [('move', (3, 13))], (801, 3): [('move', (10, 22))], (801, 5): [('move', (13, 10))], (801, 9): [('move', (4, 12))], (802, 3): [('move', (11, 21))], (802, 5): [('move', (14, 9))], (802, 9): [('move', (3, 13))], (803, 3): [('move', (10, 22))], (803, 5): [('move', (13, 10))], (803, 9): [('move', (4, 12))], (804, 3): [('move', (11, 21))], (804, 5): [('move', (14, 9))], (804, 9): [('move', (3, 13))], (805, 3): [('move', (10, 22))], (805, 5): [('move', (13, 10))], (805, 9): [('move', (4, 12))], (806, 3): [('move', (11, 21))], (806, 5): [('move', (14, 9))], (806, 9): [('move', (3, 13))], (807, 3): [('move', (10, 22))], (807, 5): [('move', (13, 10))], (807, 9): [('move', (4, 12))], (808, 3): [('move', (11, 21))], (808, 5): [('move', (14, 9))], (808, 9): [('move', (3, 13))], (809, 3): [('move', (10, 22))], (809, 5): [('move', (13, 10))], (809, 9): [('move', (4, 12))], (810, 3): [('move', (11, 21))], (810, 5): [('move', (14, 9))], (810, 9): [('move', (3, 13))], (811, 3): [('move', (10, 22))], (811, 5): [('move', (13, 10))], (811, 9): [('move', (4, 12))], (812, 3): [('move', (11, 21))], (812, 5): [('move', (14, 9))], (812, 9): [('move', (3, 13))], (813, 3): [('move', (10, 22))], (813, 5): [('move', (13, 10))], (813, 9): [('move', (4, 12))], (814, 3): [('move', (11, 21))], (814, 5): [('move', (14, 9))], (814, 9): [('move', (3, 13))], (815, 3): [('move', (10, 22))], (815, 5): [('move', (13, 10))], (815, 9): [('move', (4, 12))], (816, 3): [('move', (11, 21))], (816, 5): [('move', (14, 9))], (816, 9): [('move', (3, 13))], (817, 3): [('move', (10, 22))], (817, 5): [('move', (13, 10))], (817, 9): [('move', (4, 12))], (818, 3): [('move', (11, 21))], (818, 5): [('move', (14, 9))], (818, 9): [('move', (3, 13))], (819, 3): [('move', (10, 22))], (819, 5): [('move', (13, 10))], (819, 9): [('move', (4, 12))], (820, 3): [('move', (11, 21))], (820, 5): [('move', (14, 9))], (820, 9): [('move', (3, 13))], (821, 3): [('move', (10, 22))], (821, 5): [('move', (13, 10))], (821, 9): [('move', (4, 12))], (822, 3): [('move', (11, 21))], (822, 5): [('move', (14, 9))], (822, 9): [('move', (3, 13))], (823, 3): [('move', (10, 22))], (823, 5): [('move', (13, 10))], (823, 9): [('move', (4, 12))], (824, 3): [('move', (11, 21))], (824, 5): [('move', (14, 9))], (824, 9): [('move', (3, 13))], (825, 3): [('move', (10, 22))], (825, 5): [('move', (13, 10))], (825, 9): [('move', (4, 12))], (826, 3): [('move', (11, 21))], (826, 5): [('move', (14, 9))], (826, 9): [('move', (3, 13))], (827, 3): [('move', (10, 22))], (827, 5): [('move', (13, 10))], (827, 9): [('move', (4, 12))], (828, 3): [('move', (11, 21))], (828, 5): [('move', (14, 9))], (828, 9): [('move', (3, 13))], (829, 3): [('move', (10, 22))], (829, 5): [('move', (13, 10))], (829, 9): [('move', (4, 12))], (830, 3): [('move', (11, 21))], (830, 5): [('move', (14, 9))], (830, 9): [('move', (3, 13))], (831, 3): [('move', (10, 22))], (831, 5): [('move', (13, 10))], (831, 9): [('move', (4, 12))], (832, 3): [('move', (11, 21))], (832, 5): [('move', (14, 9))], (832, 9): [('move', (3, 13))], (833, 3): [('move', (10, 22))], (833, 5): [('move', (13, 10))], (833, 9): [('move', (4, 12))], (834, 3): [('build', EntityType.ROAD, (9, 21)), ('move', (9, 21))], (834, 5): [('move', (14, 9))], (834, 9): [('move', (3, 13))], (835, 3): [('build', EntityType.ROAD, (8, 22)), ('move', (8, 22))], (835, 5): [('move', (13, 10))], (835, 9): [('move', (4, 12))], (836, 3): [('build', EntityType.ROAD, (7, 21)), ('move', (7, 21))], (836, 5): [('move', (14, 9))], (836, 9): [('move', (3, 13))], (837, 3): [('move', (6, 20))], (837, 5): [('move', (13, 10))], (837, 9): [('move', (4, 12))], (838, 3): [('move', (5, 21))], (838, 5): [('move', (14, 9))], (838, 9): [('move', (3, 13))], (839, 3): [('move', (4, 20))], (839, 5): [('move', (13, 10))], (839, 9): [('move', (4, 12))], (840, 3): [('build', EntityType.HARVESTER, (3, 20))], (840, 5): [('move', (14, 9))], (840, 9): [('move', (3, 13))], (841, 3): [('move', (3, 19))], (841, 5): [('move', (13, 10))], (841, 9): [('move', (4, 12))], (842, 3): [('move', (4, 20))], (842, 5): [('move', (14, 9))], (842, 9): [('move', (3, 13))], (843, 3): [('move', (3, 19))], (843, 5): [('move', (13, 10))], (843, 9): [('move', (4, 12))], (844, 3): [('move', (4, 20))], (844, 5): [('move', (14, 9))], (844, 9): [('move', (3, 13))], (845, 3): [('move', (3, 19))], (845, 5): [('move', (13, 10))], (845, 9): [('move', (4, 12))], (846, 3): [('move', (4, 20))], (846, 5): [('move', (14, 9))], (846, 9): [('move', (3, 13))], (847, 3): [('move', (3, 19))], (847, 5): [('move', (13, 10))], (847, 9): [('move', (4, 12))], (848, 3): [('move', (4, 20))], (848, 5): [('move', (14, 9))], (848, 9): [('move', (3, 13))], (849, 3): [('move', (3, 19))], (849, 5): [('move', (13, 10))], (849, 9): [('move', (4, 12))], (850, 3): [('move', (4, 20))], (850, 5): [('move', (14, 9))], (850, 9): [('move', (3, 13))], (851, 3): [('move', (3, 19))], (851, 5): [('move', (13, 10))], (851, 9): [('move', (4, 12))], (852, 3): [('move', (4, 20))], (852, 5): [('move', (14, 9))], (852, 9): [('move', (3, 13))], (853, 3): [('move', (3, 19))], (853, 5): [('move', (13, 10))], (853, 9): [('move', (4, 12))], (854, 3): [('move', (4, 20))], (854, 5): [('move', (14, 9))], (854, 9): [('move', (3, 13))], (855, 3): [('move', (3, 19))], (855, 5): [('move', (13, 10))], (855, 9): [('move', (4, 12))], (856, 3): [('move', (4, 20))], (856, 5): [('move', (14, 9))], (856, 9): [('move', (3, 13))], (857, 3): [('move', (3, 19))], (857, 5): [('move', (13, 10))], (857, 9): [('move', (4, 12))], (858, 3): [('move', (4, 20))], (858, 5): [('move', (14, 9))], (858, 9): [('move', (3, 13))], (859, 3): [('move', (3, 19))], (859, 5): [('move', (13, 10))], (859, 9): [('move', (4, 12))], (860, 3): [('move', (4, 20))], (860, 5): [('move', (14, 9))], (860, 9): [('move', (3, 13))], (861, 3): [('move', (3, 19))], (861, 5): [('move', (13, 10))], (861, 9): [('move', (4, 12))], (862, 3): [('move', (4, 20))], (862, 5): [('move', (14, 9))], (862, 9): [('move', (3, 13))], (863, 3): [('move', (3, 19))], (863, 5): [('move', (13, 10))], (863, 9): [('move', (4, 12))], (864, 3): [('move', (4, 20))], (864, 5): [('move', (14, 9))], (864, 9): [('move', (3, 13))], (865, 3): [('move', (3, 19))], (865, 5): [('move', (13, 10))], (865, 9): [('move', (4, 12))], (866, 3): [('move', (4, 20))], (866, 5): [('move', (14, 9))], (866, 9): [('move', (3, 13))], (867, 3): [('move', (3, 19))], (867, 5): [('move', (13, 10))], (867, 9): [('move', (4, 12))], (868, 3): [('move', (4, 20))], (868, 5): [('move', (14, 9))], (868, 9): [('move', (3, 13))], (869, 3): [('move', (3, 19))], (869, 5): [('move', (13, 10))], (869, 9): [('move', (4, 12))], (870, 3): [('move', (4, 20))], (870, 5): [('move', (14, 9))], (870, 9): [('move', (3, 13))], (871, 3): [('move', (3, 19))], (871, 5): [('move', (13, 10))], (871, 9): [('move', (4, 12))], (872, 3): [('move', (4, 20))], (872, 5): [('move', (14, 9))], (872, 9): [('move', (3, 13))], (873, 3): [('move', (3, 19))], (873, 5): [('move', (13, 10))], (873, 9): [('move', (4, 12))], (874, 3): [('move', (4, 20))], (874, 5): [('move', (14, 9))], (874, 9): [('move', (3, 13))], (875, 3): [('move', (3, 19))], (875, 5): [('move', (13, 10))], (875, 9): [('move', (4, 12))], (876, 3): [('move', (4, 20))], (876, 5): [('move', (14, 9))], (876, 9): [('move', (3, 13))], (877, 3): [('move', (3, 19))], (877, 5): [('move', (13, 10))], (877, 9): [('move', (4, 12))], (878, 3): [('move', (4, 20))], (878, 5): [('move', (14, 9))], (878, 9): [('move', (3, 13))], (879, 3): [('move', (3, 19))], (879, 5): [('move', (13, 10))], (879, 9): [('move', (4, 12))], (880, 3): [('move', (4, 20))], (880, 5): [('move', (14, 9))], (880, 9): [('move', (3, 13))], (881, 3): [('move', (3, 19))], (881, 5): [('move', (13, 10))], (881, 9): [('move', (4, 12))], (882, 3): [('move', (4, 20))], (882, 5): [('move', (14, 9))], (882, 9): [('move', (3, 13))], (883, 3): [('move', (3, 19))], (883, 5): [('move', (13, 10))], (883, 9): [('move', (4, 12))], (884, 3): [('move', (4, 20))], (884, 5): [('move', (14, 9))], (884, 9): [('move', (3, 13))], (885, 3): [('move', (3, 19))], (885, 5): [('move', (13, 10))], (885, 9): [('move', (4, 12))], (886, 3): [('move', (4, 20))], (886, 5): [('move', (14, 9))], (886, 9): [('move', (3, 13))], (887, 3): [('move', (3, 19))], (887, 5): [('move', (13, 10))], (887, 9): [('move', (4, 12))], (888, 3): [('move', (4, 20))], (888, 5): [('move', (14, 9))], (888, 9): [('move', (3, 13))], (889, 3): [('move', (3, 19))], (889, 5): [('move', (13, 10))], (889, 9): [('move', (4, 12))], (890, 3): [('move', (4, 20))], (890, 5): [('move', (14, 9))], (890, 9): [('move', (3, 13))], (891, 3): [('move', (3, 19))], (891, 5): [('move', (13, 10))], (891, 9): [('move', (4, 12))], (892, 3): [('move', (4, 20))], (892, 5): [('move', (14, 9))], (892, 9): [('move', (3, 13))], (893, 3): [('move', (3, 19))], (893, 5): [('move', (13, 10))], (893, 9): [('move', (4, 12))], (894, 3): [('move', (4, 20))], (894, 5): [('move', (14, 9))], (894, 9): [('move', (3, 13))], (895, 3): [('move', (3, 19))], (895, 5): [('move', (13, 10))], (895, 9): [('move', (4, 12))], (896, 3): [('move', (4, 20))], (896, 5): [('move', (14, 9))], (896, 9): [('move', (3, 13))], (897, 3): [('move', (3, 19))], (897, 5): [('move', (13, 10))], (897, 9): [('move', (4, 12))], (898, 3): [('move', (4, 20))], (898, 5): [('move', (14, 9))], (898, 9): [('move', (3, 13))], (899, 3): [('move', (3, 19))], (899, 5): [('move', (13, 10))], (899, 9): [('move', (4, 12))], (900, 3): [('move', (4, 20))], (900, 5): [('move', (14, 9))], (900, 9): [('move', (3, 13))], (901, 3): [('move', (3, 19))], (901, 5): [('move', (13, 10))], (901, 9): [('move', (4, 12))], (902, 3): [('move', (4, 20))], (902, 5): [('move', (14, 9))], (902, 9): [('move', (3, 13))], (903, 3): [('move', (3, 19))], (903, 5): [('move', (13, 10))], (903, 9): [('move', (4, 12))], (904, 3): [('move', (4, 20))], (904, 5): [('move', (14, 9))], (904, 9): [('move', (3, 13))], (905, 3): [('move', (3, 19))], (905, 5): [('move', (13, 10))], (905, 9): [('move', (4, 12))], (906, 3): [('move', (4, 20))], (906, 5): [('move', (14, 9))], (906, 9): [('move', (3, 13))], (907, 3): [('move', (3, 19))], (907, 5): [('move', (13, 10))], (907, 9): [('move', (4, 12))], (908, 3): [('move', (4, 20))], (908, 5): [('move', (14, 9))], (908, 9): [('move', (3, 13))], (909, 3): [('move', (3, 19))], (909, 5): [('move', (13, 10))], (909, 9): [('move', (4, 12))], (910, 3): [('move', (4, 20))], (910, 5): [('move', (14, 9))], (910, 9): [('move', (3, 13))], (911, 3): [('move', (3, 19))], (911, 5): [('move', (13, 10))], (911, 9): [('move', (4, 12))], (912, 3): [('move', (4, 20))], (912, 5): [('move', (14, 9))], (912, 9): [('move', (3, 13))], (913, 3): [('move', (3, 19))], (913, 5): [('move', (13, 10))], (913, 9): [('move', (4, 12))], (914, 3): [('move', (4, 20))], (914, 5): [('move', (14, 9))], (914, 9): [('move', (3, 13))], (915, 3): [('move', (3, 19))], (915, 5): [('move', (13, 10))], (915, 9): [('move', (4, 12))], (916, 3): [('move', (4, 20))], (916, 5): [('move', (14, 9))], (916, 9): [('move', (3, 13))], (917, 3): [('move', (3, 19))], (917, 5): [('move', (13, 10))], (917, 9): [('move', (4, 12))], (918, 3): [('move', (4, 20))], (918, 5): [('move', (14, 9))], (918, 9): [('move', (3, 13))], (919, 3): [('move', (3, 19))], (919, 5): [('move', (13, 10))], (919, 9): [('move', (4, 12))], (920, 3): [('move', (4, 20))], (920, 5): [('move', (14, 9))], (920, 9): [('move', (3, 13))], (921, 3): [('move', (3, 19))], (921, 5): [('move', (13, 10))], (921, 9): [('move', (4, 12))], (922, 3): [('move', (4, 20))], (922, 5): [('move', (14, 9))], (922, 9): [('move', (3, 13))], (923, 3): [('move', (3, 19))], (923, 5): [('move', (13, 10))], (923, 9): [('move', (4, 12))], (924, 3): [('move', (4, 20))], (924, 5): [('move', (14, 9))], (924, 9): [('move', (3, 13))], (925, 3): [('move', (3, 19))], (925, 5): [('move', (13, 10))], (925, 9): [('move', (4, 12))], (926, 3): [('move', (4, 20))], (926, 5): [('move', (14, 9))], (926, 9): [('move', (3, 13))], (927, 3): [('move', (3, 19))], (927, 5): [('move', (13, 10))], (927, 9): [('move', (4, 12))], (928, 3): [('move', (4, 20))], (928, 5): [('move', (14, 9))], (928, 9): [('move', (3, 13))], (929, 3): [('move', (3, 19))], (929, 5): [('move', (13, 10))], (929, 9): [('move', (4, 12))], (930, 3): [('move', (4, 20))], (930, 5): [('move', (14, 9))], (930, 9): [('move', (3, 13))], (931, 3): [('move', (3, 19))], (931, 5): [('move', (13, 10))], (931, 9): [('move', (4, 12))], (932, 3): [('move', (4, 20))], (932, 5): [('move', (14, 9))], (932, 9): [('move', (3, 13))], (933, 3): [('move', (3, 19))], (933, 5): [('move', (13, 10))], (933, 9): [('move', (4, 12))], (934, 3): [('move', (4, 20))], (934, 5): [('move', (14, 9))], (934, 9): [('move', (3, 13))], (935, 3): [('move', (3, 19))], (935, 5): [('move', (13, 10))], (935, 9): [('move', (4, 12))], (936, 3): [('move', (4, 20))], (936, 5): [('move', (14, 9))], (936, 9): [('move', (3, 13))], (937, 3): [('move', (3, 19))], (937, 5): [('move', (13, 10))], (937, 9): [('move', (4, 12))], (938, 3): [('move', (4, 20))], (938, 5): [('move', (14, 9))], (938, 9): [('move', (3, 13))], (939, 3): [('move', (3, 19))], (939, 5): [('move', (13, 10))], (939, 9): [('move', (4, 12))], (940, 3): [('move', (4, 20))], (940, 5): [('move', (14, 9))], (940, 9): [('move', (3, 13))], (941, 3): [('move', (3, 19))], (941, 5): [('move', (13, 10))], (941, 9): [('move', (4, 12))], (942, 3): [('move', (4, 20))], (942, 5): [('move', (14, 9))], (942, 9): [('move', (3, 13))], (943, 3): [('move', (3, 19))], (943, 5): [('move', (13, 10))], (943, 9): [('move', (4, 12))], (944, 3): [('move', (4, 20))], (944, 5): [('move', (14, 9))], (944, 9): [('move', (3, 13))], (945, 3): [('move', (3, 19))], (945, 5): [('move', (13, 10))], (945, 9): [('move', (4, 12))], (946, 3): [('move', (4, 20))], (946, 5): [('move', (14, 9))], (946, 9): [('move', (3, 13))], (947, 3): [('move', (3, 19))], (947, 5): [('move', (13, 10))], (947, 9): [('move', (4, 12))], (948, 3): [('move', (4, 20))], (948, 5): [('move', (14, 9))], (948, 9): [('move', (3, 13))], (949, 3): [('move', (3, 19))], (949, 5): [('move', (13, 10))], (949, 9): [('move', (4, 12))], (950, 3): [('move', (4, 20))], (950, 5): [('move', (14, 9))], (950, 9): [('move', (3, 13))], (951, 3): [('move', (3, 19))], (951, 5): [('move', (13, 10))], (951, 9): [('move', (4, 12))], (952, 3): [('move', (4, 20))], (952, 5): [('move', (14, 9))], (952, 9): [('move', (3, 13))], (953, 3): [('move', (3, 19))], (953, 5): [('move', (13, 10))], (953, 9): [('move', (4, 12))], (954, 3): [('move', (4, 20))], (954, 5): [('move', (14, 9))], (954, 9): [('move', (3, 13))], (955, 3): [('move', (3, 19))], (955, 5): [('move', (13, 10))], (955, 9): [('move', (4, 12))], (956, 3): [('move', (4, 20))], (956, 5): [('move', (14, 9))], (956, 9): [('move', (3, 13))], (957, 3): [('move', (3, 19))], (957, 5): [('move', (13, 10))], (957, 9): [('move', (4, 12))], (958, 3): [('move', (4, 20))], (958, 5): [('move', (14, 9))], (958, 9): [('move', (3, 13))], (959, 3): [('move', (3, 19))], (959, 5): [('move', (13, 10))], (959, 9): [('move', (4, 12))], (960, 3): [('move', (4, 20))], (960, 5): [('move', (14, 9))], (960, 9): [('move', (3, 13))], (961, 3): [('move', (3, 19))], (961, 5): [('move', (13, 10))], (961, 9): [('move', (4, 12))], (962, 3): [('move', (4, 20))], (962, 5): [('move', (14, 9))], (962, 9): [('move', (3, 13))], (963, 3): [('move', (3, 19))], (963, 5): [('move', (13, 10))], (963, 9): [('move', (4, 12))], (964, 3): [('move', (4, 20))], (964, 5): [('move', (14, 9))], (964, 9): [('move', (3, 13))], (965, 3): [('move', (3, 19))], (965, 5): [('move', (13, 10))], (965, 9): [('move', (4, 12))], (966, 3): [('move', (4, 20))], (966, 5): [('move', (14, 9))], (966, 9): [('move', (3, 13))], (967, 3): [('move', (3, 19))], (967, 5): [('move', (13, 10))], (967, 9): [('move', (4, 12))], (968, 3): [('move', (4, 20))], (968, 5): [('move', (14, 9))], (968, 9): [('move', (3, 13))], (969, 3): [('move', (3, 19))], (969, 5): [('move', (13, 10))], (969, 9): [('move', (4, 12))], (970, 3): [('move', (4, 20))], (970, 5): [('move', (14, 9))], (970, 9): [('move', (3, 13))], (971, 3): [('move', (3, 19))], (971, 5): [('move', (13, 10))], (971, 9): [('move', (4, 12))], (972, 3): [('move', (4, 20))], (972, 5): [('move', (14, 9))], (972, 9): [('move', (3, 13))], (973, 3): [('move', (3, 19))], (973, 5): [('move', (13, 10))], (973, 9): [('move', (4, 12))], (974, 3): [('move', (4, 20))], (974, 5): [('move', (14, 9))], (974, 9): [('move', (3, 13))], (975, 3): [('move', (3, 19))], (975, 5): [('move', (13, 10))], (975, 9): [('move', (4, 12))], (976, 3): [('move', (4, 20))], (976, 5): [('move', (14, 9))], (976, 9): [('move', (3, 13))], (977, 3): [('move', (3, 19))], (977, 5): [('move', (13, 10))], (977, 9): [('move', (4, 12))], (978, 3): [('move', (4, 20))], (978, 5): [('move', (14, 9))], (978, 9): [('move', (3, 13))], (979, 3): [('move', (3, 19))], (979, 5): [('move', (13, 10))], (979, 9): [('move', (4, 12))], (980, 3): [('move', (4, 20))], (980, 5): [('move', (14, 9))], (980, 9): [('move', (3, 13))], (981, 3): [('move', (3, 19))], (981, 5): [('move', (13, 10))], (981, 9): [('move', (4, 12))], (982, 3): [('move', (4, 20))], (982, 5): [('move', (14, 9))], (982, 9): [('move', (3, 13))], (983, 3): [('move', (3, 19))], (983, 5): [('move', (13, 10))], (983, 9): [('move', (4, 12))], (984, 3): [('move', (4, 20))], (984, 5): [('move', (14, 9))], (984, 9): [('move', (3, 13))], (985, 3): [('move', (3, 19))], (985, 5): [('move', (13, 10))], (985, 9): [('move', (4, 12))], (986, 3): [('move', (4, 20))], (986, 5): [('move', (14, 9))], (986, 9): [('move', (3, 13))], (987, 3): [('move', (3, 19))], (987, 5): [('move', (13, 10))], (987, 9): [('move', (4, 12))], (988, 3): [('move', (4, 20))], (988, 5): [('move', (14, 9))], (988, 9): [('move', (3, 13))], (989, 3): [('move', (3, 19))], (989, 5): [('move', (13, 10))], (989, 9): [('move', (4, 12))], (990, 3): [('move', (4, 20))], (990, 5): [('move', (14, 9))], (990, 9): [('move', (3, 13))], (991, 3): [('move', (3, 19))], (991, 5): [('move', (13, 10))], (991, 9): [('move', (4, 12))], (992, 3): [('move', (4, 20))], (992, 5): [('move', (14, 9))], (992, 9): [('move', (3, 13))], (993, 3): [('move', (3, 19))], (993, 5): [('move', (13, 10))], (993, 9): [('move', (4, 12))], (994, 3): [('move', (4, 20))], (994, 5): [('move', (14, 9))], (994, 9): [('move', (3, 13))], (995, 3): [('move', (3, 19))], (995, 5): [('move', (13, 10))], (995, 9): [('move', (4, 12))], (996, 3): [('move', (4, 20))], (996, 5): [('move', (14, 9))], (996, 9): [('move', (3, 13))], (997, 3): [('move', (3, 19))], (997, 5): [('move', (13, 10))], (997, 9): [('move', (4, 12))], (998, 3): [('move', (4, 20))], (998, 5): [('move', (14, 9))], (998, 9): [('move', (3, 13))], (999, 3): [('move', (3, 19))], (999, 5): [('move', (13, 10))], (999, 9): [('move', (4, 12))], (1000, 3): [('move', (4, 20))], (1000, 5): [('move', (14, 9))], (1000, 9): [('move', (3, 13))], (1001, 3): [('move', (3, 19))], (1001, 5): [('move', (13, 10))], (1001, 9): [('move', (4, 12))], (1002, 3): [('move', (4, 20))], (1002, 5): [('move', (14, 9))], (1002, 9): [('move', (3, 13))], (1003, 3): [('move', (3, 19))], (1003, 5): [('move', (13, 10))], (1003, 9): [('move', (4, 12))], (1004, 3): [('move', (4, 20))], (1004, 5): [('move', (14, 9))], (1004, 9): [('move', (3, 13))], (1005, 3): [('move', (3, 19))], (1005, 5): [('move', (13, 10))], (1005, 9): [('move', (4, 12))], (1006, 3): [('move', (4, 20))], (1006, 5): [('move', (14, 9))], (1006, 9): [('move', (3, 13))], (1007, 3): [('move', (3, 19))], (1007, 5): [('move', (13, 10))], (1007, 9): [('move', (4, 12))], (1008, 3): [('move', (4, 20))], (1008, 5): [('move', (14, 9))], (1008, 9): [('move', (3, 13))], (1009, 3): [('move', (3, 19))], (1009, 5): [('move', (13, 10))], (1009, 9): [('move', (4, 12))], (1010, 3): [('move', (4, 20))], (1010, 5): [('move', (14, 9))], (1010, 9): [('move', (3, 13))], (1011, 3): [('move', (3, 19))], (1011, 5): [('move', (13, 10))], (1011, 9): [('move', (4, 12))], (1012, 3): [('move', (4, 20))], (1012, 5): [('move', (14, 9))], (1012, 9): [('move', (3, 13))], (1013, 3): [('move', (3, 19))], (1013, 5): [('move', (13, 10))], (1013, 9): [('move', (4, 12))], (1014, 3): [('move', (4, 20))], (1014, 5): [('move', (14, 9))], (1014, 9): [('move', (3, 13))], (1015, 3): [('move', (3, 19))], (1015, 5): [('move', (13, 10))], (1015, 9): [('move', (4, 12))], (1016, 3): [('move', (4, 20))], (1016, 5): [('move', (14, 9))], (1016, 9): [('move', (3, 13))], (1017, 3): [('move', (3, 19))], (1017, 5): [('move', (13, 10))], (1017, 9): [('move', (4, 12))], (1018, 3): [('move', (4, 20))], (1018, 5): [('move', (14, 9))], (1018, 9): [('move', (3, 13))], (1019, 3): [('move', (3, 19))], (1019, 5): [('move', (13, 10))], (1019, 9): [('move', (4, 12))], (1020, 3): [('move', (4, 20))], (1020, 5): [('move', (14, 9))], (1020, 9): [('move', (3, 13))], (1021, 3): [('move', (3, 19))], (1021, 5): [('move', (13, 10))], (1021, 9): [('move', (4, 12))], (1022, 3): [('move', (4, 20))], (1022, 5): [('move', (14, 9))], (1022, 9): [('move', (3, 13))], (1023, 3): [('move', (3, 19))], (1023, 5): [('move', (13, 10))], (1023, 9): [('move', (4, 12))], (1024, 3): [('move', (4, 20))], (1024, 5): [('move', (14, 9))], (1024, 9): [('move', (3, 13))], (1025, 3): [('move', (3, 19))], (1025, 5): [('move', (13, 10))], (1025, 9): [('move', (4, 12))], (1026, 3): [('move', (4, 20))], (1026, 5): [('move', (14, 9))], (1026, 9): [('move', (3, 13))], (1027, 3): [('move', (3, 19))], (1027, 5): [('move', (13, 10))], (1027, 9): [('move', (4, 12))], (1028, 3): [('move', (4, 20))], (1028, 5): [('move', (14, 9))], (1028, 9): [('move', (3, 13))], (1029, 3): [('move', (3, 19))], (1029, 5): [('move', (13, 10))], (1029, 9): [('move', (4, 12))], (1030, 3): [('move', (4, 20))], (1030, 5): [('move', (14, 9))], (1030, 9): [('move', (3, 13))], (1031, 3): [('move', (3, 19))], (1031, 5): [('move', (13, 10))], (1031, 9): [('move', (4, 12))], (1032, 3): [('move', (4, 20))], (1032, 5): [('move', (14, 9))], (1032, 9): [('move', (3, 13))], (1033, 3): [('move', (3, 19))], (1033, 5): [('move', (13, 10))], (1033, 9): [('move', (4, 12))], (1034, 3): [('move', (4, 20))], (1034, 5): [('move', (14, 9))], (1034, 9): [('move', (3, 13))], (1035, 3): [('move', (3, 19))], (1035, 5): [('move', (13, 10))], (1035, 9): [('move', (4, 12))], (1036, 3): [('move', (4, 20))], (1036, 5): [('move', (14, 9))], (1036, 9): [('move', (3, 13))], (1037, 3): [('move', (3, 19))], (1037, 5): [('move', (13, 10))], (1037, 9): [('move', (4, 12))], (1038, 3): [('move', (4, 20))], (1038, 5): [('move', (14, 9))], (1038, 9): [('move', (3, 13))], (1039, 3): [('move', (3, 19))], (1039, 5): [('move', (13, 10))], (1039, 9): [('move', (4, 12))], (1040, 3): [('move', (4, 20))], (1040, 5): [('move', (14, 9))], (1040, 9): [('move', (3, 13))], (1041, 3): [('move', (3, 19))], (1041, 5): [('move', (13, 10))], (1041, 9): [('move', (4, 12))], (1042, 3): [('move', (4, 20))], (1042, 5): [('move', (14, 9))], (1042, 9): [('move', (3, 13))], (1043, 3): [('move', (3, 19))], (1043, 5): [('move', (13, 10))], (1043, 9): [('move', (4, 12))], (1044, 3): [('move', (4, 20))], (1044, 5): [('move', (14, 9))], (1044, 9): [('move', (3, 13))], (1045, 3): [('move', (3, 19))], (1045, 5): [('move', (13, 10))], (1045, 9): [('move', (4, 12))], (1046, 3): [('move', (4, 20))], (1046, 5): [('move', (14, 9))], (1046, 9): [('move', (3, 13))], (1047, 3): [('move', (3, 19))], (1047, 5): [('move', (13, 10))], (1047, 9): [('move', (4, 12))], (1048, 3): [('move', (4, 20))], (1048, 5): [('move', (14, 9))], (1048, 9): [('move', (3, 13))], (1049, 3): [('move', (3, 19))], (1049, 5): [('move', (13, 10))], (1049, 9): [('move', (4, 12))], (1050, 3): [('move', (4, 20))], (1050, 5): [('move', (14, 9))], (1050, 9): [('move', (3, 13))], (1051, 3): [('move', (3, 19))], (1051, 5): [('move', (13, 10))], (1051, 9): [('move', (4, 12))], (1052, 3): [('move', (4, 20))], (1052, 5): [('move', (14, 9))], (1052, 9): [('move', (3, 13))], (1053, 3): [('move', (3, 19))], (1053, 5): [('move', (13, 10))], (1053, 9): [('move', (4, 12))], (1054, 3): [('move', (4, 20))], (1054, 5): [('move', (14, 9))], (1054, 9): [('move', (3, 13))], (1055, 3): [('move', (3, 19))], (1055, 5): [('move', (13, 10))], (1055, 9): [('move', (4, 12))], (1056, 3): [('move', (4, 20))], (1056, 5): [('move', (14, 9))], (1056, 9): [('move', (3, 13))], (1057, 3): [('move', (3, 19))], (1057, 5): [('move', (13, 10))], (1057, 9): [('move', (4, 12))], (1058, 3): [('move', (4, 20))], (1058, 5): [('move', (14, 9))], (1058, 9): [('move', (3, 13))], (1059, 3): [('move', (3, 19))], (1059, 5): [('move', (13, 10))], (1059, 9): [('move', (4, 12))], (1060, 3): [('move', (4, 20))], (1060, 5): [('move', (14, 9))], (1060, 9): [('move', (3, 13))], (1061, 3): [('move', (3, 19))], (1061, 5): [('move', (13, 10))], (1061, 9): [('move', (4, 12))], (1062, 3): [('move', (4, 20))], (1062, 5): [('move', (14, 9))], (1062, 9): [('move', (3, 13))], (1063, 3): [('move', (3, 19))], (1063, 5): [('move', (13, 10))], (1063, 9): [('move', (4, 12))], (1064, 3): [('move', (4, 20))], (1064, 5): [('move', (14, 9))], (1064, 9): [('move', (3, 13))], (1065, 3): [('move', (3, 19))], (1065, 5): [('move', (13, 10))], (1065, 9): [('move', (4, 12))], (1066, 3): [('move', (4, 20))], (1066, 5): [('move', (14, 9))], (1066, 9): [('move', (3, 13))], (1067, 3): [('move', (3, 19))], (1067, 5): [('move', (13, 10))], (1067, 9): [('move', (4, 12))], (1068, 3): [('move', (4, 20))], (1068, 5): [('move', (14, 9))], (1068, 9): [('move', (3, 13))], (1069, 3): [('move', (3, 19))], (1069, 5): [('move', (13, 10))], (1069, 9): [('move', (4, 12))], (1070, 3): [('move', (4, 20))], (1070, 5): [('move', (14, 9))], (1070, 9): [('move', (3, 13))], (1071, 3): [('move', (3, 19))], (1071, 5): [('move', (13, 10))], (1071, 9): [('move', (4, 12))], (1072, 3): [('move', (4, 20))], (1072, 5): [('move', (14, 9))], (1072, 9): [('move', (3, 13))], (1073, 3): [('move', (3, 19))], (1073, 5): [('move', (13, 10))], (1073, 9): [('move', (4, 12))], (1074, 3): [('move', (4, 20))], (1074, 5): [('move', (14, 9))], (1074, 9): [('move', (3, 13))], (1075, 3): [('move', (3, 19))], (1075, 5): [('move', (13, 10))], (1075, 9): [('move', (4, 12))], (1076, 3): [('move', (4, 20))], (1076, 5): [('move', (14, 9))], (1076, 9): [('move', (3, 13))], (1077, 3): [('move', (3, 19))], (1077, 5): [('move', (13, 10))], (1077, 9): [('move', (4, 12))], (1078, 3): [('move', (4, 20))], (1078, 5): [('move', (14, 9))], (1078, 9): [('move', (3, 13))], (1079, 3): [('move', (3, 19))], (1079, 5): [('move', (13, 10))], (1079, 9): [('move', (4, 12))], (1080, 3): [('move', (4, 20))], (1080, 5): [('move', (14, 9))], (1080, 9): [('move', (3, 13))], (1081, 3): [('move', (3, 19))], (1081, 5): [('move', (13, 10))], (1081, 9): [('move', (4, 12))], (1082, 3): [('move', (4, 20))], (1082, 5): [('move', (14, 9))], (1082, 9): [('move', (3, 13))], (1083, 3): [('move', (3, 19))], (1083, 5): [('move', (13, 10))], (1083, 9): [('move', (4, 12))], (1084, 3): [('move', (4, 20))], (1084, 5): [('move', (14, 9))], (1084, 9): [('move', (3, 13))], (1085, 3): [('move', (3, 19))], (1085, 5): [('move', (13, 10))], (1085, 9): [('move', (4, 12))], (1086, 3): [('move', (4, 20))], (1086, 5): [('move', (14, 9))], (1086, 9): [('move', (3, 13))], (1087, 3): [('move', (3, 19))], (1087, 5): [('move', (13, 10))], (1087, 9): [('move', (4, 12))], (1088, 3): [('move', (4, 20))], (1088, 5): [('move', (14, 9))], (1088, 9): [('move', (3, 13))], (1089, 3): [('move', (3, 19))], (1089, 5): [('move', (13, 10))], (1089, 9): [('move', (4, 12))], (1090, 3): [('move', (4, 20))], (1090, 5): [('move', (14, 9))], (1090, 9): [('move', (3, 13))], (1091, 3): [('move', (3, 19))], (1091, 5): [('move', (13, 10))], (1091, 9): [('move', (4, 12))], (1092, 3): [('move', (4, 20))], (1092, 5): [('move', (14, 9))], (1092, 9): [('move', (3, 13))], (1093, 3): [('move', (3, 19))], (1093, 5): [('move', (13, 10))], (1093, 9): [('move', (4, 12))], (1094, 3): [('move', (4, 20))], (1094, 5): [('move', (14, 9))], (1094, 9): [('move', (3, 13))], (1095, 3): [('move', (3, 19))], (1095, 5): [('move', (13, 10))], (1095, 9): [('move', (4, 12))], (1096, 3): [('move', (4, 20))], (1096, 5): [('move', (14, 9))], (1096, 9): [('move', (3, 13))], (1097, 3): [('move', (3, 19))], (1097, 5): [('move', (13, 10))], (1097, 9): [('move', (4, 12))], (1098, 3): [('move', (4, 20))], (1098, 5): [('move', (14, 9))], (1098, 9): [('move', (3, 13))], (1099, 3): [('move', (3, 19))], (1099, 5): [('move', (13, 10))], (1099, 9): [('move', (4, 12))], (1100, 3): [('move', (4, 20))], (1100, 5): [('move', (14, 9))], (1100, 9): [('move', (3, 13))], (1101, 3): [('move', (3, 19))], (1101, 5): [('move', (13, 10))], (1101, 9): [('move', (4, 12))], (1102, 3): [('move', (4, 20))], (1102, 5): [('move', (14, 9))], (1102, 9): [('move', (3, 13))], (1103, 3): [('move', (3, 19))], (1103, 5): [('move', (13, 10))], (1103, 9): [('move', (4, 12))], (1104, 3): [('move', (4, 20))], (1104, 5): [('move', (14, 9))], (1104, 9): [('move', (3, 13))], (1105, 3): [('move', (3, 19))], (1105, 5): [('move', (13, 10))], (1105, 9): [('move', (4, 12))], (1106, 3): [('move', (4, 20))], (1106, 5): [('move', (14, 9))], (1106, 9): [('move', (3, 13))], (1107, 3): [('move', (3, 19))], (1107, 5): [('move', (13, 10))], (1107, 9): [('move', (4, 12))], (1108, 3): [('move', (4, 20))], (1108, 5): [('move', (14, 9))], (1108, 9): [('move', (3, 13))], (1109, 3): [('move', (3, 19))], (1109, 5): [('move', (13, 10))], (1109, 9): [('move', (4, 12))], (1110, 3): [('move', (4, 20))], (1110, 5): [('move', (14, 9))], (1110, 9): [('move', (3, 13))], (1111, 3): [('move', (3, 19))], (1111, 5): [('move', (13, 10))], (1111, 9): [('move', (4, 12))], (1112, 3): [('move', (4, 20))], (1112, 5): [('move', (14, 9))], (1112, 9): [('move', (3, 13))], (1113, 3): [('move', (3, 19))], (1113, 5): [('move', (13, 10))], (1113, 9): [('move', (4, 12))], (1114, 3): [('move', (4, 20))], (1114, 5): [('move', (14, 9))], (1114, 9): [('move', (3, 13))], (1115, 3): [('move', (3, 19))], (1115, 5): [('move', (13, 10))], (1115, 9): [('move', (4, 12))], (1116, 3): [('move', (4, 20))], (1116, 5): [('move', (14, 9))], (1116, 9): [('move', (3, 13))], (1117, 3): [('move', (3, 19))], (1117, 5): [('move', (13, 10))], (1117, 9): [('move', (4, 12))], (1118, 3): [('move', (4, 20))], (1118, 5): [('move', (14, 9))], (1118, 9): [('move', (3, 13))], (1119, 3): [('move', (3, 19))], (1119, 5): [('move', (13, 10))], (1119, 9): [('move', (4, 12))], (1120, 3): [('move', (4, 20))], (1120, 5): [('move', (14, 9))], (1120, 9): [('move', (3, 13))], (1121, 3): [('move', (3, 19))], (1121, 5): [('move', (13, 10))], (1121, 9): [('move', (4, 12))], (1122, 3): [('move', (4, 20))], (1122, 5): [('move', (14, 9))], (1122, 9): [('move', (3, 13))], (1123, 3): [('move', (3, 19))], (1123, 5): [('move', (13, 10))], (1123, 9): [('move', (4, 12))], (1124, 3): [('move', (4, 20))], (1124, 5): [('move', (14, 9))], (1124, 9): [('move', (3, 13))], (1125, 3): [('move', (3, 19))], (1125, 5): [('move', (13, 10))], (1125, 9): [('move', (4, 12))], (1126, 3): [('move', (4, 20))], (1126, 5): [('move', (14, 9))], (1126, 9): [('move', (3, 13))], (1127, 3): [('move', (3, 19))], (1127, 5): [('move', (13, 10))], (1127, 9): [('move', (4, 12))], (1128, 3): [('move', (4, 20))], (1128, 5): [('move', (14, 9))], (1128, 9): [('move', (3, 13))], (1129, 3): [('move', (3, 19))], (1129, 5): [('move', (13, 10))], (1129, 9): [('move', (4, 12))], (1130, 3): [('move', (4, 20))], (1130, 5): [('move', (14, 9))], (1130, 9): [('move', (3, 13))], (1131, 3): [('move', (3, 19))], (1131, 5): [('move', (13, 10))], (1131, 9): [('move', (4, 12))], (1132, 3): [('move', (4, 20))], (1132, 5): [('move', (14, 9))], (1132, 9): [('move', (3, 13))], (1133, 3): [('move', (3, 19))], (1133, 5): [('move', (13, 10))], (1133, 9): [('move', (4, 12))], (1134, 3): [('move', (4, 20))], (1134, 5): [('move', (14, 9))], (1134, 9): [('move', (3, 13))], (1135, 3): [('move', (3, 19))], (1135, 5): [('move', (13, 10))], (1135, 9): [('move', (4, 12))], (1136, 3): [('move', (4, 20))], (1136, 5): [('move', (14, 9))], (1136, 9): [('move', (3, 13))], (1137, 3): [('move', (3, 19))], (1137, 5): [('move', (13, 10))], (1137, 9): [('move', (4, 12))], (1138, 3): [('move', (4, 20))], (1138, 5): [('move', (14, 9))], (1138, 9): [('move', (3, 13))], (1139, 3): [('move', (3, 19))], (1139, 5): [('move', (13, 10))], (1139, 9): [('move', (4, 12))], (1140, 3): [('move', (4, 20))], (1140, 5): [('move', (14, 9))], (1140, 9): [('move', (3, 13))], (1141, 3): [('move', (3, 19))], (1141, 5): [('move', (13, 10))], (1141, 9): [('move', (4, 12))], (1142, 3): [('move', (4, 20))], (1142, 5): [('move', (14, 9))], (1142, 9): [('move', (3, 13))], (1143, 3): [('move', (3, 19))], (1143, 5): [('move', (13, 10))], (1143, 9): [('move', (4, 12))], (1144, 3): [('move', (4, 20))], (1144, 5): [('move', (14, 9))], (1144, 9): [('move', (3, 13))], (1145, 3): [('move', (3, 19))], (1145, 5): [('move', (13, 10))], (1145, 9): [('move', (4, 12))], (1146, 3): [('move', (4, 20))], (1146, 5): [('move', (14, 9))], (1146, 9): [('move', (3, 13))], (1147, 3): [('move', (3, 19))], (1147, 5): [('move', (13, 10))], (1147, 9): [('move', (4, 12))], (1148, 3): [('move', (4, 20))], (1148, 5): [('move', (14, 9))], (1148, 9): [('move', (3, 13))], (1149, 3): [('move', (3, 19))], (1149, 5): [('move', (13, 10))], (1149, 9): [('move', (4, 12))], (1150, 3): [('move', (4, 20))], (1150, 5): [('move', (14, 9))], (1150, 9): [('move', (3, 13))], (1151, 3): [('move', (3, 19))], (1151, 5): [('move', (13, 10))], (1151, 9): [('move', (4, 12))], (1152, 3): [('move', (4, 20))], (1152, 5): [('move', (14, 9))], (1152, 9): [('move', (3, 13))], (1153, 3): [('move', (3, 19))], (1153, 5): [('move', (13, 10))], (1153, 9): [('move', (4, 12))], (1154, 3): [('move', (4, 20))], (1154, 5): [('move', (14, 9))], (1154, 9): [('move', (3, 13))], (1155, 3): [('move', (3, 19))], (1155, 5): [('move', (13, 10))], (1155, 9): [('move', (4, 12))], (1156, 3): [('move', (4, 20))], (1156, 5): [('move', (14, 9))], (1156, 9): [('move', (3, 13))], (1157, 3): [('move', (3, 19))], (1157, 5): [('move', (13, 10))], (1157, 9): [('move', (4, 12))], (1158, 3): [('move', (4, 20))], (1158, 5): [('move', (14, 9))], (1158, 9): [('move', (3, 13))], (1159, 3): [('move', (3, 19))], (1159, 5): [('move', (13, 10))], (1159, 9): [('move', (4, 12))], (1160, 3): [('move', (4, 20))], (1160, 5): [('move', (14, 9))], (1160, 9): [('move', (3, 13))], (1161, 3): [('move', (3, 19))], (1161, 5): [('move', (13, 10))], (1161, 9): [('move', (4, 12))], (1162, 3): [('move', (4, 20))], (1162, 5): [('move', (14, 9))], (1162, 9): [('move', (3, 13))], (1163, 3): [('move', (3, 19))], (1163, 5): [('move', (13, 10))], (1163, 9): [('move', (4, 12))], (1164, 3): [('move', (4, 20))], (1164, 5): [('move', (14, 9))], (1164, 9): [('move', (3, 13))], (1165, 3): [('move', (3, 19))], (1165, 5): [('move', (13, 10))], (1165, 9): [('move', (4, 12))], (1166, 3): [('move', (4, 20))], (1166, 5): [('move', (14, 9))], (1166, 9): [('move', (3, 13))], (1167, 3): [('move', (3, 19))], (1167, 5): [('move', (13, 10))], (1167, 9): [('move', (4, 12))], (1168, 3): [('move', (4, 20))], (1168, 5): [('move', (14, 9))], (1168, 9): [('move', (3, 13))], (1169, 3): [('move', (3, 19))], (1169, 5): [('move', (13, 10))], (1169, 9): [('move', (4, 12))], (1170, 3): [('move', (4, 20))], (1170, 5): [('move', (14, 9))], (1170, 9): [('move', (3, 13))], (1171, 3): [('move', (3, 19))], (1171, 5): [('move', (13, 10))], (1171, 9): [('move', (4, 12))], (1172, 3): [('move', (4, 20))], (1172, 5): [('move', (14, 9))], (1172, 9): [('move', (3, 13))], (1173, 3): [('move', (3, 19))], (1173, 5): [('move', (13, 10))], (1173, 9): [('move', (4, 12))], (1174, 3): [('move', (4, 20))], (1174, 5): [('move', (14, 9))], (1174, 9): [('move', (3, 13))], (1175, 3): [('move', (3, 19))], (1175, 5): [('move', (13, 10))], (1175, 9): [('move', (4, 12))], (1176, 3): [('move', (4, 20))], (1176, 5): [('move', (14, 9))], (1176, 9): [('move', (3, 13))], (1177, 3): [('move', (3, 19))], (1177, 5): [('move', (13, 10))], (1177, 9): [('move', (4, 12))], (1178, 3): [('move', (4, 20))], (1178, 5): [('move', (14, 9))], (1178, 9): [('move', (3, 13))], (1179, 3): [('move', (3, 19))], (1179, 5): [('move', (13, 10))], (1179, 9): [('move', (4, 12))], (1180, 3): [('move', (4, 20))], (1180, 5): [('move', (14, 9))], (1180, 9): [('move', (3, 13))], (1181, 3): [('move', (3, 19))], (1181, 5): [('move', (13, 10))], (1181, 9): [('move', (4, 12))], (1182, 3): [('move', (4, 20))], (1182, 5): [('move', (14, 9))], (1182, 9): [('move', (3, 13))], (1183, 3): [('move', (3, 19))], (1183, 5): [('move', (13, 10))], (1183, 9): [('move', (4, 12))], (1184, 3): [('move', (4, 20))], (1184, 5): [('move', (14, 9))], (1184, 9): [('move', (3, 13))], (1185, 3): [('move', (3, 19))], (1185, 5): [('move', (13, 10))], (1185, 9): [('move', (4, 12))], (1186, 3): [('move', (4, 20))], (1186, 5): [('move', (14, 9))], (1186, 9): [('move', (3, 13))], (1187, 3): [('move', (3, 19))], (1187, 5): [('move', (13, 10))], (1187, 9): [('move', (4, 12))], (1188, 3): [('move', (4, 20))], (1188, 5): [('move', (14, 9))], (1188, 9): [('move', (3, 13))], (1189, 3): [('move', (3, 19))], (1189, 5): [('move', (13, 10))], (1189, 9): [('move', (4, 12))], (1190, 3): [('move', (4, 20))], (1190, 5): [('move', (14, 9))], (1190, 9): [('move', (3, 13))], (1191, 3): [('move', (3, 19))], (1191, 5): [('move', (13, 10))], (1191, 9): [('move', (4, 12))], (1192, 3): [('move', (4, 20))], (1192, 5): [('move', (14, 9))], (1192, 9): [('move', (3, 13))], (1193, 3): [('move', (3, 19))], (1193, 5): [('move', (13, 10))], (1193, 9): [('move', (4, 12))], (1194, 3): [('move', (4, 20))], (1194, 5): [('move', (14, 9))], (1194, 9): [('move', (3, 13))], (1195, 3): [('move', (3, 19))], (1195, 5): [('move', (13, 10))], (1195, 9): [('move', (4, 12))], (1196, 3): [('move', (4, 20))], (1196, 5): [('move', (14, 9))], (1196, 9): [('move', (3, 13))], (1197, 3): [('move', (3, 19))], (1197, 5): [('move', (13, 10))], (1197, 9): [('move', (4, 12))], (1198, 3): [('move', (4, 20))], (1198, 5): [('move', (14, 9))], (1198, 9): [('move', (3, 13))], (1199, 3): [('move', (3, 19))], (1199, 5): [('move', (13, 10))], (1199, 9): [('move', (4, 12))], (1200, 3): [('move', (4, 20))], (1200, 5): [('move', (14, 9))], (1200, 9): [('move', (3, 13))], (1201, 3): [('move', (3, 19))], (1201, 5): [('move', (13, 10))], (1201, 9): [('move', (4, 12))], (1202, 3): [('move', (4, 20))], (1202, 5): [('move', (14, 9))], (1202, 9): [('move', (3, 13))], (1203, 3): [('move', (3, 19))], (1203, 5): [('move', (13, 10))], (1203, 9): [('move', (4, 12))], (1204, 3): [('move', (4, 20))], (1204, 5): [('move', (14, 9))], (1204, 9): [('move', (3, 13))], (1205, 3): [('move', (3, 19))], (1205, 5): [('move', (13, 10))], (1205, 9): [('move', (4, 12))], (1206, 3): [('move', (4, 20))], (1206, 5): [('move', (14, 9))], (1206, 9): [('move', (3, 13))], (1207, 3): [('move', (3, 19))], (1207, 5): [('move', (13, 10))], (1207, 9): [('move', (4, 12))], (1208, 3): [('move', (4, 20))], (1208, 5): [('move', (14, 9))], (1208, 9): [('move', (3, 13))], (1209, 3): [('move', (3, 19))], (1209, 5): [('move', (13, 10))], (1209, 9): [('move', (4, 12))], (1210, 3): [('move', (4, 20))], (1210, 5): [('move', (14, 9))], (1210, 9): [('move', (3, 13))], (1211, 3): [('move', (3, 19))], (1211, 5): [('move', (13, 10))], (1211, 9): [('move', (4, 12))], (1212, 3): [('move', (4, 20))], (1212, 5): [('move', (14, 9))], (1212, 9): [('move', (3, 13))], (1213, 3): [('move', (3, 19))], (1213, 5): [('move', (13, 10))], (1213, 9): [('move', (4, 12))], (1214, 3): [('move', (4, 20))], (1214, 5): [('move', (14, 9))], (1214, 9): [('move', (3, 13))], (1215, 3): [('move', (3, 19))], (1215, 5): [('move', (13, 10))], (1215, 9): [('move', (4, 12))], (1216, 3): [('move', (4, 20))], (1216, 5): [('move', (14, 9))], (1216, 9): [('move', (3, 13))], (1217, 3): [('move', (3, 19))], (1217, 5): [('move', (13, 10))], (1217, 9): [('move', (4, 12))], (1218, 3): [('move', (4, 20))], (1218, 5): [('move', (14, 9))], (1218, 9): [('move', (3, 13))], (1219, 3): [('move', (3, 19))], (1219, 5): [('move', (13, 10))], (1219, 9): [('move', (4, 12))], (1220, 3): [('move', (4, 20))], (1220, 5): [('move', (14, 9))], (1220, 9): [('move', (3, 13))], (1221, 3): [('move', (3, 19))], (1221, 5): [('move', (13, 10))], (1221, 9): [('move', (4, 12))], (1222, 3): [('move', (4, 20))], (1222, 5): [('move', (14, 9))], (1222, 9): [('move', (3, 13))], (1223, 3): [('move', (3, 19))], (1223, 5): [('move', (13, 10))], (1223, 9): [('move', (4, 12))], (1224, 3): [('move', (4, 20))], (1224, 5): [('move', (14, 9))], (1224, 9): [('move', (3, 13))], (1225, 3): [('move', (3, 19))], (1225, 5): [('move', (13, 10))], (1225, 9): [('move', (4, 12))], (1226, 3): [('move', (4, 20))], (1226, 5): [('move', (14, 9))], (1226, 9): [('move', (3, 13))], (1227, 3): [('move', (3, 19))], (1227, 5): [('move', (13, 10))], (1227, 9): [('move', (4, 12))], (1228, 3): [('move', (4, 20))], (1228, 5): [('move', (14, 9))], (1228, 9): [('move', (3, 13))], (1229, 3): [('move', (3, 19))], (1229, 5): [('move', (13, 10))], (1229, 9): [('move', (4, 12))], (1230, 3): [('move', (4, 20))], (1230, 5): [('move', (14, 9))], (1230, 9): [('move', (3, 13))], (1231, 3): [('move', (3, 19))], (1231, 5): [('move', (13, 10))], (1231, 9): [('move', (4, 12))], (1232, 3): [('move', (4, 20))], (1232, 5): [('move', (14, 9))], (1232, 9): [('move', (3, 13))], (1233, 3): [('move', (3, 19))], (1233, 5): [('move', (13, 10))], (1233, 9): [('move', (4, 12))], (1234, 3): [('move', (4, 20))], (1234, 5): [('move', (14, 9))], (1234, 9): [('move', (3, 13))], (1235, 3): [('move', (3, 19))], (1235, 5): [('move', (13, 10))], (1235, 9): [('move', (4, 12))], (1236, 3): [('move', (4, 20))], (1236, 5): [('move', (14, 9))], (1236, 9): [('move', (3, 13))], (1237, 3): [('move', (3, 19))], (1237, 5): [('move', (13, 10))], (1237, 9): [('move', (4, 12))], (1238, 3): [('move', (4, 20))], (1238, 5): [('move', (14, 9))], (1238, 9): [('move', (3, 13))], (1239, 3): [('move', (3, 19))], (1239, 5): [('move', (13, 10))], (1239, 9): [('move', (4, 12))], (1240, 3): [('move', (4, 20))], (1240, 5): [('move', (14, 9))], (1240, 9): [('move', (3, 13))], (1241, 3): [('move', (3, 19))], (1241, 5): [('move', (13, 10))], (1241, 9): [('move', (4, 12))], (1242, 3): [('move', (4, 20))], (1242, 5): [('move', (14, 9))], (1242, 9): [('move', (3, 13))], (1243, 3): [('move', (3, 19))], (1243, 5): [('move', (13, 10))], (1243, 9): [('move', (4, 12))], (1244, 3): [('move', (4, 20))], (1244, 5): [('move', (14, 9))], (1244, 9): [('move', (3, 13))], (1245, 3): [('move', (3, 19))], (1245, 5): [('move', (13, 10))], (1245, 9): [('move', (4, 12))], (1246, 3): [('move', (4, 20))], (1246, 5): [('move', (14, 9))], (1246, 9): [('move', (3, 13))], (1247, 3): [('move', (3, 19))], (1247, 5): [('move', (13, 10))], (1247, 9): [('move', (4, 12))], (1248, 3): [('move', (4, 20))], (1248, 5): [('move', (14, 9))], (1248, 9): [('move', (3, 13))], (1249, 3): [('move', (3, 19))], (1249, 5): [('move', (13, 10))], (1249, 9): [('move', (4, 12))], (1250, 3): [('move', (4, 20))], (1250, 5): [('move', (14, 9))], (1250, 9): [('move', (3, 13))], (1251, 3): [('move', (3, 19))], (1251, 5): [('move', (13, 10))], (1251, 9): [('move', (4, 12))], (1252, 3): [('move', (4, 20))], (1252, 5): [('move', (14, 9))], (1252, 9): [('move', (3, 13))], (1253, 3): [('move', (3, 19))], (1253, 5): [('move', (13, 10))], (1253, 9): [('move', (4, 12))], (1254, 3): [('move', (4, 20))], (1254, 5): [('move', (14, 9))], (1254, 9): [('move', (3, 13))], (1255, 3): [('move', (3, 19))], (1255, 5): [('move', (13, 10))], (1255, 9): [('move', (4, 12))], (1256, 3): [('move', (4, 20))], (1256, 5): [('move', (14, 9))], (1256, 9): [('move', (3, 13))], (1257, 3): [('move', (3, 19))], (1257, 5): [('move', (13, 10))], (1257, 9): [('move', (4, 12))], (1258, 3): [('move', (4, 20))], (1258, 5): [('move', (14, 9))], (1258, 9): [('move', (3, 13))], (1259, 3): [('move', (3, 19))], (1259, 5): [('move', (13, 10))], (1259, 9): [('move', (4, 12))], (1260, 3): [('move', (4, 20))], (1260, 5): [('move', (14, 9))], (1260, 9): [('move', (3, 13))], (1261, 3): [('move', (3, 19))], (1261, 5): [('move', (13, 10))], (1261, 9): [('move', (4, 12))], (1262, 3): [('move', (4, 20))], (1262, 5): [('move', (14, 9))], (1262, 9): [('move', (3, 13))], (1263, 3): [('move', (3, 19))], (1263, 5): [('move', (13, 10))], (1263, 9): [('move', (4, 12))], (1264, 3): [('move', (4, 20))], (1264, 5): [('move', (14, 9))], (1264, 9): [('move', (3, 13))], (1265, 3): [('move', (3, 19))], (1265, 5): [('move', (13, 10))], (1265, 9): [('move', (4, 12))], (1266, 3): [('move', (4, 20))], (1266, 5): [('move', (14, 9))], (1266, 9): [('move', (3, 13))], (1267, 3): [('move', (3, 19))], (1267, 5): [('move', (13, 10))], (1267, 9): [('move', (4, 12))], (1268, 3): [('move', (4, 20))], (1268, 5): [('move', (14, 9))], (1268, 9): [('move', (3, 13))], (1269, 3): [('move', (3, 19))], (1269, 5): [('move', (13, 10))], (1269, 9): [('move', (4, 12))], (1270, 3): [('move', (4, 20))], (1270, 5): [('move', (14, 9))], (1270, 9): [('move', (3, 13))], (1271, 3): [('move', (3, 19))], (1271, 5): [('move', (13, 10))], (1271, 9): [('move', (4, 12))], (1272, 3): [('move', (4, 20))], (1272, 5): [('move', (14, 9))], (1272, 9): [('move', (3, 13))], (1273, 3): [('move', (3, 19))], (1273, 5): [('move', (13, 10))], (1273, 9): [('move', (4, 12))], (1274, 3): [('move', (4, 20))], (1274, 5): [('move', (14, 9))], (1274, 9): [('move', (3, 13))], (1275, 3): [('move', (3, 19))], (1275, 5): [('move', (13, 10))], (1275, 9): [('move', (4, 12))], (1276, 3): [('move', (4, 20))], (1276, 5): [('move', (14, 9))], (1276, 9): [('move', (3, 13))], (1277, 3): [('move', (3, 19))], (1277, 5): [('move', (13, 10))], (1277, 9): [('move', (4, 12))], (1278, 3): [('move', (4, 20))], (1278, 5): [('move', (14, 9))], (1278, 9): [('move', (3, 13))], (1279, 3): [('move', (3, 19))], (1279, 5): [('move', (13, 10))], (1279, 9): [('move', (4, 12))], (1280, 3): [('move', (4, 20))], (1280, 5): [('move', (14, 9))], (1280, 9): [('move', (3, 13))], (1281, 3): [('move', (3, 19))], (1281, 5): [('move', (13, 10))], (1281, 9): [('move', (4, 12))], (1282, 3): [('move', (4, 20))], (1282, 5): [('move', (14, 9))], (1282, 9): [('move', (3, 13))], (1283, 3): [('move', (3, 19))], (1283, 5): [('move', (13, 10))], (1283, 9): [('move', (4, 12))], (1284, 3): [('move', (4, 20))], (1284, 5): [('move', (14, 9))], (1284, 9): [('move', (3, 13))], (1285, 3): [('move', (3, 19))], (1285, 5): [('move', (13, 10))], (1285, 9): [('move', (4, 12))], (1286, 3): [('move', (4, 20))], (1286, 5): [('move', (14, 9))], (1286, 9): [('move', (3, 13))], (1287, 3): [('move', (3, 19))], (1287, 5): [('move', (13, 10))], (1287, 9): [('move', (4, 12))], (1288, 3): [('move', (4, 20))], (1288, 5): [('move', (14, 9))], (1288, 9): [('move', (3, 13))], (1289, 3): [('move', (3, 19))], (1289, 5): [('move', (13, 10))], (1289, 9): [('move', (4, 12))], (1290, 3): [('move', (4, 20))], (1290, 5): [('move', (14, 9))], (1290, 9): [('move', (3, 13))], (1291, 3): [('move', (3, 19))], (1291, 5): [('move', (13, 10))], (1291, 9): [('move', (4, 12))], (1292, 3): [('move', (4, 20))], (1292, 5): [('move', (14, 9))], (1292, 9): [('move', (3, 13))], (1293, 3): [('move', (3, 19))], (1293, 5): [('move', (13, 10))], (1293, 9): [('move', (4, 12))], (1294, 3): [('move', (4, 20))], (1294, 5): [('move', (14, 9))], (1294, 9): [('move', (3, 13))], (1295, 3): [('move', (3, 19))], (1295, 5): [('move', (13, 10))], (1295, 9): [('move', (4, 12))], (1296, 3): [('move', (4, 20))], (1296, 5): [('move', (14, 9))], (1296, 9): [('move', (3, 13))], (1297, 3): [('move', (3, 19))], (1297, 5): [('move', (13, 10))], (1297, 9): [('move', (4, 12))], (1298, 3): [('move', (4, 20))], (1298, 5): [('move', (14, 9))], (1298, 9): [('move', (3, 13))], (1299, 3): [('move', (3, 19))], (1299, 5): [('move', (13, 10))], (1299, 9): [('move', (4, 12))], (1300, 3): [('move', (4, 20))], (1300, 5): [('move', (14, 9))], (1300, 9): [('move', (3, 13))], (1301, 3): [('move', (3, 19))], (1301, 5): [('move', (13, 10))], (1301, 9): [('move', (4, 12))], (1302, 3): [('move', (4, 20))], (1302, 5): [('move', (14, 9))], (1302, 9): [('move', (3, 13))], (1303, 3): [('move', (3, 19))], (1303, 5): [('move', (13, 10))], (1303, 9): [('move', (4, 12))], (1304, 3): [('move', (4, 20))], (1304, 5): [('move', (14, 9))], (1304, 9): [('move', (3, 13))], (1305, 3): [('move', (3, 19))], (1305, 5): [('move', (13, 10))], (1305, 9): [('move', (4, 12))], (1306, 3): [('move', (4, 20))], (1306, 5): [('move', (14, 9))], (1306, 9): [('move', (3, 13))], (1307, 3): [('move', (3, 19))], (1307, 5): [('move', (13, 10))], (1307, 9): [('move', (4, 12))], (1308, 3): [('move', (4, 20))], (1308, 5): [('move', (14, 9))], (1308, 9): [('move', (3, 13))], (1309, 3): [('move', (3, 19))], (1309, 5): [('move', (13, 10))], (1309, 9): [('move', (4, 12))], (1310, 3): [('move', (4, 20))], (1310, 5): [('move', (14, 9))], (1310, 9): [('move', (3, 13))], (1311, 3): [('move', (3, 19))], (1311, 5): [('move', (13, 10))], (1311, 9): [('move', (4, 12))], (1312, 3): [('move', (4, 20))], (1312, 5): [('move', (14, 9))], (1312, 9): [('move', (3, 13))], (1313, 3): [('move', (3, 19))], (1313, 5): [('move', (13, 10))], (1313, 9): [('move', (4, 12))], (1314, 3): [('move', (4, 20))], (1314, 5): [('move', (14, 9))], (1314, 9): [('move', (3, 13))], (1315, 3): [('move', (3, 19))], (1315, 5): [('move', (13, 10))], (1315, 9): [('move', (4, 12))], (1316, 3): [('move', (4, 20))], (1316, 5): [('move', (14, 9))], (1316, 9): [('move', (3, 13))], (1317, 3): [('move', (3, 19))], (1317, 5): [('move', (13, 10))], (1317, 9): [('move', (4, 12))], (1318, 3): [('move', (4, 20))], (1318, 5): [('move', (14, 9))], (1318, 9): [('move', (3, 13))], (1319, 3): [('move', (3, 19))], (1319, 5): [('move', (13, 10))], (1319, 9): [('move', (4, 12))], (1320, 3): [('move', (4, 20))], (1320, 5): [('move', (14, 9))], (1320, 9): [('move', (3, 13))], (1321, 3): [('move', (3, 19))], (1321, 5): [('move', (13, 10))], (1321, 9): [('move', (4, 12))], (1322, 3): [('move', (4, 20))], (1322, 5): [('move', (14, 9))], (1322, 9): [('move', (3, 13))], (1323, 3): [('move', (3, 19))], (1323, 5): [('move', (13, 10))], (1323, 9): [('move', (4, 12))], (1324, 3): [('move', (4, 20))], (1324, 5): [('move', (14, 9))], (1324, 9): [('move', (3, 13))], (1325, 3): [('move', (3, 19))], (1325, 5): [('move', (13, 10))], (1325, 9): [('move', (4, 12))], (1326, 3): [('move', (4, 20))], (1326, 5): [('move', (14, 9))], (1326, 9): [('move', (3, 13))], (1327, 3): [('move', (3, 19))], (1327, 5): [('move', (13, 10))], (1327, 9): [('move', (4, 12))], (1328, 3): [('move', (4, 20))], (1328, 5): [('move', (14, 9))], (1328, 9): [('move', (3, 13))], (1329, 3): [('move', (3, 19))], (1329, 5): [('move', (13, 10))], (1329, 9): [('move', (4, 12))], (1330, 3): [('move', (4, 20))], (1330, 5): [('move', (14, 9))], (1330, 9): [('move', (3, 13))], (1331, 3): [('move', (3, 19))], (1331, 5): [('move', (13, 10))], (1331, 9): [('move', (4, 12))], (1332, 3): [('move', (4, 20))], (1332, 5): [('move', (14, 9))], (1332, 9): [('move', (3, 13))], (1333, 3): [('move', (3, 19))], (1333, 5): [('move', (13, 10))], (1333, 9): [('move', (4, 12))], (1334, 3): [('move', (4, 20))], (1334, 5): [('move', (14, 9))], (1334, 9): [('move', (3, 13))], (1335, 3): [('move', (3, 19))], (1335, 5): [('move', (13, 10))], (1335, 9): [('move', (4, 12))], (1336, 3): [('move', (4, 20))], (1336, 5): [('move', (14, 9))], (1336, 9): [('move', (3, 13))], (1337, 3): [('move', (3, 19))], (1337, 5): [('move', (13, 10))], (1337, 9): [('move', (4, 12))], (1338, 3): [('move', (4, 20))], (1338, 5): [('move', (14, 9))], (1338, 9): [('move', (3, 13))], (1339, 3): [('move', (3, 19))], (1339, 5): [('move', (13, 10))], (1339, 9): [('move', (4, 12))], (1340, 3): [('move', (4, 20))], (1340, 5): [('move', (14, 9))], (1340, 9): [('move', (3, 13))], (1341, 3): [('move', (3, 19))], (1341, 5): [('move', (13, 10))], (1341, 9): [('move', (4, 12))], (1342, 3): [('move', (4, 20))], (1342, 5): [('move', (14, 9))], (1342, 9): [('move', (3, 13))], (1343, 3): [('move', (3, 19))], (1343, 5): [('move', (13, 10))], (1343, 9): [('move', (4, 12))], (1344, 3): [('move', (4, 20))], (1344, 5): [('move', (14, 9))], (1344, 9): [('move', (3, 13))], (1345, 3): [('move', (3, 19))], (1345, 5): [('move', (13, 10))], (1345, 9): [('move', (4, 12))], (1346, 3): [('move', (4, 20))], (1346, 5): [('move', (14, 9))], (1346, 9): [('move', (3, 13))], (1347, 3): [('move', (3, 19))], (1347, 5): [('move', (13, 10))], (1347, 9): [('move', (4, 12))], (1348, 3): [('move', (4, 20))], (1348, 5): [('move', (14, 9))], (1348, 9): [('move', (3, 13))], (1349, 3): [('move', (3, 19))], (1349, 5): [('move', (13, 10))], (1349, 9): [('move', (4, 12))], (1350, 3): [('move', (4, 20))], (1350, 5): [('move', (14, 9))], (1350, 9): [('move', (3, 13))], (1351, 3): [('move', (3, 19))], (1351, 5): [('move', (13, 10))], (1351, 9): [('move', (4, 12))], (1352, 3): [('move', (4, 20))], (1352, 5): [('move', (14, 9))], (1352, 9): [('move', (3, 13))], (1353, 3): [('move', (3, 19))], (1353, 5): [('move', (13, 10))], (1353, 9): [('move', (4, 12))], (1354, 3): [('move', (4, 20))], (1354, 5): [('move', (14, 9))], (1354, 9): [('move', (3, 13))], (1355, 3): [('move', (3, 19))], (1355, 5): [('move', (13, 10))], (1355, 9): [('move', (4, 12))], (1356, 3): [('move', (4, 20))], (1356, 5): [('move', (14, 9))], (1356, 9): [('move', (3, 13))], (1357, 3): [('move', (3, 19))], (1357, 5): [('move', (13, 10))], (1357, 9): [('move', (4, 12))], (1358, 3): [('move', (4, 20))], (1358, 5): [('move', (14, 9))], (1358, 9): [('move', (3, 13))], (1359, 3): [('move', (3, 19))], (1359, 5): [('move', (13, 10))], (1359, 9): [('move', (4, 12))], (1360, 3): [('move', (4, 20))], (1360, 5): [('move', (14, 9))], (1360, 9): [('move', (3, 13))], (1361, 3): [('move', (3, 19))], (1361, 5): [('move', (13, 10))], (1361, 9): [('move', (4, 12))], (1362, 3): [('move', (4, 20))], (1362, 5): [('move', (14, 9))], (1362, 9): [('move', (3, 13))], (1363, 3): [('move', (3, 19))], (1363, 5): [('move', (13, 10))], (1363, 9): [('move', (4, 12))], (1364, 3): [('move', (4, 20))], (1364, 5): [('move', (14, 9))], (1364, 9): [('move', (3, 13))], (1365, 3): [('move', (3, 19))], (1365, 5): [('move', (13, 10))], (1365, 9): [('move', (4, 12))], (1366, 3): [('move', (4, 20))], (1366, 5): [('move', (14, 9))], (1366, 9): [('move', (3, 13))], (1367, 3): [('move', (3, 19))], (1367, 5): [('move', (13, 10))], (1367, 9): [('move', (4, 12))], (1368, 3): [('move', (4, 20))], (1368, 5): [('move', (14, 9))], (1368, 9): [('move', (3, 13))], (1369, 3): [('move', (3, 19))], (1369, 5): [('move', (13, 10))], (1369, 9): [('move', (4, 12))], (1370, 3): [('move', (4, 20))], (1370, 5): [('move', (14, 9))], (1370, 9): [('move', (3, 13))], (1371, 3): [('move', (3, 19))], (1371, 5): [('move', (13, 10))], (1371, 9): [('move', (4, 12))], (1372, 3): [('move', (4, 20))], (1372, 5): [('move', (14, 9))], (1372, 9): [('move', (3, 13))], (1373, 3): [('move', (3, 19))], (1373, 5): [('move', (13, 10))], (1373, 9): [('move', (4, 12))], (1374, 3): [('move', (4, 20))], (1374, 5): [('move', (14, 9))], (1374, 9): [('move', (3, 13))], (1375, 3): [('move', (3, 19))], (1375, 5): [('move', (13, 10))], (1375, 9): [('move', (4, 12))], (1376, 3): [('move', (4, 20))], (1376, 5): [('move', (14, 9))], (1376, 9): [('move', (3, 13))], (1377, 3): [('move', (3, 19))], (1377, 5): [('move', (13, 10))], (1377, 9): [('move', (4, 12))], (1378, 3): [('move', (4, 20))], (1378, 5): [('move', (14, 9))], (1378, 9): [('move', (3, 13))], (1379, 3): [('move', (3, 19))], (1379, 5): [('move', (13, 10))], (1379, 9): [('move', (4, 12))], (1380, 3): [('move', (4, 20))], (1380, 5): [('move', (14, 9))], (1380, 9): [('move', (3, 13))], (1381, 3): [('move', (3, 19))], (1381, 5): [('move', (13, 10))], (1381, 9): [('move', (4, 12))], (1382, 3): [('move', (4, 20))], (1382, 5): [('move', (14, 9))], (1382, 9): [('move', (3, 13))], (1383, 3): [('move', (3, 19))], (1383, 5): [('move', (13, 10))], (1383, 9): [('move', (4, 12))], (1384, 3): [('move', (4, 20))], (1384, 5): [('move', (14, 9))], (1384, 9): [('move', (3, 13))], (1385, 3): [('move', (3, 19))], (1385, 5): [('move', (13, 10))], (1385, 9): [('move', (4, 12))], (1386, 3): [('move', (4, 20))], (1386, 5): [('move', (14, 9))], (1386, 9): [('move', (3, 13))], (1387, 3): [('move', (3, 19))], (1387, 5): [('move', (13, 10))], (1387, 9): [('move', (4, 12))], (1388, 3): [('move', (4, 20))], (1388, 5): [('move', (14, 9))], (1388, 9): [('move', (3, 13))], (1389, 3): [('move', (3, 19))], (1389, 5): [('move', (13, 10))], (1389, 9): [('move', (4, 12))], (1390, 3): [('move', (4, 20))], (1390, 5): [('move', (14, 9))], (1390, 9): [('move', (3, 13))], (1391, 3): [('move', (3, 19))], (1391, 5): [('move', (13, 10))], (1391, 9): [('move', (4, 12))], (1392, 3): [('move', (4, 20))], (1392, 5): [('move', (14, 9))], (1392, 9): [('move', (3, 13))], (1393, 3): [('move', (3, 19))], (1393, 5): [('move', (13, 10))], (1393, 9): [('move', (4, 12))], (1394, 3): [('move', (4, 20))], (1394, 5): [('move', (14, 9))], (1394, 9): [('move', (3, 13))], (1395, 3): [('move', (3, 19))], (1395, 5): [('move', (13, 10))], (1395, 9): [('move', (4, 12))], (1396, 3): [('move', (4, 20))], (1396, 5): [('move', (14, 9))], (1396, 9): [('move', (3, 13))], (1397, 3): [('move', (3, 19))], (1397, 5): [('move', (13, 10))], (1397, 9): [('move', (4, 12))], (1398, 3): [('move', (4, 20))], (1398, 5): [('move', (14, 9))], (1398, 9): [('move', (3, 13))], (1399, 3): [('move', (3, 19))], (1399, 5): [('move', (13, 10))], (1399, 9): [('move', (4, 12))], (1400, 3): [('move', (4, 20))], (1400, 5): [('move', (14, 9))], (1400, 9): [('move', (3, 13))], (1401, 3): [('move', (3, 19))], (1401, 5): [('move', (13, 10))], (1401, 9): [('move', (4, 12))], (1402, 3): [('move', (4, 20))], (1402, 5): [('move', (14, 9))], (1402, 9): [('move', (3, 13))], (1403, 3): [('move', (3, 19))], (1403, 5): [('move', (13, 10))], (1403, 9): [('move', (4, 12))], (1404, 3): [('move', (4, 20))], (1404, 5): [('move', (14, 9))], (1404, 9): [('move', (3, 13))], (1405, 3): [('move', (3, 19))], (1405, 5): [('move', (13, 10))], (1405, 9): [('move', (4, 12))], (1406, 3): [('move', (4, 20))], (1406, 5): [('move', (14, 9))], (1406, 9): [('move', (3, 13))], (1407, 3): [('move', (3, 19))], (1407, 5): [('move', (13, 10))], (1407, 9): [('move', (4, 12))], (1408, 3): [('move', (4, 20))], (1408, 5): [('move', (14, 9))], (1408, 9): [('move', (3, 13))], (1409, 3): [('move', (3, 19))], (1409, 5): [('move', (13, 10))], (1409, 9): [('move', (4, 12))], (1410, 3): [('move', (4, 20))], (1410, 5): [('move', (14, 9))], (1410, 9): [('move', (3, 13))], (1411, 3): [('move', (3, 19))], (1411, 5): [('move', (13, 10))], (1411, 9): [('move', (4, 12))], (1412, 3): [('move', (4, 20))], (1412, 5): [('move', (14, 9))], (1412, 9): [('move', (3, 13))], (1413, 3): [('move', (3, 19))], (1413, 5): [('move', (13, 10))], (1413, 9): [('move', (4, 12))], (1414, 3): [('move', (4, 20))], (1414, 5): [('move', (14, 9))], (1414, 9): [('move', (3, 13))], (1415, 3): [('move', (3, 19))], (1415, 5): [('move', (13, 10))], (1415, 9): [('move', (4, 12))], (1416, 3): [('move', (4, 20))], (1416, 5): [('move', (14, 9))], (1416, 9): [('move', (3, 13))], (1417, 3): [('move', (3, 19))], (1417, 5): [('move', (13, 10))], (1417, 9): [('move', (4, 12))], (1418, 3): [('move', (4, 20))], (1418, 5): [('move', (14, 9))], (1418, 9): [('move', (3, 13))], (1419, 3): [('move', (3, 19))], (1419, 5): [('move', (13, 10))], (1419, 9): [('move', (4, 12))], (1420, 3): [('move', (4, 20))], (1420, 5): [('move', (14, 9))], (1420, 9): [('move', (3, 13))], (1421, 3): [('move', (3, 19))], (1421, 5): [('move', (13, 10))], (1421, 9): [('move', (4, 12))], (1422, 3): [('move', (4, 20))], (1422, 5): [('move', (14, 9))], (1422, 9): [('move', (3, 13))], (1423, 3): [('move', (3, 19))], (1423, 5): [('move', (13, 10))], (1423, 9): [('move', (4, 12))], (1424, 3): [('move', (4, 20))], (1424, 5): [('move', (14, 9))], (1424, 9): [('move', (3, 13))], (1425, 3): [('move', (3, 19))], (1425, 5): [('move', (13, 10))], (1425, 9): [('move', (4, 12))], (1426, 3): [('move', (4, 20))], (1426, 5): [('move', (14, 9))], (1426, 9): [('move', (3, 13))], (1427, 3): [('move', (3, 19))], (1427, 5): [('move', (13, 10))], (1427, 9): [('move', (4, 12))], (1428, 3): [('move', (4, 20))], (1428, 5): [('move', (14, 9))], (1428, 9): [('move', (3, 13))], (1429, 3): [('move', (3, 19))], (1429, 5): [('move', (13, 10))], (1429, 9): [('move', (4, 12))], (1430, 3): [('move', (4, 20))], (1430, 5): [('move', (14, 9))], (1430, 9): [('move', (3, 13))], (1431, 3): [('move', (3, 19))], (1431, 5): [('move', (13, 10))], (1431, 9): [('move', (4, 12))], (1432, 3): [('move', (4, 20))], (1432, 5): [('move', (14, 9))], (1432, 9): [('move', (3, 13))], (1433, 3): [('move', (3, 19))], (1433, 5): [('move', (13, 10))], (1433, 9): [('move', (4, 12))], (1434, 3): [('move', (4, 20))], (1434, 5): [('move', (14, 9))], (1434, 9): [('move', (3, 13))], (1435, 3): [('move', (3, 19))], (1435, 5): [('move', (13, 10))], (1435, 9): [('move', (4, 12))], (1436, 3): [('move', (4, 20))], (1436, 5): [('move', (14, 9))], (1436, 9): [('move', (3, 13))], (1437, 3): [('move', (3, 19))], (1437, 5): [('move', (13, 10))], (1437, 9): [('move', (4, 12))], (1438, 3): [('move', (4, 20))], (1438, 5): [('move', (14, 9))], (1438, 9): [('move', (3, 13))], (1439, 3): [('move', (3, 19))], (1439, 5): [('move', (13, 10))], (1439, 9): [('move', (4, 12))], (1440, 3): [('move', (4, 20))], (1440, 5): [('move', (14, 9))], (1440, 9): [('move', (3, 13))], (1441, 3): [('move', (3, 19))], (1441, 5): [('move', (13, 10))], (1441, 9): [('move', (4, 12))], (1442, 3): [('move', (4, 20))], (1442, 5): [('move', (14, 9))], (1442, 9): [('move', (3, 13))], (1443, 3): [('move', (3, 19))], (1443, 5): [('move', (13, 10))], (1443, 9): [('move', (4, 12))], (1444, 3): [('move', (4, 20))], (1444, 5): [('move', (14, 9))], (1444, 9): [('move', (3, 13))], (1445, 3): [('move', (3, 19))], (1445, 5): [('move', (13, 10))], (1445, 9): [('move', (4, 12))], (1446, 3): [('move', (4, 20))], (1446, 5): [('move', (14, 9))], (1446, 9): [('move', (3, 13))], (1447, 3): [('move', (3, 19))], (1447, 5): [('move', (13, 10))], (1447, 9): [('move', (4, 12))], (1448, 3): [('move', (4, 20))], (1448, 5): [('move', (14, 9))], (1448, 9): [('move', (3, 13))], (1449, 3): [('move', (3, 19))], (1449, 5): [('move', (13, 10))], (1449, 9): [('move', (4, 12))], (1450, 3): [('move', (4, 20))], (1450, 5): [('move', (14, 9))], (1450, 9): [('move', (3, 13))], (1451, 3): [('move', (3, 19))], (1451, 5): [('move', (13, 10))], (1451, 9): [('move', (4, 12))], (1452, 3): [('move', (4, 20))], (1452, 5): [('move', (14, 9))], (1452, 9): [('move', (3, 13))], (1453, 3): [('move', (3, 19))], (1453, 5): [('move', (13, 10))], (1453, 9): [('move', (4, 12))], (1454, 3): [('move', (4, 20))], (1454, 5): [('move', (14, 9))], (1454, 9): [('move', (3, 13))], (1455, 3): [('move', (3, 19))], (1455, 5): [('move', (13, 10))], (1455, 9): [('move', (4, 12))], (1456, 3): [('move', (4, 20))], (1456, 5): [('move', (14, 9))], (1456, 9): [('move', (3, 13))], (1457, 3): [('move', (3, 19))], (1457, 5): [('move', (13, 10))], (1457, 9): [('move', (4, 12))], (1458, 3): [('move', (4, 20))], (1458, 5): [('move', (14, 9))], (1458, 9): [('move', (3, 13))], (1459, 3): [('move', (3, 19))], (1459, 5): [('move', (13, 10))], (1459, 9): [('move', (4, 12))], (1460, 3): [('move', (4, 20))], (1460, 5): [('move', (14, 9))], (1460, 9): [('move', (3, 13))], (1461, 3): [('move', (3, 19))], (1461, 5): [('move', (13, 10))], (1461, 9): [('move', (4, 12))], (1462, 3): [('move', (4, 20))], (1462, 5): [('move', (14, 9))], (1462, 9): [('move', (3, 13))], (1463, 3): [('move', (3, 19))], (1463, 5): [('move', (13, 10))], (1463, 9): [('move', (4, 12))], (1464, 3): [('move', (4, 20))], (1464, 5): [('move', (14, 9))], (1464, 9): [('move', (3, 13))], (1465, 3): [('move', (3, 19))], (1465, 5): [('move', (13, 10))], (1465, 9): [('move', (4, 12))], (1466, 3): [('move', (4, 20))], (1466, 5): [('move', (14, 9))], (1466, 9): [('move', (3, 13))], (1467, 3): [('move', (3, 19))], (1467, 5): [('move', (13, 10))], (1467, 9): [('move', (4, 12))], (1468, 3): [('move', (4, 20))], (1468, 5): [('move', (14, 9))], (1468, 9): [('move', (3, 13))], (1469, 3): [('move', (3, 19))], (1469, 5): [('move', (13, 10))], (1469, 9): [('move', (4, 12))], (1470, 3): [('move', (4, 20))], (1470, 5): [('move', (14, 9))], (1470, 9): [('move', (3, 13))], (1471, 3): [('move', (3, 19))], (1471, 5): [('move', (13, 10))], (1471, 9): [('move', (4, 12))], (1472, 3): [('move', (4, 20))], (1472, 5): [('move', (14, 9))], (1472, 9): [('move', (3, 13))], (1473, 3): [('move', (3, 19))], (1473, 5): [('move', (13, 10))], (1473, 9): [('move', (4, 12))], (1474, 3): [('move', (4, 20))], (1474, 5): [('move', (14, 9))], (1474, 9): [('move', (3, 13))], (1475, 3): [('move', (3, 19))], (1475, 5): [('move', (13, 10))], (1475, 9): [('move', (4, 12))], (1476, 3): [('move', (4, 20))], (1476, 5): [('move', (14, 9))], (1476, 9): [('move', (3, 13))], (1477, 3): [('move', (3, 19))], (1477, 5): [('move', (13, 10))], (1477, 9): [('move', (4, 12))], (1478, 3): [('move', (4, 20))], (1478, 5): [('move', (14, 9))], (1478, 9): [('move', (3, 13))], (1479, 3): [('move', (3, 19))], (1479, 5): [('move', (13, 10))], (1479, 9): [('move', (4, 12))], (1480, 3): [('move', (4, 20))], (1480, 5): [('move', (14, 9))], (1480, 9): [('move', (3, 13))], (1481, 3): [('move', (3, 19))], (1481, 5): [('move', (13, 10))], (1481, 9): [('move', (4, 12))], (1482, 3): [('move', (4, 20))], (1482, 5): [('move', (14, 9))], (1482, 9): [('move', (3, 13))], (1483, 3): [('move', (3, 19))], (1483, 5): [('move', (13, 10))], (1483, 9): [('move', (4, 12))], (1484, 3): [('move', (4, 20))], (1484, 5): [('move', (14, 9))], (1484, 9): [('move', (3, 13))], (1485, 3): [('move', (3, 19))], (1485, 5): [('move', (13, 10))], (1485, 9): [('move', (4, 12))], (1486, 3): [('move', (4, 20))], (1486, 5): [('move', (14, 9))], (1486, 9): [('move', (3, 13))], (1487, 3): [('move', (3, 19))], (1487, 5): [('move', (13, 10))], (1487, 9): [('move', (4, 12))], (1488, 3): [('move', (4, 20))], (1488, 5): [('move', (14, 9))], (1488, 9): [('move', (3, 13))], (1489, 3): [('move', (3, 19))], (1489, 5): [('move', (13, 10))], (1489, 9): [('move', (4, 12))], (1490, 3): [('move', (4, 20))], (1490, 5): [('move', (14, 9))], (1490, 9): [('move', (3, 13))], (1491, 3): [('move', (3, 19))], (1491, 5): [('move', (13, 10))], (1491, 9): [('move', (4, 12))], (1492, 3): [('move', (4, 20))], (1492, 5): [('move', (14, 9))], (1492, 9): [('move', (3, 13))], (1493, 3): [('move', (3, 19))], (1493, 5): [('move', (13, 10))], (1493, 9): [('move', (4, 12))], (1494, 3): [('move', (4, 20))], (1494, 5): [('move', (14, 9))], (1494, 9): [('move', (3, 13))], (1495, 3): [('move', (3, 19))], (1495, 5): [('move', (13, 10))], (1495, 9): [('move', (4, 12))], (1496, 3): [('move', (4, 20))], (1496, 5): [('move', (14, 9))], (1496, 9): [('move', (3, 13))], (1497, 3): [('move', (3, 19))], (1497, 5): [('move', (13, 10))], (1497, 9): [('move', (4, 12))], (1498, 3): [('move', (4, 20))], (1498, 5): [('move', (14, 9))], (1498, 9): [('move', (3, 13))], (1499, 3): [('move', (3, 19))], (1499, 5): [('move', (13, 10))], (1499, 9): [('move', (4, 12))], (1500, 3): [('move', (4, 20))], (1500, 5): [('move', (14, 9))], (1500, 9): [('move', (3, 13))], (1501, 3): [('move', (3, 19))], (1501, 5): [('move', (13, 10))], (1501, 9): [('move', (4, 12))], (1502, 3): [('move', (4, 20))], (1502, 5): [('move', (14, 9))], (1502, 9): [('move', (3, 13))], (1503, 3): [('move', (3, 19))], (1503, 5): [('move', (13, 10))], (1503, 9): [('move', (4, 12))], (1504, 3): [('move', (4, 20))], (1504, 5): [('move', (14, 9))], (1504, 9): [('move', (3, 13))], (1505, 3): [('move', (3, 19))], (1505, 5): [('move', (13, 10))], (1505, 9): [('move', (4, 12))], (1506, 3): [('move', (4, 20))], (1506, 5): [('move', (14, 9))], (1506, 9): [('move', (3, 13))], (1507, 3): [('move', (3, 19))], (1507, 5): [('move', (13, 10))], (1507, 9): [('move', (4, 12))], (1508, 3): [('move', (4, 20))], (1508, 5): [('move', (14, 9))], (1508, 9): [('move', (3, 13))], (1509, 3): [('move', (3, 19))], (1509, 5): [('move', (13, 10))], (1509, 9): [('move', (4, 12))], (1510, 3): [('move', (4, 20))], (1510, 5): [('move', (14, 9))], (1510, 9): [('move', (3, 13))], (1511, 3): [('move', (3, 19))], (1511, 5): [('move', (13, 10))], (1511, 9): [('move', (4, 12))], (1512, 3): [('move', (4, 20))], (1512, 5): [('move', (14, 9))], (1512, 9): [('move', (3, 13))], (1513, 3): [('move', (3, 19))], (1513, 5): [('move', (13, 10))], (1513, 9): [('move', (4, 12))], (1514, 3): [('move', (4, 20))], (1514, 5): [('move', (14, 9))], (1514, 9): [('move', (3, 13))], (1515, 3): [('move', (3, 19))], (1515, 5): [('move', (13, 10))], (1515, 9): [('move', (4, 12))], (1516, 3): [('move', (4, 20))], (1516, 5): [('move', (14, 9))], (1516, 9): [('move', (3, 13))], (1517, 3): [('move', (3, 19))], (1517, 5): [('move', (13, 10))], (1517, 9): [('move', (4, 12))], (1518, 3): [('move', (4, 20))], (1518, 5): [('move', (14, 9))], (1518, 9): [('move', (3, 13))], (1519, 3): [('move', (3, 19))], (1519, 5): [('move', (13, 10))], (1519, 9): [('move', (4, 12))], (1520, 3): [('move', (4, 20))], (1520, 5): [('move', (14, 9))], (1520, 9): [('move', (3, 13))], (1521, 3): [('move', (3, 19))], (1521, 5): [('move', (13, 10))], (1521, 9): [('move', (4, 12))], (1522, 3): [('move', (4, 20))], (1522, 5): [('move', (14, 9))], (1522, 9): [('move', (3, 13))], (1523, 3): [('move', (3, 19))], (1523, 5): [('move', (13, 10))], (1523, 9): [('move', (4, 12))], (1524, 3): [('move', (4, 20))], (1524, 5): [('move', (14, 9))], (1524, 9): [('move', (3, 13))], (1525, 3): [('move', (3, 19))], (1525, 5): [('move', (13, 10))], (1525, 9): [('move', (4, 12))], (1526, 3): [('move', (4, 20))], (1526, 5): [('move', (14, 9))], (1526, 9): [('move', (3, 13))], (1527, 3): [('move', (3, 19))], (1527, 5): [('move', (13, 10))], (1527, 9): [('move', (4, 12))], (1528, 3): [('move', (4, 20))], (1528, 5): [('move', (14, 9))], (1528, 9): [('move', (3, 13))], (1529, 3): [('move', (3, 19))], (1529, 5): [('move', (13, 10))], (1529, 9): [('move', (4, 12))], (1530, 3): [('move', (4, 20))], (1530, 5): [('move', (14, 9))], (1530, 9): [('move', (3, 13))], (1531, 3): [('move', (3, 19))], (1531, 5): [('move', (13, 10))], (1531, 9): [('move', (4, 12))], (1532, 3): [('move', (4, 20))], (1532, 5): [('move', (14, 9))], (1532, 9): [('move', (3, 13))], (1533, 3): [('move', (3, 19))], (1533, 5): [('move', (13, 10))], (1533, 9): [('move', (4, 12))], (1534, 3): [('move', (4, 20))], (1534, 5): [('move', (14, 9))], (1534, 9): [('move', (3, 13))], (1535, 3): [('move', (3, 19))], (1535, 5): [('move', (13, 10))], (1535, 9): [('move', (4, 12))], (1536, 3): [('move', (4, 20))], (1536, 5): [('move', (14, 9))], (1536, 9): [('move', (3, 13))], (1537, 3): [('move', (3, 19))], (1537, 5): [('move', (13, 10))], (1537, 9): [('move', (4, 12))], (1538, 3): [('move', (4, 20))], (1538, 5): [('move', (14, 9))], (1538, 9): [('move', (3, 13))], (1539, 3): [('move', (3, 19))], (1539, 5): [('move', (13, 10))], (1539, 9): [('move', (4, 12))], (1540, 3): [('move', (4, 20))], (1540, 5): [('move', (14, 9))], (1540, 9): [('move', (3, 13))], (1541, 3): [('move', (3, 19))], (1541, 5): [('move', (13, 10))], (1541, 9): [('move', (4, 12))], (1542, 3): [('move', (4, 20))], (1542, 5): [('move', (14, 9))], (1542, 9): [('move', (3, 13))], (1543, 3): [('move', (3, 19))], (1543, 5): [('move', (13, 10))], (1543, 9): [('move', (4, 12))], (1544, 3): [('move', (4, 20))], (1544, 5): [('move', (14, 9))], (1544, 9): [('move', (3, 13))], (1545, 3): [('move', (3, 19))], (1545, 5): [('move', (13, 10))], (1545, 9): [('move', (4, 12))], (1546, 3): [('move', (4, 20))], (1546, 5): [('move', (14, 9))], (1546, 9): [('move', (3, 13))], (1547, 3): [('move', (3, 19))], (1547, 5): [('move', (13, 10))], (1547, 9): [('move', (4, 12))], (1548, 3): [('move', (4, 20))], (1548, 5): [('move', (14, 9))], (1548, 9): [('move', (3, 13))], (1549, 3): [('move', (3, 19))], (1549, 5): [('move', (13, 10))], (1549, 9): [('move', (4, 12))], (1550, 3): [('move', (4, 20))], (1550, 5): [('move', (14, 9))], (1550, 9): [('move', (3, 13))], (1551, 3): [('move', (3, 19))], (1551, 5): [('move', (13, 10))], (1551, 9): [('move', (4, 12))], (1552, 3): [('move', (4, 20))], (1552, 5): [('move', (14, 9))], (1552, 9): [('move', (3, 13))], (1553, 3): [('move', (3, 19))], (1553, 5): [('move', (13, 10))], (1553, 9): [('move', (4, 12))], (1554, 3): [('move', (4, 20))], (1554, 5): [('move', (14, 9))], (1554, 9): [('move', (3, 13))], (1555, 3): [('move', (3, 19))], (1555, 5): [('move', (13, 10))], (1555, 9): [('move', (4, 12))], (1556, 3): [('move', (4, 20))], (1556, 5): [('move', (14, 9))], (1556, 9): [('move', (3, 13))], (1557, 3): [('move', (3, 19))], (1557, 5): [('move', (13, 10))], (1557, 9): [('move', (4, 12))], (1558, 3): [('move', (4, 20))], (1558, 5): [('move', (14, 9))], (1558, 9): [('move', (3, 13))], (1559, 3): [('move', (3, 19))], (1559, 5): [('move', (13, 10))], (1559, 9): [('move', (4, 12))], (1560, 3): [('move', (4, 20))], (1560, 5): [('move', (14, 9))], (1560, 9): [('move', (3, 13))], (1561, 3): [('move', (3, 19))], (1561, 5): [('move', (13, 10))], (1561, 9): [('move', (4, 12))], (1562, 3): [('move', (4, 20))], (1562, 5): [('move', (14, 9))], (1562, 9): [('move', (3, 13))], (1563, 3): [('move', (3, 19))], (1563, 5): [('move', (13, 10))], (1563, 9): [('move', (4, 12))], (1564, 3): [('move', (4, 20))], (1564, 5): [('move', (14, 9))], (1564, 9): [('move', (3, 13))], (1565, 3): [('move', (3, 19))], (1565, 5): [('move', (13, 10))], (1565, 9): [('move', (4, 12))], (1566, 3): [('move', (4, 20))], (1566, 5): [('move', (14, 9))], (1566, 9): [('move', (3, 13))], (1567, 3): [('move', (3, 19))], (1567, 5): [('move', (13, 10))], (1567, 9): [('move', (4, 12))], (1568, 3): [('move', (4, 20))], (1568, 5): [('move', (14, 9))], (1568, 9): [('move', (3, 13))], (1569, 3): [('move', (3, 19))], (1569, 5): [('move', (13, 10))], (1569, 9): [('move', (4, 12))], (1570, 3): [('move', (4, 20))], (1570, 5): [('move', (14, 9))], (1570, 9): [('move', (3, 13))], (1571, 3): [('move', (3, 19))], (1571, 5): [('move', (13, 10))], (1571, 9): [('move', (4, 12))], (1572, 3): [('move', (4, 20))], (1572, 5): [('move', (14, 9))], (1572, 9): [('move', (3, 13))], (1573, 3): [('move', (3, 19))], (1573, 5): [('move', (13, 10))], (1573, 9): [('move', (4, 12))], (1574, 3): [('move', (4, 20))], (1574, 5): [('move', (14, 9))], (1574, 9): [('move', (3, 13))], (1575, 3): [('move', (3, 19))], (1575, 5): [('move', (13, 10))], (1575, 9): [('move', (4, 12))], (1576, 3): [('move', (4, 20))], (1576, 5): [('move', (14, 9))], (1576, 9): [('move', (3, 13))], (1577, 3): [('move', (3, 19))], (1577, 5): [('move', (13, 10))], (1577, 9): [('move', (4, 12))], (1578, 3): [('move', (4, 20))], (1578, 5): [('move', (14, 9))], (1578, 9): [('move', (3, 13))], (1579, 3): [('move', (3, 19))], (1579, 5): [('move', (13, 10))], (1579, 9): [('move', (4, 12))], (1580, 3): [('move', (4, 20))], (1580, 5): [('move', (14, 9))], (1580, 9): [('move', (3, 13))], (1581, 3): [('move', (3, 19))], (1581, 5): [('move', (13, 10))], (1581, 9): [('move', (4, 12))], (1582, 3): [('move', (4, 20))], (1582, 5): [('move', (14, 9))], (1582, 9): [('move', (3, 13))], (1583, 3): [('move', (3, 19))], (1583, 5): [('move', (13, 10))], (1583, 9): [('move', (4, 12))], (1584, 3): [('move', (4, 20))], (1584, 5): [('move', (14, 9))], (1584, 9): [('move', (3, 13))], (1585, 3): [('move', (3, 19))], (1585, 5): [('move', (13, 10))], (1585, 9): [('move', (4, 12))], (1586, 3): [('move', (4, 20))], (1586, 5): [('move', (14, 9))], (1586, 9): [('move', (3, 13))], (1587, 3): [('move', (3, 19))], (1587, 5): [('move', (13, 10))], (1587, 9): [('move', (4, 12))], (1588, 3): [('move', (4, 20))], (1588, 5): [('move', (14, 9))], (1588, 9): [('move', (3, 13))], (1589, 3): [('move', (3, 19))], (1589, 5): [('move', (13, 10))], (1589, 9): [('move', (4, 12))], (1590, 3): [('move', (4, 20))], (1590, 5): [('move', (14, 9))], (1590, 9): [('move', (3, 13))], (1591, 3): [('move', (3, 19))], (1591, 5): [('move', (13, 10))], (1591, 9): [('move', (4, 12))], (1592, 3): [('move', (4, 20))], (1592, 5): [('move', (14, 9))], (1592, 9): [('move', (3, 13))], (1593, 3): [('move', (3, 19))], (1593, 5): [('move', (13, 10))], (1593, 9): [('move', (4, 12))], (1594, 3): [('move', (4, 20))], (1594, 5): [('move', (14, 9))], (1594, 9): [('move', (3, 13))], (1595, 3): [('move', (3, 19))], (1595, 5): [('move', (13, 10))], (1595, 9): [('move', (4, 12))], (1596, 3): [('move', (4, 20))], (1596, 5): [('move', (14, 9))], (1596, 9): [('move', (3, 13))], (1597, 3): [('move', (3, 19))], (1597, 5): [('move', (13, 10))], (1597, 9): [('move', (4, 12))], (1598, 3): [('move', (4, 20))], (1598, 5): [('move', (14, 9))], (1598, 9): [('move', (3, 13))], (1599, 3): [('move', (3, 19))], (1599, 5): [('move', (13, 10))], (1599, 9): [('move', (4, 12))], (1600, 3): [('move', (4, 20))], (1600, 5): [('move', (14, 9))], (1600, 9): [('move', (3, 13))], (1601, 3): [('move', (3, 19))], (1601, 5): [('move', (13, 10))], (1601, 9): [('move', (4, 12))], (1602, 3): [('move', (4, 20))], (1602, 5): [('move', (14, 9))], (1602, 9): [('move', (3, 13))], (1603, 3): [('move', (3, 19))], (1603, 5): [('move', (13, 10))], (1603, 9): [('move', (4, 12))], (1604, 3): [('move', (4, 20))], (1604, 5): [('move', (14, 9))], (1604, 9): [('move', (3, 13))], (1605, 3): [('move', (3, 19))], (1605, 5): [('move', (13, 10))], (1605, 9): [('move', (4, 12))], (1606, 3): [('move', (4, 20))], (1606, 5): [('move', (14, 9))], (1606, 9): [('move', (3, 13))], (1607, 3): [('move', (3, 19))], (1607, 5): [('move', (13, 10))], (1607, 9): [('move', (4, 12))], (1608, 3): [('move', (4, 20))], (1608, 5): [('move', (14, 9))], (1608, 9): [('move', (3, 13))], (1609, 3): [('move', (3, 19))], (1609, 5): [('move', (13, 10))], (1609, 9): [('move', (4, 12))], (1610, 3): [('move', (4, 20))], (1610, 5): [('move', (14, 9))], (1610, 9): [('move', (3, 13))], (1611, 3): [('move', (3, 19))], (1611, 5): [('move', (13, 10))], (1611, 9): [('move', (4, 12))], (1612, 3): [('move', (4, 20))], (1612, 5): [('move', (14, 9))], (1612, 9): [('move', (3, 13))], (1613, 3): [('move', (3, 19))], (1613, 5): [('move', (13, 10))], (1613, 9): [('move', (4, 12))], (1614, 3): [('move', (4, 20))], (1614, 5): [('move', (14, 9))], (1614, 9): [('move', (3, 13))], (1615, 3): [('move', (3, 19))], (1615, 5): [('move', (13, 10))], (1615, 9): [('move', (4, 12))], (1616, 3): [('move', (4, 20))], (1616, 5): [('move', (14, 9))], (1616, 9): [('move', (3, 13))], (1617, 3): [('move', (3, 19))], (1617, 5): [('move', (13, 10))], (1617, 9): [('move', (4, 12))], (1618, 3): [('move', (4, 20))], (1618, 5): [('move', (14, 9))], (1618, 9): [('move', (3, 13))], (1619, 3): [('move', (3, 19))], (1619, 5): [('move', (13, 10))], (1619, 9): [('move', (4, 12))], (1620, 3): [('move', (4, 20))], (1620, 5): [('move', (14, 9))], (1620, 9): [('move', (3, 13))], (1621, 3): [('move', (3, 19))], (1621, 5): [('move', (13, 10))], (1621, 9): [('move', (4, 12))], (1622, 3): [('move', (4, 20))], (1622, 5): [('move', (14, 9))], (1622, 9): [('move', (3, 13))], (1623, 3): [('move', (3, 19))], (1623, 5): [('move', (13, 10))], (1623, 9): [('move', (4, 12))], (1624, 3): [('move', (4, 20))], (1624, 5): [('move', (14, 9))], (1624, 9): [('move', (3, 13))], (1625, 3): [('move', (3, 19))], (1625, 5): [('move', (13, 10))], (1625, 9): [('move', (4, 12))], (1626, 3): [('move', (4, 20))], (1626, 5): [('move', (14, 9))], (1626, 9): [('move', (3, 13))], (1627, 3): [('move', (3, 19))], (1627, 5): [('move', (13, 10))], (1627, 9): [('move', (4, 12))], (1628, 3): [('move', (4, 20))], (1628, 5): [('move', (14, 9))], (1628, 9): [('move', (3, 13))], (1629, 3): [('move', (3, 19))], (1629, 5): [('move', (13, 10))], (1629, 9): [('move', (4, 12))], (1630, 3): [('move', (4, 20))], (1630, 5): [('move', (14, 9))], (1630, 9): [('move', (3, 13))], (1631, 3): [('move', (3, 19))], (1631, 5): [('move', (13, 10))], (1631, 9): [('move', (4, 12))], (1632, 3): [('move', (4, 20))], (1632, 5): [('move', (14, 9))], (1632, 9): [('move', (3, 13))], (1633, 3): [('move', (3, 19))], (1633, 5): [('move', (13, 10))], (1633, 9): [('move', (4, 12))], (1634, 3): [('move', (4, 20))], (1634, 5): [('move', (14, 9))], (1634, 9): [('move', (3, 13))], (1635, 3): [('move', (3, 19))], (1635, 5): [('move', (13, 10))], (1635, 9): [('move', (4, 12))], (1636, 3): [('move', (4, 20))], (1636, 5): [('move', (14, 9))], (1636, 9): [('move', (3, 13))], (1637, 3): [('move', (3, 19))], (1637, 5): [('move', (13, 10))], (1637, 9): [('move', (4, 12))], (1638, 3): [('move', (4, 20))], (1638, 5): [('move', (14, 9))], (1638, 9): [('move', (3, 13))], (1639, 3): [('move', (3, 19))], (1639, 5): [('move', (13, 10))], (1639, 9): [('move', (4, 12))], (1640, 3): [('move', (4, 20))], (1640, 5): [('move', (14, 9))], (1640, 9): [('move', (3, 13))], (1641, 3): [('move', (3, 19))], (1641, 5): [('move', (13, 10))], (1641, 9): [('move', (4, 12))], (1642, 3): [('move', (4, 20))], (1642, 5): [('move', (14, 9))], (1642, 9): [('move', (3, 13))], (1643, 3): [('move', (3, 19))], (1643, 5): [('move', (13, 10))], (1643, 9): [('move', (4, 12))], (1644, 5): [('move', (14, 9))], (1644, 9): [('move', (3, 13))], (1645, 3): [('move', (4, 20))], (1645, 5): [('move', (13, 10))], (1645, 9): [('move', (4, 12))], (1646, 3): [('move', (3, 19))], (1646, 5): [('move', (14, 9))], (1646, 9): [('move', (3, 13))], (1647, 3): [('move', (4, 20))], (1647, 5): [('move', (13, 10))], (1647, 9): [('move', (4, 12))], (1648, 3): [('move', (3, 19))], (1648, 5): [('move', (14, 9))], (1648, 9): [('move', (3, 13))], (1649, 3): [('move', (4, 20))], (1649, 5): [('move', (13, 10))], (1649, 9): [('move', (4, 12))], (1650, 3): [('move', (3, 19))], (1650, 5): [('move', (14, 9))], (1650, 9): [('move', (3, 13))], (1651, 3): [('move', (4, 20))], (1651, 5): [('move', (13, 10))], (1651, 9): [('move', (4, 12))], (1652, 3): [('move', (3, 19))], (1652, 5): [('move', (14, 9))], (1652, 9): [('move', (3, 13))], (1653, 3): [('move', (4, 20))], (1653, 5): [('move', (13, 10))], (1653, 9): [('move', (4, 12))], (1654, 3): [('move', (3, 19))], (1654, 5): [('move', (14, 9))], (1654, 9): [('move', (3, 13))], (1655, 3): [('move', (4, 20))], (1655, 5): [('move', (13, 10))], (1655, 9): [('move', (4, 12))], (1656, 3): [('move', (3, 19))], (1656, 5): [('move', (14, 9))], (1656, 9): [('move', (3, 13))], (1657, 3): [('move', (4, 20))], (1657, 5): [('move', (13, 10))], (1657, 9): [('move', (4, 12))], (1658, 3): [('move', (3, 19))], (1658, 5): [('move', (14, 9))], (1658, 9): [('move', (3, 13))], (1659, 3): [('move', (4, 20))], (1659, 5): [('move', (13, 10))], (1659, 9): [('move', (4, 12))], (1660, 3): [('move', (3, 19))], (1660, 5): [('move', (14, 9))], (1660, 9): [('move', (3, 13))], (1661, 3): [('move', (4, 20))], (1661, 5): [('move', (13, 10))], (1661, 9): [('move', (4, 12))], (1662, 3): [('move', (3, 19))], (1662, 5): [('move', (14, 9))], (1662, 9): [('move', (3, 13))], (1663, 3): [('move', (4, 20))], (1663, 5): [('move', (13, 10))], (1663, 9): [('move', (4, 12))], (1664, 3): [('move', (3, 19))], (1664, 5): [('move', (14, 9))], (1664, 9): [('move', (3, 13))], (1665, 3): [('move', (4, 20))], (1665, 5): [('move', (13, 10))], (1665, 9): [('move', (4, 12))], (1666, 3): [('move', (3, 19))], (1666, 5): [('move', (14, 9))], (1666, 9): [('move', (3, 13))], (1667, 3): [('move', (4, 20))], (1667, 5): [('move', (13, 10))], (1667, 9): [('move', (4, 12))], (1668, 3): [('move', (3, 19))], (1668, 5): [('move', (14, 9))], (1668, 9): [('move', (3, 13))], (1669, 3): [('move', (4, 20))], (1669, 5): [('move', (13, 10))], (1669, 9): [('move', (4, 12))], (1670, 3): [('move', (3, 19))], (1670, 5): [('move', (14, 9))], (1670, 9): [('move', (3, 13))], (1671, 3): [('move', (4, 20))], (1671, 5): [('move', (13, 10))], (1671, 9): [('move', (4, 12))], (1672, 3): [('move', (3, 19))], (1672, 5): [('move', (14, 9))], (1672, 9): [('move', (3, 13))], (1673, 3): [('move', (4, 20))], (1673, 5): [('move', (13, 10))], (1673, 9): [('move', (4, 12))], (1674, 3): [('move', (3, 19))], (1674, 5): [('move', (14, 9))], (1674, 9): [('move', (3, 13))], (1675, 3): [('move', (4, 20))], (1675, 5): [('move', (13, 10))], (1675, 9): [('move', (4, 12))], (1676, 3): [('move', (3, 19))], (1676, 5): [('move', (14, 9))], (1676, 9): [('move', (3, 13))], (1677, 3): [('move', (4, 20))], (1677, 5): [('move', (13, 10))], (1677, 9): [('move', (4, 12))], (1678, 3): [('move', (3, 19))], (1678, 5): [('move', (14, 9))], (1678, 9): [('move', (3, 13))], (1679, 3): [('move', (4, 20))], (1679, 5): [('move', (13, 10))], (1679, 9): [('move', (4, 12))], (1680, 3): [('move', (3, 19))], (1680, 5): [('move', (14, 9))], (1680, 9): [('move', (3, 13))], (1681, 3): [('move', (4, 20))], (1681, 5): [('move', (13, 10))], (1681, 9): [('move', (4, 12))], (1682, 3): [('move', (3, 19))], (1682, 5): [('move', (14, 9))], (1682, 9): [('move', (3, 13))], (1683, 3): [('move', (4, 20))], (1683, 5): [('move', (13, 10))], (1683, 9): [('move', (4, 12))], (1684, 3): [('move', (3, 19))], (1684, 5): [('move', (14, 9))], (1684, 9): [('move', (3, 13))], (1685, 3): [('move', (4, 20))], (1685, 5): [('move', (13, 10))], (1685, 9): [('move', (4, 12))], (1686, 3): [('move', (3, 19))], (1686, 5): [('move', (14, 9))], (1686, 9): [('move', (3, 13))], (1687, 3): [('move', (4, 20))], (1687, 5): [('move', (13, 10))], (1687, 9): [('move', (4, 12))], (1688, 3): [('move', (3, 19))], (1688, 5): [('move', (14, 9))], (1688, 9): [('move', (3, 13))], (1689, 3): [('move', (4, 20))], (1689, 5): [('move', (13, 10))], (1689, 9): [('move', (4, 12))], (1690, 3): [('move', (3, 19))], (1690, 5): [('move', (14, 9))], (1690, 9): [('move', (3, 13))], (1691, 3): [('move', (4, 20))], (1691, 5): [('move', (13, 10))], (1691, 9): [('move', (4, 12))], (1692, 3): [('move', (3, 19))], (1692, 5): [('move', (14, 9))], (1692, 9): [('move', (3, 13))], (1693, 3): [('move', (4, 20))], (1693, 5): [('move', (13, 10))], (1693, 9): [('move', (4, 12))], (1694, 3): [('move', (3, 19))], (1694, 5): [('move', (14, 9))], (1694, 9): [('move', (3, 13))], (1695, 3): [('move', (4, 20))], (1695, 5): [('move', (13, 10))], (1695, 9): [('move', (4, 12))], (1696, 3): [('move', (3, 19))], (1696, 5): [('move', (14, 9))], (1696, 9): [('move', (3, 13))], (1697, 3): [('move', (4, 20))], (1697, 5): [('move', (13, 10))], (1697, 9): [('move', (4, 12))], (1698, 3): [('move', (3, 19))], (1698, 5): [('move', (14, 9))], (1698, 9): [('move', (3, 13))], (1699, 3): [('move', (4, 20))], (1699, 5): [('move', (13, 10))], (1699, 9): [('move', (4, 12))], (1700, 3): [('move', (3, 19))], (1700, 5): [('move', (14, 9))], (1700, 9): [('move', (3, 13))], (1701, 3): [('move', (4, 20))], (1701, 5): [('move', (13, 10))], (1701, 9): [('move', (4, 12))], (1702, 3): [('move', (3, 19))], (1702, 5): [('move', (14, 9))], (1702, 9): [('move', (3, 13))], (1703, 3): [('move', (4, 20))], (1703, 5): [('move', (13, 10))], (1703, 9): [('move', (4, 12))], (1704, 3): [('move', (3, 19))], (1704, 5): [('move', (14, 9))], (1704, 9): [('move', (3, 13))], (1705, 3): [('move', (4, 20))], (1705, 5): [('move', (13, 10))], (1705, 9): [('move', (4, 12))], (1706, 3): [('move', (3, 19))], (1706, 5): [('move', (14, 9))], (1706, 9): [('move', (3, 13))], (1707, 3): [('move', (4, 20))], (1707, 5): [('move', (13, 10))], (1707, 9): [('move', (4, 12))], (1708, 3): [('move', (3, 19))], (1708, 5): [('move', (14, 9))], (1708, 9): [('move', (3, 13))], (1709, 3): [('move', (4, 20))], (1709, 5): [('move', (13, 10))], (1709, 9): [('move', (4, 12))], (1710, 3): [('move', (3, 19))], (1710, 5): [('move', (14, 9))], (1710, 9): [('move', (3, 13))], (1711, 3): [('move', (4, 20))], (1711, 5): [('move', (13, 10))], (1711, 9): [('move', (4, 12))], (1712, 3): [('move', (3, 19))], (1712, 5): [('move', (14, 9))], (1712, 9): [('move', (3, 13))], (1713, 3): [('move', (4, 20))], (1713, 5): [('move', (13, 10))], (1713, 9): [('move', (4, 12))], (1714, 3): [('move', (3, 19))], (1714, 5): [('move', (14, 9))], (1714, 9): [('move', (3, 13))], (1715, 3): [('move', (4, 20))], (1715, 5): [('move', (13, 10))], (1715, 9): [('move', (4, 12))], (1716, 3): [('move', (3, 19))], (1716, 5): [('move', (14, 9))], (1716, 9): [('move', (3, 13))], (1717, 3): [('move', (4, 20))], (1717, 5): [('move', (13, 10))], (1717, 9): [('move', (4, 12))], (1718, 3): [('move', (3, 19))], (1718, 5): [('move', (14, 9))], (1718, 9): [('move', (3, 13))], (1719, 3): [('move', (4, 20))], (1719, 5): [('move', (13, 10))], (1719, 9): [('move', (4, 12))], (1720, 3): [('move', (3, 19))], (1720, 5): [('move', (14, 9))], (1720, 9): [('move', (3, 13))], (1721, 3): [('move', (4, 20))], (1721, 5): [('move', (13, 10))], (1721, 9): [('move', (4, 12))], (1722, 3): [('move', (3, 19))], (1722, 5): [('move', (14, 9))], (1722, 9): [('move', (3, 13))], (1723, 3): [('move', (4, 20))], (1723, 5): [('move', (13, 10))], (1723, 9): [('move', (4, 12))], (1724, 3): [('move', (3, 19))], (1724, 5): [('move', (14, 9))], (1724, 9): [('move', (3, 13))], (1725, 3): [('move', (4, 20))], (1725, 5): [('move', (13, 10))], (1725, 9): [('move', (4, 12))], (1726, 3): [('move', (3, 19))], (1726, 5): [('move', (14, 9))], (1726, 9): [('move', (3, 13))], (1727, 3): [('move', (4, 20))], (1727, 5): [('move', (13, 10))], (1727, 9): [('move', (4, 12))], (1728, 3): [('move', (3, 19))], (1728, 5): [('move', (14, 9))], (1728, 9): [('move', (3, 13))], (1729, 3): [('move', (4, 20))], (1729, 5): [('move', (13, 10))], (1729, 9): [('move', (4, 12))], (1730, 3): [('move', (3, 19))], (1730, 5): [('move', (14, 9))], (1730, 9): [('move', (3, 13))], (1731, 3): [('move', (4, 20))], (1731, 5): [('move', (13, 10))], (1731, 9): [('move', (4, 12))], (1732, 3): [('move', (3, 19))], (1732, 5): [('move', (14, 9))], (1732, 9): [('move', (3, 13))], (1733, 3): [('move', (4, 20))], (1733, 5): [('move', (13, 10))], (1733, 9): [('move', (4, 12))], (1734, 3): [('move', (3, 19))], (1734, 5): [('move', (14, 9))], (1734, 9): [('move', (3, 13))], (1735, 3): [('move', (4, 20))], (1735, 5): [('move', (13, 10))], (1735, 9): [('move', (4, 12))], (1736, 3): [('move', (3, 19))], (1736, 5): [('move', (14, 9))], (1736, 9): [('move', (3, 13))], (1737, 3): [('move', (4, 20))], (1737, 5): [('move', (13, 10))], (1737, 9): [('move', (4, 12))], (1738, 3): [('move', (3, 19))], (1738, 5): [('move', (14, 9))], (1738, 9): [('move', (3, 13))], (1739, 3): [('move', (4, 20))], (1739, 5): [('move', (13, 10))], (1739, 9): [('move', (4, 12))], (1740, 3): [('move', (3, 19))], (1740, 5): [('move', (14, 9))], (1740, 9): [('move', (3, 13))], (1741, 3): [('move', (4, 20))], (1741, 5): [('move', (13, 10))], (1741, 9): [('move', (4, 12))], (1742, 3): [('move', (3, 19))], (1742, 5): [('move', (14, 9))], (1742, 9): [('move', (3, 13))], (1743, 3): [('move', (4, 20))], (1743, 5): [('move', (13, 10))], (1743, 9): [('move', (4, 12))], (1744, 3): [('move', (3, 19))], (1744, 5): [('move', (14, 9))], (1744, 9): [('move', (3, 13))], (1745, 3): [('move', (4, 20))], (1745, 5): [('move', (13, 10))], (1745, 9): [('move', (4, 12))], (1746, 3): [('move', (3, 19))], (1746, 5): [('move', (14, 9))], (1746, 9): [('move', (3, 13))], (1747, 3): [('move', (4, 20))], (1747, 5): [('move', (13, 10))], (1747, 9): [('move', (4, 12))], (1748, 3): [('move', (3, 19))], (1748, 5): [('move', (14, 9))], (1748, 9): [('move', (3, 13))], (1749, 3): [('move', (4, 20))], (1749, 5): [('move', (13, 10))], (1749, 9): [('move', (4, 12))], (1750, 3): [('move', (3, 19))], (1750, 5): [('move', (14, 9))], (1750, 9): [('move', (3, 13))], (1751, 3): [('move', (4, 20))], (1751, 5): [('move', (13, 10))], (1751, 9): [('move', (4, 12))], (1752, 3): [('move', (3, 19))], (1752, 5): [('move', (14, 9))], (1752, 9): [('move', (3, 13))], (1753, 3): [('move', (4, 20))], (1753, 5): [('move', (13, 10))], (1753, 9): [('move', (4, 12))], (1754, 3): [('move', (3, 19))], (1754, 5): [('move', (14, 9))], (1754, 9): [('move', (3, 13))], (1755, 3): [('move', (4, 20))], (1755, 5): [('move', (13, 10))], (1755, 9): [('move', (4, 12))], (1756, 3): [('move', (3, 19))], (1756, 5): [('move', (14, 9))], (1756, 9): [('move', (3, 13))], (1757, 3): [('move', (4, 20))], (1757, 5): [('move', (13, 10))], (1757, 9): [('move', (4, 12))], (1758, 3): [('move', (3, 19))], (1758, 5): [('move', (14, 9))], (1758, 9): [('move', (3, 13))], (1759, 3): [('move', (4, 20))], (1759, 5): [('move', (13, 10))], (1759, 9): [('move', (4, 12))], (1760, 3): [('move', (3, 19))], (1760, 5): [('move', (14, 9))], (1760, 9): [('move', (3, 13))], (1761, 3): [('move', (4, 20))], (1761, 5): [('move', (13, 10))], (1761, 9): [('move', (4, 12))], (1762, 3): [('move', (3, 19))], (1762, 5): [('move', (14, 9))], (1762, 9): [('move', (3, 13))], (1763, 3): [('move', (4, 20))], (1763, 5): [('move', (13, 10))], (1763, 9): [('move', (4, 12))], (1764, 3): [('move', (3, 19))], (1764, 5): [('move', (14, 9))], (1764, 9): [('move', (3, 13))], (1765, 3): [('move', (4, 20))], (1765, 5): [('move', (13, 10))], (1765, 9): [('move', (4, 12))], (1766, 3): [('move', (3, 19))], (1766, 5): [('move', (14, 9))], (1766, 9): [('move', (3, 13))], (1767, 3): [('move', (4, 20))], (1767, 5): [('move', (13, 10))], (1767, 9): [('move', (4, 12))], (1768, 3): [('move', (3, 19))], (1768, 5): [('move', (14, 9))], (1768, 9): [('move', (3, 13))], (1769, 3): [('move', (4, 20))], (1769, 5): [('move', (13, 10))], (1769, 9): [('move', (4, 12))], (1770, 3): [('move', (3, 19))], (1770, 5): [('move', (14, 9))], (1770, 9): [('move', (3, 13))], (1771, 3): [('move', (4, 20))], (1771, 5): [('move', (13, 10))], (1771, 9): [('move', (4, 12))], (1772, 3): [('move', (3, 19))], (1772, 5): [('move', (14, 9))], (1772, 9): [('move', (3, 13))], (1773, 3): [('move', (4, 20))], (1773, 5): [('move', (13, 10))], (1773, 9): [('move', (4, 12))], (1774, 3): [('move', (3, 19))], (1774, 5): [('move', (14, 9))], (1774, 9): [('move', (3, 13))], (1775, 3): [('move', (4, 20))], (1775, 5): [('move', (13, 10))], (1775, 9): [('move', (4, 12))], (1776, 3): [('move', (3, 19))], (1776, 5): [('move', (14, 9))], (1776, 9): [('move', (3, 13))], (1777, 3): [('move', (4, 20))], (1777, 5): [('move', (13, 10))], (1777, 9): [('move', (4, 12))], (1778, 3): [('move', (3, 19))], (1778, 5): [('move', (14, 9))], (1778, 9): [('move', (3, 13))], (1779, 3): [('move', (4, 20))], (1779, 5): [('move', (13, 10))], (1779, 9): [('move', (4, 12))], (1780, 3): [('move', (3, 19))], (1780, 5): [('move', (14, 9))], (1780, 9): [('move', (3, 13))], (1781, 3): [('move', (4, 20))], (1781, 5): [('move', (13, 10))], (1781, 9): [('move', (4, 12))], (1782, 3): [('move', (3, 19))], (1782, 5): [('move', (14, 9))], (1782, 9): [('move', (3, 13))], (1783, 3): [('move', (4, 20))], (1783, 5): [('move', (13, 10))], (1783, 9): [('move', (4, 12))], (1784, 3): [('move', (3, 19))], (1784, 5): [('move', (14, 9))], (1784, 9): [('move', (3, 13))], (1785, 3): [('move', (4, 20))], (1785, 5): [('move', (13, 10))], (1785, 9): [('move', (4, 12))], (1786, 3): [('move', (3, 19))], (1786, 5): [('move', (14, 9))], (1786, 9): [('move', (3, 13))], (1787, 3): [('move', (4, 20))], (1787, 5): [('move', (13, 10))], (1787, 9): [('move', (4, 12))], (1788, 3): [('move', (3, 19))], (1788, 5): [('move', (14, 9))], (1788, 9): [('move', (3, 13))], (1789, 3): [('move', (4, 20))], (1789, 5): [('move', (13, 10))], (1789, 9): [('move', (4, 12))], (1790, 3): [('move', (3, 19))], (1790, 5): [('move', (14, 9))], (1790, 9): [('move', (3, 13))], (1791, 3): [('move', (4, 20))], (1791, 5): [('move', (13, 10))], (1791, 9): [('move', (4, 12))], (1792, 3): [('move', (3, 19))], (1792, 5): [('move', (14, 9))], (1792, 9): [('move', (3, 13))], (1793, 3): [('move', (4, 20))], (1793, 5): [('move', (13, 10))], (1793, 9): [('move', (4, 12))], (1794, 3): [('move', (3, 19))], (1794, 5): [('move', (14, 9))], (1794, 9): [('move', (3, 13))], (1795, 3): [('move', (4, 20))], (1795, 5): [('move', (13, 10))], (1795, 9): [('move', (4, 12))], (1796, 3): [('move', (3, 19))], (1796, 5): [('move', (14, 9))], (1796, 9): [('move', (3, 13))], (1797, 3): [('move', (4, 20))], (1797, 5): [('move', (13, 10))], (1797, 9): [('move', (4, 12))], (1798, 3): [('move', (3, 19))], (1798, 5): [('move', (14, 9))], (1798, 9): [('move', (3, 13))], (1799, 3): [('move', (4, 20))], (1799, 5): [('move', (13, 10))], (1799, 9): [('move', (4, 12))], (1800, 3): [('move', (3, 19))], (1800, 5): [('move', (14, 9))], (1800, 9): [('move', (3, 13))], (1801, 3): [('move', (4, 20))], (1801, 5): [('move', (13, 10))], (1801, 9): [('move', (4, 12))], (1802, 3): [('move', (3, 19))], (1802, 5): [('move', (14, 9))], (1802, 9): [('move', (3, 13))], (1803, 3): [('move', (4, 20))], (1803, 5): [('move', (13, 10))], (1803, 9): [('move', (4, 12))], (1804, 3): [('move', (3, 19))], (1804, 5): [('move', (14, 9))], (1804, 9): [('move', (3, 13))], (1805, 3): [('move', (4, 20))], (1805, 5): [('move', (13, 10))], (1805, 9): [('move', (4, 12))], (1806, 3): [('move', (3, 19))], (1806, 5): [('move', (14, 9))], (1806, 9): [('move', (3, 13))], (1807, 3): [('move', (4, 20))], (1807, 5): [('move', (13, 10))], (1807, 9): [('move', (4, 12))], (1808, 3): [('move', (3, 19))], (1808, 5): [('move', (14, 9))], (1808, 9): [('move', (3, 13))], (1809, 3): [('move', (4, 20))], (1809, 5): [('move', (13, 10))], (1809, 9): [('move', (4, 12))], (1810, 3): [('move', (3, 19))], (1810, 5): [('move', (14, 9))], (1810, 9): [('move', (3, 13))], (1811, 3): [('move', (4, 20))], (1811, 5): [('move', (13, 10))], (1811, 9): [('move', (4, 12))], (1812, 3): [('move', (3, 19))], (1812, 5): [('move', (14, 9))], (1812, 9): [('move', (3, 13))], (1813, 3): [('move', (4, 20))], (1813, 5): [('move', (13, 10))], (1813, 9): [('move', (4, 12))], (1814, 3): [('move', (3, 19))], (1814, 5): [('move', (14, 9))], (1814, 9): [('move', (3, 13))], (1815, 3): [('move', (4, 20))], (1815, 5): [('move', (13, 10))], (1815, 9): [('move', (4, 12))], (1816, 3): [('move', (3, 19))], (1816, 5): [('move', (14, 9))], (1816, 9): [('move', (3, 13))], (1817, 3): [('move', (4, 20))], (1817, 5): [('move', (13, 10))], (1817, 9): [('move', (4, 12))], (1818, 3): [('move', (3, 19))], (1818, 5): [('move', (14, 9))], (1818, 9): [('move', (3, 13))], (1819, 3): [('move', (4, 20))], (1819, 5): [('move', (13, 10))], (1819, 9): [('move', (4, 12))], (1820, 3): [('move', (3, 19))], (1820, 5): [('move', (14, 9))], (1820, 9): [('move', (3, 13))], (1821, 3): [('move', (4, 20))], (1821, 5): [('move', (13, 10))], (1821, 9): [('move', (4, 12))], (1822, 3): [('move', (3, 19))], (1822, 5): [('move', (14, 9))], (1822, 9): [('move', (3, 13))], (1823, 3): [('move', (4, 20))], (1823, 5): [('move', (13, 10))], (1823, 9): [('move', (4, 12))], (1824, 3): [('move', (3, 19))], (1824, 5): [('move', (14, 9))], (1824, 9): [('move', (3, 13))], (1825, 3): [('move', (4, 20))], (1825, 5): [('move', (13, 10))], (1825, 9): [('move', (4, 12))], (1826, 3): [('move', (3, 19))], (1826, 5): [('move', (14, 9))], (1826, 9): [('move', (3, 13))], (1827, 3): [('move', (4, 20))], (1827, 5): [('move', (13, 10))], (1827, 9): [('move', (4, 12))], (1828, 3): [('move', (3, 19))], (1828, 5): [('move', (14, 9))], (1828, 9): [('move', (3, 13))], (1829, 3): [('move', (4, 20))], (1829, 5): [('move', (13, 10))], (1829, 9): [('move', (4, 12))], (1830, 3): [('move', (3, 19))], (1830, 5): [('move', (14, 9))], (1830, 9): [('move', (3, 13))], (1831, 3): [('move', (4, 20))], (1831, 5): [('move', (13, 10))], (1831, 9): [('move', (4, 12))], (1832, 3): [('move', (3, 19))], (1832, 5): [('move', (14, 9))], (1832, 9): [('move', (3, 13))], (1833, 3): [('move', (4, 20))], (1833, 5): [('move', (13, 10))], (1833, 9): [('move', (4, 12))], (1834, 3): [('move', (3, 19))], (1834, 5): [('move', (14, 9))], (1834, 9): [('move', (3, 13))], (1835, 3): [('move', (4, 20))], (1835, 5): [('move', (13, 10))], (1835, 9): [('move', (4, 12))], (1836, 3): [('move', (3, 19))], (1836, 5): [('move', (14, 9))], (1836, 9): [('move', (3, 13))], (1837, 3): [('move', (4, 20))], (1837, 5): [('move', (13, 10))], (1837, 9): [('move', (4, 12))], (1838, 3): [('move', (3, 19))], (1838, 5): [('move', (14, 9))], (1838, 9): [('move', (3, 13))], (1839, 3): [('move', (4, 20))], (1839, 5): [('move', (13, 10))], (1839, 9): [('move', (4, 12))], (1840, 3): [('move', (3, 19))], (1840, 5): [('move', (14, 9))], (1840, 9): [('move', (3, 13))], (1841, 3): [('move', (4, 20))], (1841, 5): [('move', (13, 10))], (1841, 9): [('move', (4, 12))], (1842, 3): [('move', (3, 19))], (1842, 5): [('move', (14, 9))], (1842, 9): [('move', (3, 13))], (1843, 3): [('move', (4, 20))], (1843, 5): [('move', (13, 10))], (1843, 9): [('move', (4, 12))], (1844, 3): [('move', (3, 19))], (1844, 5): [('move', (14, 9))], (1844, 9): [('move', (3, 13))], (1845, 3): [('move', (4, 20))], (1845, 5): [('move', (13, 10))], (1845, 9): [('move', (4, 12))], (1846, 3): [('move', (3, 19))], (1846, 5): [('move', (14, 9))], (1846, 9): [('move', (3, 13))], (1847, 3): [('move', (4, 20))], (1847, 5): [('move', (13, 10))], (1847, 9): [('move', (4, 12))], (1848, 3): [('move', (3, 19))], (1848, 5): [('move', (14, 9))], (1848, 9): [('move', (3, 13))], (1849, 3): [('move', (4, 20))], (1849, 5): [('move', (13, 10))], (1849, 9): [('move', (4, 12))], (1850, 3): [('move', (3, 19))], (1850, 5): [('move', (14, 9))], (1850, 9): [('move', (3, 13))], (1851, 3): [('move', (4, 20))], (1851, 5): [('move', (13, 10))], (1851, 9): [('move', (4, 12))], (1852, 3): [('move', (3, 19))], (1852, 5): [('move', (14, 9))], (1852, 9): [('move', (3, 13))], (1853, 3): [('move', (4, 20))], (1853, 5): [('move', (13, 10))], (1853, 9): [('move', (4, 12))], (1854, 3): [('move', (3, 19))], (1854, 5): [('move', (14, 9))], (1854, 9): [('move', (3, 13))], (1855, 3): [('move', (4, 20))], (1855, 5): [('move', (13, 10))], (1855, 9): [('move', (4, 12))], (1856, 3): [('move', (3, 19))], (1856, 5): [('move', (14, 9))], (1856, 9): [('move', (3, 13))], (1857, 3): [('move', (4, 20))], (1857, 5): [('move', (13, 10))], (1857, 9): [('move', (4, 12))], (1858, 3): [('move', (3, 19))], (1858, 5): [('move', (14, 9))], (1858, 9): [('move', (3, 13))], (1859, 3): [('move', (4, 20))], (1859, 5): [('move', (13, 10))], (1859, 9): [('move', (4, 12))], (1860, 3): [('move', (3, 19))], (1860, 5): [('move', (14, 9))], (1860, 9): [('move', (3, 13))], (1861, 3): [('move', (4, 20))], (1861, 5): [('move', (13, 10))], (1861, 9): [('move', (4, 12))], (1862, 3): [('move', (3, 19))], (1862, 5): [('move', (14, 9))], (1862, 9): [('move', (3, 13))], (1863, 3): [('move', (4, 20))], (1863, 5): [('move', (13, 10))], (1863, 9): [('move', (4, 12))], (1864, 3): [('move', (3, 19))], (1864, 5): [('move', (14, 9))], (1864, 9): [('move', (3, 13))], (1865, 3): [('move', (4, 20))], (1865, 5): [('move', (13, 10))], (1865, 9): [('move', (4, 12))], (1866, 3): [('move', (3, 19))], (1866, 5): [('move', (14, 9))], (1866, 9): [('move', (3, 13))], (1867, 3): [('move', (4, 20))], (1867, 5): [('move', (13, 10))], (1867, 9): [('move', (4, 12))], (1868, 3): [('move', (3, 19))], (1868, 5): [('move', (14, 9))], (1868, 9): [('move', (3, 13))], (1869, 3): [('move', (4, 20))], (1869, 5): [('move', (13, 10))], (1869, 9): [('move', (4, 12))], (1870, 3): [('move', (3, 19))], (1870, 5): [('move', (14, 9))], (1870, 9): [('move', (3, 13))], (1871, 3): [('move', (4, 20))], (1871, 5): [('move', (13, 10))], (1871, 9): [('move', (4, 12))], (1872, 3): [('move', (3, 19))], (1872, 5): [('move', (14, 9))], (1872, 9): [('move', (3, 13))], (1873, 3): [('move', (4, 20))], (1873, 5): [('move', (13, 10))], (1873, 9): [('move', (4, 12))], (1874, 3): [('move', (3, 19))], (1874, 5): [('move', (14, 9))], (1874, 9): [('move', (3, 13))], (1875, 3): [('move', (4, 20))], (1875, 5): [('move', (13, 10))], (1875, 9): [('move', (4, 12))], (1876, 3): [('move', (3, 19))], (1876, 5): [('move', (14, 9))], (1876, 9): [('move', (3, 13))], (1877, 3): [('move', (4, 20))], (1877, 5): [('move', (13, 10))], (1877, 9): [('move', (4, 12))], (1878, 3): [('move', (3, 19))], (1878, 5): [('move', (14, 9))], (1878, 9): [('move', (3, 13))], (1879, 3): [('move', (4, 20))], (1879, 5): [('move', (13, 10))], (1879, 9): [('move', (4, 12))], (1880, 3): [('move', (3, 19))], (1880, 5): [('move', (14, 9))], (1880, 9): [('move', (3, 13))], (1881, 3): [('move', (4, 20))], (1881, 5): [('move', (13, 10))], (1881, 9): [('move', (4, 12))], (1882, 3): [('move', (3, 19))], (1882, 5): [('move', (14, 9))], (1882, 9): [('move', (3, 13))], (1883, 3): [('move', (4, 20))], (1883, 5): [('move', (13, 10))], (1883, 9): [('move', (4, 12))], (1884, 3): [('move', (3, 19))], (1884, 5): [('move', (14, 9))], (1884, 9): [('move', (3, 13))], (1885, 3): [('move', (4, 20))], (1885, 5): [('move', (13, 10))], (1885, 9): [('move', (4, 12))], (1886, 3): [('move', (3, 19))], (1886, 5): [('move', (14, 9))], (1886, 9): [('move', (3, 13))], (1887, 3): [('move', (4, 20))], (1887, 5): [('move', (13, 10))], (1887, 9): [('move', (4, 12))], (1888, 3): [('move', (3, 19))], (1888, 5): [('move', (14, 9))], (1888, 9): [('move', (3, 13))], (1889, 3): [('move', (4, 20))], (1889, 5): [('move', (13, 10))], (1889, 9): [('move', (4, 12))], (1890, 3): [('move', (3, 19))], (1890, 5): [('move', (14, 9))], (1890, 9): [('move', (3, 13))], (1891, 3): [('move', (4, 20))], (1891, 5): [('move', (13, 10))], (1891, 9): [('move', (4, 12))], (1892, 3): [('move', (3, 19))], (1892, 5): [('move', (14, 9))], (1892, 9): [('move', (3, 13))], (1893, 3): [('move', (4, 20))], (1893, 5): [('move', (13, 10))], (1893, 9): [('move', (4, 12))], (1894, 3): [('move', (3, 19))], (1894, 5): [('move', (14, 9))], (1894, 9): [('move', (3, 13))], (1895, 3): [('move', (4, 20))], (1895, 5): [('move', (13, 10))], (1895, 9): [('move', (4, 12))], (1896, 3): [('move', (3, 19))], (1896, 5): [('move', (14, 9))], (1896, 9): [('move', (3, 13))], (1897, 3): [('move', (4, 20))], (1897, 5): [('move', (13, 10))], (1897, 9): [('move', (4, 12))], (1898, 3): [('move', (3, 19))], (1898, 5): [('move', (14, 9))], (1898, 9): [('move', (3, 13))], (1899, 3): [('move', (4, 20))], (1899, 5): [('move', (13, 10))], (1899, 9): [('move', (4, 12))], (1900, 3): [('move', (3, 19))], (1900, 5): [('move', (14, 9))], (1900, 9): [('move', (3, 13))], (1901, 3): [('move', (4, 20))], (1901, 5): [('move', (13, 10))], (1901, 9): [('move', (4, 12))], (1902, 3): [('move', (3, 19))], (1902, 5): [('move', (14, 9))], (1902, 9): [('move', (3, 13))], (1903, 3): [('move', (4, 20))], (1903, 5): [('move', (13, 10))], (1903, 9): [('move', (4, 12))], (1904, 3): [('move', (3, 19))], (1904, 5): [('move', (14, 9))], (1904, 9): [('move', (3, 13))], (1905, 3): [('move', (4, 20))], (1905, 5): [('move', (13, 10))], (1905, 9): [('move', (4, 12))], (1906, 3): [('move', (3, 19))], (1906, 5): [('move', (14, 9))], (1906, 9): [('move', (3, 13))], (1907, 3): [('move', (4, 20))], (1907, 5): [('move', (13, 10))], (1907, 9): [('move', (4, 12))], (1908, 3): [('move', (3, 19))], (1908, 5): [('move', (14, 9))], (1908, 9): [('move', (3, 13))], (1909, 3): [('move', (4, 20))], (1909, 5): [('move', (13, 10))], (1909, 9): [('move', (4, 12))], (1910, 3): [('move', (3, 19))], (1910, 5): [('move', (14, 9))], (1910, 9): [('move', (3, 13))], (1911, 3): [('move', (4, 20))], (1911, 5): [('move', (13, 10))], (1911, 9): [('move', (4, 12))], (1912, 3): [('move', (3, 19))], (1912, 5): [('move', (14, 9))], (1912, 9): [('move', (3, 13))], (1913, 3): [('move', (4, 20))], (1913, 5): [('move', (13, 10))], (1913, 9): [('move', (4, 12))], (1914, 3): [('move', (3, 19))], (1914, 5): [('move', (14, 9))], (1914, 9): [('move', (3, 13))], (1915, 3): [('move', (4, 20))], (1915, 5): [('move', (13, 10))], (1915, 9): [('move', (4, 12))], (1916, 3): [('move', (3, 19))], (1916, 5): [('move', (14, 9))], (1916, 9): [('move', (3, 13))], (1917, 3): [('move', (4, 20))], (1917, 5): [('move', (13, 10))], (1917, 9): [('move', (4, 12))], (1918, 3): [('move', (3, 19))], (1918, 5): [('move', (14, 9))], (1918, 9): [('move', (3, 13))], (1919, 3): [('move', (4, 20))], (1919, 5): [('move', (13, 10))], (1919, 9): [('move', (4, 12))], (1920, 3): [('move', (3, 19))], (1920, 5): [('move', (14, 9))], (1920, 9): [('move', (3, 13))], (1921, 3): [('move', (4, 20))], (1921, 5): [('move', (13, 10))], (1921, 9): [('move', (4, 12))], (1922, 3): [('move', (3, 19))], (1922, 5): [('move', (14, 9))], (1922, 9): [('move', (3, 13))], (1923, 3): [('move', (4, 20))], (1923, 5): [('move', (13, 10))], (1923, 9): [('move', (4, 12))], (1924, 3): [('move', (3, 19))], (1924, 5): [('move', (14, 9))], (1924, 9): [('move', (3, 13))], (1925, 3): [('move', (4, 20))], (1925, 5): [('move', (13, 10))], (1925, 9): [('move', (4, 12))], (1926, 3): [('move', (3, 19))], (1926, 5): [('move', (14, 9))], (1926, 9): [('move', (3, 13))], (1927, 3): [('move', (4, 20))], (1927, 5): [('move', (13, 10))], (1927, 9): [('move', (4, 12))], (1928, 3): [('move', (3, 19))], (1928, 5): [('move', (14, 9))], (1928, 9): [('move', (3, 13))], (1929, 3): [('move', (4, 20))], (1929, 5): [('move', (13, 10))], (1929, 9): [('move', (4, 12))], (1930, 3): [('move', (3, 19))], (1930, 5): [('move', (14, 9))], (1930, 9): [('move', (3, 13))], (1931, 3): [('move', (4, 20))], (1931, 5): [('move', (13, 10))], (1931, 9): [('move', (4, 12))], (1932, 3): [('move', (3, 19))], (1932, 5): [('move', (14, 9))], (1932, 9): [('move', (3, 13))], (1933, 3): [('move', (4, 20))], (1933, 5): [('move', (13, 10))], (1933, 9): [('move', (4, 12))], (1934, 3): [('move', (3, 19))], (1934, 5): [('move', (14, 9))], (1934, 9): [('move', (3, 13))], (1935, 3): [('move', (4, 20))], (1935, 5): [('move', (13, 10))], (1935, 9): [('move', (4, 12))], (1936, 3): [('move', (3, 19))], (1936, 5): [('move', (14, 9))], (1936, 9): [('move', (3, 13))], (1937, 3): [('move', (4, 20))], (1937, 5): [('move', (13, 10))], (1937, 9): [('move', (4, 12))], (1938, 3): [('move', (3, 19))], (1938, 5): [('move', (14, 9))], (1938, 9): [('move', (3, 13))], (1939, 3): [('move', (4, 20))], (1939, 5): [('move', (13, 10))], (1939, 9): [('move', (4, 12))], (1940, 3): [('move', (3, 19))], (1940, 5): [('move', (14, 9))], (1940, 9): [('move', (3, 13))], (1941, 3): [('move', (4, 20))], (1941, 5): [('move', (13, 10))], (1941, 9): [('move', (4, 12))], (1942, 3): [('move', (3, 19))], (1942, 5): [('move', (14, 9))], (1942, 9): [('move', (3, 13))], (1943, 3): [('move', (4, 20))], (1943, 5): [('move', (13, 10))], (1943, 9): [('move', (4, 12))], (1944, 3): [('move', (3, 19))], (1944, 5): [('move', (14, 9))], (1944, 9): [('move', (3, 13))], (1945, 3): [('move', (4, 20))], (1945, 5): [('move', (13, 10))], (1945, 9): [('move', (4, 12))], (1946, 3): [('move', (3, 19))], (1946, 5): [('move', (14, 9))], (1946, 9): [('move', (3, 13))], (1947, 3): [('move', (4, 20))], (1947, 5): [('move', (13, 10))], (1947, 9): [('move', (4, 12))], (1948, 3): [('move', (3, 19))], (1948, 5): [('move', (14, 9))], (1948, 9): [('move', (3, 13))], (1949, 3): [('move', (4, 20))], (1949, 5): [('move', (13, 10))], (1949, 9): [('move', (4, 12))], (1950, 3): [('move', (3, 19))], (1950, 5): [('move', (14, 9))], (1950, 9): [('move', (3, 13))], (1951, 3): [('move', (4, 20))], (1951, 5): [('move', (13, 10))], (1951, 9): [('move', (4, 12))], (1952, 3): [('move', (3, 19))], (1952, 5): [('move', (14, 9))], (1952, 9): [('move', (3, 13))], (1953, 3): [('move', (4, 20))], (1953, 5): [('move', (13, 10))], (1953, 9): [('move', (4, 12))], (1954, 3): [('move', (3, 19))], (1954, 5): [('move', (14, 9))], (1954, 9): [('move', (3, 13))], (1955, 3): [('move', (4, 20))], (1955, 5): [('move', (13, 10))], (1955, 9): [('move', (4, 12))], (1956, 3): [('move', (3, 19))], (1956, 5): [('move', (14, 9))], (1956, 9): [('move', (3, 13))], (1957, 3): [('move', (4, 20))], (1957, 5): [('move', (13, 10))], (1957, 9): [('move', (4, 12))], (1958, 3): [('move', (3, 19))], (1958, 5): [('move', (14, 9))], (1958, 9): [('move', (3, 13))], (1959, 3): [('move', (4, 20))], (1959, 5): [('move', (13, 10))], (1959, 9): [('move', (4, 12))], (1960, 3): [('move', (3, 19))], (1960, 5): [('move', (14, 9))], (1960, 9): [('move', (3, 13))], (1961, 3): [('move', (4, 20))], (1961, 5): [('move', (13, 10))], (1961, 9): [('move', (4, 12))], (1962, 3): [('move', (3, 19))], (1962, 5): [('move', (14, 9))], (1962, 9): [('move', (3, 13))], (1963, 3): [('move', (4, 20))], (1963, 5): [('move', (13, 10))], (1963, 9): [('move', (4, 12))], (1964, 3): [('move', (3, 19))], (1964, 5): [('move', (14, 9))], (1964, 9): [('move', (3, 13))], (1965, 3): [('move', (4, 20))], (1965, 5): [('move', (13, 10))], (1965, 9): [('move', (4, 12))], (1966, 3): [('move', (3, 19))], (1966, 5): [('move', (14, 9))], (1966, 9): [('move', (3, 13))], (1967, 3): [('move', (4, 20))], (1967, 5): [('move', (13, 10))], (1967, 9): [('move', (4, 12))], (1968, 3): [('move', (3, 19))], (1968, 5): [('move', (14, 9))], (1968, 9): [('move', (3, 13))], (1969, 3): [('move', (4, 20))], (1969, 5): [('move', (13, 10))], (1969, 9): [('move', (4, 12))], (1970, 3): [('move', (3, 19))], (1970, 5): [('move', (14, 9))], (1970, 9): [('move', (3, 13))], (1971, 3): [('move', (4, 20))], (1971, 5): [('move', (13, 10))], (1971, 9): [('move', (4, 12))], (1972, 3): [('move', (3, 19))], (1972, 5): [('move', (14, 9))], (1972, 9): [('move', (3, 13))], (1973, 3): [('move', (4, 20))], (1973, 5): [('move', (13, 10))], (1973, 9): [('move', (4, 12))], (1974, 3): [('move', (3, 19))], (1974, 5): [('move', (14, 9))], (1974, 9): [('move', (3, 13))], (1975, 3): [('move', (4, 20))], (1975, 5): [('move', (13, 10))], (1975, 9): [('move', (4, 12))], (1976, 3): [('move', (3, 19))], (1976, 5): [('move', (14, 9))], (1976, 9): [('move', (3, 13))], (1977, 3): [('move', (4, 20))], (1977, 5): [('move', (13, 10))], (1977, 9): [('move', (4, 12))], (1978, 3): [('move', (3, 19))], (1978, 5): [('move', (14, 9))], (1978, 9): [('move', (3, 13))], (1979, 3): [('move', (4, 20))], (1979, 5): [('move', (13, 10))], (1979, 9): [('move', (4, 12))], (1980, 3): [('move', (3, 19))], (1980, 5): [('move', (14, 9))], (1980, 9): [('move', (3, 13))], (1981, 3): [('move', (4, 20))], (1981, 5): [('move', (13, 10))], (1981, 9): [('move', (4, 12))], (1982, 3): [('move', (3, 19))], (1982, 5): [('move', (14, 9))], (1982, 9): [('move', (3, 13))], (1983, 3): [('move', (4, 20))], (1983, 5): [('move', (13, 10))], (1983, 9): [('move', (4, 12))], (1984, 3): [('move', (3, 19))], (1984, 5): [('move', (14, 9))], (1984, 9): [('move', (3, 13))], (1985, 3): [('move', (4, 20))], (1985, 5): [('move', (13, 10))], (1985, 9): [('move', (4, 12))], (1986, 3): [('move', (3, 19))], (1986, 5): [('move', (14, 9))], (1986, 9): [('move', (3, 13))], (1987, 3): [('move', (4, 20))], (1987, 5): [('move', (13, 10))], (1987, 9): [('move', (4, 12))], (1988, 3): [('move', (3, 19))], (1988, 5): [('move', (14, 9))], (1988, 9): [('move', (3, 13))], (1989, 3): [('move', (4, 20))], (1989, 5): [('move', (13, 10))], (1989, 9): [('move', (4, 12))], (1990, 3): [('move', (3, 19))], (1990, 5): [('move', (14, 9))], (1990, 9): [('move', (3, 13))], (1991, 3): [('move', (4, 20))], (1991, 5): [('move', (13, 10))], (1991, 9): [('move', (4, 12))], (1992, 3): [('move', (3, 19))], (1992, 5): [('move', (14, 9))], (1992, 9): [('move', (3, 13))], (1993, 3): [('move', (4, 20))], (1993, 5): [('move', (13, 10))], (1993, 9): [('move', (4, 12))], (1994, 3): [('move', (3, 19))], (1994, 5): [('move', (14, 9))], (1994, 9): [('move', (3, 13))], (1995, 3): [('move', (4, 20))], (1995, 5): [('move', (13, 10))], (1995, 9): [('move', (4, 12))], (1996, 3): [('move', (3, 19))], (1996, 5): [('move', (14, 9))], (1996, 9): [('move', (3, 13))], (1997, 3): [('move', (4, 20))], (1997, 5): [('move', (13, 10))], (1997, 9): [('move', (4, 12))], (1998, 3): [('move', (3, 19))], (1998, 5): [('move', (14, 9))], (1998, 9): [('move', (3, 13))], (1999, 3): [('move', (4, 20))], (1999, 5): [('move', (13, 10))], (1999, 9): [('move', (4, 12))]}
+            cls.PAUSE_ROUND = 30
+            cls.PAUSE_DURATION = 10
+        else:
+            cls.data = {(0, None): [('build', EntityType.BUILDER_BOT, (41, 7))], (1, None): [('build', EntityType.BUILDER_BOT, (42, 7))], (2, None): [('build', EntityType.BUILDER_BOT, (42, 8))], (2, 4): [('move', (40, 7))], (3, 4): [('build', EntityType.CONVEYOR, (39, 7), Direction.EAST)], (3, 6): [('build', EntityType.CONVEYOR, (43, 8), Direction.WEST)], (4, 4): [('build', EntityType.CONVEYOR, (39, 8), Direction.EAST)], (4, 6): [('move', (43, 8)), ('build', EntityType.CONVEYOR, (43, 9), Direction.WEST)], (5, 4): [('move', (39, 7))], (5, 6): [('build', EntityType.CONVEYOR, (44, 8), Direction.WEST)], (5, 9): [('move', (43, 9))], (6, 4): [('build', EntityType.CONVEYOR, (38, 7), Direction.EAST)], (6, 6): [('move', (44, 8))], (6, 9): [('build', EntityType.CONVEYOR, (43, 10), Direction.NORTH)], (7, 4): [('build', EntityType.CONVEYOR, (38, 8), Direction.EAST)], (7, 6): [('build', EntityType.CONVEYOR, (45, 8), Direction.WEST)], (7, 9): [('move', (42, 9))], (8, 4): [('move', (38, 8))], (8, 6): [('move', (45, 8))], (8, 9): [('build', EntityType.CONVEYOR, (41, 10), Direction.NORTH)], (9, 4): [('build', EntityType.CONVEYOR, (37, 7), Direction.EAST)], (9, 6): [('build', EntityType.CONVEYOR, (46, 8), Direction.WEST)], (9, 9): [('move', (43, 10))], (10, 4): [('build', EntityType.CONVEYOR, (37, 8), Direction.EAST)], (10, 6): [('move', (46, 8))], (10, 9): [('build', EntityType.CONVEYOR, (43, 11), Direction.NORTH)], (11, 4): [('build', EntityType.CONVEYOR, (39, 9), Direction.EAST)], (11, 6): [('build', EntityType.CONVEYOR, (47, 8), Direction.WEST)], (11, 9): [('move', (42, 9))], (12, 4): [('move', (37, 8))], (12, 6): [('build', EntityType.CONVEYOR, (47, 9), Direction.NORTH)], (12, 9): [('move', (41, 10))], (13, 4): [('build', EntityType.CONVEYOR, (36, 7), Direction.EAST)], (13, 6): [('move', (47, 9))], (13, 9): [('build', EntityType.CONVEYOR, (41, 11), Direction.NORTH)], (14, 4): [('build', EntityType.CONVEYOR, (36, 8), Direction.EAST)], (14, 6): [('build', EntityType.CONVEYOR, (47, 10), Direction.NORTH)], (14, 9): [('move', (40, 9))], (15, 4): [('move', (36, 8))], (15, 6): [('move', (47, 10))], (15, 9): [('build', EntityType.CONVEYOR, (39, 10), Direction.NORTH)], (16, 4): [('build', EntityType.CONVEYOR, (35, 7), Direction.EAST)], (16, 6): [('build', EntityType.CONVEYOR, (47, 11), Direction.NORTH)], (16, 9): [('move', (39, 10))], (17, 4): [('build', EntityType.CONVEYOR, (35, 8), Direction.EAST)], (17, 6): [('move', (47, 11))], (17, 9): [('build', EntityType.CONVEYOR, (39, 11), Direction.NORTH)], (18, 4): [('build', EntityType.CONVEYOR, (35, 9), Direction.NORTH)], (18, 6): [('build', EntityType.HARVESTER, (48, 12))], (18, 9): [('move', (40, 9))], (19, 4): [('move', (35, 8))], (19, 6): [('build', EntityType.CONVEYOR, (47, 12), Direction.NORTH)], (19, 9): [('move', (41, 10))], (20, 4): [('build', EntityType.CONVEYOR, (34, 7), Direction.EAST)], (20, 6): [('build', EntityType.HARVESTER, (46, 12))], (20, 9): [('move', (41, 11))], (21, 4): [('move', (34, 7))], (21, 6): [('move', (47, 12))], (21, 9): [('build', EntityType.HARVESTER, (42, 12))], (22, 4): [('build', EntityType.CONVEYOR, (33, 7), Direction.EAST)], (22, 6): [('build', EntityType.HARVESTER, (47, 13))], (22, 9): [('build', EntityType.CONVEYOR, (41, 12), Direction.NORTH)], (23, 4): [('move', (33, 7))], (23, 6): [('build', EntityType.ROAD, (46, 13)), ('move', (46, 13))], (23, 9): [('build', EntityType.HARVESTER, (40, 12))], (24, 4): [('build', EntityType.CONVEYOR, (32, 7), Direction.EAST)], (24, 6): [('build', EntityType.BRIDGE, (46, 14), (43, 14))], (24, 9): [('move', (41, 12))], (25, 4): [('build', EntityType.CONVEYOR, (32, 8), Direction.NORTH)], (25, 6): [('move', (46, 14))], (25, 9): [('build', EntityType.HARVESTER, (41, 13))], (26, 4): [('move', (32, 8))], (26, 6): [('build', EntityType.CONVEYOR, (46, 15), Direction.NORTH)], (26, 9): [('build', EntityType.ROAD, (42, 13)), ('move', (42, 13))], (27, 4): [('build', EntityType.CONVEYOR, (32, 9), Direction.NORTH)], (27, 6): [('build', EntityType.ROAD, (47, 15)), ('move', (47, 15))], (28, 4): [('move', (32, 9))], (29, 4): [('build', EntityType.CONVEYOR, (32, 10), Direction.NORTH)], (30, 4): [('move', (32, 10))], (30, 6): [('build', EntityType.HARVESTER, (48, 16))], (31, 4): [('build', EntityType.CONVEYOR, (32, 11), Direction.NORTH)], (32, 4): [('build', EntityType.ROAD, (33, 11)), ('move', (33, 11))], (32, 6): [('build', EntityType.CONVEYOR, (47, 16), Direction.WEST)], (34, 4): [('build', EntityType.HARVESTER, (34, 12))], (35, 4): [('build', EntityType.ROAD, (34, 10)), ('move', (34, 10))], (36, 4): [('build', EntityType.CONVEYOR, (35, 10), Direction.NORTH)], (37, 4): [('build', EntityType.CONVEYOR, (35, 11), Direction.NORTH)], (38, 4): [('move', (35, 11))], (38, 9): [('build', EntityType.BRIDGE, (43, 14), (43, 11))], (39, 9): [('move', (41, 12))], (40, 9): [('build', EntityType.ROAD, (40, 13)), ('move', (40, 13))], (41, 4): [('build', EntityType.HARVESTER, (36, 12))], (42, 4): [('build', EntityType.CONVEYOR, (35, 12), Direction.NORTH)], (43, 4): [('move', (35, 12))], (45, 4): [('build', EntityType.HARVESTER, (35, 13))], (46, 4): [('build', EntityType.ROAD, (34, 13)), ('move', (34, 13))], (47, 4): [('build', EntityType.ROAD, (33, 14)), ('move', (33, 14))], (48, 4): [('build', EntityType.BRIDGE, (32, 14), (32, 11))], (49, 4): [('build', EntityType.CONVEYOR, (32, 15), Direction.NORTH)], (50, 4): [('build', EntityType.ROAD, (34, 15)), ('move', (34, 15))], (52, 4): [('build', EntityType.HARVESTER, (34, 16))], (53, 4): [('build', EntityType.CONVEYOR, (33, 16), Direction.WEST)], (54, 4): [('move', (33, 16))], (54, 9): [('build', EntityType.BRIDGE, (39, 14), (39, 11))], (55, 9): [('move', (39, 14))], (56, 9): [('build', EntityType.CONVEYOR, (39, 15), Direction.NORTH)], (57, 9): [('build', EntityType.ROAD, (40, 15)), ('move', (40, 15))], (58, 9): [('build', EntityType.HARVESTER, (41, 16))], (59, 9): [('build', EntityType.CONVEYOR, (40, 16), Direction.WEST)], (63, 4): [('build', EntityType.FOUNDRY, (32, 16))], (65, 4): [('build', EntityType.HARVESTER, (33, 17))], (66, 4): [('move', (32, 15))], (67, 4): [('build', EntityType.CONVEYOR, (31, 16), Direction.EAST)], (68, 4): [('move', (31, 16))], (69, 4): [('build', EntityType.HARVESTER, (30, 16))], (72, 4): [('build', EntityType.HARVESTER, (31, 17))], (73, 4): [('build', EntityType.ROAD, (32, 17)), ('move', (32, 17))], (74, 4): [('build', EntityType.ROAD, (33, 18)), ('move', (33, 18))], (75, 4): [('build', EntityType.CONVEYOR, (34, 19), Direction.WEST)], (76, 4): [('build', EntityType.CONVEYOR, (33, 19), Direction.WEST)], (77, 4): [('build', EntityType.BRIDGE, (32, 19), (32, 16))], (78, 4): [('move', (32, 19))], (79, 4): [('build', EntityType.CONVEYOR, (31, 19), Direction.EAST)], (80, 4): [('build', EntityType.HARVESTER, (32, 20))], (81, 4): [('build', EntityType.CONVEYOR, (31, 20), Direction.NORTH)], (82, 4): [('move', (33, 19))], (83, 4): [('build', EntityType.HARVESTER, (34, 20))], (84, 4): [('move', (32, 19))], (85, 4): [('move', (31, 20))], (86, 4): [('build', EntityType.HARVESTER, (30, 20))], (89, 4): [('build', EntityType.HARVESTER, (31, 21))], (90, 4): [('move', (32, 19))], (91, 4): [('move', (33, 18))], (92, 4): [('move', (34, 19))], (93, 4): [('build', EntityType.ROAD, (35, 19)), ('move', (35, 19))], (94, 4): [('build', EntityType.HARVESTER, (36, 20))], (95, 4): [('build', EntityType.ROAD, (36, 18)), ('move', (36, 18))], (96, 4): [('build', EntityType.CONVEYOR, (37, 19), Direction.EAST)], (97, 4): [('build', EntityType.ROAD, (37, 17)), ('move', (37, 17))], (98, 4): [('build', EntityType.CONVEYOR, (38, 16), Direction.EAST)], (99, 4): [('build', EntityType.HARVESTER, (37, 16))], (101, 4): [('build', EntityType.HARVESTER, (38, 17))], (102, 4): [('build', EntityType.ROAD, (38, 18)), ('move', (38, 18))], (103, 4): [('build', EntityType.ARMOURED_CONVEYOR, (37, 19), Direction.EAST)], (105, 4): [('build', EntityType.BRIDGE, (39, 19), (39, 16))], (106, 4): [('build', EntityType.CONVEYOR, (38, 19), Direction.EAST)], (107, 4): [('build', EntityType.ARMOURED_CONVEYOR, (38, 19), Direction.EAST)], (108, 4): [('build', EntityType.ROAD, (39, 17)), ('move', (39, 17))], (108, 6): [('build', EntityType.ARMOURED_CONVEYOR, (46, 15), Direction.NORTH)], (110, 4): [('build', EntityType.ARMOURED_CONVEYOR, (38, 16), Direction.EAST)], (112, 4): [('build', EntityType.ARMOURED_CONVEYOR, (40, 16), Direction.WEST)], (115, 6): [('build', EntityType.ARMOURED_CONVEYOR, (47, 16), Direction.WEST)], (117, 4): [('build', EntityType.FOUNDRY, (39, 16))], (117, 9): [('build', EntityType.ROAD, (41, 14)), ('move', (41, 14))], (118, 9): [('build', EntityType.ROAD, (42, 15)), ('move', (42, 15))], (119, 9): [('build', EntityType.ROAD, (43, 16)), ('move', (43, 16))], (121, 4): [('build', EntityType.HARVESTER, (40, 17))], (122, 4): [('build', EntityType.ROAD, (40, 18)), ('move', (40, 18))], (123, 4): [('build', EntityType.CONVEYOR, (40, 19), Direction.WEST)], (123, 9): [('build', EntityType.HARVESTER, (44, 16))], (124, 4): [('build', EntityType.ARMOURED_CONVEYOR, (40, 19), Direction.WEST)], (124, 9): [('build', EntityType.ROAD, (44, 15)), ('move', (44, 15))], (125, 4): [('build', EntityType.ROAD, (41, 19)), ('move', (41, 19))], (125, 9): [('build', EntityType.CONVEYOR, (45, 16), Direction.EAST)], (126, 4): [('build', EntityType.ROAD, (42, 20)), ('move', (42, 20))], (126, 9): [('build', EntityType.ARMOURED_CONVEYOR, (45, 16), Direction.EAST)], (127, 4): [('build', EntityType.ROAD, (43, 21)), ('move', (43, 21))], (127, 9): [('move', (45, 16))], (128, 4): [('build', EntityType.ROAD, (44, 22)), ('move', (44, 22))], (129, 4): [('build', EntityType.BARRIER, (44, 23))], (130, 4): [('build', EntityType.BARRIER, (43, 23))], (131, 4): [('build', EntityType.ROAD, (45, 22)), ('move', (45, 22))], (132, 4): [('build', EntityType.BARRIER, (46, 23))], (132, 6): [('build', EntityType.FOUNDRY, (46, 16))], (133, 4): [('build', EntityType.ROAD, (46, 22)), ('move', (46, 22))], (133, 6): [('move', (47, 16))], (133, 9): [('build', EntityType.HARVESTER, (45, 17))], (134, 4): [('build', EntityType.BARRIER, (47, 23))], (134, 6): [('build', EntityType.ROAD, (46, 17))], (134, 9): [('move', (46, 17))], (135, 4): [('build', EntityType.ROAD, (47, 22)), ('move', (47, 22))], (135, 6): [('build', EntityType.HARVESTER, (47, 17))], (135, 9): [('build', EntityType.ROAD, (47, 18)), ('move', (47, 18))], (136, 4): [('build', EntityType.BARRIER, (48, 23))], (136, 6): [('move', (46, 17))], (137, 4): [('build', EntityType.ROAD, (48, 22)), ('move', (48, 22))], (137, 6): [('build', EntityType.ROAD, (46, 18)), ('move', (46, 18))], (137, 9): [('build', EntityType.BRIDGE, (46, 19), (46, 16))], (138, 4): [('build', EntityType.ROAD, (49, 23)), ('move', (49, 23))], (138, 6): [('build', EntityType.CONVEYOR, (45, 19), Direction.EAST)], (138, 9): [('move', (46, 19))], (139, 4): [('build', EntityType.BARRIER, (48, 24))], (139, 6): [('build', EntityType.ARMOURED_CONVEYOR, (45, 19), Direction.EAST)], (140, 4): [('build', EntityType.ROAD, (49, 24)), ('move', (49, 24))], (140, 6): [('move', (45, 19))], (141, 4): [('build', EntityType.BARRIER, (48, 25))], (141, 6): [('build', EntityType.CONVEYOR, (44, 19), Direction.EAST)], (142, 4): [('build', EntityType.ROAD, (49, 25)), ('move', (49, 25))], (142, 6): [('build', EntityType.ARMOURED_CONVEYOR, (44, 19), Direction.EAST)], (143, 4): [('build', EntityType.BARRIER, (48, 26))], (144, 4): [('build', EntityType.ROAD, (49, 26)), ('move', (49, 26))], (145, 4): [('build', EntityType.ROAD, (48, 27)), ('move', (48, 27))], (145, 6): [('build', EntityType.HARVESTER, (46, 20))], (146, 4): [('build', EntityType.BARRIER, (47, 26))], (146, 6): [('build', EntityType.CONVEYOR, (45, 20), Direction.NORTH)], (146, 9): [('build', EntityType.ARMOURED_CONVEYOR, (45, 20), Direction.NORTH)], (147, 4): [('build', EntityType.ROAD, (47, 27)), ('move', (47, 27))], (147, 9): [('move', (45, 20))], (148, 4): [('build', EntityType.BARRIER, (46, 26))], (148, 9): [('build', EntityType.ROAD, (44, 21)), ('move', (44, 21))], (149, 4): [('build', EntityType.ROAD, (46, 27)), ('move', (46, 27))], (149, 9): [('build', EntityType.ROAD, (43, 22)), ('move', (43, 22))], (150, 4): [('build', EntityType.ROAD, (45, 26)), ('move', (45, 26))], (150, 9): [('build', EntityType.BARRIER, (42, 23))], (151, 4): [('build', EntityType.BARRIER, (46, 25))], (151, 6): [('build', EntityType.HARVESTER, (44, 20))], (151, 9): [('move', (44, 22))], (152, 4): [('build', EntityType.BARRIER, (44, 25))], (152, 6): [('move', (44, 19))], (152, 9): [('build', EntityType.ROAD, (45, 23)), ('move', (45, 23))], (153, 4): [('build', EntityType.BARRIER, (44, 26))], (153, 6): [('build', EntityType.CONVEYOR, (43, 19), Direction.EAST)], (153, 9): [('build', EntityType.BARRIER, (44, 24))], (154, 4): [('build', EntityType.ROAD, (44, 27)), ('move', (44, 27))], (154, 6): [('build', EntityType.ARMOURED_CONVEYOR, (43, 19), Direction.EAST)], (154, 9): [('move', (44, 22))], (155, 4): [('build', EntityType.BARRIER, (43, 26))], (155, 6): [('move', (43, 19))], (155, 9): [('move', (43, 22))], (156, 4): [('build', EntityType.ROAD, (43, 27)), ('move', (43, 27))], (156, 6): [('build', EntityType.CONVEYOR, (42, 19), Direction.EAST)], (156, 9): [('build', EntityType.ROAD, (42, 22)), ('move', (42, 22))], (157, 4): [('build', EntityType.BARRIER, (42, 26))], (157, 6): [('build', EntityType.ARMOURED_CONVEYOR, (42, 19), Direction.EAST)], (157, 9): [('build', EntityType.ROAD, (41, 23)), ('move', (41, 23))], (158, 4): [('build', EntityType.ROAD, (42, 27)), ('move', (42, 27))], (158, 9): [('build', EntityType.ROAD, (42, 24)), ('move', (42, 24))], (159, 4): [('move', (43, 27))], (159, 6): [('build', EntityType.HARVESTER, (42, 20))], (160, 4): [('move', (44, 27))], (160, 6): [('move', (44, 19))], (160, 9): [('build', EntityType.BARRIER, (42, 25))], (161, 4): [('move', (45, 26))], (161, 6): [('move', (45, 20))], (161, 9): [('move', (41, 23))], (162, 4): [('build', EntityType.ROAD, (45, 25)), ('move', (45, 25))], (162, 6): [('build', EntityType.HARVESTER, (45, 21))], (162, 9): [('move', (42, 22))], (163, 4): [('build', EntityType.ROAD, (45, 24)), ('move', (45, 24))], (163, 6): [('move', (46, 19))], (163, 9): [('build', EntityType.ROAD, (41, 21)), ('move', (41, 21))], (164, 4): [('move', (45, 23))], (164, 6): [('move', (45, 20))], (164, 9): [('build', EntityType.HARVESTER, (40, 20))], (165, 4): [('move', (45, 22))], (165, 6): [('move', (46, 19))], (165, 9): [('build', EntityType.ROAD, (41, 20)), ('move', (41, 20))], (166, 4): [('move', (45, 23))], (166, 6): [('move', (45, 20))], (166, 9): [('move', (40, 19))], (167, 4): [('move', (45, 22))], (167, 6): [('move', (46, 19))], (167, 9): [('build', EntityType.ROAD, (39, 20)), ('move', (39, 20))], (168, 4): [('move', (45, 23))], (168, 6): [('move', (45, 20))], (168, 9): [('build', EntityType.HARVESTER, (38, 20))], (169, 4): [('move', (45, 22))], (169, 6): [('move', (46, 19))], (169, 9): [('build', EntityType.ROAD, (38, 21)), ('move', (38, 21))], (170, 4): [('move', (45, 23))], (170, 6): [('move', (45, 20))], (170, 9): [('build', EntityType.CONVEYOR, (37, 20), Direction.NORTH)], (171, 4): [('move', (45, 22))], (171, 6): [('move', (46, 19))], (171, 9): [('build', EntityType.ARMOURED_CONVEYOR, (37, 20), Direction.NORTH)], (172, 4): [('move', (45, 23))], (172, 6): [('move', (45, 20))], (172, 9): [('build', EntityType.HARVESTER, (37, 21))], (173, 4): [('move', (45, 22))], (173, 6): [('move', (46, 19))], (173, 9): [('build', EntityType.ROAD, (39, 22)), ('move', (39, 22))], (174, 4): [('move', (45, 23))], (174, 6): [('move', (45, 20))], (174, 9): [('build', EntityType.ROAD, (40, 21)), ('move', (40, 21))], (175, 4): [('move', (45, 22))], (175, 6): [('move', (46, 19))], (175, 9): [('build', EntityType.ROAD, (41, 22)), ('move', (41, 22))], (176, 4): [('move', (45, 23))], (176, 6): [('move', (45, 20))], (176, 9): [('move', (40, 21))], (177, 4): [('move', (45, 22))], (177, 6): [('move', (46, 19))], (177, 9): [('move', (41, 22))], (178, 4): [('move', (45, 23))], (178, 6): [('move', (45, 20))], (178, 9): [('move', (40, 21))], (179, 4): [('move', (45, 22))], (179, 6): [('move', (46, 19))], (179, 9): [('move', (41, 22))], (180, 4): [('move', (45, 23))], (180, 6): [('move', (45, 20))], (180, 9): [('move', (40, 21))], (181, 4): [('move', (45, 22))], (181, 6): [('move', (46, 19))], (181, 9): [('move', (41, 22))], (182, 4): [('move', (45, 23))], (182, 6): [('move', (45, 20))], (182, 9): [('move', (40, 21))], (183, 4): [('move', (45, 22))], (183, 6): [('move', (46, 19))], (183, 9): [('move', (41, 22))], (184, 4): [('move', (45, 23))], (184, 6): [('move', (45, 20))], (184, 9): [('move', (40, 21))], (185, 4): [('move', (45, 22))], (185, 6): [('move', (46, 19))], (185, 9): [('move', (41, 22))], (186, 4): [('move', (45, 23))], (186, 6): [('move', (45, 20))], (186, 9): [('move', (40, 21))], (187, 4): [('move', (45, 22))], (187, 6): [('move', (46, 19))], (187, 9): [('move', (41, 22))], (188, 4): [('move', (45, 23))], (188, 6): [('move', (45, 20))], (188, 9): [('move', (40, 21))], (189, 4): [('move', (45, 22))], (189, 6): [('move', (46, 19))], (189, 9): [('move', (41, 22))], (190, 4): [('move', (45, 23))], (190, 6): [('move', (45, 20))], (190, 9): [('move', (40, 21))], (191, 4): [('move', (45, 22))], (191, 6): [('move', (46, 19))], (191, 9): [('move', (41, 22))], (192, 4): [('move', (45, 23))], (192, 6): [('move', (45, 20))], (192, 9): [('move', (40, 21))], (193, 4): [('move', (45, 22))], (193, 6): [('move', (46, 19))], (193, 9): [('move', (41, 22))], (194, 4): [('move', (45, 23))], (194, 6): [('move', (45, 20))], (194, 9): [('move', (40, 21))], (195, 4): [('move', (45, 22))], (195, 6): [('move', (46, 19))], (195, 9): [('move', (41, 22))], (196, 4): [('move', (45, 23))], (196, 6): [('move', (45, 20))], (196, 9): [('move', (40, 21))], (197, 4): [('move', (45, 22))], (197, 6): [('move', (46, 19))], (197, 9): [('move', (41, 22))], (198, 4): [('move', (45, 23))], (198, 6): [('move', (45, 20))], (198, 9): [('move', (40, 21))], (199, 4): [('move', (45, 22))], (199, 6): [('move', (46, 19))], (199, 9): [('move', (41, 22))], (200, 4): [('move', (45, 23))], (200, 6): [('move', (45, 20))], (200, 9): [('move', (40, 21))], (201, 4): [('move', (45, 22))], (201, 6): [('move', (46, 19))], (201, 9): [('move', (41, 22))], (202, 4): [('move', (45, 23))], (202, 6): [('move', (45, 20))], (202, 9): [('move', (40, 21))], (203, 4): [('move', (45, 22))], (203, 6): [('move', (46, 19))], (203, 9): [('move', (41, 22))], (204, 4): [('move', (45, 23))], (204, 6): [('move', (45, 20))], (204, 9): [('move', (40, 21))], (205, 4): [('move', (45, 22))], (205, 6): [('move', (46, 19))], (205, 9): [('move', (41, 22))], (206, 4): [('move', (45, 23))], (206, 6): [('move', (45, 20))], (206, 9): [('move', (40, 21))], (207, 4): [('move', (45, 22))], (207, 6): [('move', (46, 19))], (207, 9): [('move', (41, 22))], (208, 4): [('move', (45, 23))], (208, 6): [('move', (45, 20))], (208, 9): [('move', (40, 21))], (209, 4): [('move', (45, 22))], (209, 6): [('move', (46, 19))], (209, 9): [('move', (41, 22))], (210, 4): [('move', (45, 23))], (210, 6): [('move', (45, 20))], (210, 9): [('move', (40, 21))], (211, 4): [('move', (45, 22))], (211, 6): [('move', (46, 19))], (211, 9): [('move', (41, 22))], (212, 4): [('move', (45, 23))], (212, 6): [('move', (45, 20))], (212, 9): [('move', (40, 21))], (213, 4): [('move', (45, 22))], (213, 6): [('move', (46, 19))], (213, 9): [('move', (41, 22))], (214, 4): [('move', (45, 23))], (214, 6): [('move', (45, 20))], (214, 9): [('move', (40, 21))], (215, 4): [('move', (45, 22))], (215, 6): [('move', (46, 19))], (215, 9): [('move', (41, 22))], (216, 4): [('move', (45, 23))], (216, 6): [('move', (45, 20))], (216, 9): [('move', (40, 21))], (217, 4): [('move', (45, 22))], (217, 6): [('move', (46, 19))], (217, 9): [('move', (41, 22))], (218, 4): [('move', (45, 23))], (218, 6): [('move', (45, 20))], (218, 9): [('move', (40, 21))], (219, 4): [('move', (45, 22))], (219, 6): [('move', (46, 19))], (219, 9): [('move', (41, 22))], (220, 4): [('move', (45, 23))], (220, 6): [('move', (45, 20))], (220, 9): [('move', (40, 21))], (221, 4): [('move', (45, 22))], (221, 6): [('move', (46, 19))], (221, 9): [('move', (41, 22))], (222, 4): [('move', (45, 23))], (222, 6): [('move', (45, 20))], (222, 9): [('move', (40, 21))], (223, 4): [('move', (45, 22))], (223, 6): [('move', (46, 19))], (223, 9): [('move', (41, 22))], (224, 4): [('move', (45, 23))], (224, 6): [('move', (45, 20))], (224, 9): [('move', (40, 21))], (225, 4): [('move', (45, 22))], (225, 6): [('move', (46, 19))], (225, 9): [('move', (41, 22))], (226, 4): [('move', (45, 23))], (226, 6): [('move', (45, 20))], (226, 9): [('move', (40, 21))], (227, 4): [('move', (45, 22))], (227, 6): [('move', (46, 19))], (227, 9): [('move', (41, 22))], (228, 4): [('move', (45, 23))], (228, 6): [('move', (45, 20))], (228, 9): [('move', (40, 21))], (229, 4): [('move', (45, 22))], (229, 6): [('move', (46, 19))], (229, 9): [('move', (41, 22))], (230, 4): [('move', (45, 23))], (230, 6): [('move', (45, 20))], (230, 9): [('move', (40, 21))], (231, 4): [('move', (45, 22))], (231, 6): [('move', (46, 19))], (231, 9): [('move', (41, 22))], (232, 4): [('move', (45, 23))], (232, 6): [('move', (45, 20))], (232, 9): [('move', (40, 21))], (233, 4): [('move', (45, 22))], (233, 6): [('move', (46, 19))], (233, 9): [('move', (41, 22))], (234, 4): [('move', (45, 23))], (234, 6): [('move', (45, 20))], (234, 9): [('move', (40, 21))], (235, 4): [('move', (45, 22))], (235, 6): [('move', (46, 19))], (235, 9): [('move', (41, 22))], (236, 4): [('move', (45, 23))], (236, 6): [('move', (45, 20))], (236, 9): [('move', (40, 21))], (237, 4): [('move', (45, 22))], (237, 6): [('move', (46, 19))], (237, 9): [('move', (41, 22))], (238, 4): [('move', (45, 23))], (238, 6): [('move', (45, 20))], (238, 9): [('move', (40, 21))], (239, 4): [('move', (45, 22))], (239, 6): [('move', (46, 19))], (239, 9): [('move', (41, 22))], (240, 4): [('move', (45, 23))], (240, 6): [('move', (45, 20))], (240, 9): [('move', (40, 21))], (241, 4): [('move', (45, 22))], (241, 6): [('move', (46, 19))], (241, 9): [('move', (41, 22))], (242, 4): [('move', (45, 23))], (242, 6): [('move', (45, 20))], (242, 9): [('move', (40, 21))], (243, 4): [('move', (45, 22))], (243, 6): [('move', (46, 19))], (243, 9): [('move', (41, 22))], (244, 4): [('move', (45, 23))], (244, 6): [('move', (45, 20))], (244, 9): [('move', (40, 21))], (245, 4): [('move', (45, 22))], (245, 6): [('move', (46, 19))], (245, 9): [('move', (41, 22))], (246, 4): [('move', (45, 23))], (246, 6): [('move', (45, 20))], (246, 9): [('move', (40, 21))], (247, 4): [('move', (45, 22))], (247, 6): [('move', (46, 19))], (247, 9): [('move', (41, 22))], (248, 4): [('move', (45, 23))], (248, 6): [('move', (45, 20))], (248, 9): [('move', (40, 21))], (249, 4): [('move', (45, 22))], (249, 6): [('move', (46, 19))], (249, 9): [('move', (41, 22))], (250, 4): [('move', (45, 23))], (250, 6): [('move', (45, 20))], (250, 9): [('move', (40, 21))], (251, 4): [('move', (45, 22))], (251, 6): [('move', (46, 19))], (251, 9): [('move', (41, 22))], (252, 4): [('move', (45, 23))], (252, 6): [('move', (45, 20))], (252, 9): [('move', (40, 21))], (253, 4): [('move', (45, 22))], (253, 6): [('move', (46, 19))], (253, 9): [('move', (41, 22))], (254, 4): [('move', (45, 23))], (254, 6): [('move', (45, 20))], (254, 9): [('move', (40, 21))], (255, 4): [('move', (45, 22))], (255, 6): [('move', (46, 19))], (255, 9): [('move', (41, 22))], (256, 4): [('move', (45, 23))], (256, 6): [('move', (45, 20))], (256, 9): [('move', (40, 21))], (257, 4): [('move', (45, 22))], (257, 6): [('move', (46, 19))], (257, 9): [('move', (41, 22))], (258, 4): [('move', (45, 23))], (258, 6): [('move', (45, 20))], (258, 9): [('move', (40, 21))], (259, 4): [('move', (45, 22))], (259, 6): [('move', (46, 19))], (259, 9): [('move', (41, 22))], (260, 4): [('move', (45, 23))], (260, 6): [('move', (45, 20))], (260, 9): [('move', (40, 21))], (261, 4): [('move', (45, 22))], (261, 6): [('move', (46, 19))], (261, 9): [('move', (41, 22))], (262, 4): [('move', (45, 23))], (262, 6): [('move', (45, 20))], (262, 9): [('move', (40, 21))], (263, 4): [('move', (45, 22))], (263, 6): [('move', (46, 19))], (263, 9): [('move', (41, 22))], (264, 4): [('move', (45, 23))], (264, 6): [('move', (45, 20))], (264, 9): [('move', (40, 21))], (265, 4): [('move', (45, 22))], (265, 6): [('move', (46, 19))], (265, 9): [('move', (41, 22))], (266, 4): [('move', (45, 23))], (266, 6): [('move', (45, 20))], (266, 9): [('move', (40, 21))], (267, 4): [('move', (45, 22))], (267, 6): [('move', (46, 19))], (267, 9): [('move', (41, 22))], (268, 4): [('move', (45, 23))], (268, 6): [('move', (45, 20))], (268, 9): [('move', (40, 21))], (269, 4): [('move', (45, 22))], (269, 6): [('move', (46, 19))], (269, 9): [('move', (41, 22))], (270, 4): [('move', (45, 23))], (270, 6): [('move', (45, 20))], (270, 9): [('move', (40, 21))], (271, 4): [('move', (45, 22))], (271, 6): [('move', (46, 19))], (271, 9): [('move', (41, 22))], (272, 4): [('move', (45, 23))], (272, 6): [('move', (45, 20))], (272, 9): [('move', (40, 21))], (273, 4): [('move', (45, 22))], (273, 6): [('move', (46, 19))], (273, 9): [('move', (41, 22))], (274, 4): [('move', (45, 23))], (274, 6): [('move', (45, 20))], (274, 9): [('move', (40, 21))], (275, 4): [('move', (45, 22))], (275, 6): [('move', (46, 19))], (275, 9): [('move', (41, 22))], (276, 4): [('move', (45, 23))], (276, 6): [('move', (45, 20))], (276, 9): [('move', (40, 21))], (277, 4): [('move', (45, 22))], (277, 6): [('move', (46, 19))], (277, 9): [('move', (41, 22))], (278, 4): [('move', (45, 23))], (278, 6): [('move', (45, 20))], (278, 9): [('move', (40, 21))], (279, 4): [('move', (45, 22))], (279, 6): [('move', (46, 19))], (279, 9): [('move', (41, 22))], (280, 4): [('move', (45, 23))], (280, 6): [('move', (45, 20))], (280, 9): [('move', (40, 21))], (281, 4): [('move', (45, 22))], (281, 6): [('move', (46, 19))], (281, 9): [('move', (41, 22))], (282, 4): [('move', (45, 23))], (282, 6): [('move', (45, 20))], (282, 9): [('move', (40, 21))], (283, 4): [('move', (45, 22))], (283, 6): [('move', (46, 19))], (283, 9): [('move', (41, 22))], (284, 4): [('move', (45, 23))], (284, 6): [('move', (45, 20))], (284, 9): [('move', (40, 21))], (285, 4): [('move', (45, 22))], (285, 6): [('move', (46, 19))], (285, 9): [('move', (41, 22))], (286, 4): [('move', (45, 23))], (286, 6): [('move', (45, 20))], (286, 9): [('move', (40, 21))], (287, 4): [('move', (45, 22))], (287, 6): [('move', (46, 19))], (287, 9): [('move', (41, 22))], (288, 4): [('move', (45, 23))], (288, 6): [('move', (45, 20))], (288, 9): [('move', (40, 21))], (289, 4): [('move', (45, 22))], (289, 6): [('move', (46, 19))], (289, 9): [('move', (41, 22))], (290, 4): [('move', (45, 23))], (290, 6): [('move', (45, 20))], (290, 9): [('move', (40, 21))], (291, 4): [('move', (45, 22))], (291, 6): [('move', (46, 19))], (291, 9): [('move', (41, 22))], (292, 4): [('move', (45, 23))], (292, 6): [('move', (45, 20))], (292, 9): [('move', (40, 21))], (293, 4): [('move', (45, 22))], (293, 6): [('move', (46, 19))], (293, 9): [('move', (41, 22))], (294, 4): [('move', (45, 23))], (294, 6): [('move', (45, 20))], (294, 9): [('move', (40, 21))], (295, 4): [('move', (45, 22))], (295, 6): [('move', (46, 19))], (295, 9): [('move', (41, 22))], (296, 4): [('move', (45, 23))], (296, 6): [('move', (45, 20))], (296, 9): [('move', (40, 21))], (297, 4): [('move', (45, 22))], (297, 6): [('move', (46, 19))], (297, 9): [('move', (41, 22))], (298, 4): [('move', (45, 23))], (298, 6): [('move', (45, 20))], (298, 9): [('move', (40, 21))], (299, 4): [('move', (45, 22))], (299, 6): [('move', (46, 19))], (299, 9): [('move', (41, 22))], (300, 4): [('move', (45, 23))], (300, 6): [('move', (45, 20))], (300, 9): [('move', (40, 21))], (301, 4): [('move', (45, 22))], (301, 6): [('move', (46, 19))], (301, 9): [('move', (41, 22))], (302, 4): [('move', (45, 23))], (302, 6): [('move', (45, 20))], (302, 9): [('move', (40, 21))], (303, 4): [('move', (45, 22))], (303, 6): [('move', (46, 19))], (303, 9): [('move', (41, 22))], (304, 4): [('move', (45, 23))], (304, 6): [('move', (45, 20))], (304, 9): [('move', (40, 21))], (305, 4): [('move', (45, 22))], (305, 6): [('move', (46, 19))], (305, 9): [('move', (41, 22))], (306, 4): [('move', (45, 23))], (306, 6): [('move', (45, 20))], (306, 9): [('move', (40, 21))], (307, 4): [('move', (45, 22))], (307, 6): [('move', (46, 19))], (307, 9): [('move', (41, 22))], (308, 4): [('move', (45, 23))], (308, 6): [('move', (45, 20))], (308, 9): [('move', (40, 21))], (309, 4): [('move', (45, 22))], (309, 6): [('move', (46, 19))], (309, 9): [('move', (41, 22))], (310, 4): [('move', (45, 23))], (310, 6): [('move', (45, 20))], (310, 9): [('move', (40, 21))], (311, 4): [('move', (45, 22))], (311, 6): [('move', (46, 19))], (311, 9): [('move', (41, 22))], (312, 4): [('move', (45, 23))], (312, 6): [('move', (45, 20))], (312, 9): [('move', (40, 21))], (313, 4): [('move', (45, 22))], (313, 6): [('move', (46, 19))], (313, 9): [('move', (41, 22))], (314, 4): [('move', (45, 23))], (314, 6): [('move', (45, 20))], (314, 9): [('move', (40, 21))], (315, 4): [('move', (45, 22))], (315, 6): [('move', (46, 19))], (315, 9): [('move', (41, 22))], (316, 4): [('move', (45, 23))], (316, 6): [('move', (45, 20))], (316, 9): [('move', (40, 21))], (317, 4): [('move', (45, 22))], (317, 6): [('move', (46, 19))], (317, 9): [('move', (41, 22))], (318, 4): [('move', (45, 23))], (318, 6): [('move', (45, 20))], (318, 9): [('move', (40, 21))], (319, 4): [('move', (45, 22))], (319, 6): [('move', (46, 19))], (319, 9): [('move', (41, 22))], (320, 4): [('move', (45, 23))], (320, 6): [('move', (45, 20))], (320, 9): [('move', (40, 21))], (321, 4): [('move', (45, 22))], (321, 6): [('move', (46, 19))], (321, 9): [('move', (41, 22))], (322, 4): [('move', (45, 23))], (322, 6): [('move', (45, 20))], (322, 9): [('move', (40, 21))], (323, 4): [('move', (45, 22))], (323, 6): [('move', (46, 19))], (323, 9): [('move', (41, 22))], (324, 4): [('move', (45, 23))], (324, 6): [('move', (45, 20))], (324, 9): [('move', (40, 21))], (325, 4): [('move', (45, 22))], (325, 6): [('move', (46, 19))], (325, 9): [('move', (41, 22))], (326, 4): [('move', (45, 23))], (326, 6): [('move', (45, 20))], (326, 9): [('move', (40, 21))], (327, 4): [('move', (45, 22))], (327, 6): [('move', (46, 19))], (327, 9): [('move', (41, 22))], (328, 4): [('move', (45, 23))], (328, 6): [('move', (45, 20))], (328, 9): [('move', (40, 21))], (329, 4): [('move', (45, 22))], (329, 6): [('move', (46, 19))], (329, 9): [('move', (41, 22))], (330, 4): [('move', (45, 23))], (330, 6): [('move', (45, 20))], (330, 9): [('move', (40, 21))], (331, 4): [('move', (45, 22))], (331, 6): [('move', (46, 19))], (331, 9): [('move', (41, 22))], (332, 4): [('move', (45, 23))], (332, 6): [('move', (45, 20))], (332, 9): [('move', (40, 21))], (333, 4): [('move', (45, 22))], (333, 6): [('move', (46, 19))], (333, 9): [('move', (41, 22))], (334, 4): [('move', (45, 23))], (334, 6): [('move', (45, 20))], (334, 9): [('move', (40, 21))], (335, 4): [('move', (45, 22))], (335, 6): [('move', (46, 19))], (335, 9): [('move', (41, 22))], (336, 4): [('move', (45, 23))], (336, 6): [('move', (45, 20))], (336, 9): [('move', (40, 21))], (337, 4): [('move', (45, 22))], (337, 6): [('move', (46, 19))], (337, 9): [('move', (41, 22))], (338, 4): [('move', (45, 23))], (338, 6): [('move', (45, 20))], (338, 9): [('move', (40, 21))], (339, 4): [('move', (45, 22))], (339, 6): [('move', (46, 19))], (339, 9): [('move', (41, 22))], (340, 4): [('move', (45, 23))], (340, 6): [('move', (45, 20))], (340, 9): [('move', (40, 21))], (341, 4): [('move', (45, 22))], (341, 6): [('move', (46, 19))], (341, 9): [('move', (41, 22))], (342, 4): [('move', (45, 23))], (342, 6): [('move', (45, 20))], (342, 9): [('move', (40, 21))], (343, 4): [('move', (45, 22))], (343, 6): [('move', (46, 19))], (343, 9): [('move', (41, 22))], (344, 4): [('move', (45, 23))], (344, 6): [('move', (45, 20))], (344, 9): [('move', (40, 21))], (345, 4): [('move', (45, 22))], (345, 6): [('move', (46, 19))], (345, 9): [('move', (41, 22))], (346, 4): [('move', (45, 23))], (346, 6): [('move', (45, 20))], (346, 9): [('move', (40, 21))], (347, 4): [('move', (45, 22))], (347, 6): [('move', (46, 19))], (347, 9): [('move', (41, 22))], (348, 4): [('move', (45, 23))], (348, 6): [('move', (45, 20))], (348, 9): [('move', (40, 21))], (349, 4): [('move', (45, 22))], (349, 6): [('move', (46, 19))], (349, 9): [('move', (41, 22))], (350, 4): [('move', (45, 23))], (350, 6): [('move', (45, 20))], (350, 9): [('move', (40, 21))], (351, 4): [('move', (45, 22))], (351, 6): [('move', (46, 19))], (351, 9): [('move', (41, 22))], (352, 4): [('move', (45, 23))], (352, 6): [('move', (45, 20))], (352, 9): [('move', (40, 21))], (353, 4): [('move', (45, 22))], (353, 6): [('move', (46, 19))], (353, 9): [('move', (41, 22))], (354, 4): [('move', (45, 23))], (354, 6): [('move', (45, 20))], (354, 9): [('move', (40, 21))], (355, 4): [('move', (45, 22))], (355, 6): [('move', (46, 19))], (355, 9): [('move', (41, 22))], (356, 4): [('move', (45, 23))], (356, 6): [('move', (45, 20))], (356, 9): [('move', (40, 21))], (357, 4): [('move', (45, 22))], (357, 6): [('move', (46, 19))], (357, 9): [('move', (41, 22))], (358, 4): [('move', (45, 23))], (358, 6): [('move', (45, 20))], (358, 9): [('move', (40, 21))], (359, 4): [('move', (45, 22))], (359, 6): [('move', (46, 19))], (359, 9): [('move', (41, 22))], (360, 4): [('move', (45, 23))], (360, 6): [('move', (45, 20))], (360, 9): [('move', (40, 21))], (361, 4): [('move', (45, 22))], (361, 6): [('move', (46, 19))], (361, 9): [('move', (41, 22))], (362, 4): [('move', (45, 23))], (362, 6): [('move', (45, 20))], (362, 9): [('move', (40, 21))], (363, 4): [('move', (45, 22))], (363, 6): [('move', (46, 19))], (363, 9): [('move', (41, 22))], (364, 4): [('move', (45, 23))], (364, 6): [('move', (45, 20))], (364, 9): [('move', (40, 21))], (365, 4): [('move', (45, 22))], (365, 6): [('move', (46, 19))], (365, 9): [('move', (41, 22))], (366, 4): [('move', (45, 23))], (366, 6): [('move', (45, 20))], (366, 9): [('move', (40, 21))], (367, 4): [('move', (45, 22))], (367, 6): [('move', (46, 19))], (367, 9): [('move', (41, 22))], (368, 4): [('move', (45, 23))], (368, 6): [('move', (45, 20))], (368, 9): [('move', (40, 21))], (369, 4): [('move', (45, 22))], (369, 6): [('move', (46, 19))], (369, 9): [('move', (41, 22))], (370, 4): [('move', (45, 23))], (370, 6): [('move', (45, 20))], (370, 9): [('move', (40, 21))], (371, 4): [('move', (45, 22))], (371, 6): [('move', (46, 19))], (371, 9): [('move', (41, 22))], (372, 4): [('move', (45, 23))], (372, 6): [('move', (45, 20))], (372, 9): [('move', (40, 21))], (373, 4): [('move', (45, 22))], (373, 6): [('move', (46, 19))], (373, 9): [('move', (41, 22))], (374, 4): [('move', (45, 23))], (374, 6): [('move', (45, 20))], (374, 9): [('move', (40, 21))], (375, 4): [('move', (45, 22))], (375, 6): [('move', (46, 19))], (375, 9): [('move', (41, 22))], (376, 4): [('move', (45, 23))], (376, 6): [('move', (45, 20))], (376, 9): [('move', (40, 21))], (377, 4): [('move', (45, 22))], (377, 6): [('move', (46, 19))], (377, 9): [('move', (41, 22))], (378, 4): [('move', (45, 23))], (378, 6): [('move', (45, 20))], (378, 9): [('move', (40, 21))], (379, 4): [('move', (45, 22))], (379, 6): [('move', (46, 19))], (379, 9): [('move', (41, 22))], (380, 4): [('move', (45, 23))], (380, 6): [('move', (45, 20))], (380, 9): [('move', (40, 21))], (381, 4): [('move', (45, 22))], (381, 6): [('move', (46, 19))], (381, 9): [('move', (41, 22))], (382, 4): [('move', (45, 23))], (382, 6): [('move', (45, 20))], (382, 9): [('move', (40, 21))], (383, 4): [('move', (45, 22))], (383, 6): [('move', (46, 19))], (383, 9): [('move', (41, 22))], (384, 4): [('move', (45, 23))], (384, 6): [('move', (45, 20))], (384, 9): [('move', (40, 21))], (385, 4): [('move', (45, 22))], (385, 6): [('move', (46, 19))], (385, 9): [('move', (41, 22))], (386, 4): [('move', (45, 23))], (386, 6): [('move', (45, 20))], (386, 9): [('move', (40, 21))], (387, 4): [('move', (45, 22))], (387, 6): [('move', (46, 19))], (387, 9): [('move', (41, 22))], (388, 4): [('move', (45, 23))], (388, 6): [('move', (45, 20))], (388, 9): [('move', (40, 21))], (389, 4): [('move', (45, 22))], (389, 6): [('move', (46, 19))], (389, 9): [('move', (41, 22))], (390, 4): [('move', (45, 23))], (390, 6): [('move', (45, 20))], (390, 9): [('move', (40, 21))], (391, 4): [('move', (45, 22))], (391, 6): [('move', (46, 19))], (391, 9): [('move', (41, 22))], (392, 4): [('move', (45, 23))], (392, 6): [('move', (45, 20))], (392, 9): [('move', (40, 21))], (393, 4): [('move', (45, 22))], (393, 6): [('move', (46, 19))], (393, 9): [('move', (41, 22))], (394, 4): [('move', (45, 23))], (394, 6): [('move', (45, 20))], (394, 9): [('move', (40, 21))], (395, 4): [('move', (45, 22))], (395, 6): [('move', (46, 19))], (395, 9): [('move', (41, 22))], (396, 4): [('move', (45, 23))], (396, 6): [('move', (45, 20))], (396, 9): [('move', (40, 21))], (397, 4): [('move', (45, 22))], (397, 6): [('move', (46, 19))], (397, 9): [('move', (41, 22))], (398, 4): [('move', (45, 23))], (398, 6): [('move', (45, 20))], (398, 9): [('move', (40, 21))], (399, 4): [('move', (45, 22))], (399, 6): [('move', (46, 19))], (399, 9): [('move', (41, 22))], (400, 4): [('move', (45, 23))], (400, 6): [('move', (45, 20))], (400, 9): [('move', (40, 21))], (401, 4): [('move', (45, 22))], (401, 6): [('move', (46, 19))], (401, 9): [('move', (41, 22))], (402, 4): [('move', (45, 23))], (402, 6): [('move', (45, 20))], (402, 9): [('move', (40, 21))], (403, 4): [('move', (45, 22))], (403, 6): [('move', (46, 19))], (403, 9): [('move', (41, 22))], (404, 4): [('move', (45, 23))], (404, 6): [('move', (45, 20))], (404, 9): [('move', (40, 21))], (405, 4): [('move', (45, 22))], (405, 6): [('move', (46, 19))], (405, 9): [('move', (41, 22))], (406, 4): [('move', (45, 23))], (406, 6): [('move', (45, 20))], (406, 9): [('move', (40, 21))], (407, 4): [('move', (45, 22))], (407, 6): [('move', (46, 19))], (407, 9): [('move', (41, 22))], (408, 4): [('move', (45, 23))], (408, 6): [('move', (45, 20))], (408, 9): [('move', (40, 21))], (409, 4): [('move', (45, 22))], (409, 6): [('move', (46, 19))], (409, 9): [('move', (41, 22))], (410, 4): [('move', (45, 23))], (410, 6): [('move', (45, 20))], (410, 9): [('move', (40, 21))], (411, 4): [('move', (45, 22))], (411, 6): [('move', (46, 19))], (411, 9): [('move', (41, 22))], (412, 4): [('move', (45, 23))], (412, 6): [('move', (45, 20))], (412, 9): [('move', (40, 21))], (413, 4): [('move', (45, 22))], (413, 6): [('move', (46, 19))], (413, 9): [('move', (41, 22))], (414, 4): [('move', (45, 23))], (414, 6): [('move', (45, 20))], (414, 9): [('move', (40, 21))], (415, 4): [('move', (45, 22))], (415, 6): [('move', (46, 19))], (415, 9): [('move', (41, 22))], (416, 4): [('move', (45, 23))], (416, 6): [('move', (45, 20))], (416, 9): [('move', (40, 21))], (417, 4): [('move', (45, 22))], (417, 6): [('move', (46, 19))], (417, 9): [('move', (41, 22))], (418, 4): [('move', (45, 23))], (418, 6): [('move', (45, 20))], (418, 9): [('move', (40, 21))], (419, 4): [('move', (45, 22))], (419, 6): [('move', (46, 19))], (419, 9): [('move', (41, 22))], (420, 4): [('move', (45, 23))], (420, 6): [('move', (45, 20))], (420, 9): [('move', (40, 21))], (421, 4): [('move', (45, 22))], (421, 6): [('move', (46, 19))], (421, 9): [('move', (41, 22))], (422, 4): [('move', (45, 23))], (422, 6): [('move', (45, 20))], (422, 9): [('move', (40, 21))], (423, 4): [('move', (45, 22))], (423, 6): [('move', (46, 19))], (423, 9): [('move', (41, 22))], (424, 4): [('move', (45, 23))], (424, 6): [('move', (45, 20))], (424, 9): [('move', (40, 21))], (425, 4): [('move', (45, 22))], (425, 6): [('move', (46, 19))], (425, 9): [('move', (41, 22))], (426, 4): [('move', (45, 23))], (426, 6): [('move', (45, 20))], (426, 9): [('move', (40, 21))], (427, 4): [('move', (45, 22))], (427, 6): [('move', (46, 19))], (427, 9): [('move', (41, 22))], (428, 4): [('move', (45, 23))], (428, 6): [('move', (45, 20))], (428, 9): [('move', (40, 21))], (429, 4): [('move', (45, 22))], (429, 6): [('move', (46, 19))], (429, 9): [('move', (41, 22))], (430, 4): [('move', (45, 23))], (430, 6): [('move', (45, 20))], (430, 9): [('move', (40, 21))], (431, 4): [('move', (45, 22))], (431, 6): [('move', (46, 19))], (431, 9): [('move', (41, 22))], (432, 4): [('move', (45, 23))], (432, 6): [('move', (45, 20))], (432, 9): [('move', (40, 21))], (433, 4): [('move', (45, 22))], (433, 6): [('move', (46, 19))], (433, 9): [('move', (41, 22))], (434, 4): [('move', (45, 23))], (434, 6): [('move', (45, 20))], (434, 9): [('move', (40, 21))], (435, 4): [('move', (45, 22))], (435, 6): [('move', (46, 19))], (435, 9): [('move', (41, 22))], (436, 4): [('move', (45, 23))], (436, 6): [('move', (45, 20))], (436, 9): [('move', (40, 21))], (437, 4): [('move', (45, 22))], (437, 6): [('move', (46, 19))], (437, 9): [('move', (41, 22))], (438, 4): [('move', (45, 23))], (438, 6): [('move', (45, 20))], (438, 9): [('move', (40, 21))], (439, 4): [('move', (45, 22))], (439, 6): [('move', (46, 19))], (439, 9): [('move', (41, 22))], (440, 4): [('move', (45, 23))], (440, 6): [('move', (45, 20))], (440, 9): [('move', (40, 21))], (441, 4): [('move', (45, 22))], (441, 6): [('move', (46, 19))], (441, 9): [('move', (41, 22))], (442, 4): [('move', (45, 23))], (442, 6): [('move', (45, 20))], (442, 9): [('move', (40, 21))], (443, 4): [('move', (45, 22))], (443, 6): [('move', (46, 19))], (443, 9): [('move', (41, 22))], (444, 4): [('move', (45, 23))], (444, 6): [('move', (45, 20))], (444, 9): [('move', (40, 21))], (445, 4): [('move', (45, 22))], (445, 6): [('move', (46, 19))], (445, 9): [('move', (41, 22))], (446, 4): [('move', (45, 23))], (446, 6): [('move', (45, 20))], (446, 9): [('move', (40, 21))], (447, 4): [('move', (45, 22))], (447, 6): [('move', (46, 19))], (447, 9): [('move', (41, 22))], (448, 4): [('move', (45, 23))], (448, 6): [('move', (45, 20))], (448, 9): [('move', (40, 21))], (449, 4): [('move', (45, 22))], (449, 6): [('move', (46, 19))], (449, 9): [('move', (41, 22))], (450, 4): [('move', (45, 23))], (450, 6): [('move', (45, 20))], (450, 9): [('move', (40, 21))], (451, 4): [('move', (45, 22))], (451, 6): [('move', (46, 19))], (451, 9): [('move', (41, 22))], (452, 4): [('move', (45, 23))], (452, 6): [('move', (45, 20))], (452, 9): [('move', (40, 21))], (453, 4): [('move', (45, 22))], (453, 6): [('move', (46, 19))], (453, 9): [('move', (41, 22))], (454, 4): [('move', (45, 23))], (454, 6): [('move', (45, 20))], (454, 9): [('move', (40, 21))], (455, 4): [('move', (45, 22))], (455, 6): [('move', (46, 19))], (455, 9): [('move', (41, 22))], (456, 4): [('move', (45, 23))], (456, 6): [('move', (45, 20))], (456, 9): [('move', (40, 21))], (457, 4): [('move', (45, 22))], (457, 6): [('move', (46, 19))], (457, 9): [('move', (41, 22))], (458, 4): [('move', (45, 23))], (458, 6): [('move', (45, 20))], (458, 9): [('move', (40, 21))], (459, 4): [('move', (45, 22))], (459, 6): [('move', (46, 19))], (459, 9): [('move', (41, 22))], (460, 4): [('move', (45, 23))], (460, 6): [('move', (45, 20))], (460, 9): [('move', (40, 21))], (461, 4): [('move', (45, 22))], (461, 6): [('move', (46, 19))], (461, 9): [('move', (41, 22))], (462, 4): [('move', (45, 23))], (462, 6): [('move', (45, 20))], (462, 9): [('move', (40, 21))], (463, 4): [('move', (45, 22))], (463, 6): [('move', (46, 19))], (463, 9): [('move', (41, 22))], (464, 4): [('move', (45, 23))], (464, 6): [('move', (45, 20))], (464, 9): [('move', (40, 21))], (465, 4): [('move', (45, 22))], (465, 6): [('move', (46, 19))], (465, 9): [('move', (41, 22))], (466, 4): [('move', (45, 23))], (466, 6): [('move', (45, 20))], (466, 9): [('move', (40, 21))], (467, 4): [('move', (45, 22))], (467, 6): [('move', (46, 19))], (467, 9): [('move', (41, 22))], (468, 4): [('move', (45, 23))], (468, 6): [('move', (45, 20))], (468, 9): [('move', (40, 21))], (469, 4): [('move', (45, 22))], (469, 6): [('move', (46, 19))], (469, 9): [('move', (41, 22))], (470, 4): [('move', (45, 23))], (470, 6): [('move', (45, 20))], (470, 9): [('move', (40, 21))], (471, 4): [('move', (45, 22))], (471, 6): [('move', (46, 19))], (471, 9): [('move', (41, 22))], (472, 4): [('move', (45, 23))], (472, 6): [('move', (45, 20))], (472, 9): [('move', (40, 21))], (473, 4): [('move', (45, 22))], (473, 6): [('move', (46, 19))], (473, 9): [('move', (41, 22))], (474, 4): [('move', (45, 23))], (474, 6): [('move', (45, 20))], (474, 9): [('move', (40, 21))], (475, 4): [('move', (45, 22))], (475, 6): [('move', (46, 19))], (475, 9): [('move', (41, 22))], (476, 4): [('move', (45, 23))], (476, 6): [('move', (45, 20))], (476, 9): [('move', (40, 21))], (477, 4): [('move', (45, 22))], (477, 6): [('move', (46, 19))], (477, 9): [('move', (41, 22))], (478, 4): [('move', (45, 23))], (478, 6): [('move', (45, 20))], (478, 9): [('move', (40, 21))], (479, 4): [('move', (45, 22))], (479, 6): [('move', (46, 19))], (479, 9): [('move', (41, 22))], (480, 4): [('move', (45, 23))], (480, 6): [('move', (45, 20))], (480, 9): [('move', (40, 21))], (481, 4): [('move', (45, 22))], (481, 6): [('move', (46, 19))], (481, 9): [('move', (41, 22))], (482, 4): [('move', (45, 23))], (482, 6): [('move', (45, 20))], (482, 9): [('move', (40, 21))], (483, 4): [('move', (45, 22))], (483, 6): [('move', (46, 19))], (483, 9): [('move', (41, 22))], (484, 4): [('move', (45, 23))], (484, 6): [('move', (45, 20))], (484, 9): [('move', (40, 21))], (485, 4): [('move', (45, 22))], (485, 6): [('move', (46, 19))], (485, 9): [('move', (41, 22))], (486, 4): [('move', (45, 23))], (486, 6): [('move', (45, 20))], (486, 9): [('move', (40, 21))], (487, 4): [('move', (45, 22))], (487, 6): [('move', (46, 19))], (487, 9): [('move', (41, 22))], (488, 4): [('move', (45, 23))], (488, 6): [('move', (45, 20))], (488, 9): [('move', (40, 21))], (489, 4): [('move', (45, 22))], (489, 6): [('move', (46, 19))], (489, 9): [('move', (41, 22))], (490, 4): [('move', (45, 23))], (490, 6): [('move', (45, 20))], (490, 9): [('move', (40, 21))], (491, 4): [('move', (45, 22))], (491, 6): [('move', (46, 19))], (491, 9): [('move', (41, 22))], (492, 4): [('move', (45, 23))], (492, 6): [('move', (45, 20))], (492, 9): [('move', (40, 21))], (493, 4): [('move', (45, 22))], (493, 6): [('move', (46, 19))], (493, 9): [('move', (41, 22))], (494, 4): [('move', (45, 23))], (494, 6): [('move', (45, 20))], (494, 9): [('move', (40, 21))], (495, 4): [('move', (45, 22))], (495, 6): [('move', (46, 19))], (495, 9): [('move', (41, 22))], (496, 4): [('move', (45, 23))], (496, 6): [('move', (45, 20))], (496, 9): [('move', (40, 21))], (497, 4): [('move', (45, 22))], (497, 6): [('move', (46, 19))], (497, 9): [('move', (41, 22))], (498, 4): [('move', (45, 23))], (498, 6): [('move', (45, 20))], (498, 9): [('move', (40, 21))], (499, 4): [('move', (45, 22))], (499, 6): [('move', (46, 19))], (499, 9): [('move', (41, 22))], (500, 4): [('move', (45, 23))], (500, 6): [('move', (45, 20))], (500, 9): [('move', (40, 21))], (501, 4): [('move', (45, 22))], (501, 6): [('move', (46, 19))], (501, 9): [('move', (41, 22))], (502, 4): [('move', (45, 23))], (502, 6): [('move', (45, 20))], (502, 9): [('move', (40, 21))], (503, 4): [('move', (45, 22))], (503, 6): [('move', (46, 19))], (503, 9): [('move', (41, 22))], (504, 4): [('move', (45, 23))], (504, 6): [('move', (45, 20))], (504, 9): [('move', (40, 21))], (505, 4): [('move', (45, 22))], (505, 6): [('move', (46, 19))], (505, 9): [('move', (41, 22))], (506, 4): [('move', (45, 23))], (506, 6): [('move', (45, 20))], (506, 9): [('move', (40, 21))], (507, 4): [('move', (45, 22))], (507, 6): [('move', (46, 19))], (507, 9): [('move', (41, 22))], (508, 4): [('move', (45, 23))], (508, 6): [('move', (45, 20))], (508, 9): [('move', (40, 21))], (509, 4): [('move', (45, 22))], (509, 6): [('move', (46, 19))], (509, 9): [('move', (41, 22))], (510, 4): [('move', (45, 23))], (510, 6): [('move', (45, 20))], (510, 9): [('move', (40, 21))], (511, 4): [('move', (45, 22))], (511, 6): [('move', (46, 19))], (511, 9): [('move', (41, 22))], (512, 4): [('move', (45, 23))], (512, 6): [('move', (45, 20))], (512, 9): [('move', (40, 21))], (513, 4): [('move', (45, 22))], (513, 6): [('move', (46, 19))], (513, 9): [('move', (41, 22))], (514, 4): [('move', (45, 23))], (514, 6): [('move', (45, 20))], (514, 9): [('move', (40, 21))], (515, 4): [('move', (45, 22))], (515, 6): [('move', (46, 19))], (515, 9): [('move', (41, 22))], (516, 4): [('move', (45, 23))], (516, 6): [('move', (45, 20))], (516, 9): [('move', (40, 21))], (517, 4): [('move', (45, 22))], (517, 6): [('move', (46, 19))], (517, 9): [('move', (41, 22))], (518, 4): [('move', (45, 23))], (518, 6): [('move', (45, 20))], (518, 9): [('move', (40, 21))], (519, 4): [('move', (45, 22))], (519, 6): [('move', (46, 19))], (519, 9): [('move', (41, 22))], (520, 4): [('move', (45, 23))], (520, 6): [('move', (45, 20))], (520, 9): [('move', (40, 21))], (521, 4): [('move', (45, 22))], (521, 6): [('move', (46, 19))], (521, 9): [('move', (41, 22))], (522, 4): [('move', (45, 23))], (522, 6): [('move', (45, 20))], (522, 9): [('move', (40, 21))], (523, 4): [('move', (45, 22))], (523, 6): [('move', (46, 19))], (523, 9): [('move', (41, 22))], (524, 4): [('move', (45, 23))], (524, 6): [('move', (45, 20))], (524, 9): [('move', (40, 21))], (525, 4): [('move', (45, 22))], (525, 6): [('move', (46, 19))], (525, 9): [('move', (41, 22))], (526, 4): [('move', (45, 23))], (526, 6): [('move', (45, 20))], (526, 9): [('move', (40, 21))], (527, 4): [('move', (45, 22))], (527, 6): [('move', (46, 19))], (527, 9): [('move', (41, 22))], (528, 4): [('move', (45, 23))], (528, 6): [('move', (45, 20))], (528, 9): [('move', (40, 21))], (529, 4): [('move', (45, 22))], (529, 6): [('move', (46, 19))], (529, 9): [('move', (41, 22))], (530, 4): [('move', (45, 23))], (530, 6): [('move', (45, 20))], (530, 9): [('move', (40, 21))], (531, 4): [('move', (45, 22))], (531, 6): [('move', (46, 19))], (531, 9): [('move', (41, 22))], (532, 4): [('move', (45, 23))], (532, 6): [('move', (45, 20))], (532, 9): [('move', (40, 21))], (533, 4): [('move', (45, 22))], (533, 6): [('move', (46, 19))], (533, 9): [('move', (41, 22))], (534, 4): [('move', (45, 23))], (534, 6): [('move', (45, 20))], (534, 9): [('move', (40, 21))], (535, 4): [('move', (45, 22))], (535, 6): [('move', (46, 19))], (535, 9): [('move', (41, 22))], (536, 4): [('move', (45, 23))], (536, 6): [('move', (45, 20))], (536, 9): [('move', (40, 21))], (537, 4): [('move', (45, 22))], (537, 6): [('move', (46, 19))], (537, 9): [('move', (41, 22))], (538, 4): [('move', (45, 23))], (538, 6): [('move', (45, 20))], (538, 9): [('move', (40, 21))], (539, 4): [('move', (45, 22))], (539, 6): [('move', (46, 19))], (539, 9): [('move', (41, 22))], (540, 4): [('move', (45, 23))], (540, 6): [('move', (45, 20))], (540, 9): [('move', (40, 21))], (541, 4): [('move', (45, 22))], (541, 6): [('move', (46, 19))], (541, 9): [('move', (41, 22))], (542, 4): [('move', (45, 23))], (542, 6): [('move', (45, 20))], (542, 9): [('move', (40, 21))], (543, 4): [('move', (45, 22))], (543, 6): [('move', (46, 19))], (543, 9): [('move', (41, 22))], (544, 4): [('move', (45, 23))], (544, 6): [('move', (45, 20))], (544, 9): [('move', (40, 21))], (545, 4): [('move', (45, 22))], (545, 6): [('move', (46, 19))], (545, 9): [('move', (41, 22))], (546, 4): [('move', (45, 23))], (546, 6): [('move', (45, 20))], (546, 9): [('move', (40, 21))], (547, 4): [('move', (45, 22))], (547, 6): [('move', (46, 19))], (547, 9): [('move', (41, 22))], (548, 4): [('move', (45, 23))], (548, 6): [('move', (45, 20))], (548, 9): [('move', (40, 21))], (549, 4): [('move', (45, 22))], (549, 6): [('move', (46, 19))], (549, 9): [('move', (41, 22))], (550, 4): [('move', (45, 23))], (550, 6): [('move', (45, 20))], (550, 9): [('move', (40, 21))], (551, 4): [('move', (45, 22))], (551, 6): [('move', (46, 19))], (551, 9): [('move', (41, 22))], (552, 4): [('move', (45, 23))], (552, 6): [('move', (45, 20))], (552, 9): [('move', (40, 21))], (553, 4): [('move', (45, 22))], (553, 6): [('move', (46, 19))], (553, 9): [('move', (41, 22))], (554, 4): [('move', (45, 23))], (554, 6): [('move', (45, 20))], (554, 9): [('move', (40, 21))], (555, 4): [('move', (45, 22))], (555, 6): [('move', (46, 19))], (555, 9): [('move', (41, 22))], (556, 4): [('move', (45, 23))], (556, 6): [('move', (45, 20))], (556, 9): [('move', (40, 21))], (557, 4): [('move', (45, 22))], (557, 6): [('move', (46, 19))], (557, 9): [('move', (41, 22))], (558, 4): [('move', (45, 23))], (558, 6): [('move', (45, 20))], (558, 9): [('move', (40, 21))], (559, 4): [('move', (45, 22))], (559, 6): [('move', (46, 19))], (559, 9): [('move', (41, 22))], (560, 4): [('move', (45, 23))], (560, 6): [('move', (45, 20))], (560, 9): [('move', (40, 21))], (561, 4): [('move', (45, 22))], (561, 6): [('move', (46, 19))], (561, 9): [('move', (41, 22))], (562, 4): [('move', (45, 23))], (562, 6): [('move', (45, 20))], (562, 9): [('move', (40, 21))], (563, 4): [('move', (45, 22))], (563, 6): [('move', (46, 19))], (563, 9): [('move', (41, 22))], (564, 4): [('move', (45, 23))], (564, 6): [('move', (45, 20))], (564, 9): [('move', (40, 21))], (565, 4): [('move', (45, 22))], (565, 6): [('move', (46, 19))], (565, 9): [('move', (41, 22))], (566, 4): [('move', (45, 23))], (566, 6): [('move', (45, 20))], (566, 9): [('move', (40, 21))], (567, 4): [('move', (45, 22))], (567, 6): [('move', (46, 19))], (567, 9): [('move', (41, 22))], (568, 4): [('move', (45, 23))], (568, 6): [('move', (45, 20))], (568, 9): [('move', (40, 21))], (569, 4): [('move', (45, 22))], (569, 6): [('move', (46, 19))], (569, 9): [('move', (41, 22))], (570, 4): [('move', (45, 23))], (570, 6): [('move', (45, 20))], (570, 9): [('move', (40, 21))], (571, 4): [('move', (45, 22))], (571, 6): [('move', (46, 19))], (571, 9): [('move', (41, 22))], (572, 4): [('move', (45, 23))], (572, 6): [('move', (45, 20))], (572, 9): [('move', (40, 21))], (573, 4): [('move', (45, 22))], (573, 6): [('move', (46, 19))], (573, 9): [('move', (41, 22))], (574, 4): [('move', (45, 23))], (574, 6): [('move', (45, 20))], (574, 9): [('move', (40, 21))], (575, 4): [('move', (45, 22))], (575, 6): [('move', (46, 19))], (575, 9): [('move', (41, 22))], (576, 4): [('move', (45, 23))], (576, 6): [('move', (45, 20))], (576, 9): [('move', (40, 21))], (577, 4): [('move', (45, 22))], (577, 6): [('move', (46, 19))], (577, 9): [('move', (41, 22))], (578, 4): [('move', (45, 23))], (578, 6): [('move', (45, 20))], (578, 9): [('move', (40, 21))], (579, 4): [('move', (45, 22))], (579, 6): [('move', (46, 19))], (579, 9): [('move', (41, 22))], (580, 4): [('move', (45, 23))], (580, 6): [('move', (45, 20))], (580, 9): [('move', (40, 21))], (581, 4): [('move', (45, 22))], (581, 6): [('move', (46, 19))], (581, 9): [('move', (41, 22))], (582, 4): [('move', (45, 23))], (582, 6): [('move', (45, 20))], (582, 9): [('move', (40, 21))], (583, 4): [('move', (45, 22))], (583, 6): [('move', (46, 19))], (583, 9): [('move', (41, 22))], (584, 4): [('move', (45, 23))], (584, 6): [('move', (45, 20))], (584, 9): [('move', (40, 21))], (585, 4): [('move', (45, 22))], (585, 6): [('move', (46, 19))], (585, 9): [('move', (41, 22))], (586, 4): [('move', (45, 23))], (586, 6): [('move', (45, 20))], (586, 9): [('move', (40, 21))], (587, 4): [('move', (45, 22))], (587, 6): [('move', (46, 19))], (587, 9): [('move', (41, 22))], (588, 4): [('move', (45, 23))], (588, 6): [('move', (45, 20))], (588, 9): [('move', (40, 21))], (589, 4): [('move', (45, 22))], (589, 6): [('move', (46, 19))], (589, 9): [('move', (41, 22))], (590, 4): [('move', (45, 23))], (590, 6): [('move', (45, 20))], (590, 9): [('move', (40, 21))], (591, 4): [('move', (45, 22))], (591, 6): [('move', (46, 19))], (591, 9): [('move', (41, 22))], (592, 4): [('move', (45, 23))], (592, 6): [('move', (45, 20))], (592, 9): [('move', (40, 21))], (593, 4): [('move', (45, 22))], (593, 6): [('move', (46, 19))], (593, 9): [('move', (41, 22))], (594, 4): [('move', (45, 23))], (594, 6): [('move', (45, 20))], (594, 9): [('move', (40, 21))], (595, 4): [('move', (45, 22))], (595, 6): [('move', (46, 19))], (595, 9): [('move', (41, 22))], (596, 4): [('move', (45, 23))], (596, 6): [('move', (45, 20))], (596, 9): [('move', (40, 21))], (597, 4): [('move', (45, 22))], (597, 6): [('move', (46, 19))], (597, 9): [('move', (41, 22))], (598, 4): [('move', (45, 23))], (598, 6): [('move', (45, 20))], (598, 9): [('move', (40, 21))], (599, 4): [('move', (45, 22))], (599, 6): [('move', (46, 19))], (599, 9): [('move', (41, 22))], (600, 4): [('move', (45, 23))], (600, 6): [('move', (45, 20))], (600, 9): [('move', (40, 21))], (601, 4): [('move', (45, 22))], (601, 6): [('move', (46, 19))], (601, 9): [('move', (41, 22))], (602, 4): [('move', (45, 23))], (602, 6): [('move', (45, 20))], (602, 9): [('move', (40, 21))], (603, 4): [('move', (45, 22))], (603, 6): [('move', (46, 19))], (603, 9): [('move', (41, 22))], (604, 4): [('move', (45, 23))], (604, 6): [('move', (45, 20))], (604, 9): [('move', (40, 21))], (605, 4): [('move', (45, 22))], (605, 6): [('move', (46, 19))], (605, 9): [('move', (41, 22))], (606, 4): [('move', (45, 23))], (606, 6): [('move', (45, 20))], (606, 9): [('move', (40, 21))], (607, 4): [('move', (45, 22))], (607, 6): [('move', (46, 19))], (607, 9): [('move', (41, 22))], (608, 4): [('move', (45, 23))], (608, 6): [('move', (45, 20))], (608, 9): [('move', (40, 21))], (609, 4): [('move', (45, 22))], (609, 6): [('move', (46, 19))], (609, 9): [('move', (41, 22))], (610, 4): [('move', (45, 23))], (610, 6): [('move', (45, 20))], (610, 9): [('move', (40, 21))], (611, 4): [('move', (45, 22))], (611, 6): [('move', (46, 19))], (611, 9): [('move', (41, 22))], (612, 4): [('move', (45, 23))], (612, 6): [('move', (45, 20))], (612, 9): [('move', (40, 21))], (613, 4): [('move', (45, 22))], (613, 6): [('move', (46, 19))], (613, 9): [('move', (41, 22))], (614, 4): [('move', (45, 23))], (614, 6): [('move', (45, 20))], (614, 9): [('move', (40, 21))], (615, 4): [('move', (45, 22))], (615, 6): [('move', (46, 19))], (615, 9): [('move', (41, 22))], (616, 4): [('move', (45, 23))], (616, 6): [('move', (45, 20))], (616, 9): [('move', (40, 21))], (617, 4): [('move', (45, 22))], (617, 6): [('move', (46, 19))], (617, 9): [('move', (41, 22))], (618, 4): [('move', (45, 23))], (618, 6): [('move', (45, 20))], (618, 9): [('move', (40, 21))], (619, 4): [('move', (45, 22))], (619, 6): [('move', (46, 19))], (619, 9): [('move', (41, 22))], (620, 4): [('move', (45, 23))], (620, 6): [('move', (45, 20))], (620, 9): [('move', (40, 21))], (621, 4): [('move', (45, 22))], (621, 6): [('move', (46, 19))], (621, 9): [('move', (41, 22))], (622, 4): [('move', (45, 23))], (622, 6): [('move', (45, 20))], (622, 9): [('move', (40, 21))], (623, 4): [('move', (45, 22))], (623, 6): [('move', (46, 19))], (623, 9): [('move', (41, 22))], (624, 4): [('move', (45, 23))], (624, 6): [('move', (45, 20))], (624, 9): [('move', (40, 21))], (625, 4): [('move', (45, 22))], (625, 6): [('move', (46, 19))], (625, 9): [('move', (41, 22))], (626, 4): [('move', (45, 23))], (626, 6): [('move', (45, 20))], (626, 9): [('move', (40, 21))], (627, 4): [('move', (45, 22))], (627, 6): [('move', (46, 19))], (627, 9): [('move', (41, 22))], (628, 4): [('move', (45, 23))], (628, 6): [('move', (45, 20))], (628, 9): [('move', (40, 21))], (629, 4): [('move', (45, 22))], (629, 6): [('move', (46, 19))], (629, 9): [('move', (41, 22))], (630, 4): [('move', (45, 23))], (630, 6): [('move', (45, 20))], (630, 9): [('move', (40, 21))], (631, 4): [('move', (45, 22))], (631, 6): [('move', (46, 19))], (631, 9): [('move', (41, 22))], (632, 4): [('move', (45, 23))], (632, 6): [('move', (45, 20))], (632, 9): [('move', (40, 21))], (633, 4): [('move', (45, 22))], (633, 6): [('move', (46, 19))], (633, 9): [('move', (41, 22))], (634, 4): [('move', (45, 23))], (634, 6): [('move', (45, 20))], (634, 9): [('move', (40, 21))], (635, 4): [('move', (45, 22))], (635, 6): [('move', (46, 19))], (635, 9): [('move', (41, 22))], (636, 4): [('move', (45, 23))], (636, 6): [('move', (45, 20))], (636, 9): [('move', (40, 21))], (637, 4): [('move', (45, 22))], (637, 6): [('move', (46, 19))], (637, 9): [('move', (41, 22))], (638, 4): [('move', (45, 23))], (638, 6): [('move', (45, 20))], (638, 9): [('move', (40, 21))], (639, 4): [('move', (45, 22))], (639, 6): [('move', (46, 19))], (639, 9): [('move', (41, 22))], (640, 4): [('move', (45, 23))], (640, 6): [('move', (45, 20))], (640, 9): [('move', (40, 21))], (641, 4): [('move', (45, 22))], (641, 6): [('move', (46, 19))], (641, 9): [('move', (41, 22))], (642, 4): [('move', (45, 23))], (642, 6): [('move', (45, 20))], (642, 9): [('move', (40, 21))], (643, 4): [('move', (45, 22))], (643, 6): [('move', (46, 19))], (643, 9): [('move', (41, 22))], (644, 4): [('move', (45, 23))], (644, 6): [('move', (45, 20))], (644, 9): [('move', (40, 21))], (645, 4): [('move', (45, 22))], (645, 6): [('move', (46, 19))], (645, 9): [('move', (41, 22))], (646, 4): [('move', (45, 23))], (646, 6): [('move', (45, 20))], (646, 9): [('move', (40, 21))], (647, 4): [('move', (45, 22))], (647, 6): [('move', (46, 19))], (647, 9): [('move', (41, 22))], (648, 4): [('move', (45, 23))], (648, 6): [('move', (45, 20))], (648, 9): [('move', (40, 21))], (649, 4): [('move', (45, 22))], (649, 6): [('move', (46, 19))], (649, 9): [('move', (41, 22))], (650, 4): [('move', (45, 23))], (650, 6): [('move', (45, 20))], (650, 9): [('move', (40, 21))], (651, 4): [('move', (45, 22))], (651, 6): [('move', (46, 19))], (651, 9): [('move', (41, 22))], (652, 4): [('move', (45, 23))], (652, 6): [('move', (45, 20))], (652, 9): [('move', (40, 21))], (653, 4): [('move', (45, 22))], (653, 6): [('move', (46, 19))], (653, 9): [('move', (41, 22))], (654, 4): [('move', (45, 23))], (654, 6): [('move', (45, 20))], (654, 9): [('move', (40, 21))], (655, 4): [('move', (45, 22))], (655, 6): [('move', (46, 19))], (655, 9): [('move', (41, 22))], (656, 4): [('move', (45, 23))], (656, 6): [('move', (45, 20))], (656, 9): [('move', (40, 21))], (657, 4): [('move', (45, 22))], (657, 6): [('move', (46, 19))], (657, 9): [('move', (41, 22))], (658, 4): [('move', (45, 23))], (658, 6): [('move', (45, 20))], (658, 9): [('move', (40, 21))], (659, 4): [('move', (45, 22))], (659, 6): [('move', (46, 19))], (659, 9): [('move', (41, 22))], (660, 4): [('move', (45, 23))], (660, 6): [('move', (45, 20))], (660, 9): [('move', (40, 21))], (661, 4): [('move', (45, 22))], (661, 6): [('move', (46, 19))], (661, 9): [('move', (41, 22))], (662, 4): [('move', (45, 23))], (662, 6): [('move', (45, 20))], (662, 9): [('move', (40, 21))], (663, 4): [('move', (45, 22))], (663, 6): [('move', (46, 19))], (663, 9): [('move', (41, 22))], (664, 4): [('move', (45, 23))], (664, 6): [('move', (45, 20))], (664, 9): [('move', (40, 21))], (665, 4): [('move', (45, 22))], (665, 6): [('move', (46, 19))], (665, 9): [('move', (41, 22))], (666, 4): [('move', (45, 23))], (666, 6): [('move', (45, 20))], (666, 9): [('move', (40, 21))], (667, 4): [('move', (45, 22))], (667, 6): [('move', (46, 19))], (667, 9): [('move', (41, 22))], (668, 4): [('move', (45, 23))], (668, 6): [('move', (45, 20))], (668, 9): [('move', (40, 21))], (669, 4): [('move', (45, 22))], (669, 6): [('move', (46, 19))], (669, 9): [('move', (41, 22))], (670, 4): [('move', (45, 23))], (670, 6): [('move', (45, 20))], (670, 9): [('move', (40, 21))], (671, 4): [('move', (45, 22))], (671, 6): [('move', (46, 19))], (671, 9): [('move', (41, 22))], (672, 4): [('move', (45, 23))], (672, 6): [('move', (45, 20))], (672, 9): [('move', (40, 21))], (673, 4): [('move', (45, 22))], (673, 6): [('move', (46, 19))], (673, 9): [('move', (41, 22))], (674, 4): [('move', (45, 23))], (674, 6): [('move', (45, 20))], (674, 9): [('move', (40, 21))], (675, 4): [('move', (45, 22))], (675, 6): [('move', (46, 19))], (675, 9): [('move', (41, 22))], (676, 4): [('move', (45, 23))], (676, 6): [('move', (45, 20))], (676, 9): [('move', (40, 21))], (677, 4): [('move', (45, 22))], (677, 6): [('move', (46, 19))], (677, 9): [('move', (41, 22))], (678, 4): [('move', (45, 23))], (678, 6): [('move', (45, 20))], (678, 9): [('move', (40, 21))], (679, 4): [('move', (45, 22))], (679, 6): [('move', (46, 19))], (679, 9): [('move', (41, 22))], (680, 4): [('move', (45, 23))], (680, 6): [('move', (45, 20))], (680, 9): [('move', (40, 21))], (681, 4): [('move', (45, 22))], (681, 6): [('move', (46, 19))], (681, 9): [('move', (41, 22))], (682, 4): [('move', (45, 23))], (682, 6): [('move', (45, 20))], (682, 9): [('move', (40, 21))], (683, 4): [('move', (45, 22))], (683, 6): [('move', (46, 19))], (683, 9): [('move', (41, 22))], (684, 4): [('move', (45, 23))], (684, 6): [('move', (45, 20))], (684, 9): [('move', (40, 21))], (685, 4): [('move', (45, 22))], (685, 6): [('move', (46, 19))], (685, 9): [('move', (41, 22))], (686, 4): [('move', (45, 23))], (686, 6): [('move', (45, 20))], (686, 9): [('move', (40, 21))], (687, 4): [('move', (45, 22))], (687, 6): [('move', (46, 19))], (687, 9): [('move', (41, 22))], (688, 4): [('move', (45, 23))], (688, 6): [('move', (45, 20))], (688, 9): [('move', (40, 21))], (689, 4): [('move', (45, 22))], (689, 6): [('move', (46, 19))], (689, 9): [('move', (41, 22))], (690, 4): [('move', (45, 23))], (690, 6): [('move', (45, 20))], (690, 9): [('move', (40, 21))], (691, 4): [('move', (45, 22))], (691, 6): [('move', (46, 19))], (691, 9): [('move', (41, 22))], (692, 4): [('move', (45, 23))], (692, 6): [('move', (45, 20))], (692, 9): [('move', (40, 21))], (693, 4): [('move', (45, 22))], (693, 6): [('move', (46, 19))], (693, 9): [('move', (41, 22))], (694, 4): [('move', (45, 23))], (694, 6): [('move', (45, 20))], (694, 9): [('move', (40, 21))], (695, 4): [('move', (45, 22))], (695, 6): [('move', (46, 19))], (695, 9): [('move', (41, 22))], (696, 4): [('move', (45, 23))], (696, 6): [('move', (45, 20))], (696, 9): [('move', (40, 21))], (697, 4): [('move', (45, 22))], (697, 6): [('move', (46, 19))], (697, 9): [('move', (41, 22))], (698, 4): [('move', (45, 23))], (698, 6): [('move', (45, 20))], (698, 9): [('move', (40, 21))], (699, 4): [('move', (45, 22))], (699, 6): [('move', (46, 19))], (699, 9): [('move', (41, 22))], (700, 4): [('move', (45, 23))], (700, 6): [('move', (45, 20))], (700, 9): [('move', (40, 21))], (701, 4): [('move', (45, 22))], (701, 6): [('move', (46, 19))], (701, 9): [('move', (41, 22))], (702, 4): [('move', (45, 23))], (702, 6): [('move', (45, 20))], (702, 9): [('move', (40, 21))], (703, 4): [('move', (45, 22))], (703, 6): [('move', (46, 19))], (703, 9): [('move', (41, 22))], (704, 4): [('move', (45, 23))], (704, 6): [('move', (45, 20))], (704, 9): [('move', (40, 21))], (705, 4): [('move', (45, 22))], (705, 6): [('move', (46, 19))], (705, 9): [('move', (41, 22))], (706, 4): [('move', (45, 23))], (706, 6): [('move', (45, 20))], (706, 9): [('move', (40, 21))], (707, 4): [('move', (45, 22))], (707, 6): [('move', (46, 19))], (707, 9): [('move', (41, 22))], (708, 4): [('move', (45, 23))], (708, 6): [('move', (45, 20))], (708, 9): [('move', (40, 21))], (709, 4): [('move', (45, 22))], (709, 6): [('move', (46, 19))], (709, 9): [('move', (41, 22))], (710, 4): [('move', (45, 23))], (710, 6): [('move', (45, 20))], (710, 9): [('move', (40, 21))], (711, 4): [('move', (45, 22))], (711, 6): [('move', (46, 19))], (711, 9): [('move', (41, 22))], (712, 4): [('move', (45, 23))], (712, 6): [('move', (45, 20))], (712, 9): [('move', (40, 21))], (713, 4): [('move', (45, 22))], (713, 6): [('move', (46, 19))], (713, 9): [('move', (41, 22))], (714, 4): [('move', (45, 23))], (714, 6): [('move', (45, 20))], (714, 9): [('move', (40, 21))], (715, 4): [('move', (45, 22))], (715, 6): [('move', (46, 19))], (715, 9): [('move', (41, 22))], (716, 4): [('move', (45, 23))], (716, 6): [('move', (45, 20))], (716, 9): [('move', (40, 21))], (717, 4): [('move', (45, 22))], (717, 6): [('move', (46, 19))], (717, 9): [('move', (41, 22))], (718, 4): [('move', (45, 23))], (718, 6): [('move', (45, 20))], (718, 9): [('move', (40, 21))], (719, 4): [('move', (45, 22))], (719, 6): [('move', (46, 19))], (719, 9): [('move', (41, 22))], (720, 4): [('move', (45, 23))], (720, 6): [('move', (45, 20))], (720, 9): [('move', (40, 21))], (721, 4): [('move', (45, 22))], (721, 6): [('move', (46, 19))], (721, 9): [('move', (41, 22))], (722, 4): [('move', (45, 23))], (722, 6): [('move', (45, 20))], (722, 9): [('move', (40, 21))], (723, 4): [('move', (45, 22))], (723, 6): [('move', (46, 19))], (723, 9): [('move', (41, 22))], (724, 4): [('move', (45, 23))], (724, 6): [('move', (45, 20))], (724, 9): [('move', (40, 21))], (725, 4): [('move', (45, 22))], (725, 6): [('move', (46, 19))], (725, 9): [('move', (41, 22))], (726, 4): [('move', (45, 23))], (726, 6): [('move', (45, 20))], (726, 9): [('move', (40, 21))], (727, 4): [('move', (45, 22))], (727, 6): [('move', (46, 19))], (727, 9): [('move', (41, 22))], (728, 4): [('move', (45, 23))], (728, 6): [('move', (45, 20))], (728, 9): [('move', (40, 21))], (729, 4): [('move', (45, 22))], (729, 6): [('move', (46, 19))], (729, 9): [('move', (41, 22))], (730, 4): [('move', (45, 23))], (730, 6): [('move', (45, 20))], (730, 9): [('move', (40, 21))], (731, 4): [('move', (45, 22))], (731, 6): [('move', (46, 19))], (731, 9): [('move', (41, 22))], (732, 4): [('move', (45, 23))], (732, 6): [('move', (45, 20))], (732, 9): [('move', (40, 21))], (733, 4): [('move', (45, 22))], (733, 6): [('move', (46, 19))], (733, 9): [('move', (41, 22))], (734, 4): [('move', (45, 23))], (734, 6): [('move', (45, 20))], (734, 9): [('move', (40, 21))], (735, 4): [('move', (45, 22))], (735, 6): [('move', (46, 19))], (735, 9): [('move', (41, 22))], (736, 4): [('move', (45, 23))], (736, 6): [('move', (45, 20))], (736, 9): [('move', (40, 21))], (737, 4): [('move', (45, 22))], (737, 6): [('move', (46, 19))], (737, 9): [('move', (41, 22))], (738, 4): [('move', (45, 23))], (738, 6): [('move', (45, 20))], (738, 9): [('move', (40, 21))], (739, 4): [('move', (45, 22))], (739, 6): [('move', (46, 19))], (739, 9): [('move', (41, 22))], (740, 4): [('move', (45, 23))], (740, 6): [('move', (45, 20))], (740, 9): [('move', (40, 21))], (741, 4): [('move', (45, 22))], (741, 6): [('move', (46, 19))], (741, 9): [('move', (41, 22))], (742, 4): [('move', (45, 23))], (742, 6): [('move', (45, 20))], (742, 9): [('move', (40, 21))], (743, 4): [('move', (45, 22))], (743, 6): [('move', (46, 19))], (743, 9): [('move', (41, 22))], (744, 4): [('move', (45, 23))], (744, 6): [('move', (45, 20))], (744, 9): [('move', (40, 21))], (745, 4): [('move', (45, 22))], (745, 6): [('move', (46, 19))], (745, 9): [('move', (41, 22))], (746, 4): [('move', (45, 23))], (746, 6): [('move', (45, 20))], (746, 9): [('move', (40, 21))], (747, 4): [('move', (45, 22))], (747, 6): [('move', (46, 19))], (747, 9): [('move', (41, 22))], (748, 4): [('move', (45, 23))], (748, 6): [('move', (45, 20))], (748, 9): [('move', (40, 21))], (749, 4): [('move', (45, 22))], (749, 6): [('move', (46, 19))], (749, 9): [('move', (41, 22))], (750, 4): [('move', (45, 23))], (750, 6): [('move', (45, 20))], (750, 9): [('move', (40, 21))], (751, 4): [('move', (45, 22))], (751, 6): [('move', (46, 19))], (751, 9): [('move', (41, 22))], (752, 4): [('move', (45, 23))], (752, 6): [('move', (45, 20))], (752, 9): [('move', (40, 21))], (753, 4): [('move', (45, 22))], (753, 6): [('move', (46, 19))], (753, 9): [('move', (41, 22))], (754, 4): [('move', (45, 23))], (754, 6): [('move', (45, 20))], (754, 9): [('move', (40, 21))], (755, 4): [('move', (45, 22))], (755, 6): [('move', (46, 19))], (755, 9): [('move', (41, 22))], (756, 4): [('move', (45, 23))], (756, 6): [('move', (45, 20))], (756, 9): [('move', (40, 21))], (757, 4): [('move', (45, 22))], (757, 6): [('move', (46, 19))], (757, 9): [('move', (41, 22))], (758, 4): [('move', (45, 23))], (758, 6): [('move', (45, 20))], (758, 9): [('move', (40, 21))], (759, 4): [('move', (45, 22))], (759, 6): [('move', (46, 19))], (759, 9): [('move', (41, 22))], (760, 4): [('move', (45, 23))], (760, 6): [('move', (45, 20))], (760, 9): [('move', (40, 21))], (761, 4): [('move', (45, 22))], (761, 6): [('move', (46, 19))], (761, 9): [('move', (41, 22))], (762, 4): [('move', (45, 23))], (762, 6): [('move', (45, 20))], (762, 9): [('move', (40, 21))], (763, 4): [('move', (45, 22))], (763, 6): [('move', (46, 19))], (763, 9): [('move', (41, 22))], (764, 4): [('move', (45, 23))], (764, 6): [('move', (45, 20))], (764, 9): [('move', (40, 21))], (765, 4): [('move', (45, 22))], (765, 6): [('move', (46, 19))], (765, 9): [('move', (41, 22))], (766, 4): [('move', (45, 23))], (766, 6): [('move', (45, 20))], (766, 9): [('move', (40, 21))], (767, 4): [('move', (45, 22))], (767, 6): [('move', (46, 19))], (767, 9): [('move', (41, 22))], (768, 4): [('move', (45, 23))], (768, 6): [('move', (45, 20))], (768, 9): [('move', (40, 21))], (769, 4): [('move', (45, 22))], (769, 6): [('move', (46, 19))], (769, 9): [('move', (41, 22))], (770, 4): [('move', (45, 23))], (770, 6): [('move', (45, 20))], (770, 9): [('move', (40, 21))], (771, 4): [('move', (45, 22))], (771, 6): [('move', (46, 19))], (771, 9): [('move', (41, 22))], (772, 4): [('move', (45, 23))], (772, 6): [('move', (45, 20))], (772, 9): [('move', (40, 21))], (773, 4): [('move', (45, 22))], (773, 6): [('move', (46, 19))], (773, 9): [('move', (41, 22))], (774, 4): [('move', (45, 23))], (774, 6): [('move', (45, 20))], (774, 9): [('move', (40, 21))], (775, 4): [('move', (45, 22))], (775, 6): [('move', (46, 19))], (775, 9): [('move', (41, 22))], (776, 4): [('move', (45, 23))], (776, 6): [('move', (45, 20))], (776, 9): [('move', (40, 21))], (777, 4): [('move', (45, 22))], (777, 6): [('move', (46, 19))], (777, 9): [('move', (41, 22))], (778, 4): [('move', (45, 23))], (778, 6): [('move', (45, 20))], (778, 9): [('move', (40, 21))], (779, 4): [('move', (45, 22))], (779, 6): [('move', (46, 19))], (779, 9): [('move', (41, 22))], (780, 4): [('move', (45, 23))], (780, 6): [('move', (45, 20))], (780, 9): [('move', (40, 21))], (781, 4): [('move', (45, 22))], (781, 6): [('move', (46, 19))], (781, 9): [('move', (41, 22))], (782, 4): [('move', (45, 23))], (782, 6): [('move', (45, 20))], (782, 9): [('move', (40, 21))], (783, 4): [('move', (45, 22))], (783, 6): [('move', (46, 19))], (783, 9): [('move', (41, 22))], (784, 4): [('move', (45, 23))], (784, 6): [('move', (45, 20))], (784, 9): [('move', (40, 21))], (785, 4): [('move', (45, 22))], (785, 6): [('move', (46, 19))], (785, 9): [('move', (41, 22))], (786, 4): [('move', (45, 23))], (786, 6): [('move', (45, 20))], (786, 9): [('move', (40, 21))], (787, 4): [('move', (45, 22))], (787, 6): [('move', (46, 19))], (787, 9): [('move', (41, 22))], (788, 4): [('move', (45, 23))], (788, 6): [('move', (45, 20))], (788, 9): [('move', (40, 21))], (789, 4): [('move', (45, 22))], (789, 6): [('move', (46, 19))], (789, 9): [('move', (41, 22))], (790, 4): [('move', (45, 23))], (790, 6): [('move', (45, 20))], (790, 9): [('move', (40, 21))], (791, 4): [('move', (45, 22))], (791, 6): [('move', (46, 19))], (791, 9): [('move', (41, 22))], (792, 4): [('move', (45, 23))], (792, 6): [('move', (45, 20))], (792, 9): [('move', (40, 21))], (793, 4): [('move', (45, 22))], (793, 6): [('move', (46, 19))], (793, 9): [('move', (41, 22))], (794, 4): [('move', (45, 23))], (794, 6): [('move', (45, 20))], (794, 9): [('move', (40, 21))], (795, 4): [('move', (45, 22))], (795, 6): [('move', (46, 19))], (795, 9): [('move', (41, 22))], (796, 4): [('move', (45, 23))], (796, 6): [('move', (45, 20))], (796, 9): [('move', (40, 21))], (797, 4): [('move', (45, 22))], (797, 6): [('move', (46, 19))], (797, 9): [('move', (41, 22))], (798, 4): [('move', (45, 23))], (798, 6): [('move', (45, 20))], (798, 9): [('move', (40, 21))], (799, 4): [('move', (45, 22))], (799, 6): [('move', (46, 19))], (799, 9): [('move', (41, 22))], (800, 4): [('move', (45, 23))], (800, 6): [('move', (45, 20))], (800, 9): [('move', (40, 21))], (801, 4): [('move', (45, 22))], (801, 6): [('move', (46, 19))], (801, 9): [('move', (41, 22))], (802, 4): [('move', (45, 23))], (802, 6): [('move', (45, 20))], (802, 9): [('move', (40, 21))], (803, 4): [('move', (45, 22))], (803, 6): [('move', (46, 19))], (803, 9): [('move', (41, 22))], (804, 4): [('move', (45, 23))], (804, 6): [('move', (45, 20))], (804, 9): [('move', (40, 21))], (805, 4): [('move', (45, 22))], (805, 6): [('move', (46, 19))], (805, 9): [('move', (41, 22))], (806, 4): [('move', (45, 23))], (806, 6): [('move', (45, 20))], (806, 9): [('move', (40, 21))], (807, 4): [('move', (45, 22))], (807, 6): [('move', (46, 19))], (807, 9): [('move', (41, 22))], (808, 4): [('move', (45, 23))], (808, 6): [('move', (45, 20))], (808, 9): [('move', (40, 21))], (809, 4): [('move', (45, 22))], (809, 6): [('move', (46, 19))], (809, 9): [('move', (41, 22))], (810, 4): [('move', (45, 23))], (810, 6): [('move', (45, 20))], (810, 9): [('move', (40, 21))], (811, 4): [('move', (45, 22))], (811, 6): [('move', (46, 19))], (811, 9): [('move', (41, 22))], (812, 4): [('move', (45, 23))], (812, 6): [('move', (45, 20))], (812, 9): [('move', (40, 21))], (813, 4): [('move', (45, 22))], (813, 6): [('move', (46, 19))], (813, 9): [('move', (41, 22))], (814, 4): [('move', (45, 23))], (814, 6): [('move', (45, 20))], (814, 9): [('move', (40, 21))], (815, 4): [('move', (45, 22))], (815, 6): [('move', (46, 19))], (815, 9): [('move', (41, 22))], (816, 4): [('move', (45, 23))], (816, 6): [('move', (45, 20))], (816, 9): [('move', (40, 21))], (817, 4): [('move', (45, 22))], (817, 6): [('move', (46, 19))], (817, 9): [('move', (41, 22))], (818, 4): [('move', (45, 23))], (818, 6): [('move', (45, 20))], (818, 9): [('move', (40, 21))], (819, 4): [('move', (45, 22))], (819, 6): [('move', (46, 19))], (819, 9): [('move', (41, 22))], (820, 4): [('move', (45, 23))], (820, 6): [('move', (45, 20))], (820, 9): [('move', (40, 21))], (821, 4): [('move', (45, 22))], (821, 6): [('move', (46, 19))], (821, 9): [('move', (41, 22))], (822, 4): [('move', (45, 23))], (822, 6): [('move', (45, 20))], (822, 9): [('move', (40, 21))], (823, 4): [('move', (45, 22))], (823, 6): [('move', (46, 19))], (823, 9): [('move', (41, 22))], (824, 4): [('move', (45, 23))], (824, 6): [('move', (45, 20))], (824, 9): [('move', (40, 21))], (825, 4): [('move', (45, 22))], (825, 6): [('move', (46, 19))], (825, 9): [('move', (41, 22))], (826, 4): [('move', (45, 23))], (826, 6): [('move', (45, 20))], (826, 9): [('move', (40, 21))], (827, 4): [('move', (45, 22))], (827, 6): [('move', (46, 19))], (827, 9): [('move', (41, 22))], (828, 4): [('move', (45, 23))], (828, 6): [('move', (45, 20))], (828, 9): [('move', (40, 21))], (829, 4): [('move', (45, 22))], (829, 6): [('move', (46, 19))], (829, 9): [('move', (41, 22))], (830, 4): [('move', (45, 23))], (830, 6): [('move', (45, 20))], (830, 9): [('move', (40, 21))], (831, 4): [('move', (45, 22))], (831, 6): [('move', (46, 19))], (831, 9): [('move', (41, 22))], (832, 4): [('move', (45, 23))], (832, 6): [('move', (45, 20))], (832, 9): [('move', (40, 21))], (833, 4): [('move', (45, 22))], (833, 6): [('move', (46, 19))], (833, 9): [('move', (41, 22))], (834, 4): [('move', (45, 23))], (834, 6): [('move', (45, 20))], (834, 9): [('move', (40, 21))], (835, 4): [('move', (45, 22))], (835, 6): [('move', (46, 19))], (835, 9): [('move', (41, 22))], (836, 4): [('move', (45, 23))], (836, 6): [('move', (45, 20))], (836, 9): [('move', (40, 21))], (837, 4): [('move', (45, 22))], (837, 6): [('move', (46, 19))], (837, 9): [('move', (41, 22))], (838, 4): [('move', (45, 23))], (838, 6): [('move', (45, 20))], (838, 9): [('move', (40, 21))], (839, 4): [('move', (45, 22))], (839, 6): [('move', (46, 19))], (839, 9): [('move', (41, 22))], (840, 4): [('move', (45, 23))], (840, 6): [('move', (45, 20))], (840, 9): [('move', (40, 21))], (841, 4): [('move', (45, 22))], (841, 6): [('move', (46, 19))], (841, 9): [('move', (41, 22))], (842, 4): [('move', (45, 23))], (842, 6): [('move', (45, 20))], (842, 9): [('move', (40, 21))], (843, 4): [('move', (45, 22))], (843, 6): [('move', (46, 19))], (843, 9): [('move', (41, 22))], (844, 4): [('move', (45, 23))], (844, 6): [('move', (45, 20))], (844, 9): [('move', (40, 21))], (845, 4): [('move', (45, 22))], (845, 6): [('move', (46, 19))], (845, 9): [('move', (41, 22))], (846, 4): [('move', (45, 23))], (846, 6): [('move', (45, 20))], (846, 9): [('move', (40, 21))], (847, 4): [('move', (45, 22))], (847, 6): [('move', (46, 19))], (847, 9): [('move', (41, 22))], (848, 4): [('move', (45, 23))], (848, 6): [('move', (45, 20))], (848, 9): [('move', (40, 21))], (849, 4): [('move', (45, 22))], (849, 6): [('move', (46, 19))], (849, 9): [('move', (41, 22))], (850, 4): [('move', (45, 23))], (850, 6): [('move', (45, 20))], (850, 9): [('move', (40, 21))], (851, 4): [('move', (45, 22))], (851, 6): [('move', (46, 19))], (851, 9): [('move', (41, 22))], (852, 4): [('move', (45, 23))], (852, 6): [('move', (45, 20))], (852, 9): [('move', (40, 21))], (853, 4): [('move', (45, 22))], (853, 6): [('move', (46, 19))], (853, 9): [('move', (41, 22))], (854, 4): [('move', (45, 23))], (854, 6): [('move', (45, 20))], (854, 9): [('move', (40, 21))], (855, 4): [('move', (45, 22))], (855, 6): [('move', (46, 19))], (855, 9): [('move', (41, 22))], (856, 4): [('move', (45, 23))], (856, 6): [('move', (45, 20))], (856, 9): [('move', (40, 21))], (857, 4): [('move', (45, 22))], (857, 6): [('move', (46, 19))], (857, 9): [('move', (41, 22))], (858, 4): [('move', (45, 23))], (858, 6): [('move', (45, 20))], (858, 9): [('move', (40, 21))], (859, 4): [('move', (45, 22))], (859, 6): [('move', (46, 19))], (859, 9): [('move', (41, 22))], (860, 4): [('move', (45, 23))], (860, 6): [('move', (45, 20))], (860, 9): [('move', (40, 21))], (861, 4): [('move', (45, 22))], (861, 6): [('move', (46, 19))], (861, 9): [('move', (41, 22))], (862, 4): [('move', (45, 23))], (862, 6): [('move', (45, 20))], (862, 9): [('move', (40, 21))], (863, 4): [('move', (45, 22))], (863, 6): [('move', (46, 19))], (863, 9): [('move', (41, 22))], (864, 4): [('move', (45, 23))], (864, 6): [('move', (45, 20))], (864, 9): [('move', (40, 21))], (865, 4): [('move', (45, 22))], (865, 6): [('move', (46, 19))], (865, 9): [('move', (41, 22))], (866, 4): [('move', (45, 23))], (866, 6): [('move', (45, 20))], (866, 9): [('move', (40, 21))], (867, 4): [('move', (45, 22))], (867, 6): [('move', (46, 19))], (867, 9): [('move', (41, 22))], (868, 4): [('move', (45, 23))], (868, 6): [('move', (45, 20))], (868, 9): [('move', (40, 21))], (869, 4): [('move', (45, 22))], (869, 6): [('move', (46, 19))], (869, 9): [('move', (41, 22))], (870, 4): [('move', (45, 23))], (870, 6): [('move', (45, 20))], (870, 9): [('move', (40, 21))], (871, 4): [('move', (45, 22))], (871, 6): [('move', (46, 19))], (871, 9): [('move', (41, 22))], (872, 4): [('move', (45, 23))], (872, 6): [('move', (45, 20))], (872, 9): [('move', (40, 21))], (873, 4): [('move', (45, 22))], (873, 6): [('move', (46, 19))], (873, 9): [('move', (41, 22))], (874, 4): [('move', (45, 23))], (874, 6): [('move', (45, 20))], (874, 9): [('move', (40, 21))], (875, 4): [('move', (45, 22))], (875, 6): [('move', (46, 19))], (875, 9): [('move', (41, 22))], (876, 4): [('move', (45, 23))], (876, 6): [('move', (45, 20))], (876, 9): [('move', (40, 21))], (877, 4): [('move', (45, 22))], (877, 6): [('move', (46, 19))], (877, 9): [('move', (41, 22))], (878, 4): [('move', (45, 23))], (878, 6): [('move', (45, 20))], (878, 9): [('move', (40, 21))], (879, 4): [('move', (45, 22))], (879, 6): [('move', (46, 19))], (879, 9): [('move', (41, 22))], (880, 4): [('move', (45, 23))], (880, 6): [('move', (45, 20))], (880, 9): [('move', (40, 21))], (881, 4): [('move', (45, 22))], (881, 6): [('move', (46, 19))], (881, 9): [('move', (41, 22))], (882, 4): [('move', (45, 23))], (882, 6): [('move', (45, 20))], (882, 9): [('move', (40, 21))], (883, 4): [('move', (45, 22))], (883, 6): [('move', (46, 19))], (883, 9): [('move', (41, 22))], (884, 4): [('move', (45, 23))], (884, 6): [('move', (45, 20))], (884, 9): [('move', (40, 21))], (885, 4): [('move', (45, 22))], (885, 6): [('move', (46, 19))], (885, 9): [('move', (41, 22))], (886, 4): [('move', (45, 23))], (886, 6): [('move', (45, 20))], (886, 9): [('move', (40, 21))], (887, 4): [('move', (45, 22))], (887, 6): [('move', (46, 19))], (887, 9): [('move', (41, 22))], (888, 4): [('move', (45, 23))], (888, 6): [('move', (45, 20))], (888, 9): [('move', (40, 21))], (889, 4): [('move', (45, 22))], (889, 6): [('move', (46, 19))], (889, 9): [('move', (41, 22))], (890, 4): [('move', (45, 23))], (890, 6): [('move', (45, 20))], (890, 9): [('move', (40, 21))], (891, 4): [('move', (45, 22))], (891, 6): [('move', (46, 19))], (891, 9): [('move', (41, 22))], (892, 4): [('move', (45, 23))], (892, 6): [('move', (45, 20))], (892, 9): [('move', (40, 21))], (893, 4): [('move', (45, 22))], (893, 6): [('move', (46, 19))], (893, 9): [('move', (41, 22))], (894, 4): [('move', (45, 23))], (894, 6): [('move', (45, 20))], (894, 9): [('move', (40, 21))], (895, 4): [('move', (45, 22))], (895, 6): [('move', (46, 19))], (895, 9): [('move', (41, 22))], (896, 4): [('move', (45, 23))], (896, 6): [('move', (45, 20))], (896, 9): [('move', (40, 21))], (897, 4): [('move', (45, 22))], (897, 6): [('move', (46, 19))], (897, 9): [('move', (41, 22))], (898, 4): [('move', (45, 23))], (898, 6): [('move', (45, 20))], (898, 9): [('move', (40, 21))], (899, 4): [('move', (45, 22))], (899, 6): [('move', (46, 19))], (899, 9): [('move', (41, 22))], (900, 4): [('move', (45, 23))], (900, 6): [('move', (45, 20))], (900, 9): [('move', (40, 21))], (901, 4): [('move', (45, 22))], (901, 6): [('move', (46, 19))], (901, 9): [('move', (41, 22))], (902, 4): [('move', (45, 23))], (902, 6): [('move', (45, 20))], (902, 9): [('move', (40, 21))], (903, 4): [('move', (45, 22))], (903, 6): [('move', (46, 19))], (903, 9): [('move', (41, 22))], (904, 4): [('move', (45, 23))], (904, 6): [('move', (45, 20))], (904, 9): [('move', (40, 21))], (905, 4): [('move', (45, 22))], (905, 6): [('move', (46, 19))], (905, 9): [('move', (41, 22))], (906, 4): [('move', (45, 23))], (906, 6): [('move', (45, 20))], (906, 9): [('move', (40, 21))], (907, 4): [('move', (45, 22))], (907, 6): [('move', (46, 19))], (907, 9): [('move', (41, 22))], (908, 4): [('move', (45, 23))], (908, 6): [('move', (45, 20))], (908, 9): [('move', (40, 21))], (909, 4): [('move', (45, 22))], (909, 6): [('move', (46, 19))], (909, 9): [('move', (41, 22))], (910, 4): [('move', (45, 23))], (910, 6): [('move', (45, 20))], (910, 9): [('move', (40, 21))], (911, 4): [('move', (45, 22))], (911, 6): [('move', (46, 19))], (911, 9): [('move', (41, 22))], (912, 4): [('move', (45, 23))], (912, 6): [('move', (45, 20))], (912, 9): [('move', (40, 21))], (913, 4): [('move', (45, 22))], (913, 6): [('move', (46, 19))], (913, 9): [('move', (41, 22))], (914, 4): [('move', (45, 23))], (914, 6): [('move', (45, 20))], (914, 9): [('move', (40, 21))], (915, 4): [('move', (45, 22))], (915, 6): [('move', (46, 19))], (915, 9): [('move', (41, 22))], (916, 4): [('move', (45, 23))], (916, 6): [('move', (45, 20))], (916, 9): [('move', (40, 21))], (917, 4): [('move', (45, 22))], (917, 6): [('move', (46, 19))], (917, 9): [('move', (41, 22))], (918, 4): [('move', (45, 23))], (918, 6): [('move', (45, 20))], (918, 9): [('move', (40, 21))], (919, 4): [('move', (45, 22))], (919, 6): [('move', (46, 19))], (919, 9): [('move', (41, 22))], (920, 4): [('move', (45, 23))], (920, 6): [('move', (45, 20))], (920, 9): [('move', (40, 21))], (921, 4): [('move', (45, 22))], (921, 6): [('move', (46, 19))], (921, 9): [('move', (41, 22))], (922, 4): [('move', (45, 23))], (922, 6): [('move', (45, 20))], (922, 9): [('move', (40, 21))], (923, 4): [('move', (45, 22))], (923, 6): [('move', (46, 19))], (923, 9): [('move', (41, 22))], (924, 4): [('move', (45, 23))], (924, 6): [('move', (45, 20))], (924, 9): [('move', (40, 21))], (925, 4): [('move', (45, 22))], (925, 6): [('move', (46, 19))], (925, 9): [('move', (41, 22))], (926, 4): [('move', (45, 23))], (926, 6): [('move', (45, 20))], (926, 9): [('move', (40, 21))], (927, 4): [('move', (45, 22))], (927, 6): [('move', (46, 19))], (927, 9): [('move', (41, 22))], (928, 4): [('move', (45, 23))], (928, 6): [('move', (45, 20))], (928, 9): [('move', (40, 21))], (929, 4): [('move', (45, 22))], (929, 6): [('move', (46, 19))], (929, 9): [('move', (41, 22))], (930, 4): [('move', (45, 23))], (930, 6): [('move', (45, 20))], (930, 9): [('move', (40, 21))], (931, 4): [('move', (45, 22))], (931, 6): [('move', (46, 19))], (931, 9): [('move', (41, 22))], (932, 4): [('move', (45, 23))], (932, 6): [('move', (45, 20))], (932, 9): [('move', (40, 21))], (933, 4): [('move', (45, 22))], (933, 6): [('move', (46, 19))], (933, 9): [('move', (41, 22))], (934, 4): [('move', (45, 23))], (934, 6): [('move', (45, 20))], (934, 9): [('move', (40, 21))], (935, 4): [('move', (45, 22))], (935, 6): [('move', (46, 19))], (935, 9): [('move', (41, 22))], (936, 4): [('move', (45, 23))], (936, 6): [('move', (45, 20))], (936, 9): [('move', (40, 21))], (937, 4): [('move', (45, 22))], (937, 6): [('move', (46, 19))], (937, 9): [('move', (41, 22))], (938, 4): [('move', (45, 23))], (938, 6): [('move', (45, 20))], (938, 9): [('move', (40, 21))], (939, 4): [('move', (45, 22))], (939, 6): [('move', (46, 19))], (939, 9): [('move', (41, 22))], (940, 4): [('move', (45, 23))], (940, 6): [('move', (45, 20))], (940, 9): [('move', (40, 21))], (941, 4): [('move', (45, 22))], (941, 6): [('move', (46, 19))], (941, 9): [('move', (41, 22))], (942, 4): [('move', (45, 23))], (942, 6): [('move', (45, 20))], (942, 9): [('move', (40, 21))], (943, 4): [('move', (45, 22))], (943, 6): [('move', (46, 19))], (943, 9): [('move', (41, 22))], (944, 4): [('move', (45, 23))], (944, 6): [('move', (45, 20))], (944, 9): [('move', (40, 21))], (945, 4): [('move', (45, 22))], (945, 6): [('move', (46, 19))], (945, 9): [('move', (41, 22))], (946, 4): [('move', (45, 23))], (946, 6): [('move', (45, 20))], (946, 9): [('move', (40, 21))], (947, 4): [('move', (45, 22))], (947, 6): [('move', (46, 19))], (947, 9): [('move', (41, 22))], (948, 4): [('move', (45, 23))], (948, 6): [('move', (45, 20))], (948, 9): [('move', (40, 21))], (949, 4): [('move', (45, 22))], (949, 6): [('move', (46, 19))], (949, 9): [('move', (41, 22))], (950, 4): [('move', (45, 23))], (950, 6): [('move', (45, 20))], (950, 9): [('move', (40, 21))], (951, 4): [('move', (45, 22))], (951, 6): [('move', (46, 19))], (951, 9): [('move', (41, 22))], (952, 4): [('move', (45, 23))], (952, 6): [('move', (45, 20))], (952, 9): [('move', (40, 21))], (953, 4): [('move', (45, 22))], (953, 6): [('move', (46, 19))], (953, 9): [('move', (41, 22))], (954, 4): [('move', (45, 23))], (954, 6): [('move', (45, 20))], (954, 9): [('move', (40, 21))], (955, 4): [('move', (45, 22))], (955, 6): [('move', (46, 19))], (955, 9): [('move', (41, 22))], (956, 4): [('move', (45, 23))], (956, 6): [('move', (45, 20))], (956, 9): [('move', (40, 21))], (957, 4): [('move', (45, 22))], (957, 6): [('move', (46, 19))], (957, 9): [('move', (41, 22))], (958, 4): [('move', (45, 23))], (958, 6): [('move', (45, 20))], (958, 9): [('move', (40, 21))], (959, 4): [('move', (45, 22))], (959, 6): [('move', (46, 19))], (959, 9): [('move', (41, 22))], (960, 4): [('move', (45, 23))], (960, 6): [('move', (45, 20))], (960, 9): [('move', (40, 21))], (961, 4): [('move', (45, 22))], (961, 6): [('move', (46, 19))], (961, 9): [('move', (41, 22))], (962, 4): [('move', (45, 23))], (962, 6): [('move', (45, 20))], (962, 9): [('move', (40, 21))], (963, 4): [('move', (45, 22))], (963, 6): [('move', (46, 19))], (963, 9): [('move', (41, 22))], (964, 4): [('move', (45, 23))], (964, 6): [('move', (45, 20))], (964, 9): [('move', (40, 21))], (965, 4): [('move', (45, 22))], (965, 6): [('move', (46, 19))], (965, 9): [('move', (41, 22))], (966, 4): [('move', (45, 23))], (966, 6): [('move', (45, 20))], (966, 9): [('move', (40, 21))], (967, 4): [('move', (45, 22))], (967, 6): [('move', (46, 19))], (967, 9): [('move', (41, 22))], (968, 4): [('move', (45, 23))], (968, 6): [('move', (45, 20))], (968, 9): [('move', (40, 21))], (969, 4): [('move', (45, 22))], (969, 6): [('move', (46, 19))], (969, 9): [('move', (41, 22))], (970, 4): [('move', (45, 23))], (970, 6): [('move', (45, 20))], (970, 9): [('move', (40, 21))], (971, 4): [('move', (45, 22))], (971, 6): [('move', (46, 19))], (971, 9): [('move', (41, 22))], (972, 4): [('move', (45, 23))], (972, 6): [('move', (45, 20))], (972, 9): [('move', (40, 21))], (973, 4): [('move', (45, 22))], (973, 6): [('move', (46, 19))], (973, 9): [('move', (41, 22))], (974, 4): [('move', (45, 23))], (974, 6): [('move', (45, 20))], (974, 9): [('move', (40, 21))], (975, 4): [('move', (45, 22))], (975, 6): [('move', (46, 19))], (975, 9): [('move', (41, 22))], (976, 4): [('move', (45, 23))], (976, 6): [('move', (45, 20))], (976, 9): [('move', (40, 21))], (977, 4): [('move', (45, 22))], (977, 6): [('move', (46, 19))], (977, 9): [('move', (41, 22))], (978, 4): [('move', (45, 23))], (978, 6): [('move', (45, 20))], (978, 9): [('move', (40, 21))], (979, 4): [('move', (45, 22))], (979, 6): [('move', (46, 19))], (979, 9): [('move', (41, 22))], (980, 4): [('move', (45, 23))], (980, 6): [('move', (45, 20))], (980, 9): [('move', (40, 21))], (981, 4): [('move', (45, 22))], (981, 6): [('move', (46, 19))], (981, 9): [('move', (41, 22))], (982, 4): [('move', (45, 23))], (982, 6): [('move', (45, 20))], (982, 9): [('move', (40, 21))], (983, 4): [('move', (45, 22))], (983, 6): [('move', (46, 19))], (983, 9): [('move', (41, 22))], (984, 4): [('move', (45, 23))], (984, 6): [('move', (45, 20))], (984, 9): [('move', (40, 21))], (985, 4): [('move', (45, 22))], (985, 6): [('move', (46, 19))], (985, 9): [('move', (41, 22))], (986, 4): [('move', (45, 23))], (986, 6): [('move', (45, 20))], (986, 9): [('move', (40, 21))], (987, 4): [('move', (45, 22))], (987, 6): [('move', (46, 19))], (987, 9): [('move', (41, 22))], (988, 4): [('move', (45, 23))], (988, 6): [('move', (45, 20))], (988, 9): [('move', (40, 21))], (989, 4): [('move', (45, 22))], (989, 6): [('move', (46, 19))], (989, 9): [('move', (41, 22))], (990, 4): [('move', (45, 23))], (990, 6): [('move', (45, 20))], (990, 9): [('move', (40, 21))], (991, 4): [('move', (45, 22))], (991, 6): [('move', (46, 19))], (991, 9): [('move', (41, 22))], (992, 4): [('move', (45, 23))], (992, 6): [('move', (45, 20))], (992, 9): [('move', (40, 21))], (993, 4): [('move', (45, 22))], (993, 6): [('move', (46, 19))], (993, 9): [('move', (41, 22))], (994, 4): [('move', (45, 23))], (994, 6): [('move', (45, 20))], (994, 9): [('move', (40, 21))], (995, 4): [('move', (45, 22))], (995, 6): [('move', (46, 19))], (995, 9): [('move', (41, 22))], (996, 4): [('move', (45, 23))], (996, 6): [('move', (45, 20))], (996, 9): [('move', (40, 21))], (997, 4): [('move', (45, 22))], (997, 6): [('move', (46, 19))], (997, 9): [('move', (41, 22))], (998, 4): [('move', (45, 23))], (998, 6): [('move', (45, 20))], (998, 9): [('move', (40, 21))], (999, 4): [('move', (45, 22))], (999, 6): [('move', (46, 19))], (999, 9): [('move', (41, 22))], (1000, 4): [('move', (45, 23))], (1000, 6): [('move', (45, 20))], (1000, 9): [('move', (40, 21))], (1001, 4): [('move', (45, 22))], (1001, 6): [('move', (46, 19))], (1001, 9): [('move', (41, 22))], (1002, 4): [('move', (45, 23))], (1002, 6): [('move', (45, 20))], (1002, 9): [('move', (40, 21))], (1003, 4): [('move', (45, 22))], (1003, 6): [('move', (46, 19))], (1003, 9): [('move', (41, 22))], (1004, 4): [('move', (45, 23))], (1004, 6): [('move', (45, 20))], (1004, 9): [('move', (40, 21))], (1005, 4): [('move', (45, 22))], (1005, 6): [('move', (46, 19))], (1005, 9): [('move', (41, 22))], (1006, 4): [('move', (45, 23))], (1006, 6): [('move', (45, 20))], (1006, 9): [('move', (40, 21))], (1007, 4): [('move', (45, 22))], (1007, 6): [('move', (46, 19))], (1007, 9): [('move', (41, 22))], (1008, 4): [('move', (45, 23))], (1008, 6): [('move', (45, 20))], (1008, 9): [('move', (40, 21))], (1009, 4): [('move', (45, 22))], (1009, 6): [('move', (46, 19))], (1009, 9): [('move', (41, 22))], (1010, 4): [('move', (45, 23))], (1010, 6): [('move', (45, 20))], (1010, 9): [('move', (40, 21))], (1011, 4): [('move', (45, 22))], (1011, 6): [('move', (46, 19))], (1011, 9): [('move', (41, 22))], (1012, 4): [('move', (45, 23))], (1012, 6): [('move', (45, 20))], (1012, 9): [('move', (40, 21))], (1013, 4): [('move', (45, 22))], (1013, 6): [('move', (46, 19))], (1013, 9): [('move', (41, 22))], (1014, 4): [('move', (45, 23))], (1014, 6): [('move', (45, 20))], (1014, 9): [('move', (40, 21))], (1015, 4): [('move', (45, 22))], (1015, 6): [('move', (46, 19))], (1015, 9): [('move', (41, 22))], (1016, 4): [('move', (45, 23))], (1016, 6): [('move', (45, 20))], (1016, 9): [('move', (40, 21))], (1017, 4): [('move', (45, 22))], (1017, 6): [('move', (46, 19))], (1017, 9): [('move', (41, 22))], (1018, 4): [('move', (45, 23))], (1018, 6): [('move', (45, 20))], (1018, 9): [('move', (40, 21))], (1019, 4): [('move', (45, 22))], (1019, 6): [('move', (46, 19))], (1019, 9): [('move', (41, 22))], (1020, 4): [('move', (45, 23))], (1020, 6): [('move', (45, 20))], (1020, 9): [('move', (40, 21))], (1021, 4): [('move', (45, 22))], (1021, 6): [('move', (46, 19))], (1021, 9): [('move', (41, 22))], (1022, 4): [('move', (45, 23))], (1022, 6): [('move', (45, 20))], (1022, 9): [('move', (40, 21))], (1023, 4): [('move', (45, 22))], (1023, 6): [('move', (46, 19))], (1023, 9): [('move', (41, 22))], (1024, 4): [('move', (45, 23))], (1024, 6): [('move', (45, 20))], (1024, 9): [('move', (40, 21))], (1025, 4): [('move', (45, 22))], (1025, 6): [('move', (46, 19))], (1025, 9): [('move', (41, 22))], (1026, 4): [('move', (45, 23))], (1026, 6): [('move', (45, 20))], (1026, 9): [('move', (40, 21))], (1027, 4): [('move', (45, 22))], (1027, 6): [('move', (46, 19))], (1027, 9): [('move', (41, 22))], (1028, 4): [('move', (45, 23))], (1028, 6): [('move', (45, 20))], (1028, 9): [('move', (40, 21))], (1029, 4): [('move', (45, 22))], (1029, 6): [('move', (46, 19))], (1029, 9): [('move', (41, 22))], (1030, 4): [('move', (45, 23))], (1030, 6): [('move', (45, 20))], (1030, 9): [('move', (40, 21))], (1031, 4): [('move', (45, 22))], (1031, 6): [('move', (46, 19))], (1031, 9): [('move', (41, 22))], (1032, 4): [('move', (45, 23))], (1032, 6): [('move', (45, 20))], (1032, 9): [('move', (40, 21))], (1033, 4): [('move', (45, 22))], (1033, 6): [('move', (46, 19))], (1033, 9): [('move', (41, 22))], (1034, 4): [('move', (45, 23))], (1034, 6): [('move', (45, 20))], (1034, 9): [('move', (40, 21))], (1035, 4): [('move', (45, 22))], (1035, 6): [('move', (46, 19))], (1035, 9): [('move', (41, 22))], (1036, 4): [('move', (45, 23))], (1036, 6): [('move', (45, 20))], (1036, 9): [('move', (40, 21))], (1037, 4): [('move', (45, 22))], (1037, 6): [('move', (46, 19))], (1037, 9): [('move', (41, 22))], (1038, 4): [('move', (45, 23))], (1038, 6): [('move', (45, 20))], (1038, 9): [('move', (40, 21))], (1039, 4): [('move', (45, 22))], (1039, 6): [('move', (46, 19))], (1039, 9): [('move', (41, 22))], (1040, 4): [('move', (45, 23))], (1040, 6): [('move', (45, 20))], (1040, 9): [('move', (40, 21))], (1041, 4): [('move', (45, 22))], (1041, 6): [('move', (46, 19))], (1041, 9): [('move', (41, 22))], (1042, 4): [('move', (45, 23))], (1042, 6): [('move', (45, 20))], (1042, 9): [('move', (40, 21))], (1043, 4): [('move', (45, 22))], (1043, 6): [('move', (46, 19))], (1043, 9): [('move', (41, 22))], (1044, 4): [('move', (45, 23))], (1044, 6): [('move', (45, 20))], (1044, 9): [('move', (40, 21))], (1045, 4): [('move', (45, 22))], (1045, 6): [('move', (46, 19))], (1045, 9): [('move', (41, 22))], (1046, 4): [('move', (45, 23))], (1046, 6): [('move', (45, 20))], (1046, 9): [('move', (40, 21))], (1047, 4): [('move', (45, 22))], (1047, 6): [('move', (46, 19))], (1047, 9): [('move', (41, 22))], (1048, 4): [('move', (45, 23))], (1048, 6): [('move', (45, 20))], (1048, 9): [('move', (40, 21))], (1049, 4): [('move', (45, 22))], (1049, 6): [('move', (46, 19))], (1049, 9): [('move', (41, 22))], (1050, 4): [('move', (45, 23))], (1050, 6): [('move', (45, 20))], (1050, 9): [('move', (40, 21))], (1051, 4): [('move', (45, 22))], (1051, 6): [('move', (46, 19))], (1051, 9): [('move', (41, 22))], (1052, 4): [('move', (45, 23))], (1052, 6): [('move', (45, 20))], (1052, 9): [('move', (40, 21))], (1053, 4): [('move', (45, 22))], (1053, 6): [('move', (46, 19))], (1053, 9): [('move', (41, 22))], (1054, 4): [('move', (45, 23))], (1054, 6): [('move', (45, 20))], (1054, 9): [('move', (40, 21))], (1055, 4): [('move', (45, 22))], (1055, 6): [('move', (46, 19))], (1055, 9): [('move', (41, 22))], (1056, 4): [('move', (45, 23))], (1056, 6): [('move', (45, 20))], (1056, 9): [('move', (40, 21))], (1057, 4): [('move', (45, 22))], (1057, 6): [('move', (46, 19))], (1057, 9): [('move', (41, 22))], (1058, 4): [('move', (45, 23))], (1058, 6): [('move', (45, 20))], (1058, 9): [('move', (40, 21))], (1059, 4): [('move', (45, 22))], (1059, 6): [('move', (46, 19))], (1059, 9): [('move', (41, 22))], (1060, 4): [('move', (45, 23))], (1060, 6): [('move', (45, 20))], (1060, 9): [('move', (40, 21))], (1061, 4): [('move', (45, 22))], (1061, 6): [('move', (46, 19))], (1061, 9): [('move', (41, 22))], (1062, 4): [('move', (45, 23))], (1062, 6): [('move', (45, 20))], (1062, 9): [('move', (40, 21))], (1063, 4): [('move', (45, 22))], (1063, 6): [('move', (46, 19))], (1063, 9): [('move', (41, 22))], (1064, 4): [('move', (45, 23))], (1064, 6): [('move', (45, 20))], (1064, 9): [('move', (40, 21))], (1065, 4): [('move', (45, 22))], (1065, 6): [('move', (46, 19))], (1065, 9): [('move', (41, 22))], (1066, 4): [('move', (45, 23))], (1066, 6): [('move', (45, 20))], (1066, 9): [('move', (40, 21))], (1067, 4): [('move', (45, 22))], (1067, 6): [('move', (46, 19))], (1067, 9): [('move', (41, 22))], (1068, 4): [('move', (45, 23))], (1068, 6): [('move', (45, 20))], (1068, 9): [('move', (40, 21))], (1069, 4): [('move', (45, 22))], (1069, 6): [('move', (46, 19))], (1069, 9): [('move', (41, 22))], (1070, 4): [('move', (45, 23))], (1070, 6): [('move', (45, 20))], (1070, 9): [('move', (40, 21))], (1071, 4): [('move', (45, 22))], (1071, 6): [('move', (46, 19))], (1071, 9): [('move', (41, 22))], (1072, 4): [('move', (45, 23))], (1072, 6): [('move', (45, 20))], (1072, 9): [('move', (40, 21))], (1073, 4): [('move', (45, 22))], (1073, 6): [('move', (46, 19))], (1073, 9): [('move', (41, 22))], (1074, 4): [('move', (45, 23))], (1074, 6): [('move', (45, 20))], (1074, 9): [('move', (40, 21))], (1075, 4): [('move', (45, 22))], (1075, 6): [('move', (46, 19))], (1075, 9): [('move', (41, 22))], (1076, 4): [('move', (45, 23))], (1076, 6): [('move', (45, 20))], (1076, 9): [('move', (40, 21))], (1077, 4): [('move', (45, 22))], (1077, 6): [('move', (46, 19))], (1077, 9): [('move', (41, 22))], (1078, 4): [('move', (45, 23))], (1078, 6): [('move', (45, 20))], (1078, 9): [('move', (40, 21))], (1079, 4): [('move', (45, 22))], (1079, 6): [('move', (46, 19))], (1079, 9): [('move', (41, 22))], (1080, 4): [('move', (45, 23))], (1080, 6): [('move', (45, 20))], (1080, 9): [('move', (40, 21))], (1081, 4): [('move', (45, 22))], (1081, 6): [('move', (46, 19))], (1081, 9): [('move', (41, 22))], (1082, 4): [('move', (45, 23))], (1082, 6): [('move', (45, 20))], (1082, 9): [('move', (40, 21))], (1083, 4): [('move', (45, 22))], (1083, 6): [('move', (46, 19))], (1083, 9): [('move', (41, 22))], (1084, 4): [('move', (45, 23))], (1084, 6): [('move', (45, 20))], (1084, 9): [('move', (40, 21))], (1085, 4): [('move', (45, 22))], (1085, 6): [('move', (46, 19))], (1085, 9): [('move', (41, 22))], (1086, 4): [('move', (45, 23))], (1086, 6): [('move', (45, 20))], (1086, 9): [('move', (40, 21))], (1087, 4): [('move', (45, 22))], (1087, 6): [('move', (46, 19))], (1087, 9): [('move', (41, 22))], (1088, 4): [('move', (45, 23))], (1088, 6): [('move', (45, 20))], (1088, 9): [('move', (40, 21))], (1089, 4): [('move', (45, 22))], (1089, 6): [('move', (46, 19))], (1089, 9): [('move', (41, 22))], (1090, 4): [('move', (45, 23))], (1090, 6): [('move', (45, 20))], (1090, 9): [('move', (40, 21))], (1091, 4): [('move', (45, 22))], (1091, 6): [('move', (46, 19))], (1091, 9): [('move', (41, 22))], (1092, 4): [('move', (45, 23))], (1092, 6): [('move', (45, 20))], (1092, 9): [('move', (40, 21))], (1093, 4): [('move', (45, 22))], (1093, 6): [('move', (46, 19))], (1093, 9): [('move', (41, 22))], (1094, 4): [('move', (45, 23))], (1094, 6): [('move', (45, 20))], (1094, 9): [('move', (40, 21))], (1095, 4): [('move', (45, 22))], (1095, 6): [('move', (46, 19))], (1095, 9): [('move', (41, 22))], (1096, 4): [('move', (45, 23))], (1096, 6): [('move', (45, 20))], (1096, 9): [('move', (40, 21))], (1097, 4): [('move', (45, 22))], (1097, 6): [('move', (46, 19))], (1097, 9): [('move', (41, 22))], (1098, 4): [('move', (45, 23))], (1098, 6): [('move', (45, 20))], (1098, 9): [('move', (40, 21))], (1099, 4): [('move', (45, 22))], (1099, 6): [('move', (46, 19))], (1099, 9): [('move', (41, 22))], (1100, 4): [('move', (45, 23))], (1100, 6): [('move', (45, 20))], (1100, 9): [('move', (40, 21))], (1101, 4): [('move', (45, 22))], (1101, 6): [('move', (46, 19))], (1101, 9): [('move', (41, 22))], (1102, 4): [('move', (45, 23))], (1102, 6): [('move', (45, 20))], (1102, 9): [('move', (40, 21))], (1103, 4): [('move', (45, 22))], (1103, 6): [('move', (46, 19))], (1103, 9): [('move', (41, 22))], (1104, 4): [('move', (45, 23))], (1104, 6): [('move', (45, 20))], (1104, 9): [('move', (40, 21))], (1105, 4): [('move', (45, 22))], (1105, 6): [('move', (46, 19))], (1105, 9): [('move', (41, 22))], (1106, 4): [('move', (45, 23))], (1106, 6): [('move', (45, 20))], (1106, 9): [('move', (40, 21))], (1107, 4): [('move', (45, 22))], (1107, 6): [('move', (46, 19))], (1107, 9): [('move', (41, 22))], (1108, 4): [('move', (45, 23))], (1108, 6): [('move', (45, 20))], (1108, 9): [('move', (40, 21))], (1109, 4): [('move', (45, 22))], (1109, 6): [('move', (46, 19))], (1109, 9): [('move', (41, 22))], (1110, 4): [('move', (45, 23))], (1110, 6): [('move', (45, 20))], (1110, 9): [('move', (40, 21))], (1111, 4): [('move', (45, 22))], (1111, 6): [('move', (46, 19))], (1111, 9): [('move', (41, 22))], (1112, 4): [('move', (45, 23))], (1112, 6): [('move', (45, 20))], (1112, 9): [('move', (40, 21))], (1113, 4): [('move', (45, 22))], (1113, 6): [('move', (46, 19))], (1113, 9): [('move', (41, 22))], (1114, 4): [('move', (45, 23))], (1114, 6): [('move', (45, 20))], (1114, 9): [('move', (40, 21))], (1115, 4): [('move', (45, 22))], (1115, 6): [('move', (46, 19))], (1115, 9): [('move', (41, 22))], (1116, 4): [('move', (45, 23))], (1116, 6): [('move', (45, 20))], (1116, 9): [('move', (40, 21))], (1117, 4): [('move', (45, 22))], (1117, 6): [('move', (46, 19))], (1117, 9): [('move', (41, 22))], (1118, 4): [('move', (45, 23))], (1118, 6): [('move', (45, 20))], (1118, 9): [('move', (40, 21))], (1119, 4): [('move', (45, 22))], (1119, 6): [('move', (46, 19))], (1119, 9): [('move', (41, 22))], (1120, 4): [('move', (45, 23))], (1120, 6): [('move', (45, 20))], (1120, 9): [('move', (40, 21))], (1121, 4): [('move', (45, 22))], (1121, 6): [('move', (46, 19))], (1121, 9): [('move', (41, 22))], (1122, 4): [('move', (45, 23))], (1122, 6): [('move', (45, 20))], (1122, 9): [('move', (40, 21))], (1123, 4): [('move', (45, 22))], (1123, 6): [('move', (46, 19))], (1123, 9): [('move', (41, 22))], (1124, 4): [('move', (45, 23))], (1124, 6): [('move', (45, 20))], (1124, 9): [('move', (40, 21))], (1125, 4): [('move', (45, 22))], (1125, 6): [('move', (46, 19))], (1125, 9): [('move', (41, 22))], (1126, 4): [('move', (45, 23))], (1126, 6): [('move', (45, 20))], (1126, 9): [('move', (40, 21))], (1127, 4): [('move', (45, 22))], (1127, 6): [('move', (46, 19))], (1127, 9): [('move', (41, 22))], (1128, 4): [('move', (45, 23))], (1128, 6): [('move', (45, 20))], (1128, 9): [('move', (40, 21))], (1129, 4): [('move', (45, 22))], (1129, 6): [('move', (46, 19))], (1129, 9): [('move', (41, 22))], (1130, 4): [('move', (45, 23))], (1130, 6): [('move', (45, 20))], (1130, 9): [('move', (40, 21))], (1131, 4): [('move', (45, 22))], (1131, 6): [('move', (46, 19))], (1131, 9): [('move', (41, 22))], (1132, 4): [('move', (45, 23))], (1132, 6): [('move', (45, 20))], (1132, 9): [('move', (40, 21))], (1133, 4): [('move', (45, 22))], (1133, 6): [('move', (46, 19))], (1133, 9): [('move', (41, 22))], (1134, 4): [('move', (45, 23))], (1134, 6): [('move', (45, 20))], (1134, 9): [('move', (40, 21))], (1135, 4): [('move', (45, 22))], (1135, 6): [('move', (46, 19))], (1135, 9): [('move', (41, 22))], (1136, 4): [('move', (45, 23))], (1136, 6): [('move', (45, 20))], (1136, 9): [('move', (40, 21))], (1137, 4): [('move', (45, 22))], (1137, 6): [('move', (46, 19))], (1137, 9): [('move', (41, 22))], (1138, 4): [('move', (45, 23))], (1138, 6): [('move', (45, 20))], (1138, 9): [('move', (40, 21))], (1139, 4): [('move', (45, 22))], (1139, 6): [('move', (46, 19))], (1139, 9): [('move', (41, 22))], (1140, 4): [('move', (45, 23))], (1140, 6): [('move', (45, 20))], (1140, 9): [('move', (40, 21))], (1141, 4): [('move', (45, 22))], (1141, 6): [('move', (46, 19))], (1141, 9): [('move', (41, 22))], (1142, 4): [('move', (45, 23))], (1142, 6): [('move', (45, 20))], (1142, 9): [('move', (40, 21))], (1143, 4): [('move', (45, 22))], (1143, 6): [('move', (46, 19))], (1143, 9): [('move', (41, 22))], (1144, 4): [('move', (45, 23))], (1144, 6): [('move', (45, 20))], (1144, 9): [('move', (40, 21))], (1145, 4): [('move', (45, 22))], (1145, 6): [('move', (46, 19))], (1145, 9): [('move', (41, 22))], (1146, 4): [('move', (45, 23))], (1146, 6): [('move', (45, 20))], (1146, 9): [('move', (40, 21))], (1147, 4): [('move', (45, 22))], (1147, 6): [('move', (46, 19))], (1147, 9): [('move', (41, 22))], (1148, 4): [('move', (45, 23))], (1148, 6): [('move', (45, 20))], (1148, 9): [('move', (40, 21))], (1149, 4): [('move', (45, 22))], (1149, 6): [('move', (46, 19))], (1149, 9): [('move', (41, 22))], (1150, 4): [('move', (45, 23))], (1150, 6): [('move', (45, 20))], (1150, 9): [('move', (40, 21))], (1151, 4): [('move', (45, 22))], (1151, 6): [('move', (46, 19))], (1151, 9): [('move', (41, 22))], (1152, 4): [('move', (45, 23))], (1152, 6): [('move', (45, 20))], (1152, 9): [('move', (40, 21))], (1153, 4): [('move', (45, 22))], (1153, 6): [('move', (46, 19))], (1153, 9): [('move', (41, 22))], (1154, 4): [('move', (45, 23))], (1154, 6): [('move', (45, 20))], (1154, 9): [('move', (40, 21))], (1155, 4): [('move', (45, 22))], (1155, 6): [('move', (46, 19))], (1155, 9): [('move', (41, 22))], (1156, 4): [('move', (45, 23))], (1156, 6): [('move', (45, 20))], (1156, 9): [('move', (40, 21))], (1157, 4): [('move', (45, 22))], (1157, 6): [('move', (46, 19))], (1157, 9): [('move', (41, 22))], (1158, 4): [('move', (45, 23))], (1158, 6): [('move', (45, 20))], (1158, 9): [('move', (40, 21))], (1159, 4): [('move', (45, 22))], (1159, 6): [('move', (46, 19))], (1159, 9): [('move', (41, 22))], (1160, 4): [('move', (45, 23))], (1160, 6): [('move', (45, 20))], (1160, 9): [('move', (40, 21))], (1161, 4): [('move', (45, 22))], (1161, 6): [('move', (46, 19))], (1161, 9): [('move', (41, 22))], (1162, 4): [('move', (45, 23))], (1162, 6): [('move', (45, 20))], (1162, 9): [('move', (40, 21))], (1163, 4): [('move', (45, 22))], (1163, 6): [('move', (46, 19))], (1163, 9): [('move', (41, 22))], (1164, 4): [('move', (45, 23))], (1164, 6): [('move', (45, 20))], (1164, 9): [('move', (40, 21))], (1165, 4): [('move', (45, 22))], (1165, 6): [('move', (46, 19))], (1165, 9): [('move', (41, 22))], (1166, 4): [('move', (45, 23))], (1166, 6): [('move', (45, 20))], (1166, 9): [('move', (40, 21))], (1167, 4): [('move', (45, 22))], (1167, 6): [('move', (46, 19))], (1167, 9): [('move', (41, 22))], (1168, 4): [('move', (45, 23))], (1168, 6): [('move', (45, 20))], (1168, 9): [('move', (40, 21))], (1169, 4): [('move', (45, 22))], (1169, 6): [('move', (46, 19))], (1169, 9): [('move', (41, 22))], (1170, 4): [('move', (45, 23))], (1170, 6): [('move', (45, 20))], (1170, 9): [('move', (40, 21))], (1171, 4): [('move', (45, 22))], (1171, 6): [('move', (46, 19))], (1171, 9): [('move', (41, 22))], (1172, 4): [('move', (45, 23))], (1172, 6): [('move', (45, 20))], (1172, 9): [('move', (40, 21))], (1173, 4): [('move', (45, 22))], (1173, 6): [('move', (46, 19))], (1173, 9): [('move', (41, 22))], (1174, 4): [('move', (45, 23))], (1174, 6): [('move', (45, 20))], (1174, 9): [('move', (40, 21))], (1175, 4): [('move', (45, 22))], (1175, 6): [('move', (46, 19))], (1175, 9): [('move', (41, 22))], (1176, 4): [('move', (45, 23))], (1176, 6): [('move', (45, 20))], (1176, 9): [('move', (40, 21))], (1177, 4): [('move', (45, 22))], (1177, 6): [('move', (46, 19))], (1177, 9): [('move', (41, 22))], (1178, 4): [('move', (45, 23))], (1178, 6): [('move', (45, 20))], (1178, 9): [('move', (40, 21))], (1179, 4): [('move', (45, 22))], (1179, 6): [('move', (46, 19))], (1179, 9): [('move', (41, 22))], (1180, 4): [('move', (45, 23))], (1180, 6): [('move', (45, 20))], (1180, 9): [('move', (40, 21))], (1181, 4): [('move', (45, 22))], (1181, 6): [('move', (46, 19))], (1181, 9): [('move', (41, 22))], (1182, 4): [('move', (45, 23))], (1182, 6): [('move', (45, 20))], (1182, 9): [('move', (40, 21))], (1183, 4): [('move', (45, 22))], (1183, 6): [('move', (46, 19))], (1183, 9): [('move', (41, 22))], (1184, 4): [('move', (45, 23))], (1184, 6): [('move', (45, 20))], (1184, 9): [('move', (40, 21))], (1185, 4): [('move', (45, 22))], (1185, 6): [('move', (46, 19))], (1185, 9): [('move', (41, 22))], (1186, 4): [('move', (45, 23))], (1186, 6): [('move', (45, 20))], (1186, 9): [('move', (40, 21))], (1187, 4): [('move', (45, 22))], (1187, 6): [('move', (46, 19))], (1187, 9): [('move', (41, 22))], (1188, 4): [('move', (45, 23))], (1188, 6): [('move', (45, 20))], (1188, 9): [('move', (40, 21))], (1189, 4): [('move', (45, 22))], (1189, 6): [('move', (46, 19))], (1189, 9): [('move', (41, 22))], (1190, 4): [('move', (45, 23))], (1190, 6): [('move', (45, 20))], (1190, 9): [('move', (40, 21))], (1191, 4): [('move', (45, 22))], (1191, 6): [('move', (46, 19))], (1191, 9): [('move', (41, 22))], (1192, 4): [('move', (45, 23))], (1192, 6): [('move', (45, 20))], (1192, 9): [('move', (40, 21))], (1193, 4): [('move', (45, 22))], (1193, 6): [('move', (46, 19))], (1193, 9): [('move', (41, 22))], (1194, 4): [('move', (45, 23))], (1194, 6): [('move', (45, 20))], (1194, 9): [('move', (40, 21))], (1195, 4): [('move', (45, 22))], (1195, 6): [('move', (46, 19))], (1195, 9): [('move', (41, 22))], (1196, 4): [('move', (45, 23))], (1196, 6): [('move', (45, 20))], (1196, 9): [('move', (40, 21))], (1197, 4): [('move', (45, 22))], (1197, 6): [('move', (46, 19))], (1197, 9): [('move', (41, 22))], (1198, 4): [('move', (45, 23))], (1198, 6): [('move', (45, 20))], (1198, 9): [('move', (40, 21))], (1199, 4): [('move', (45, 22))], (1199, 6): [('move', (46, 19))], (1199, 9): [('move', (41, 22))], (1200, 4): [('move', (45, 23))], (1200, 6): [('move', (45, 20))], (1200, 9): [('move', (40, 21))], (1201, 4): [('move', (45, 22))], (1201, 6): [('move', (46, 19))], (1201, 9): [('move', (41, 22))], (1202, 4): [('move', (45, 23))], (1202, 6): [('move', (45, 20))], (1202, 9): [('move', (40, 21))], (1203, 4): [('move', (45, 22))], (1203, 6): [('move', (46, 19))], (1203, 9): [('move', (41, 22))], (1204, 4): [('move', (45, 23))], (1204, 6): [('move', (45, 20))], (1204, 9): [('move', (40, 21))], (1205, 4): [('move', (45, 22))], (1205, 6): [('move', (46, 19))], (1205, 9): [('move', (41, 22))], (1206, 4): [('move', (45, 23))], (1206, 6): [('move', (45, 20))], (1206, 9): [('move', (40, 21))], (1207, 4): [('move', (45, 22))], (1207, 6): [('move', (46, 19))], (1207, 9): [('move', (41, 22))], (1208, 4): [('move', (45, 23))], (1208, 6): [('move', (45, 20))], (1208, 9): [('move', (40, 21))], (1209, 4): [('move', (45, 22))], (1209, 6): [('move', (46, 19))], (1209, 9): [('move', (41, 22))], (1210, 4): [('move', (45, 23))], (1210, 6): [('move', (45, 20))], (1210, 9): [('move', (40, 21))], (1211, 4): [('move', (45, 22))], (1211, 6): [('move', (46, 19))], (1211, 9): [('move', (41, 22))], (1212, 4): [('move', (45, 23))], (1212, 6): [('move', (45, 20))], (1212, 9): [('move', (40, 21))], (1213, 4): [('move', (45, 22))], (1213, 6): [('move', (46, 19))], (1213, 9): [('move', (41, 22))], (1214, 4): [('move', (45, 23))], (1214, 6): [('move', (45, 20))], (1214, 9): [('move', (40, 21))], (1215, 4): [('move', (45, 22))], (1215, 6): [('move', (46, 19))], (1215, 9): [('move', (41, 22))], (1216, 4): [('move', (45, 23))], (1216, 6): [('move', (45, 20))], (1216, 9): [('move', (40, 21))], (1217, 4): [('move', (45, 22))], (1217, 6): [('move', (46, 19))], (1217, 9): [('move', (41, 22))], (1218, 4): [('move', (45, 23))], (1218, 6): [('move', (45, 20))], (1218, 9): [('move', (40, 21))], (1219, 4): [('move', (45, 22))], (1219, 6): [('move', (46, 19))], (1219, 9): [('move', (41, 22))], (1220, 4): [('move', (45, 23))], (1220, 6): [('move', (45, 20))], (1220, 9): [('move', (40, 21))], (1221, 4): [('move', (45, 22))], (1221, 6): [('move', (46, 19))], (1221, 9): [('move', (41, 22))], (1222, 4): [('move', (45, 23))], (1222, 6): [('move', (45, 20))], (1222, 9): [('move', (40, 21))], (1223, 4): [('move', (45, 22))], (1223, 6): [('move', (46, 19))], (1223, 9): [('move', (41, 22))], (1224, 4): [('move', (45, 23))], (1224, 6): [('move', (45, 20))], (1224, 9): [('move', (40, 21))], (1225, 4): [('move', (45, 22))], (1225, 6): [('move', (46, 19))], (1225, 9): [('move', (41, 22))], (1226, 4): [('move', (45, 23))], (1226, 6): [('move', (45, 20))], (1226, 9): [('move', (40, 21))], (1227, 4): [('move', (45, 22))], (1227, 6): [('move', (46, 19))], (1227, 9): [('move', (41, 22))], (1228, 4): [('move', (45, 23))], (1228, 6): [('move', (45, 20))], (1228, 9): [('move', (40, 21))], (1229, 4): [('move', (45, 22))], (1229, 6): [('move', (46, 19))], (1229, 9): [('move', (41, 22))], (1230, 4): [('move', (45, 23))], (1230, 6): [('move', (45, 20))], (1230, 9): [('move', (40, 21))], (1231, 4): [('move', (45, 22))], (1231, 6): [('move', (46, 19))], (1231, 9): [('move', (41, 22))], (1232, 4): [('move', (45, 23))], (1232, 6): [('move', (45, 20))], (1232, 9): [('move', (40, 21))], (1233, 4): [('move', (45, 22))], (1233, 6): [('move', (46, 19))], (1233, 9): [('move', (41, 22))], (1234, 4): [('move', (45, 23))], (1234, 6): [('move', (45, 20))], (1234, 9): [('move', (40, 21))], (1235, 4): [('move', (45, 22))], (1235, 6): [('move', (46, 19))], (1235, 9): [('move', (41, 22))], (1236, 4): [('move', (45, 23))], (1236, 6): [('move', (45, 20))], (1236, 9): [('move', (40, 21))], (1237, 4): [('move', (45, 22))], (1237, 6): [('move', (46, 19))], (1237, 9): [('move', (41, 22))], (1238, 4): [('move', (45, 23))], (1238, 6): [('move', (45, 20))], (1238, 9): [('move', (40, 21))], (1239, 4): [('move', (45, 22))], (1239, 6): [('move', (46, 19))], (1239, 9): [('move', (41, 22))], (1240, 4): [('move', (45, 23))], (1240, 6): [('move', (45, 20))], (1240, 9): [('move', (40, 21))], (1241, 4): [('move', (45, 22))], (1241, 6): [('move', (46, 19))], (1241, 9): [('move', (41, 22))], (1242, 4): [('move', (45, 23))], (1242, 6): [('move', (45, 20))], (1242, 9): [('move', (40, 21))], (1243, 4): [('move', (45, 22))], (1243, 6): [('move', (46, 19))], (1243, 9): [('move', (41, 22))], (1244, 4): [('move', (45, 23))], (1244, 6): [('move', (45, 20))], (1244, 9): [('move', (40, 21))], (1245, 4): [('move', (45, 22))], (1245, 6): [('move', (46, 19))], (1245, 9): [('move', (41, 22))], (1246, 4): [('move', (45, 23))], (1246, 6): [('move', (45, 20))], (1246, 9): [('move', (40, 21))], (1247, 4): [('move', (45, 22))], (1247, 6): [('move', (46, 19))], (1247, 9): [('move', (41, 22))], (1248, 4): [('move', (45, 23))], (1248, 6): [('move', (45, 20))], (1248, 9): [('move', (40, 21))], (1249, 4): [('move', (45, 22))], (1249, 6): [('move', (46, 19))], (1249, 9): [('move', (41, 22))], (1250, 4): [('move', (45, 23))], (1250, 6): [('move', (45, 20))], (1250, 9): [('move', (40, 21))], (1251, 4): [('move', (45, 22))], (1251, 6): [('move', (46, 19))], (1251, 9): [('move', (41, 22))], (1252, 4): [('move', (45, 23))], (1252, 6): [('move', (45, 20))], (1252, 9): [('move', (40, 21))], (1253, 4): [('move', (45, 22))], (1253, 6): [('move', (46, 19))], (1253, 9): [('move', (41, 22))], (1254, 4): [('move', (45, 23))], (1254, 6): [('move', (45, 20))], (1254, 9): [('move', (40, 21))], (1255, 4): [('move', (45, 22))], (1255, 6): [('move', (46, 19))], (1255, 9): [('move', (41, 22))], (1256, 4): [('move', (45, 23))], (1256, 6): [('move', (45, 20))], (1256, 9): [('move', (40, 21))], (1257, 4): [('move', (45, 22))], (1257, 6): [('move', (46, 19))], (1257, 9): [('move', (41, 22))], (1258, 4): [('move', (45, 23))], (1258, 6): [('move', (45, 20))], (1258, 9): [('move', (40, 21))], (1259, 4): [('move', (45, 22))], (1259, 6): [('move', (46, 19))], (1259, 9): [('move', (41, 22))], (1260, 4): [('move', (45, 23))], (1260, 6): [('move', (45, 20))], (1260, 9): [('move', (40, 21))], (1261, 4): [('move', (45, 22))], (1261, 6): [('move', (46, 19))], (1261, 9): [('move', (41, 22))], (1262, 4): [('move', (45, 23))], (1262, 6): [('move', (45, 20))], (1262, 9): [('move', (40, 21))], (1263, 4): [('move', (45, 22))], (1263, 6): [('move', (46, 19))], (1263, 9): [('move', (41, 22))], (1264, 4): [('move', (45, 23))], (1264, 6): [('move', (45, 20))], (1264, 9): [('move', (40, 21))], (1265, 4): [('move', (45, 22))], (1265, 6): [('move', (46, 19))], (1265, 9): [('move', (41, 22))], (1266, 4): [('move', (45, 23))], (1266, 6): [('move', (45, 20))], (1266, 9): [('move', (40, 21))], (1267, 4): [('move', (45, 22))], (1267, 6): [('move', (46, 19))], (1267, 9): [('move', (41, 22))], (1268, 4): [('move', (45, 23))], (1268, 6): [('move', (45, 20))], (1268, 9): [('move', (40, 21))], (1269, 4): [('move', (45, 22))], (1269, 6): [('move', (46, 19))], (1269, 9): [('move', (41, 22))], (1270, 4): [('move', (45, 23))], (1270, 6): [('move', (45, 20))], (1270, 9): [('move', (40, 21))], (1271, 4): [('move', (45, 22))], (1271, 6): [('move', (46, 19))], (1271, 9): [('move', (41, 22))], (1272, 4): [('move', (45, 23))], (1272, 6): [('move', (45, 20))], (1272, 9): [('move', (40, 21))], (1273, 4): [('move', (45, 22))], (1273, 6): [('move', (46, 19))], (1273, 9): [('move', (41, 22))], (1274, 4): [('move', (45, 23))], (1274, 6): [('move', (45, 20))], (1274, 9): [('move', (40, 21))], (1275, 4): [('move', (45, 22))], (1275, 6): [('move', (46, 19))], (1275, 9): [('move', (41, 22))], (1276, 4): [('move', (45, 23))], (1276, 6): [('move', (45, 20))], (1276, 9): [('move', (40, 21))], (1277, 4): [('move', (45, 22))], (1277, 6): [('move', (46, 19))], (1277, 9): [('move', (41, 22))], (1278, 4): [('move', (45, 23))], (1278, 6): [('move', (45, 20))], (1278, 9): [('move', (40, 21))], (1279, 4): [('move', (45, 22))], (1279, 6): [('move', (46, 19))], (1279, 9): [('move', (41, 22))], (1280, 4): [('move', (45, 23))], (1280, 6): [('move', (45, 20))], (1280, 9): [('move', (40, 21))], (1281, 4): [('move', (45, 22))], (1281, 6): [('move', (46, 19))], (1281, 9): [('move', (41, 22))], (1282, 4): [('move', (45, 23))], (1282, 6): [('move', (45, 20))], (1282, 9): [('move', (40, 21))], (1283, 4): [('move', (45, 22))], (1283, 6): [('move', (46, 19))], (1283, 9): [('move', (41, 22))], (1284, 4): [('move', (45, 23))], (1284, 6): [('move', (45, 20))], (1284, 9): [('move', (40, 21))], (1285, 4): [('move', (45, 22))], (1285, 6): [('move', (46, 19))], (1285, 9): [('move', (41, 22))], (1286, 4): [('move', (45, 23))], (1286, 6): [('move', (45, 20))], (1286, 9): [('move', (40, 21))], (1287, 4): [('move', (45, 22))], (1287, 6): [('move', (46, 19))], (1287, 9): [('move', (41, 22))], (1288, 4): [('move', (45, 23))], (1288, 6): [('move', (45, 20))], (1288, 9): [('move', (40, 21))], (1289, 4): [('move', (45, 22))], (1289, 6): [('move', (46, 19))], (1289, 9): [('move', (41, 22))], (1290, 4): [('move', (45, 23))], (1290, 6): [('move', (45, 20))], (1290, 9): [('move', (40, 21))], (1291, 4): [('move', (45, 22))], (1291, 6): [('move', (46, 19))], (1291, 9): [('move', (41, 22))], (1292, 4): [('move', (45, 23))], (1292, 6): [('move', (45, 20))], (1292, 9): [('move', (40, 21))], (1293, 4): [('move', (45, 22))], (1293, 6): [('move', (46, 19))], (1293, 9): [('move', (41, 22))], (1294, 4): [('move', (45, 23))], (1294, 6): [('move', (45, 20))], (1294, 9): [('move', (40, 21))], (1295, 4): [('move', (45, 22))], (1295, 6): [('move', (46, 19))], (1295, 9): [('move', (41, 22))], (1296, 4): [('move', (45, 23))], (1296, 6): [('move', (45, 20))], (1296, 9): [('move', (40, 21))], (1297, 4): [('move', (45, 22))], (1297, 6): [('move', (46, 19))], (1297, 9): [('move', (41, 22))], (1298, 4): [('move', (45, 23))], (1298, 6): [('move', (45, 20))], (1298, 9): [('move', (40, 21))], (1299, 4): [('move', (45, 22))], (1299, 6): [('move', (46, 19))], (1299, 9): [('move', (41, 22))], (1300, 4): [('move', (45, 23))], (1300, 6): [('move', (45, 20))], (1300, 9): [('move', (40, 21))], (1301, 4): [('move', (45, 22))], (1301, 6): [('move', (46, 19))], (1301, 9): [('move', (41, 22))], (1302, 4): [('move', (45, 23))], (1302, 6): [('move', (45, 20))], (1302, 9): [('move', (40, 21))], (1303, 4): [('move', (45, 22))], (1303, 6): [('move', (46, 19))], (1303, 9): [('move', (41, 22))], (1304, 4): [('move', (45, 23))], (1304, 6): [('move', (45, 20))], (1304, 9): [('move', (40, 21))], (1305, 4): [('move', (45, 22))], (1305, 6): [('move', (46, 19))], (1305, 9): [('move', (41, 22))], (1306, 4): [('move', (45, 23))], (1306, 6): [('move', (45, 20))], (1306, 9): [('move', (40, 21))], (1307, 4): [('move', (45, 22))], (1307, 6): [('move', (46, 19))], (1307, 9): [('move', (41, 22))], (1308, 4): [('move', (45, 23))], (1308, 6): [('move', (45, 20))], (1308, 9): [('move', (40, 21))], (1309, 4): [('move', (45, 22))], (1309, 6): [('move', (46, 19))], (1309, 9): [('move', (41, 22))], (1310, 4): [('move', (45, 23))], (1310, 6): [('move', (45, 20))], (1310, 9): [('move', (40, 21))], (1311, 4): [('move', (45, 22))], (1311, 6): [('move', (46, 19))], (1311, 9): [('move', (41, 22))], (1312, 4): [('move', (45, 23))], (1312, 6): [('move', (45, 20))], (1312, 9): [('move', (40, 21))], (1313, 4): [('move', (45, 22))], (1313, 6): [('move', (46, 19))], (1313, 9): [('move', (41, 22))], (1314, 4): [('move', (45, 23))], (1314, 6): [('move', (45, 20))], (1314, 9): [('move', (40, 21))], (1315, 4): [('move', (45, 22))], (1315, 6): [('move', (46, 19))], (1315, 9): [('move', (41, 22))], (1316, 4): [('move', (45, 23))], (1316, 6): [('move', (45, 20))], (1316, 9): [('move', (40, 21))], (1317, 4): [('move', (45, 22))], (1317, 6): [('move', (46, 19))], (1317, 9): [('move', (41, 22))], (1318, 4): [('move', (45, 23))], (1318, 6): [('move', (45, 20))], (1318, 9): [('move', (40, 21))], (1319, 4): [('move', (45, 22))], (1319, 6): [('move', (46, 19))], (1319, 9): [('move', (41, 22))], (1320, 4): [('move', (45, 23))], (1320, 6): [('move', (45, 20))], (1320, 9): [('move', (40, 21))], (1321, 4): [('move', (45, 22))], (1321, 6): [('move', (46, 19))], (1321, 9): [('move', (41, 22))], (1322, 4): [('move', (45, 23))], (1322, 6): [('move', (45, 20))], (1322, 9): [('move', (40, 21))], (1323, 4): [('move', (45, 22))], (1323, 6): [('move', (46, 19))], (1323, 9): [('move', (41, 22))], (1324, 4): [('move', (45, 23))], (1324, 6): [('move', (45, 20))], (1324, 9): [('move', (40, 21))], (1325, 4): [('move', (45, 22))], (1325, 6): [('move', (46, 19))], (1325, 9): [('move', (41, 22))], (1326, 4): [('move', (45, 23))], (1326, 6): [('move', (45, 20))], (1326, 9): [('move', (40, 21))], (1327, 4): [('move', (45, 22))], (1327, 6): [('move', (46, 19))], (1327, 9): [('move', (41, 22))], (1328, 4): [('move', (45, 23))], (1328, 6): [('move', (45, 20))], (1328, 9): [('move', (40, 21))], (1329, 4): [('move', (45, 22))], (1329, 6): [('move', (46, 19))], (1329, 9): [('move', (41, 22))], (1330, 4): [('move', (45, 23))], (1330, 6): [('move', (45, 20))], (1330, 9): [('move', (40, 21))], (1331, 4): [('move', (45, 22))], (1331, 6): [('move', (46, 19))], (1331, 9): [('move', (41, 22))], (1332, 4): [('move', (45, 23))], (1332, 6): [('move', (45, 20))], (1332, 9): [('move', (40, 21))], (1333, 4): [('move', (45, 22))], (1333, 6): [('move', (46, 19))], (1333, 9): [('move', (41, 22))], (1334, 4): [('move', (45, 23))], (1334, 6): [('move', (45, 20))], (1334, 9): [('move', (40, 21))], (1335, 4): [('move', (45, 22))], (1335, 6): [('move', (46, 19))], (1335, 9): [('move', (41, 22))], (1336, 4): [('move', (45, 23))], (1336, 6): [('move', (45, 20))], (1336, 9): [('move', (40, 21))], (1337, 4): [('move', (45, 22))], (1337, 6): [('move', (46, 19))], (1337, 9): [('move', (41, 22))], (1338, 4): [('move', (45, 23))], (1338, 6): [('move', (45, 20))], (1338, 9): [('move', (40, 21))], (1339, 4): [('move', (45, 22))], (1339, 6): [('move', (46, 19))], (1339, 9): [('move', (41, 22))], (1340, 4): [('move', (45, 23))], (1340, 6): [('move', (45, 20))], (1340, 9): [('move', (40, 21))], (1341, 4): [('move', (45, 22))], (1341, 6): [('move', (46, 19))], (1341, 9): [('move', (41, 22))], (1342, 4): [('move', (45, 23))], (1342, 6): [('move', (45, 20))], (1342, 9): [('move', (40, 21))], (1343, 4): [('move', (45, 22))], (1343, 6): [('move', (46, 19))], (1343, 9): [('move', (41, 22))], (1344, 4): [('move', (45, 23))], (1344, 6): [('move', (45, 20))], (1344, 9): [('move', (40, 21))], (1345, 4): [('move', (45, 22))], (1345, 6): [('move', (46, 19))], (1345, 9): [('move', (41, 22))], (1346, 4): [('move', (45, 23))], (1346, 6): [('move', (45, 20))], (1346, 9): [('move', (40, 21))], (1347, 4): [('move', (45, 22))], (1347, 6): [('move', (46, 19))], (1347, 9): [('move', (41, 22))], (1348, 4): [('move', (45, 23))], (1348, 6): [('move', (45, 20))], (1348, 9): [('move', (40, 21))], (1349, 4): [('move', (45, 22))], (1349, 6): [('move', (46, 19))], (1349, 9): [('move', (41, 22))], (1350, 4): [('move', (45, 23))], (1350, 6): [('move', (45, 20))], (1350, 9): [('move', (40, 21))], (1351, 4): [('move', (45, 22))], (1351, 6): [('move', (46, 19))], (1351, 9): [('move', (41, 22))], (1352, 4): [('move', (45, 23))], (1352, 6): [('move', (45, 20))], (1352, 9): [('move', (40, 21))], (1353, 4): [('move', (45, 22))], (1353, 6): [('move', (46, 19))], (1353, 9): [('move', (41, 22))], (1354, 4): [('move', (45, 23))], (1354, 6): [('move', (45, 20))], (1354, 9): [('move', (40, 21))], (1355, 4): [('move', (45, 22))], (1355, 6): [('move', (46, 19))], (1355, 9): [('move', (41, 22))], (1356, 4): [('move', (45, 23))], (1356, 6): [('move', (45, 20))], (1356, 9): [('move', (40, 21))], (1357, 4): [('move', (45, 22))], (1357, 6): [('move', (46, 19))], (1357, 9): [('move', (41, 22))], (1358, 4): [('move', (45, 23))], (1358, 6): [('move', (45, 20))], (1358, 9): [('move', (40, 21))], (1359, 4): [('move', (45, 22))], (1359, 6): [('move', (46, 19))], (1359, 9): [('move', (41, 22))], (1360, 4): [('move', (45, 23))], (1360, 6): [('move', (45, 20))], (1360, 9): [('move', (40, 21))], (1361, 4): [('move', (45, 22))], (1361, 6): [('move', (46, 19))], (1361, 9): [('move', (41, 22))], (1362, 4): [('move', (45, 23))], (1362, 6): [('move', (45, 20))], (1362, 9): [('move', (40, 21))], (1363, 4): [('move', (45, 22))], (1363, 6): [('move', (46, 19))], (1363, 9): [('move', (41, 22))], (1364, 4): [('move', (45, 23))], (1364, 6): [('move', (45, 20))], (1364, 9): [('move', (40, 21))], (1365, 4): [('move', (45, 22))], (1365, 6): [('move', (46, 19))], (1365, 9): [('move', (41, 22))], (1366, 4): [('move', (45, 23))], (1366, 6): [('move', (45, 20))], (1366, 9): [('move', (40, 21))], (1367, 4): [('move', (45, 22))], (1367, 6): [('move', (46, 19))], (1367, 9): [('move', (41, 22))], (1368, 4): [('move', (45, 23))], (1368, 6): [('move', (45, 20))], (1368, 9): [('move', (40, 21))], (1369, 4): [('move', (45, 22))], (1369, 6): [('move', (46, 19))], (1369, 9): [('move', (41, 22))], (1370, 4): [('move', (45, 23))], (1370, 6): [('move', (45, 20))], (1370, 9): [('move', (40, 21))], (1371, 4): [('move', (45, 22))], (1371, 6): [('move', (46, 19))], (1371, 9): [('move', (41, 22))], (1372, 4): [('move', (45, 23))], (1372, 6): [('move', (45, 20))], (1372, 9): [('move', (40, 21))], (1373, 4): [('move', (45, 22))], (1373, 6): [('move', (46, 19))], (1373, 9): [('move', (41, 22))], (1374, 4): [('move', (45, 23))], (1374, 6): [('move', (45, 20))], (1374, 9): [('move', (40, 21))], (1375, 4): [('move', (45, 22))], (1375, 6): [('move', (46, 19))], (1375, 9): [('move', (41, 22))], (1376, 4): [('move', (45, 23))], (1376, 6): [('move', (45, 20))], (1376, 9): [('move', (40, 21))], (1377, 4): [('move', (45, 22))], (1377, 6): [('move', (46, 19))], (1377, 9): [('move', (41, 22))], (1378, 4): [('move', (45, 23))], (1378, 6): [('move', (45, 20))], (1378, 9): [('move', (40, 21))], (1379, 4): [('move', (45, 22))], (1379, 6): [('move', (46, 19))], (1379, 9): [('move', (41, 22))], (1380, 4): [('move', (45, 23))], (1380, 6): [('move', (45, 20))], (1380, 9): [('move', (40, 21))], (1381, 4): [('move', (45, 22))], (1381, 6): [('move', (46, 19))], (1381, 9): [('move', (41, 22))], (1382, 4): [('move', (45, 23))], (1382, 6): [('move', (45, 20))], (1382, 9): [('move', (40, 21))], (1383, 4): [('move', (45, 22))], (1383, 6): [('move', (46, 19))], (1383, 9): [('move', (41, 22))], (1384, 4): [('move', (45, 23))], (1384, 6): [('move', (45, 20))], (1384, 9): [('move', (40, 21))], (1385, 4): [('move', (45, 22))], (1385, 6): [('move', (46, 19))], (1385, 9): [('move', (41, 22))], (1386, 4): [('move', (45, 23))], (1386, 6): [('move', (45, 20))], (1386, 9): [('move', (40, 21))], (1387, 4): [('move', (45, 22))], (1387, 6): [('move', (46, 19))], (1387, 9): [('move', (41, 22))], (1388, 4): [('move', (45, 23))], (1388, 6): [('move', (45, 20))], (1388, 9): [('move', (40, 21))], (1389, 4): [('move', (45, 22))], (1389, 6): [('move', (46, 19))], (1389, 9): [('move', (41, 22))], (1390, 4): [('move', (45, 23))], (1390, 6): [('move', (45, 20))], (1390, 9): [('move', (40, 21))], (1391, 4): [('move', (45, 22))], (1391, 6): [('move', (46, 19))], (1391, 9): [('move', (41, 22))], (1392, 4): [('move', (45, 23))], (1392, 6): [('move', (45, 20))], (1392, 9): [('move', (40, 21))], (1393, 4): [('move', (45, 22))], (1393, 6): [('move', (46, 19))], (1393, 9): [('move', (41, 22))], (1394, 4): [('move', (45, 23))], (1394, 6): [('move', (45, 20))], (1394, 9): [('move', (40, 21))], (1395, 4): [('move', (45, 22))], (1395, 6): [('move', (46, 19))], (1395, 9): [('move', (41, 22))], (1396, 4): [('move', (45, 23))], (1396, 6): [('move', (45, 20))], (1396, 9): [('move', (40, 21))], (1397, 4): [('move', (45, 22))], (1397, 6): [('move', (46, 19))], (1397, 9): [('move', (41, 22))], (1398, 4): [('move', (45, 23))], (1398, 6): [('move', (45, 20))], (1398, 9): [('move', (40, 21))], (1399, 4): [('move', (45, 22))], (1399, 6): [('move', (46, 19))], (1399, 9): [('move', (41, 22))], (1400, 4): [('move', (45, 23))], (1400, 6): [('move', (45, 20))], (1400, 9): [('move', (40, 21))], (1401, 4): [('move', (45, 22))], (1401, 6): [('move', (46, 19))], (1401, 9): [('move', (41, 22))], (1402, 4): [('move', (45, 23))], (1402, 6): [('move', (45, 20))], (1402, 9): [('move', (40, 21))], (1403, 4): [('move', (45, 22))], (1403, 6): [('move', (46, 19))], (1403, 9): [('move', (41, 22))], (1404, 4): [('move', (45, 23))], (1404, 6): [('move', (45, 20))], (1404, 9): [('move', (40, 21))], (1405, 4): [('move', (45, 22))], (1405, 6): [('move', (46, 19))], (1405, 9): [('move', (41, 22))], (1406, 4): [('move', (45, 23))], (1406, 6): [('move', (45, 20))], (1406, 9): [('move', (40, 21))], (1407, 4): [('move', (45, 22))], (1407, 6): [('move', (46, 19))], (1407, 9): [('move', (41, 22))], (1408, 4): [('move', (45, 23))], (1408, 6): [('move', (45, 20))], (1408, 9): [('move', (40, 21))], (1409, 4): [('move', (45, 22))], (1409, 6): [('move', (46, 19))], (1409, 9): [('move', (41, 22))], (1410, 4): [('move', (45, 23))], (1410, 6): [('move', (45, 20))], (1410, 9): [('move', (40, 21))], (1411, 4): [('move', (45, 22))], (1411, 6): [('move', (46, 19))], (1411, 9): [('move', (41, 22))], (1412, 4): [('move', (45, 23))], (1412, 6): [('move', (45, 20))], (1412, 9): [('move', (40, 21))], (1413, 4): [('move', (45, 22))], (1413, 6): [('move', (46, 19))], (1413, 9): [('move', (41, 22))], (1414, 4): [('move', (45, 23))], (1414, 6): [('move', (45, 20))], (1414, 9): [('move', (40, 21))], (1415, 4): [('move', (45, 22))], (1415, 6): [('move', (46, 19))], (1415, 9): [('move', (41, 22))], (1416, 4): [('move', (45, 23))], (1416, 6): [('move', (45, 20))], (1416, 9): [('move', (40, 21))], (1417, 4): [('move', (45, 22))], (1417, 6): [('move', (46, 19))], (1417, 9): [('move', (41, 22))], (1418, 4): [('move', (45, 23))], (1418, 6): [('move', (45, 20))], (1418, 9): [('move', (40, 21))], (1419, 4): [('move', (45, 22))], (1419, 6): [('move', (46, 19))], (1419, 9): [('move', (41, 22))], (1420, 4): [('move', (45, 23))], (1420, 6): [('move', (45, 20))], (1420, 9): [('move', (40, 21))], (1421, 4): [('move', (45, 22))], (1421, 6): [('move', (46, 19))], (1421, 9): [('move', (41, 22))], (1422, 4): [('move', (45, 23))], (1422, 6): [('move', (45, 20))], (1422, 9): [('move', (40, 21))], (1423, 4): [('move', (45, 22))], (1423, 6): [('move', (46, 19))], (1423, 9): [('move', (41, 22))], (1424, 4): [('move', (45, 23))], (1424, 9): [('build', EntityType.ROAD, (42, 21)), ('move', (42, 21))], (1425, 4): [('move', (45, 22))], (1425, 6): [('move', (45, 20))], (1425, 9): [('build', EntityType.ROAD, (43, 20)), ('move', (43, 20))], (1426, 4): [('move', (45, 23))], (1426, 6): [('move', (46, 19))], (1426, 9): [('move', (44, 19))], (1427, 4): [('move', (45, 22))], (1427, 6): [('move', (45, 20))], (1427, 9): [('build', EntityType.ROAD, (45, 18)), ('move', (45, 18))], (1428, 4): [('move', (45, 23))], (1428, 6): [('move', (46, 19))], (1428, 9): [('move', (46, 17))], (1429, 4): [('move', (45, 22))], (1429, 6): [('move', (45, 20))], (1429, 9): [('move', (45, 18))], (1430, 4): [('move', (45, 23))], (1430, 6): [('move', (46, 19))], (1430, 9): [('move', (46, 17))], (1431, 4): [('move', (45, 22))], (1431, 6): [('move', (45, 20))], (1431, 9): [('move', (45, 18))], (1432, 4): [('move', (45, 23))], (1432, 6): [('move', (46, 19))], (1432, 9): [('move', (46, 17))], (1433, 4): [('move', (45, 22))], (1433, 6): [('move', (45, 20))], (1433, 9): [('move', (45, 18))], (1434, 4): [('move', (45, 23))], (1434, 6): [('move', (46, 19))], (1434, 9): [('move', (46, 17))], (1435, 4): [('move', (45, 22))], (1435, 6): [('move', (45, 20))], (1435, 9): [('move', (45, 18))], (1436, 4): [('move', (45, 23))], (1436, 6): [('move', (46, 19))], (1436, 9): [('move', (46, 17))], (1437, 4): [('move', (45, 22))], (1437, 6): [('move', (45, 20))], (1437, 9): [('move', (45, 18))], (1438, 4): [('move', (45, 23))], (1438, 6): [('move', (46, 19))], (1438, 9): [('move', (46, 17))], (1439, 4): [('move', (45, 22))], (1439, 6): [('move', (45, 20))], (1439, 9): [('move', (45, 18))], (1440, 4): [('move', (45, 23))], (1440, 6): [('move', (46, 19))], (1440, 9): [('move', (46, 17))], (1441, 4): [('move', (45, 22))], (1441, 6): [('move', (45, 20))], (1441, 9): [('move', (45, 18))], (1442, 4): [('move', (45, 23))], (1442, 6): [('move', (46, 19))], (1442, 9): [('move', (46, 17))], (1443, 4): [('move', (45, 22))], (1443, 6): [('move', (45, 20))], (1443, 9): [('move', (45, 18))], (1444, 4): [('move', (45, 23))], (1444, 6): [('move', (46, 19))], (1444, 9): [('move', (46, 17))], (1445, 4): [('move', (45, 22))], (1445, 6): [('move', (45, 20))], (1445, 9): [('move', (45, 18))], (1446, 4): [('move', (45, 23))], (1446, 6): [('move', (46, 19))], (1446, 9): [('move', (46, 17))], (1447, 4): [('move', (45, 22))], (1447, 6): [('move', (45, 20))], (1447, 9): [('move', (45, 18))], (1448, 4): [('move', (45, 23))], (1448, 6): [('move', (46, 19))], (1448, 9): [('move', (46, 17))], (1449, 4): [('move', (45, 22))], (1449, 6): [('move', (45, 20))], (1449, 9): [('move', (45, 18))], (1450, 4): [('move', (45, 23))], (1450, 6): [('move', (46, 19))], (1450, 9): [('move', (46, 17))], (1451, 4): [('move', (45, 22))], (1451, 6): [('move', (45, 20))], (1451, 9): [('move', (45, 18))], (1452, 4): [('move', (45, 23))], (1452, 6): [('move', (46, 19))], (1452, 9): [('move', (46, 17))], (1453, 4): [('move', (45, 22))], (1453, 6): [('move', (45, 20))], (1453, 9): [('move', (45, 18))], (1454, 4): [('move', (45, 23))], (1454, 6): [('move', (46, 19))], (1454, 9): [('move', (46, 17))], (1455, 4): [('move', (45, 22))], (1455, 6): [('move', (45, 20))], (1455, 9): [('move', (45, 18))], (1456, 4): [('move', (45, 23))], (1456, 6): [('move', (46, 19))], (1456, 9): [('move', (46, 17))], (1457, 4): [('move', (45, 22))], (1457, 6): [('move', (45, 20))], (1457, 9): [('move', (45, 18))], (1458, 4): [('move', (45, 23))], (1458, 6): [('move', (46, 19))], (1458, 9): [('move', (46, 17))], (1459, 4): [('move', (45, 22))], (1459, 6): [('move', (45, 20))], (1459, 9): [('move', (45, 18))], (1460, 4): [('move', (45, 23))], (1460, 6): [('move', (46, 19))], (1460, 9): [('move', (46, 17))], (1461, 4): [('move', (45, 22))], (1461, 6): [('move', (45, 20))], (1461, 9): [('move', (45, 18))], (1462, 4): [('move', (45, 23))], (1462, 6): [('move', (46, 19))], (1462, 9): [('move', (46, 17))], (1463, 4): [('move', (45, 22))], (1463, 6): [('move', (45, 20))], (1463, 9): [('move', (45, 18))], (1464, 4): [('move', (45, 23))], (1464, 6): [('move', (46, 19))], (1464, 9): [('move', (46, 17))], (1465, 4): [('move', (45, 22))], (1465, 6): [('move', (45, 20))], (1465, 9): [('move', (45, 18))], (1466, 4): [('move', (45, 23))], (1466, 6): [('move', (46, 19))], (1466, 9): [('move', (46, 17))], (1467, 4): [('move', (45, 22))], (1467, 6): [('move', (45, 20))], (1467, 9): [('move', (45, 18))], (1468, 4): [('move', (45, 23))], (1468, 6): [('move', (46, 19))], (1468, 9): [('move', (46, 17))], (1469, 4): [('move', (45, 22))], (1469, 6): [('move', (45, 20))], (1469, 9): [('move', (45, 18))], (1470, 4): [('move', (45, 23))], (1470, 6): [('move', (46, 19))], (1470, 9): [('move', (46, 17))], (1471, 4): [('move', (45, 22))], (1471, 6): [('move', (45, 20))], (1471, 9): [('move', (45, 18))], (1472, 4): [('move', (45, 23))], (1472, 6): [('move', (46, 19))], (1472, 9): [('move', (46, 17))], (1473, 4): [('move', (45, 22))], (1473, 6): [('move', (45, 20))], (1473, 9): [('move', (45, 18))], (1474, 4): [('move', (45, 23))], (1474, 6): [('move', (46, 19))], (1474, 9): [('move', (46, 17))], (1475, 4): [('move', (45, 22))], (1475, 6): [('move', (45, 20))], (1475, 9): [('move', (45, 18))], (1476, 4): [('move', (45, 23))], (1476, 6): [('move', (46, 19))], (1476, 9): [('move', (46, 17))], (1477, 4): [('move', (45, 22))], (1477, 6): [('move', (45, 20))], (1477, 9): [('move', (45, 18))], (1478, 4): [('move', (45, 23))], (1478, 6): [('move', (46, 19))], (1478, 9): [('move', (46, 17))], (1479, 4): [('move', (45, 22))], (1479, 6): [('move', (45, 20))], (1479, 9): [('move', (45, 18))], (1480, 4): [('move', (45, 23))], (1480, 6): [('move', (46, 19))], (1480, 9): [('move', (46, 17))], (1481, 4): [('move', (45, 22))], (1481, 6): [('move', (45, 20))], (1481, 9): [('move', (45, 18))], (1482, 4): [('move', (45, 23))], (1482, 6): [('move', (46, 19))], (1482, 9): [('move', (46, 17))], (1483, 4): [('move', (45, 22))], (1483, 6): [('move', (45, 20))], (1483, 9): [('move', (45, 18))], (1484, 4): [('move', (45, 23))], (1484, 6): [('move', (46, 19))], (1484, 9): [('move', (46, 17))], (1485, 4): [('move', (45, 22))], (1485, 6): [('move', (45, 20))], (1485, 9): [('move', (45, 18))], (1486, 4): [('move', (45, 23))], (1486, 6): [('move', (46, 19))], (1486, 9): [('move', (46, 17))], (1487, 4): [('move', (45, 22))], (1487, 6): [('move', (45, 20))], (1487, 9): [('move', (45, 18))], (1488, 4): [('move', (45, 23))], (1488, 6): [('move', (46, 19))], (1488, 9): [('move', (46, 17))], (1489, 4): [('move', (45, 22))], (1489, 6): [('move', (45, 20))], (1489, 9): [('move', (45, 18))], (1490, 4): [('move', (45, 23))], (1490, 6): [('move', (46, 19))], (1490, 9): [('move', (46, 17))], (1491, 4): [('move', (45, 22))], (1491, 6): [('move', (45, 20))], (1491, 9): [('move', (45, 18))], (1492, 4): [('move', (45, 23))], (1492, 6): [('move', (46, 19))], (1492, 9): [('move', (46, 17))], (1493, 4): [('move', (45, 22))], (1493, 6): [('move', (45, 20))], (1493, 9): [('move', (45, 18))], (1494, 4): [('move', (45, 23))], (1494, 6): [('move', (46, 19))], (1494, 9): [('move', (46, 17))], (1495, 4): [('move', (45, 22))], (1495, 6): [('move', (45, 20))], (1495, 9): [('move', (45, 18))], (1496, 4): [('move', (45, 23))], (1496, 6): [('move', (46, 19))], (1496, 9): [('move', (46, 17))], (1497, 4): [('move', (45, 22))], (1497, 6): [('move', (45, 20))], (1497, 9): [('move', (45, 18))], (1498, 4): [('move', (45, 23))], (1498, 6): [('move', (46, 19))], (1498, 9): [('move', (46, 17))], (1499, 4): [('move', (45, 22))], (1499, 6): [('move', (45, 20))], (1499, 9): [('move', (45, 18))], (1500, 4): [('move', (45, 23))], (1500, 6): [('move', (46, 19))], (1500, 9): [('move', (46, 17))], (1501, 4): [('move', (45, 22))], (1501, 6): [('move', (45, 20))], (1501, 9): [('move', (45, 18))], (1502, 4): [('move', (45, 23))], (1502, 6): [('move', (46, 19))], (1502, 9): [('move', (46, 17))], (1503, 4): [('move', (45, 22))], (1503, 6): [('move', (45, 20))], (1503, 9): [('move', (45, 18))], (1504, 4): [('move', (45, 23))], (1504, 6): [('move', (46, 19))], (1504, 9): [('move', (46, 17))], (1505, 4): [('move', (45, 22))], (1505, 6): [('move', (45, 20))], (1505, 9): [('move', (45, 18))], (1506, 4): [('move', (45, 23))], (1506, 6): [('move', (46, 19))], (1506, 9): [('move', (46, 17))], (1507, 4): [('move', (45, 22))], (1507, 6): [('move', (45, 20))], (1507, 9): [('move', (45, 18))], (1508, 4): [('move', (45, 23))], (1508, 6): [('move', (46, 19))], (1508, 9): [('move', (46, 17))], (1509, 4): [('move', (45, 22))], (1509, 6): [('move', (45, 20))], (1509, 9): [('move', (45, 18))], (1510, 4): [('move', (45, 23))], (1510, 6): [('move', (46, 19))], (1510, 9): [('move', (46, 17))], (1511, 4): [('move', (45, 22))], (1511, 6): [('move', (45, 20))], (1511, 9): [('move', (45, 18))], (1512, 4): [('move', (45, 23))], (1512, 6): [('move', (46, 19))], (1512, 9): [('move', (46, 17))], (1513, 4): [('move', (45, 22))], (1513, 6): [('move', (45, 20))], (1513, 9): [('move', (45, 18))], (1514, 4): [('move', (45, 23))], (1514, 6): [('move', (46, 19))], (1514, 9): [('move', (46, 17))], (1515, 4): [('move', (45, 22))], (1515, 6): [('move', (45, 20))], (1515, 9): [('move', (45, 18))], (1516, 4): [('move', (45, 23))], (1516, 6): [('move', (46, 19))], (1516, 9): [('move', (46, 17))], (1517, 4): [('move', (45, 22))], (1517, 6): [('move', (45, 20))], (1517, 9): [('move', (45, 18))], (1518, 4): [('move', (45, 23))], (1518, 6): [('move', (46, 19))], (1518, 9): [('move', (46, 17))], (1519, 4): [('move', (45, 22))], (1519, 6): [('move', (45, 20))], (1519, 9): [('move', (45, 18))], (1520, 4): [('move', (45, 23))], (1520, 6): [('move', (46, 19))], (1520, 9): [('move', (46, 17))], (1521, 4): [('move', (45, 22))], (1521, 6): [('move', (45, 20))], (1521, 9): [('move', (45, 18))], (1522, 4): [('move', (45, 23))], (1522, 6): [('move', (46, 19))], (1522, 9): [('move', (46, 17))], (1523, 4): [('move', (45, 22))], (1523, 6): [('move', (45, 20))], (1523, 9): [('move', (45, 18))], (1524, 4): [('move', (45, 23))], (1524, 6): [('move', (46, 19))], (1524, 9): [('move', (46, 17))], (1525, 4): [('move', (45, 22))], (1525, 6): [('move', (45, 20))], (1525, 9): [('move', (45, 18))], (1526, 4): [('move', (45, 23))], (1526, 6): [('move', (46, 19))], (1526, 9): [('move', (46, 17))], (1527, 4): [('move', (45, 22))], (1527, 6): [('move', (45, 20))], (1527, 9): [('move', (45, 18))], (1528, 4): [('move', (45, 23))], (1528, 6): [('move', (46, 19))], (1528, 9): [('move', (46, 17))], (1529, 4): [('move', (45, 22))], (1529, 6): [('move', (45, 20))], (1529, 9): [('move', (45, 18))], (1530, 4): [('move', (45, 23))], (1530, 6): [('move', (46, 19))], (1530, 9): [('move', (46, 17))], (1531, 4): [('move', (45, 22))], (1531, 6): [('move', (45, 20))], (1531, 9): [('move', (45, 18))], (1532, 4): [('move', (45, 23))], (1532, 6): [('move', (46, 19))], (1532, 9): [('move', (46, 17))], (1533, 4): [('move', (45, 22))], (1533, 6): [('move', (45, 20))], (1533, 9): [('move', (45, 18))], (1534, 4): [('move', (45, 23))], (1534, 6): [('move', (46, 19))], (1534, 9): [('move', (46, 17))], (1535, 4): [('move', (45, 22))], (1535, 6): [('move', (45, 20))], (1535, 9): [('move', (45, 18))], (1536, 4): [('move', (45, 23))], (1536, 6): [('move', (46, 19))], (1536, 9): [('move', (46, 17))], (1537, 4): [('move', (45, 22))], (1537, 6): [('move', (45, 20))], (1537, 9): [('move', (45, 18))], (1538, 4): [('move', (45, 23))], (1538, 6): [('move', (46, 19))], (1538, 9): [('move', (46, 17))], (1539, 4): [('move', (45, 22))], (1539, 6): [('move', (45, 20))], (1539, 9): [('move', (45, 18))], (1540, 4): [('move', (45, 23))], (1540, 6): [('move', (46, 19))], (1540, 9): [('move', (46, 17))], (1541, 4): [('move', (45, 22))], (1541, 6): [('move', (45, 20))], (1541, 9): [('move', (45, 18))], (1542, 4): [('move', (45, 23))], (1542, 6): [('move', (46, 19))], (1542, 9): [('move', (46, 17))], (1543, 4): [('move', (45, 22))], (1543, 6): [('move', (45, 20))], (1543, 9): [('move', (45, 18))], (1544, 4): [('move', (45, 23))], (1544, 6): [('move', (46, 19))], (1544, 9): [('move', (46, 17))], (1545, 4): [('move', (45, 22))], (1545, 6): [('move', (45, 20))], (1545, 9): [('move', (45, 18))], (1546, 4): [('move', (45, 23))], (1546, 6): [('move', (46, 19))], (1546, 9): [('move', (46, 17))], (1547, 4): [('move', (45, 22))], (1547, 6): [('move', (45, 20))], (1547, 9): [('move', (45, 18))], (1548, 4): [('move', (45, 23))], (1548, 6): [('move', (46, 19))], (1548, 9): [('move', (46, 17))], (1549, 4): [('move', (45, 22))], (1549, 6): [('move', (45, 20))], (1549, 9): [('move', (45, 18))], (1550, 4): [('move', (45, 23))], (1550, 6): [('move', (46, 19))], (1550, 9): [('move', (46, 17))], (1551, 4): [('move', (45, 22))], (1551, 6): [('move', (45, 20))], (1551, 9): [('move', (45, 18))], (1552, 4): [('move', (45, 23))], (1552, 6): [('move', (46, 19))], (1552, 9): [('move', (46, 17))], (1553, 4): [('move', (45, 22))], (1553, 6): [('move', (45, 20))], (1553, 9): [('move', (45, 18))], (1554, 4): [('move', (45, 23))], (1554, 6): [('move', (46, 19))], (1554, 9): [('move', (46, 17))], (1555, 4): [('move', (45, 22))], (1555, 6): [('move', (45, 20))], (1555, 9): [('move', (45, 18))], (1556, 4): [('move', (45, 23))], (1556, 6): [('move', (46, 19))], (1556, 9): [('move', (46, 17))], (1557, 4): [('move', (45, 22))], (1557, 6): [('move', (45, 20))], (1557, 9): [('move', (45, 18))], (1558, 4): [('move', (45, 23))], (1558, 6): [('move', (46, 19))], (1558, 9): [('move', (46, 17))], (1559, 4): [('move', (45, 22))], (1559, 6): [('move', (45, 20))], (1559, 9): [('move', (45, 18))], (1560, 4): [('move', (45, 23))], (1560, 6): [('move', (46, 19))], (1560, 9): [('move', (46, 17))], (1561, 4): [('move', (45, 22))], (1561, 6): [('move', (45, 20))], (1561, 9): [('move', (45, 18))], (1562, 4): [('move', (45, 23))], (1562, 6): [('move', (46, 19))], (1562, 9): [('move', (46, 17))], (1563, 4): [('move', (45, 22))], (1563, 6): [('move', (45, 20))], (1563, 9): [('move', (45, 18))], (1564, 4): [('move', (45, 23))], (1564, 6): [('move', (46, 19))], (1564, 9): [('move', (46, 17))], (1565, 4): [('move', (45, 22))], (1565, 6): [('move', (45, 20))], (1565, 9): [('move', (45, 18))], (1566, 4): [('move', (45, 23))], (1566, 6): [('move', (46, 19))], (1566, 9): [('move', (46, 17))], (1567, 4): [('move', (45, 22))], (1567, 6): [('move', (45, 20))], (1567, 9): [('move', (45, 18))], (1568, 4): [('move', (45, 23))], (1568, 6): [('move', (46, 19))], (1568, 9): [('move', (46, 17))], (1569, 4): [('move', (45, 22))], (1569, 6): [('move', (45, 20))], (1569, 9): [('move', (45, 18))], (1570, 4): [('move', (45, 23))], (1570, 6): [('move', (46, 19))], (1570, 9): [('move', (46, 17))], (1571, 4): [('move', (45, 22))], (1571, 6): [('move', (45, 20))], (1571, 9): [('move', (45, 18))], (1572, 4): [('move', (45, 23))], (1572, 6): [('move', (46, 19))], (1572, 9): [('move', (46, 17))], (1573, 4): [('move', (45, 22))], (1573, 6): [('move', (45, 20))], (1573, 9): [('move', (45, 18))], (1574, 4): [('move', (45, 23))], (1574, 6): [('move', (46, 19))], (1574, 9): [('move', (46, 17))], (1575, 4): [('move', (45, 22))], (1575, 6): [('move', (45, 20))], (1575, 9): [('move', (45, 18))], (1576, 4): [('move', (45, 23))], (1576, 6): [('move', (46, 19))], (1576, 9): [('move', (46, 17))], (1577, 4): [('move', (45, 22))], (1577, 6): [('move', (45, 20))], (1577, 9): [('move', (45, 18))], (1578, 4): [('move', (45, 23))], (1578, 6): [('move', (46, 19))], (1578, 9): [('move', (46, 17))], (1579, 4): [('move', (45, 22))], (1579, 6): [('move', (45, 20))], (1579, 9): [('move', (45, 18))], (1580, 4): [('move', (45, 23))], (1580, 6): [('move', (46, 19))], (1580, 9): [('move', (46, 17))], (1581, 4): [('move', (45, 22))], (1581, 6): [('move', (45, 20))], (1581, 9): [('move', (45, 18))], (1582, 4): [('move', (45, 23))], (1582, 6): [('move', (46, 19))], (1582, 9): [('move', (46, 17))], (1583, 4): [('move', (45, 22))], (1583, 6): [('move', (45, 20))], (1583, 9): [('move', (45, 18))], (1584, 4): [('move', (45, 23))], (1584, 6): [('move', (46, 19))], (1584, 9): [('move', (46, 17))], (1585, 4): [('move', (45, 22))], (1585, 6): [('move', (45, 20))], (1585, 9): [('move', (45, 18))], (1586, 4): [('move', (45, 23))], (1586, 6): [('move', (46, 19))], (1586, 9): [('move', (46, 17))], (1587, 4): [('move', (45, 22))], (1587, 6): [('move', (45, 20))], (1587, 9): [('move', (45, 18))], (1588, 4): [('move', (45, 23))], (1588, 6): [('move', (46, 19))], (1588, 9): [('move', (46, 17))], (1589, 4): [('move', (45, 22))], (1589, 6): [('move', (45, 20))], (1589, 9): [('move', (45, 18))], (1590, 4): [('move', (45, 23))], (1590, 6): [('move', (46, 19))], (1590, 9): [('move', (46, 17))], (1591, 4): [('move', (45, 22))], (1591, 6): [('move', (45, 20))], (1591, 9): [('move', (45, 18))], (1592, 4): [('move', (45, 23))], (1592, 6): [('move', (46, 19))], (1592, 9): [('move', (46, 17))], (1593, 4): [('move', (45, 22))], (1593, 6): [('move', (45, 20))], (1593, 9): [('move', (45, 18))], (1594, 4): [('move', (45, 23))], (1594, 6): [('move', (46, 19))], (1594, 9): [('move', (46, 17))], (1595, 4): [('move', (45, 22))], (1595, 6): [('move', (45, 20))], (1595, 9): [('move', (45, 18))], (1596, 4): [('move', (45, 23))], (1596, 6): [('move', (46, 19))], (1596, 9): [('move', (46, 17))], (1597, 4): [('move', (45, 22))], (1597, 6): [('move', (45, 20))], (1597, 9): [('move', (45, 18))], (1598, 4): [('move', (45, 23))], (1598, 6): [('move', (46, 19))], (1598, 9): [('move', (46, 17))], (1599, 4): [('move', (45, 22))], (1599, 6): [('move', (45, 20))], (1599, 9): [('move', (45, 18))], (1600, 4): [('move', (45, 23))], (1600, 6): [('move', (46, 19))], (1600, 9): [('move', (46, 17))], (1601, 4): [('move', (45, 22))], (1601, 6): [('move', (45, 20))], (1601, 9): [('move', (45, 18))], (1602, 4): [('move', (45, 23))], (1602, 6): [('move', (46, 19))], (1602, 9): [('move', (46, 17))], (1603, 4): [('move', (45, 22))], (1603, 6): [('move', (45, 20))], (1603, 9): [('move', (45, 18))], (1604, 4): [('move', (45, 23))], (1604, 6): [('move', (46, 19))], (1604, 9): [('move', (46, 17))], (1605, 4): [('move', (45, 22))], (1605, 6): [('move', (45, 20))], (1605, 9): [('move', (45, 18))], (1606, 4): [('move', (45, 23))], (1606, 6): [('move', (46, 19))], (1606, 9): [('move', (46, 17))], (1607, 4): [('move', (45, 22))], (1607, 6): [('move', (45, 20))], (1607, 9): [('move', (45, 18))], (1608, 4): [('move', (45, 23))], (1608, 6): [('move', (46, 19))], (1608, 9): [('move', (46, 17))], (1609, 4): [('move', (45, 22))], (1609, 6): [('move', (45, 20))], (1609, 9): [('move', (45, 18))], (1610, 4): [('move', (45, 23))], (1610, 6): [('move', (46, 19))], (1610, 9): [('move', (46, 17))], (1611, 4): [('move', (45, 22))], (1611, 6): [('move', (45, 20))], (1611, 9): [('move', (45, 18))], (1612, 4): [('move', (45, 23))], (1612, 6): [('move', (46, 19))], (1612, 9): [('move', (46, 17))], (1613, 4): [('move', (45, 22))], (1613, 6): [('move', (45, 20))], (1613, 9): [('move', (45, 18))], (1614, 4): [('move', (45, 23))], (1614, 6): [('move', (46, 19))], (1614, 9): [('move', (46, 17))], (1615, 4): [('move', (45, 22))], (1615, 6): [('move', (45, 20))], (1615, 9): [('move', (45, 18))], (1616, 4): [('move', (45, 23))], (1616, 6): [('move', (46, 19))], (1616, 9): [('move', (46, 17))], (1617, 4): [('move', (45, 22))], (1617, 6): [('move', (45, 20))], (1617, 9): [('move', (45, 18))], (1618, 4): [('move', (45, 23))], (1618, 6): [('move', (46, 19))], (1618, 9): [('move', (46, 17))], (1619, 4): [('move', (45, 22))], (1619, 6): [('move', (45, 20))], (1619, 9): [('move', (45, 18))], (1620, 4): [('move', (45, 23))], (1620, 6): [('move', (46, 19))], (1620, 9): [('move', (46, 17))], (1621, 4): [('move', (45, 22))], (1621, 6): [('move', (45, 20))], (1621, 9): [('move', (45, 18))], (1622, 4): [('move', (45, 23))], (1622, 6): [('move', (46, 19))], (1622, 9): [('move', (46, 17))], (1623, 4): [('move', (45, 22))], (1623, 6): [('move', (45, 20))], (1623, 9): [('move', (45, 18))], (1624, 4): [('move', (45, 23))], (1624, 6): [('move', (46, 19))], (1624, 9): [('move', (46, 17))], (1625, 4): [('move', (45, 22))], (1625, 6): [('move', (45, 20))], (1625, 9): [('move', (45, 18))], (1626, 4): [('move', (45, 23))], (1626, 6): [('move', (46, 19))], (1626, 9): [('move', (46, 17))], (1627, 4): [('move', (45, 22))], (1627, 6): [('move', (45, 20))], (1627, 9): [('move', (45, 18))], (1628, 4): [('move', (45, 23))], (1628, 6): [('move', (46, 19))], (1628, 9): [('move', (46, 17))], (1629, 4): [('move', (45, 22))], (1629, 6): [('move', (45, 20))], (1629, 9): [('move', (45, 18))], (1630, 4): [('move', (45, 23))], (1630, 6): [('move', (46, 19))], (1630, 9): [('move', (46, 17))], (1631, 4): [('move', (45, 22))], (1631, 6): [('move', (45, 20))], (1631, 9): [('move', (45, 18))], (1632, 4): [('move', (45, 23))], (1632, 6): [('move', (46, 19))], (1632, 9): [('move', (46, 17))], (1633, 4): [('move', (45, 22))], (1633, 6): [('move', (45, 20))], (1633, 9): [('move', (45, 18))], (1634, 4): [('move', (45, 23))], (1634, 6): [('move', (46, 19))], (1634, 9): [('move', (46, 17))], (1635, 4): [('move', (45, 22))], (1635, 6): [('move', (45, 20))], (1635, 9): [('move', (45, 18))], (1636, 4): [('move', (45, 23))], (1636, 6): [('move', (46, 19))], (1636, 9): [('move', (46, 17))], (1637, 4): [('move', (45, 22))], (1637, 6): [('move', (45, 20))], (1637, 9): [('move', (45, 18))], (1638, 4): [('move', (45, 23))], (1638, 6): [('move', (46, 19))], (1638, 9): [('move', (46, 17))], (1639, 4): [('move', (45, 22))], (1639, 6): [('move', (45, 20))], (1639, 9): [('move', (45, 18))], (1640, 4): [('move', (45, 23))], (1640, 6): [('move', (46, 19))], (1640, 9): [('move', (46, 17))], (1641, 4): [('move', (45, 22))], (1641, 6): [('move', (45, 20))], (1641, 9): [('move', (45, 18))], (1642, 4): [('move', (45, 23))], (1642, 6): [('move', (46, 19))], (1642, 9): [('move', (46, 17))], (1643, 4): [('move', (45, 22))], (1643, 6): [('move', (45, 20))], (1643, 9): [('move', (45, 18))], (1644, 4): [('move', (45, 23))], (1644, 6): [('move', (46, 19))], (1644, 9): [('move', (46, 17))], (1645, 4): [('move', (45, 22))], (1645, 6): [('move', (45, 20))], (1645, 9): [('move', (45, 18))], (1646, 4): [('move', (45, 23))], (1646, 6): [('move', (46, 19))], (1646, 9): [('move', (46, 17))], (1647, 4): [('move', (45, 22))], (1647, 6): [('move', (45, 20))], (1647, 9): [('move', (45, 18))], (1648, 4): [('move', (45, 23))], (1648, 6): [('move', (46, 19))], (1648, 9): [('move', (46, 17))], (1649, 4): [('move', (45, 22))], (1649, 6): [('move', (45, 20))], (1649, 9): [('move', (45, 18))], (1650, 4): [('move', (45, 23))], (1650, 6): [('move', (46, 19))], (1650, 9): [('move', (46, 17))], (1651, 4): [('move', (45, 22))], (1651, 6): [('move', (45, 20))], (1651, 9): [('move', (45, 18))], (1652, 4): [('move', (45, 23))], (1652, 6): [('move', (46, 19))], (1652, 9): [('move', (46, 17))], (1653, 4): [('move', (45, 22))], (1653, 6): [('move', (45, 20))], (1653, 9): [('move', (45, 18))], (1654, 4): [('move', (45, 23))], (1654, 6): [('move', (46, 19))], (1654, 9): [('move', (46, 17))], (1655, 4): [('move', (45, 22))], (1655, 6): [('move', (45, 20))], (1655, 9): [('move', (45, 18))], (1656, 4): [('move', (45, 23))], (1656, 6): [('move', (46, 19))], (1656, 9): [('move', (46, 17))], (1657, 4): [('move', (45, 22))], (1657, 6): [('move', (45, 20))], (1657, 9): [('move', (45, 18))], (1658, 4): [('move', (45, 23))], (1658, 6): [('move', (46, 19))], (1658, 9): [('move', (46, 17))], (1659, 4): [('move', (45, 22))], (1659, 6): [('move', (45, 20))], (1659, 9): [('move', (45, 18))], (1660, 4): [('move', (45, 23))], (1660, 6): [('move', (46, 19))], (1660, 9): [('move', (46, 17))], (1661, 4): [('move', (45, 22))], (1661, 6): [('move', (45, 20))], (1661, 9): [('move', (45, 18))], (1662, 4): [('move', (45, 23))], (1662, 6): [('move', (46, 19))], (1662, 9): [('move', (46, 17))], (1663, 4): [('move', (45, 22))], (1663, 6): [('move', (45, 20))], (1663, 9): [('move', (45, 18))], (1664, 4): [('move', (45, 23))], (1664, 6): [('move', (46, 19))], (1664, 9): [('move', (46, 17))], (1665, 4): [('move', (45, 22))], (1665, 6): [('move', (45, 20))], (1665, 9): [('move', (45, 18))], (1666, 4): [('move', (45, 23))], (1666, 6): [('move', (46, 19))], (1666, 9): [('move', (46, 17))], (1667, 4): [('move', (45, 22))], (1667, 6): [('move', (45, 20))], (1667, 9): [('move', (45, 18))], (1668, 4): [('move', (45, 23))], (1668, 6): [('move', (46, 19))], (1668, 9): [('move', (46, 17))], (1669, 4): [('move', (45, 22))], (1669, 6): [('move', (45, 20))], (1669, 9): [('move', (45, 18))], (1670, 4): [('move', (45, 23))], (1670, 6): [('move', (46, 19))], (1670, 9): [('move', (46, 17))], (1671, 4): [('move', (45, 22))], (1671, 6): [('move', (45, 20))], (1671, 9): [('move', (45, 18))], (1672, 4): [('move', (45, 23))], (1672, 6): [('move', (46, 19))], (1672, 9): [('move', (46, 17))], (1673, 4): [('move', (45, 22))], (1673, 6): [('move', (45, 20))], (1673, 9): [('move', (45, 18))], (1674, 4): [('move', (45, 23))], (1674, 6): [('move', (46, 19))], (1674, 9): [('move', (46, 17))], (1675, 4): [('move', (45, 22))], (1675, 6): [('move', (45, 20))], (1675, 9): [('move', (45, 18))], (1676, 4): [('move', (45, 23))], (1676, 6): [('move', (46, 19))], (1676, 9): [('move', (46, 17))], (1677, 4): [('move', (45, 22))], (1677, 6): [('move', (45, 20))], (1677, 9): [('move', (45, 18))], (1678, 4): [('move', (45, 23))], (1678, 6): [('move', (46, 19))], (1678, 9): [('move', (46, 17))], (1679, 4): [('move', (45, 22))], (1679, 6): [('move', (45, 20))], (1679, 9): [('move', (45, 18))], (1680, 4): [('move', (45, 23))], (1680, 6): [('move', (46, 19))], (1680, 9): [('move', (46, 17))], (1681, 4): [('move', (45, 22))], (1681, 6): [('move', (45, 20))], (1681, 9): [('move', (45, 18))], (1682, 4): [('move', (45, 23))], (1682, 6): [('move', (46, 19))], (1682, 9): [('move', (46, 17))], (1683, 4): [('move', (45, 22))], (1683, 6): [('move', (45, 20))], (1683, 9): [('move', (45, 18))], (1684, 4): [('move', (45, 23))], (1684, 6): [('move', (46, 19))], (1684, 9): [('move', (46, 17))], (1685, 4): [('move', (45, 22))], (1685, 6): [('move', (45, 20))], (1685, 9): [('move', (45, 18))], (1686, 4): [('move', (45, 23))], (1686, 6): [('move', (46, 19))], (1686, 9): [('move', (46, 17))], (1687, 4): [('move', (45, 22))], (1687, 6): [('move', (45, 20))], (1687, 9): [('move', (45, 18))], (1688, 4): [('move', (45, 23))], (1688, 6): [('move', (46, 19))], (1688, 9): [('move', (46, 17))], (1689, 4): [('move', (45, 22))], (1689, 6): [('move', (45, 20))], (1689, 9): [('move', (45, 18))], (1690, 4): [('move', (45, 23))], (1690, 6): [('move', (46, 19))], (1690, 9): [('move', (46, 17))], (1691, 4): [('move', (45, 22))], (1691, 6): [('move', (45, 20))], (1691, 9): [('move', (45, 18))], (1692, 4): [('move', (45, 23))], (1692, 6): [('move', (46, 19))], (1692, 9): [('move', (46, 17))], (1693, 4): [('move', (45, 22))], (1693, 6): [('move', (45, 20))], (1693, 9): [('move', (45, 18))], (1694, 4): [('move', (45, 23))], (1694, 6): [('move', (46, 19))], (1694, 9): [('move', (46, 17))], (1695, 4): [('move', (45, 22))], (1695, 6): [('move', (45, 20))], (1695, 9): [('move', (45, 18))], (1696, 4): [('move', (45, 23))], (1696, 6): [('move', (46, 19))], (1696, 9): [('move', (46, 17))], (1697, 4): [('move', (45, 22))], (1697, 6): [('move', (45, 20))], (1697, 9): [('move', (45, 18))], (1698, 4): [('move', (45, 23))], (1698, 6): [('move', (46, 19))], (1698, 9): [('move', (46, 17))], (1699, 4): [('move', (45, 22))], (1699, 6): [('move', (45, 20))], (1699, 9): [('move', (45, 18))], (1700, 4): [('move', (45, 23))], (1700, 6): [('move', (46, 19))], (1700, 9): [('move', (46, 17))], (1701, 4): [('move', (45, 22))], (1701, 6): [('move', (45, 20))], (1701, 9): [('move', (45, 18))], (1702, 4): [('move', (45, 23))], (1702, 6): [('move', (46, 19))], (1702, 9): [('move', (46, 17))], (1703, 4): [('move', (45, 22))], (1703, 6): [('move', (45, 20))], (1703, 9): [('move', (45, 18))], (1704, 4): [('move', (45, 23))], (1704, 6): [('move', (46, 19))], (1704, 9): [('move', (46, 17))], (1705, 4): [('move', (45, 22))], (1705, 6): [('move', (45, 20))], (1705, 9): [('move', (45, 18))], (1706, 4): [('move', (45, 23))], (1706, 6): [('move', (46, 19))], (1706, 9): [('move', (46, 17))], (1707, 4): [('move', (45, 22))], (1707, 6): [('move', (45, 20))], (1707, 9): [('move', (45, 18))], (1708, 4): [('move', (45, 23))], (1708, 6): [('move', (46, 19))], (1708, 9): [('move', (46, 17))], (1709, 4): [('move', (45, 22))], (1709, 6): [('move', (45, 20))], (1709, 9): [('move', (45, 18))], (1710, 4): [('move', (45, 23))], (1710, 6): [('move', (46, 19))], (1710, 9): [('move', (46, 17))], (1711, 4): [('move', (45, 22))], (1711, 6): [('move', (45, 20))], (1711, 9): [('move', (45, 18))], (1712, 4): [('move', (45, 23))], (1712, 6): [('move', (46, 19))], (1712, 9): [('move', (46, 17))], (1713, 4): [('move', (45, 22))], (1713, 6): [('move', (45, 20))], (1713, 9): [('move', (45, 18))], (1714, 4): [('move', (45, 23))], (1714, 6): [('move', (46, 19))], (1714, 9): [('move', (46, 17))], (1715, 4): [('move', (45, 22))], (1715, 6): [('move', (45, 20))], (1715, 9): [('move', (45, 18))], (1716, 4): [('move', (45, 23))], (1716, 6): [('move', (46, 19))], (1716, 9): [('move', (46, 17))], (1717, 4): [('move', (45, 22))], (1717, 6): [('move', (45, 20))], (1717, 9): [('move', (45, 18))], (1718, 4): [('move', (45, 23))], (1718, 6): [('move', (46, 19))], (1718, 9): [('move', (46, 17))], (1719, 4): [('move', (45, 22))], (1719, 6): [('move', (45, 20))], (1719, 9): [('move', (45, 18))], (1720, 4): [('move', (45, 23))], (1720, 6): [('move', (46, 19))], (1720, 9): [('move', (46, 17))], (1721, 4): [('move', (45, 22))], (1721, 6): [('move', (45, 20))], (1721, 9): [('move', (45, 18))], (1722, 4): [('move', (45, 23))], (1722, 6): [('move', (46, 19))], (1722, 9): [('move', (46, 17))], (1723, 4): [('move', (45, 22))], (1723, 6): [('move', (45, 20))], (1723, 9): [('move', (45, 18))], (1724, 4): [('move', (45, 23))], (1724, 6): [('move', (46, 19))], (1724, 9): [('move', (46, 17))], (1725, 4): [('move', (45, 22))], (1725, 6): [('move', (45, 20))], (1725, 9): [('move', (45, 18))], (1726, 4): [('move', (45, 23))], (1726, 6): [('move', (46, 19))], (1726, 9): [('move', (46, 17))], (1727, 4): [('move', (45, 22))], (1727, 6): [('move', (45, 20))], (1727, 9): [('move', (45, 18))], (1728, 4): [('move', (45, 23))], (1728, 6): [('move', (46, 19))], (1728, 9): [('move', (46, 17))], (1729, 4): [('move', (45, 22))], (1729, 6): [('move', (45, 20))], (1729, 9): [('move', (45, 18))], (1730, 4): [('move', (45, 23))], (1730, 6): [('move', (46, 19))], (1730, 9): [('move', (46, 17))], (1731, 4): [('move', (45, 22))], (1731, 6): [('move', (45, 20))], (1731, 9): [('move', (45, 18))], (1732, 4): [('move', (45, 23))], (1732, 6): [('move', (46, 19))], (1732, 9): [('move', (46, 17))], (1733, 4): [('move', (45, 22))], (1733, 6): [('move', (45, 20))], (1733, 9): [('move', (45, 18))], (1734, 4): [('move', (45, 23))], (1734, 6): [('move', (46, 19))], (1734, 9): [('move', (46, 17))], (1735, 4): [('move', (45, 22))], (1735, 6): [('move', (45, 20))], (1735, 9): [('move', (45, 18))], (1736, 4): [('move', (45, 23))], (1736, 6): [('move', (46, 19))], (1736, 9): [('move', (46, 17))], (1737, 4): [('move', (45, 22))], (1737, 6): [('move', (45, 20))], (1737, 9): [('move', (45, 18))], (1738, 4): [('move', (45, 23))], (1738, 6): [('move', (46, 19))], (1738, 9): [('move', (46, 17))], (1739, 4): [('move', (45, 22))], (1739, 6): [('move', (45, 20))], (1739, 9): [('move', (45, 18))], (1740, 4): [('move', (45, 23))], (1740, 6): [('move', (46, 19))], (1740, 9): [('move', (46, 17))], (1741, 4): [('move', (45, 22))], (1741, 6): [('move', (45, 20))], (1741, 9): [('move', (45, 18))], (1742, 4): [('move', (45, 23))], (1742, 6): [('move', (46, 19))], (1742, 9): [('move', (46, 17))], (1743, 4): [('move', (45, 22))], (1743, 6): [('move', (45, 20))], (1743, 9): [('move', (45, 18))], (1744, 4): [('move', (45, 23))], (1744, 6): [('move', (46, 19))], (1744, 9): [('move', (46, 17))], (1745, 4): [('move', (45, 22))], (1745, 6): [('move', (45, 20))], (1745, 9): [('move', (45, 18))], (1746, 4): [('move', (45, 23))], (1746, 6): [('move', (46, 19))], (1746, 9): [('move', (46, 17))], (1747, 4): [('move', (45, 22))], (1747, 6): [('move', (45, 20))], (1747, 9): [('move', (45, 18))], (1748, 4): [('move', (45, 23))], (1748, 6): [('move', (46, 19))], (1748, 9): [('move', (46, 17))], (1749, 4): [('move', (45, 22))], (1749, 6): [('move', (45, 20))], (1749, 9): [('move', (45, 18))], (1750, 4): [('move', (45, 23))], (1750, 6): [('move', (46, 19))], (1750, 9): [('move', (46, 17))], (1751, 4): [('move', (45, 22))], (1751, 6): [('move', (45, 20))], (1751, 9): [('move', (45, 18))], (1752, 4): [('move', (45, 23))], (1752, 6): [('move', (46, 19))], (1752, 9): [('move', (46, 17))], (1753, 4): [('move', (45, 22))], (1753, 6): [('move', (45, 20))], (1753, 9): [('move', (45, 18))], (1754, 4): [('move', (45, 23))], (1754, 6): [('move', (46, 19))], (1754, 9): [('move', (46, 17))], (1755, 4): [('move', (45, 22))], (1755, 6): [('move', (45, 20))], (1755, 9): [('move', (45, 18))], (1756, 4): [('move', (45, 23))], (1756, 6): [('move', (46, 19))], (1756, 9): [('move', (46, 17))], (1757, 4): [('move', (45, 22))], (1757, 6): [('move', (45, 20))], (1757, 9): [('move', (45, 18))], (1758, 4): [('move', (45, 23))], (1758, 6): [('move', (46, 19))], (1758, 9): [('move', (46, 17))], (1759, 4): [('move', (45, 22))], (1759, 6): [('move', (45, 20))], (1759, 9): [('move', (45, 18))], (1760, 4): [('move', (45, 23))], (1760, 6): [('move', (46, 19))], (1760, 9): [('move', (46, 17))], (1761, 4): [('move', (45, 22))], (1761, 6): [('move', (45, 20))], (1761, 9): [('move', (45, 18))], (1762, 4): [('move', (45, 23))], (1762, 6): [('move', (46, 19))], (1762, 9): [('move', (46, 17))], (1763, 4): [('move', (45, 22))], (1763, 6): [('move', (45, 20))], (1763, 9): [('move', (45, 18))], (1764, 4): [('move', (45, 23))], (1764, 6): [('move', (46, 19))], (1764, 9): [('move', (46, 17))], (1765, 4): [('move', (45, 22))], (1765, 6): [('move', (45, 20))], (1765, 9): [('move', (45, 18))], (1766, 4): [('move', (45, 23))], (1766, 6): [('move', (46, 19))], (1766, 9): [('move', (46, 17))], (1767, 4): [('move', (45, 22))], (1767, 6): [('move', (45, 20))], (1767, 9): [('move', (45, 18))], (1768, 4): [('move', (45, 23))], (1768, 6): [('move', (46, 19))], (1768, 9): [('move', (46, 17))], (1769, 4): [('move', (45, 22))], (1769, 6): [('move', (45, 20))], (1769, 9): [('move', (45, 18))], (1770, 4): [('move', (45, 23))], (1770, 6): [('move', (46, 19))], (1770, 9): [('move', (46, 17))], (1771, 4): [('move', (45, 22))], (1771, 6): [('move', (45, 20))], (1771, 9): [('move', (45, 18))], (1772, 4): [('move', (45, 23))], (1772, 6): [('move', (46, 19))], (1772, 9): [('move', (46, 17))], (1773, 4): [('move', (45, 22))], (1773, 6): [('move', (45, 20))], (1773, 9): [('move', (45, 18))], (1774, 4): [('move', (45, 23))], (1774, 6): [('move', (46, 19))], (1774, 9): [('move', (46, 17))], (1775, 4): [('move', (45, 22))], (1775, 6): [('move', (45, 20))], (1775, 9): [('move', (45, 18))], (1776, 4): [('move', (45, 23))], (1776, 6): [('move', (46, 19))], (1776, 9): [('move', (46, 17))], (1777, 4): [('move', (45, 22))], (1777, 6): [('move', (45, 20))], (1777, 9): [('move', (45, 18))], (1778, 4): [('move', (45, 23))], (1778, 6): [('move', (46, 19))], (1778, 9): [('move', (46, 17))], (1779, 4): [('move', (45, 22))], (1779, 6): [('move', (45, 20))], (1779, 9): [('move', (45, 18))], (1780, 4): [('move', (45, 23))], (1780, 6): [('move', (46, 19))], (1780, 9): [('move', (46, 17))], (1781, 4): [('move', (45, 22))], (1781, 6): [('move', (45, 20))], (1781, 9): [('move', (45, 18))], (1782, 4): [('move', (45, 23))], (1782, 6): [('move', (46, 19))], (1782, 9): [('move', (46, 17))], (1783, 4): [('move', (45, 22))], (1783, 6): [('move', (45, 20))], (1783, 9): [('move', (45, 18))], (1784, 4): [('move', (45, 23))], (1784, 6): [('move', (46, 19))], (1784, 9): [('move', (46, 17))], (1785, 4): [('move', (45, 22))], (1785, 6): [('move', (45, 20))], (1785, 9): [('move', (45, 18))], (1786, 4): [('move', (45, 23))], (1786, 6): [('move', (46, 19))], (1786, 9): [('move', (46, 17))], (1787, 4): [('move', (45, 22))], (1787, 6): [('move', (45, 20))], (1787, 9): [('move', (45, 18))], (1788, 4): [('move', (45, 23))], (1788, 6): [('move', (46, 19))], (1788, 9): [('move', (46, 17))], (1789, 4): [('move', (45, 22))], (1789, 6): [('move', (45, 20))], (1789, 9): [('move', (45, 18))], (1790, 4): [('move', (45, 23))], (1790, 6): [('move', (46, 19))], (1790, 9): [('move', (46, 17))], (1791, 4): [('move', (45, 22))], (1791, 6): [('move', (45, 20))], (1791, 9): [('move', (45, 18))], (1792, 4): [('move', (45, 23))], (1792, 6): [('move', (46, 19))], (1792, 9): [('move', (46, 17))], (1793, 4): [('move', (45, 22))], (1793, 6): [('move', (45, 20))], (1793, 9): [('move', (45, 18))], (1794, 4): [('move', (45, 23))], (1794, 6): [('move', (46, 19))], (1794, 9): [('move', (46, 17))], (1795, 4): [('move', (45, 22))], (1795, 6): [('move', (45, 20))], (1795, 9): [('move', (45, 18))], (1796, 4): [('move', (45, 23))], (1796, 6): [('move', (46, 19))], (1796, 9): [('move', (46, 17))], (1797, 4): [('move', (45, 22))], (1797, 6): [('move', (45, 20))], (1797, 9): [('move', (45, 18))], (1798, 4): [('move', (45, 23))], (1798, 6): [('move', (46, 19))], (1798, 9): [('move', (46, 17))], (1799, 4): [('move', (45, 22))], (1799, 6): [('move', (45, 20))], (1799, 9): [('move', (45, 18))], (1800, 4): [('move', (45, 23))], (1800, 6): [('move', (46, 19))], (1800, 9): [('move', (46, 17))], (1801, 4): [('move', (45, 22))], (1801, 6): [('move', (45, 20))], (1801, 9): [('move', (45, 18))], (1802, 4): [('move', (45, 23))], (1802, 6): [('move', (46, 19))], (1802, 9): [('move', (46, 17))], (1803, 4): [('move', (45, 22))], (1803, 6): [('move', (45, 20))], (1803, 9): [('move', (45, 18))], (1804, 4): [('move', (45, 23))], (1804, 6): [('move', (46, 19))], (1804, 9): [('move', (46, 17))], (1805, 4): [('move', (45, 22))], (1805, 6): [('move', (45, 20))], (1805, 9): [('move', (45, 18))], (1806, 4): [('move', (45, 23))], (1806, 6): [('move', (46, 19))], (1806, 9): [('move', (46, 17))], (1807, 4): [('move', (45, 22))], (1807, 6): [('move', (45, 20))], (1807, 9): [('move', (45, 18))], (1808, 4): [('move', (45, 23))], (1808, 6): [('move', (46, 19))], (1808, 9): [('move', (46, 17))], (1809, 4): [('move', (45, 22))], (1809, 6): [('move', (45, 20))], (1809, 9): [('move', (45, 18))], (1810, 4): [('move', (45, 23))], (1810, 6): [('move', (46, 19))], (1810, 9): [('move', (46, 17))], (1811, 4): [('move', (45, 22))], (1811, 6): [('move', (45, 20))], (1811, 9): [('move', (45, 18))], (1812, 4): [('move', (45, 23))], (1812, 6): [('move', (46, 19))], (1812, 9): [('move', (46, 17))], (1813, 4): [('move', (45, 22))], (1813, 6): [('move', (45, 20))], (1813, 9): [('move', (45, 18))], (1814, 4): [('move', (45, 23))], (1814, 6): [('move', (46, 19))], (1814, 9): [('move', (46, 17))], (1815, 4): [('move', (45, 22))], (1815, 6): [('move', (45, 20))], (1815, 9): [('move', (45, 18))], (1816, 4): [('move', (45, 23))], (1816, 6): [('move', (46, 19))], (1816, 9): [('move', (46, 17))], (1817, 4): [('move', (45, 22))], (1817, 6): [('move', (45, 20))], (1817, 9): [('move', (45, 18))], (1818, 4): [('move', (45, 23))], (1818, 6): [('move', (46, 19))], (1818, 9): [('move', (46, 17))], (1819, 4): [('move', (45, 22))], (1819, 6): [('move', (45, 20))], (1819, 9): [('move', (45, 18))], (1820, 4): [('move', (45, 23))], (1820, 6): [('move', (46, 19))], (1820, 9): [('move', (46, 17))], (1821, 4): [('move', (45, 22))], (1821, 6): [('move', (45, 20))], (1821, 9): [('move', (45, 18))], (1822, 4): [('move', (45, 23))], (1822, 6): [('move', (46, 19))], (1822, 9): [('move', (46, 17))], (1823, 4): [('move', (45, 22))], (1823, 6): [('move', (45, 20))], (1823, 9): [('move', (45, 18))], (1824, 4): [('move', (45, 23))], (1824, 6): [('move', (46, 19))], (1824, 9): [('move', (46, 17))], (1825, 4): [('move', (45, 22))], (1825, 6): [('move', (45, 20))], (1825, 9): [('move', (45, 18))], (1826, 4): [('move', (45, 23))], (1826, 6): [('move', (46, 19))], (1826, 9): [('move', (46, 17))], (1827, 4): [('move', (45, 22))], (1827, 6): [('move', (45, 20))], (1827, 9): [('move', (45, 18))], (1828, 4): [('move', (45, 23))], (1828, 6): [('move', (46, 19))], (1828, 9): [('move', (46, 17))], (1829, 4): [('move', (45, 22))], (1829, 6): [('move', (45, 20))], (1829, 9): [('move', (45, 18))], (1830, 4): [('move', (45, 23))], (1830, 6): [('move', (46, 19))], (1830, 9): [('move', (46, 17))], (1831, 4): [('move', (45, 22))], (1831, 6): [('move', (45, 20))], (1831, 9): [('move', (45, 18))], (1832, 4): [('move', (45, 23))], (1832, 6): [('move', (46, 19))], (1832, 9): [('move', (46, 17))], (1833, 4): [('move', (45, 22))], (1833, 6): [('move', (45, 20))], (1833, 9): [('move', (45, 18))], (1834, 4): [('move', (45, 23))], (1834, 6): [('move', (46, 19))], (1834, 9): [('move', (46, 17))], (1835, 4): [('move', (45, 22))], (1835, 6): [('move', (45, 20))], (1835, 9): [('move', (45, 18))], (1836, 4): [('move', (45, 23))], (1836, 6): [('move', (46, 19))], (1836, 9): [('move', (46, 17))], (1837, 4): [('move', (45, 22))], (1837, 6): [('move', (45, 20))], (1837, 9): [('move', (45, 18))], (1838, 4): [('move', (45, 23))], (1838, 6): [('move', (46, 19))], (1838, 9): [('move', (46, 17))], (1839, 4): [('move', (45, 22))], (1839, 6): [('move', (45, 20))], (1839, 9): [('move', (45, 18))], (1840, 4): [('move', (45, 23))], (1840, 6): [('move', (46, 19))], (1840, 9): [('move', (46, 17))], (1841, 4): [('move', (45, 22))], (1841, 6): [('move', (45, 20))], (1841, 9): [('move', (45, 18))], (1842, 4): [('move', (45, 23))], (1842, 6): [('move', (46, 19))], (1842, 9): [('move', (46, 17))], (1843, 4): [('move', (45, 22))], (1843, 6): [('move', (45, 20))], (1843, 9): [('move', (45, 18))], (1844, 4): [('move', (45, 23))], (1844, 6): [('move', (46, 19))], (1844, 9): [('move', (46, 17))], (1845, 4): [('move', (45, 22))], (1845, 6): [('move', (45, 20))], (1845, 9): [('move', (45, 18))], (1846, 4): [('move', (45, 23))], (1846, 6): [('move', (46, 19))], (1846, 9): [('move', (46, 17))], (1847, 4): [('move', (45, 22))], (1847, 6): [('move', (45, 20))], (1847, 9): [('move', (45, 18))], (1848, 4): [('move', (45, 23))], (1848, 6): [('move', (46, 19))], (1848, 9): [('move', (46, 17))], (1849, 4): [('move', (45, 22))], (1849, 6): [('move', (45, 20))], (1849, 9): [('move', (45, 18))], (1850, 4): [('move', (45, 23))], (1850, 6): [('move', (46, 19))], (1850, 9): [('move', (46, 17))], (1851, 4): [('move', (45, 22))], (1851, 6): [('move', (45, 20))], (1851, 9): [('move', (45, 18))], (1852, 4): [('move', (45, 23))], (1852, 6): [('move', (46, 19))], (1852, 9): [('move', (46, 17))], (1853, 4): [('move', (45, 22))], (1853, 6): [('move', (45, 20))], (1853, 9): [('move', (45, 18))], (1854, 4): [('move', (45, 23))], (1854, 6): [('move', (46, 19))], (1854, 9): [('move', (46, 17))], (1855, 4): [('move', (45, 22))], (1855, 6): [('move', (45, 20))], (1855, 9): [('move', (45, 18))], (1856, 4): [('move', (45, 23))], (1856, 6): [('move', (46, 19))], (1856, 9): [('move', (46, 17))], (1857, 4): [('move', (44, 22))], (1857, 6): [('move', (45, 20))], (1857, 9): [('move', (45, 18))], (1858, 4): [('move', (43, 21))], (1858, 6): [('move', (46, 19))], (1858, 9): [('move', (46, 17))], (1859, 4): [('move', (43, 20))], (1859, 6): [('move', (45, 20))], (1859, 9): [('move', (47, 16))], (1860, 4): [('move', (44, 19))], (1860, 6): [('move', (45, 19))], (1860, 9): [('move', (47, 15))], (1861, 4): [('move', (45, 18)), ('build', EntityType.ROAD, (44, 18))], (1861, 6): [('move', (44, 18))], (1861, 9): [('move', (46, 14))], (1862, 4): [('build', EntityType.ROAD, (44, 17)), ('move', (44, 17))], (1862, 9): [('build', EntityType.ROAD, (45, 13)), ('move', (45, 13))], (1863, 6): [('move', (45, 18))], (1863, 9): [('build', EntityType.ROAD, (44, 12)), ('move', (44, 12))], (1864, 4): [('move', (45, 16))], (1864, 6): [('move', (46, 17))], (1864, 9): [('build', EntityType.ARMOURED_CONVEYOR, (43, 11), Direction.NORTH)], (1865, 4): [('move', (46, 15))], (1865, 6): [('move', (45, 18))], (1865, 9): [('build', EntityType.ROAD, (45, 11)), ('move', (45, 11))], (1866, 4): [('build', EntityType.ROAD, (45, 14)), ('move', (45, 14))], (1866, 6): [('move', (46, 17))], (1866, 9): [('move', (44, 12))], (1867, 4): [('build', EntityType.ROAD, (44, 13)), ('move', (44, 13))], (1867, 6): [('move', (45, 18))], (1867, 9): [('move', (45, 11))], (1868, 4): [('build', EntityType.ROAD, (45, 12)), ('move', (45, 12))], (1868, 6): [('move', (46, 17))], (1868, 9): [('move', (44, 12))], (1869, 4): [('move', (46, 13))], (1869, 6): [('move', (45, 18))], (1869, 9): [('move', (45, 11))], (1870, 4): [('build', EntityType.ARMOURED_CONVEYOR, (47, 12), Direction.NORTH)], (1870, 6): [('move', (46, 17))], (1870, 9): [('move', (44, 12))], (1871, 4): [('move', (45, 12))], (1871, 6): [('move', (45, 18))], (1871, 9): [('move', (45, 11))], (1872, 4): [('move', (46, 13))], (1872, 6): [('move', (46, 17))], (1872, 9): [('move', (44, 12))], (1873, 4): [('move', (45, 12))], (1873, 6): [('move', (45, 18))], (1873, 9): [('move', (45, 11))], (1874, 4): [('move', (46, 13))], (1874, 6): [('move', (46, 17))], (1874, 9): [('move', (44, 12))], (1875, 4): [('move', (45, 12))], (1875, 6): [('move', (45, 18))], (1875, 9): [('move', (45, 11))], (1876, 4): [('move', (46, 13))], (1876, 6): [('move', (46, 17))], (1876, 9): [('move', (44, 12))], (1877, 4): [('move', (45, 12))], (1877, 6): [('move', (45, 18))], (1877, 9): [('move', (45, 11))], (1878, 4): [('move', (46, 13))], (1878, 6): [('move', (46, 17))], (1878, 9): [('move', (44, 12))], (1879, 4): [('move', (45, 12))], (1879, 6): [('move', (45, 18))], (1879, 9): [('move', (45, 11))], (1880, 4): [('move', (46, 13))], (1880, 6): [('move', (46, 17))], (1880, 9): [('move', (44, 12))], (1881, 4): [('move', (45, 12))], (1881, 6): [('move', (45, 18))], (1881, 9): [('move', (45, 11))], (1882, 4): [('move', (46, 13))], (1882, 6): [('move', (46, 17))], (1882, 9): [('move', (44, 12))], (1883, 4): [('move', (45, 12))], (1883, 6): [('move', (45, 18))], (1883, 9): [('move', (45, 11))], (1884, 4): [('move', (46, 13))], (1884, 6): [('move', (46, 17))], (1884, 9): [('move', (44, 12))], (1885, 4): [('move', (45, 12))], (1885, 6): [('move', (45, 18))], (1885, 9): [('move', (45, 11))], (1886, 4): [('move', (46, 13))], (1886, 6): [('move', (46, 17))], (1886, 9): [('move', (44, 12))], (1887, 4): [('move', (45, 12))], (1887, 6): [('move', (45, 18))], (1887, 9): [('move', (45, 11))], (1888, 4): [('move', (46, 13))], (1888, 6): [('move', (46, 17))], (1888, 9): [('move', (44, 12))], (1889, 4): [('move', (45, 12))], (1889, 6): [('move', (45, 18))], (1889, 9): [('move', (45, 11))], (1890, 4): [('move', (46, 13))], (1890, 6): [('move', (46, 17))], (1890, 9): [('move', (44, 12))], (1891, 4): [('move', (45, 12))], (1891, 6): [('move', (45, 18))], (1891, 9): [('move', (45, 11))], (1892, 4): [('move', (46, 13))], (1892, 6): [('move', (46, 17))], (1892, 9): [('move', (44, 12))], (1893, 4): [('move', (45, 12))], (1893, 6): [('move', (45, 18))], (1893, 9): [('move', (45, 11))], (1894, 4): [('move', (46, 13))], (1894, 6): [('move', (46, 17))], (1894, 9): [('move', (44, 12))], (1895, 4): [('move', (45, 12))], (1895, 6): [('move', (45, 18))], (1895, 9): [('move', (45, 11))], (1896, 4): [('move', (46, 13))], (1896, 6): [('move', (46, 17))], (1896, 9): [('move', (44, 12))], (1897, 4): [('move', (45, 12))], (1897, 6): [('move', (45, 18))], (1897, 9): [('move', (45, 11))], (1898, 4): [('move', (46, 13))], (1898, 6): [('move', (46, 17))], (1898, 9): [('move', (44, 12))], (1899, 4): [('move', (45, 12))], (1899, 6): [('move', (45, 18))], (1899, 9): [('move', (45, 11))], (1900, 4): [('move', (46, 13))], (1900, 6): [('move', (46, 17))], (1900, 9): [('move', (44, 12))], (1901, 4): [('move', (45, 12))], (1901, 6): [('move', (45, 18))], (1901, 9): [('move', (45, 11))], (1902, 4): [('move', (46, 13))], (1902, 6): [('move', (46, 17))], (1902, 9): [('move', (44, 12))], (1903, 4): [('move', (45, 12))], (1903, 6): [('move', (45, 18))], (1903, 9): [('move', (45, 11))], (1904, 4): [('move', (46, 13))], (1904, 6): [('move', (46, 17))], (1904, 9): [('move', (44, 12))], (1905, 4): [('move', (45, 12))], (1905, 6): [('move', (45, 18))], (1905, 9): [('move', (45, 11))], (1906, 4): [('move', (46, 13))], (1906, 6): [('move', (46, 17))], (1906, 9): [('move', (44, 12))], (1907, 4): [('move', (45, 12))], (1907, 6): [('move', (45, 18))], (1907, 9): [('move', (45, 11))], (1908, 4): [('move', (46, 13))], (1908, 6): [('move', (46, 17))], (1908, 9): [('move', (44, 12))], (1909, 4): [('move', (45, 12))], (1909, 6): [('move', (45, 18))], (1909, 9): [('move', (45, 11))], (1910, 4): [('move', (46, 13))], (1910, 6): [('move', (46, 17))], (1910, 9): [('move', (44, 12))], (1911, 4): [('move', (45, 12))], (1911, 6): [('move', (45, 18))], (1911, 9): [('move', (45, 11))], (1912, 4): [('move', (46, 13))], (1912, 6): [('move', (46, 17))], (1912, 9): [('move', (44, 12))], (1913, 4): [('move', (45, 12))], (1913, 6): [('move', (45, 18))], (1913, 9): [('move', (45, 11))], (1914, 4): [('move', (46, 13))], (1914, 6): [('move', (46, 17))], (1914, 9): [('move', (44, 12))], (1915, 4): [('move', (45, 12))], (1915, 6): [('move', (45, 18))], (1915, 9): [('move', (45, 11))], (1916, 4): [('move', (46, 13))], (1916, 6): [('move', (46, 17))], (1916, 9): [('move', (44, 12))], (1917, 4): [('move', (45, 12))], (1917, 6): [('move', (45, 18))], (1917, 9): [('move', (45, 11))], (1918, 4): [('move', (46, 13))], (1918, 6): [('move', (46, 17))], (1918, 9): [('move', (44, 12))], (1919, 4): [('move', (45, 12))], (1919, 6): [('move', (45, 18))], (1919, 9): [('move', (45, 11))], (1920, 4): [('move', (46, 13))], (1920, 6): [('move', (46, 17))], (1920, 9): [('move', (44, 12))], (1921, 4): [('move', (45, 12))], (1921, 6): [('move', (45, 18))], (1921, 9): [('move', (45, 11))], (1922, 4): [('move', (46, 13))], (1922, 6): [('move', (46, 17))], (1922, 9): [('move', (44, 12))], (1923, 4): [('move', (45, 12))], (1923, 6): [('move', (45, 18))], (1923, 9): [('move', (45, 11))], (1924, 4): [('move', (46, 13))], (1924, 6): [('move', (46, 17))], (1924, 9): [('move', (44, 12))], (1925, 4): [('move', (45, 12))], (1925, 6): [('move', (45, 18))], (1925, 9): [('move', (45, 11))], (1926, 4): [('move', (46, 13))], (1926, 6): [('move', (46, 17))], (1926, 9): [('move', (44, 12))], (1927, 4): [('move', (45, 12))], (1927, 6): [('move', (45, 18))], (1927, 9): [('move', (45, 11))], (1928, 4): [('move', (46, 13))], (1928, 6): [('move', (46, 17))], (1928, 9): [('move', (44, 12))], (1929, 4): [('move', (45, 12))], (1929, 6): [('move', (45, 18))], (1929, 9): [('move', (45, 11))], (1930, 4): [('move', (46, 13))], (1930, 6): [('move', (46, 17))], (1930, 9): [('move', (44, 12))], (1931, 4): [('move', (45, 12))], (1931, 6): [('move', (45, 18))], (1931, 9): [('move', (45, 11))], (1932, 4): [('move', (46, 13))], (1932, 6): [('move', (46, 17))], (1932, 9): [('move', (44, 12))], (1933, 4): [('move', (45, 12))], (1933, 6): [('move', (45, 18))], (1933, 9): [('move', (45, 11))], (1934, 4): [('move', (46, 13))], (1934, 6): [('move', (46, 17))], (1934, 9): [('move', (44, 12))], (1935, 4): [('move', (45, 12))], (1935, 6): [('move', (45, 18))], (1935, 9): [('move', (45, 11))], (1936, 4): [('move', (46, 13))], (1936, 6): [('move', (46, 17))], (1936, 9): [('move', (44, 12))], (1937, 4): [('move', (45, 12))], (1937, 6): [('move', (45, 18))], (1937, 9): [('move', (45, 11))], (1938, 4): [('move', (46, 13))], (1938, 6): [('move', (46, 17))], (1938, 9): [('move', (44, 12))], (1939, 4): [('move', (45, 12))], (1939, 6): [('move', (45, 18))], (1939, 9): [('move', (45, 11))], (1940, 4): [('move', (46, 13))], (1940, 6): [('move', (46, 17))], (1940, 9): [('move', (44, 12))], (1941, 4): [('move', (45, 12))], (1941, 6): [('move', (45, 18))], (1941, 9): [('move', (45, 11))], (1942, 4): [('move', (46, 13))], (1942, 6): [('move', (46, 17))], (1942, 9): [('move', (44, 12))], (1943, 4): [('move', (45, 12))], (1943, 6): [('move', (45, 18))], (1943, 9): [('move', (45, 11))], (1944, 4): [('move', (46, 13))], (1944, 6): [('move', (46, 17))], (1944, 9): [('move', (44, 12))], (1945, 4): [('move', (45, 12))], (1945, 6): [('move', (45, 18))], (1945, 9): [('move', (45, 11))], (1946, 4): [('move', (46, 13))], (1946, 6): [('move', (46, 17))], (1946, 9): [('move', (44, 12))], (1947, 4): [('move', (45, 12))], (1947, 6): [('move', (45, 18))], (1947, 9): [('move', (45, 11))], (1948, 4): [('move', (46, 13))], (1948, 6): [('move', (46, 17))], (1948, 9): [('move', (44, 12))], (1949, 4): [('move', (45, 12))], (1949, 6): [('move', (45, 18))], (1949, 9): [('move', (45, 11))], (1950, 4): [('move', (46, 13))], (1950, 6): [('move', (46, 17))], (1950, 9): [('move', (44, 12))], (1951, 4): [('move', (45, 12))], (1951, 6): [('move', (45, 18))], (1951, 9): [('move', (45, 11))], (1952, 4): [('move', (46, 13))], (1952, 6): [('move', (46, 17))], (1952, 9): [('move', (44, 12))], (1953, 9): [('move', (45, 11))], (1954, 4): [('move', (45, 12))], (1954, 6): [('move', (45, 18))], (1954, 9): [('move', (44, 12))], (1955, 4): [('move', (46, 13))], (1955, 6): [('move', (46, 17))], (1955, 9): [('move', (45, 11))], (1956, 4): [('move', (45, 12))], (1956, 6): [('move', (45, 18))], (1956, 9): [('move', (44, 12))], (1957, 4): [('move', (46, 13))], (1957, 6): [('move', (46, 17))], (1957, 9): [('move', (45, 11))], (1958, 4): [('move', (45, 12))], (1958, 6): [('move', (45, 18))], (1958, 9): [('move', (44, 12))], (1959, 4): [('move', (46, 13))], (1959, 6): [('move', (46, 17))], (1959, 9): [('move', (45, 11))], (1960, 4): [('move', (45, 12))], (1960, 6): [('move', (45, 18))], (1960, 9): [('move', (44, 12))], (1961, 4): [('move', (46, 13))], (1961, 6): [('move', (46, 17))], (1961, 9): [('move', (45, 11))], (1962, 4): [('move', (45, 12))], (1962, 6): [('move', (45, 18))], (1962, 9): [('move', (44, 12))], (1963, 4): [('move', (46, 13))], (1963, 6): [('move', (46, 17))], (1963, 9): [('move', (45, 11))], (1964, 4): [('move', (45, 12))], (1964, 6): [('move', (45, 18))], (1964, 9): [('move', (44, 12))], (1965, 4): [('move', (46, 13))], (1965, 6): [('move', (46, 17))], (1965, 9): [('move', (45, 11))], (1966, 4): [('move', (45, 12))], (1966, 6): [('move', (45, 18))], (1966, 9): [('move', (44, 12))], (1967, 4): [('move', (46, 13))], (1967, 6): [('move', (46, 17))], (1967, 9): [('move', (45, 11))], (1968, 4): [('move', (45, 12))], (1968, 6): [('move', (45, 18))], (1968, 9): [('move', (44, 12))], (1969, 4): [('move', (46, 13))], (1969, 6): [('move', (46, 17))], (1969, 9): [('move', (45, 11))], (1970, 4): [('move', (45, 12))], (1970, 6): [('move', (45, 18))], (1970, 9): [('move', (44, 12))], (1971, 4): [('move', (46, 13))], (1971, 6): [('move', (46, 17))], (1971, 9): [('move', (45, 11))], (1972, 4): [('move', (45, 12))], (1972, 6): [('move', (45, 18))], (1972, 9): [('move', (44, 12))], (1973, 4): [('move', (46, 13))], (1973, 6): [('move', (46, 17))], (1973, 9): [('move', (45, 11))], (1974, 4): [('move', (45, 12))], (1974, 6): [('move', (45, 18))], (1974, 9): [('move', (44, 12))], (1975, 4): [('move', (46, 13))], (1975, 6): [('move', (46, 17))], (1975, 9): [('move', (45, 11))], (1976, 4): [('move', (45, 12))], (1976, 6): [('move', (45, 18))], (1976, 9): [('move', (44, 12))], (1977, 4): [('move', (46, 13))], (1977, 6): [('move', (46, 17))], (1977, 9): [('move', (45, 11))], (1978, 4): [('move', (45, 12))], (1978, 6): [('move', (45, 18))], (1978, 9): [('move', (44, 12))], (1979, 4): [('move', (46, 13))], (1979, 6): [('move', (46, 17))], (1979, 9): [('move', (45, 11))], (1980, 4): [('move', (45, 12))], (1980, 6): [('move', (45, 18))], (1980, 9): [('move', (44, 12))], (1981, 4): [('move', (46, 13))], (1981, 6): [('move', (46, 17))], (1981, 9): [('move', (45, 11))], (1982, 4): [('move', (45, 12))], (1982, 6): [('move', (45, 18))], (1982, 9): [('move', (44, 12))], (1983, 4): [('move', (46, 13))], (1983, 6): [('move', (46, 17))], (1983, 9): [('move', (45, 11))], (1984, 4): [('move', (45, 12))], (1984, 6): [('move', (45, 18))], (1984, 9): [('move', (44, 12))], (1985, 4): [('move', (46, 13))], (1985, 6): [('move', (46, 17))], (1985, 9): [('move', (45, 11))], (1986, 4): [('move', (45, 12))], (1986, 6): [('move', (45, 18))], (1986, 9): [('move', (44, 12))], (1987, 4): [('move', (46, 13))], (1987, 6): [('move', (46, 17))], (1987, 9): [('move', (45, 11))], (1988, 4): [('move', (45, 12))], (1988, 6): [('move', (45, 18))], (1988, 9): [('move', (44, 12))], (1989, 4): [('move', (46, 13))], (1989, 6): [('move', (46, 17))], (1989, 9): [('move', (45, 11))], (1990, 4): [('move', (45, 12))], (1990, 6): [('move', (45, 18))], (1990, 9): [('move', (44, 12))], (1991, 4): [('move', (46, 13))], (1991, 6): [('move', (46, 17))], (1991, 9): [('move', (45, 11))], (1992, 4): [('move', (45, 12))], (1992, 6): [('move', (45, 18))], (1992, 9): [('move', (44, 12))], (1993, 4): [('move', (46, 13))], (1993, 6): [('move', (46, 17))], (1993, 9): [('move', (45, 11))], (1994, 4): [('move', (45, 12))], (1994, 6): [('move', (45, 18))], (1994, 9): [('move', (44, 12))], (1995, 4): [('move', (46, 13))], (1995, 6): [('move', (46, 17))], (1995, 9): [('move', (45, 11))], (1996, 4): [('move', (45, 12))], (1996, 6): [('move', (45, 18))], (1996, 9): [('move', (44, 12))], (1997, 4): [('move', (46, 13))], (1997, 6): [('move', (46, 17))], (1997, 9): [('move', (45, 11))], (1998, 4): [('move', (45, 12))], (1998, 6): [('move', (45, 18))], (1998, 9): [('move', (44, 12))], (1999, 4): [('move', (46, 13))], (1999, 6): [('move', (46, 17))], (1999, 9): [('move', (45, 11))]}
+            cls.PAUSE_ROUND = 30
+            cls.PAUSE_DURATION = 10
+
+        if Globals.my_type == EntityType.CORE:
+            id_set = set(i for round, i in cls.data.keys() if i is not None)
+            cls.id_ord = tuple(sorted(id_set))
+            cls.num_spawned = 0
+            cls.my_id = None
+            cls.pending_markers = deque()  # (target_round, pos, value)
+
+        if Globals.my_type == EntityType.BUILDER_BOT:
+            mark_pos = Unit.core_pos.add(Direction.NORTHWEST).add(Direction.NORTHWEST)
+            mark_id = ct.get_tile_building_id(mark_pos)
+            cls.my_id = ct.get_marker_value(mark_id)
+            Debug.tee(f'my id from marker is {cls.my_id}')
+
+    @classmethod
+    def run(cls):
+
+        ct = Globals.ct
+
+        my_id = cls.my_id  # changed
+        
+        if Globals.round > 250:
+            ACTIVE_ID = None
+            if ct.get_team() == Team.A:
+                ACTIVE_ID = 3
+                STAND_POS = Position(5, 7)
+                HARVESTER_POS = Position(4, 7)
+                FOUNDRY_POS = Position(4, 8)
+                SECOND_HARVESTER_POS = Position(4, 6)
+                FIRST_BRIDGE_POS = Position(5, 6)
+                THIRD_HARVESTER_POS = Position(6, 5)
+                CONVEYOR_POS = Position(5, 5)
+            else:
+                ACTIVE_ID = 4
+                STAND_POS = Position(44, 7)
+                HARVESTER_POS = Position(45, 7)
+                FOUNDRY_POS = Position(45, 8)
+                SECOND_HARVESTER_POS = Position(45, 6)
+                FIRST_BRIDGE_POS = Position(44, 6)
+                THIRD_HARVESTER_POS = Position(43, 5)
+                CONVEYOR_POS = Position(44, 5)
+                
+            if ct.get_id() == ACTIVE_ID:
+                if ct.get_position() not in (STAND_POS, FIRST_BRIDGE_POS):
+                    dir_to_stand = ct.get_position().direction_to(STAND_POS)
+                    if ct.get_tile_building_id(ct.get_position().add(dir_to_stand)) is None:
+                        ct.build_road(ct.get_position().add(dir_to_stand))
+                    elif ct.get_tile_building_id(ct.get_position().add(dir_to_stand.rotate_left())) is None:
+                        ct.build_road(ct.get_position().add(dir_to_stand.rotate_left()))
+                    elif ct.get_tile_building_id(ct.get_position().add(dir_to_stand.rotate_right())) is None:
+                        ct.build_road(ct.get_position().add(dir_to_stand.rotate_right()))
+                    if ct.can_move(dir_to_stand):
+                        ct.move(dir_to_stand)
+                    elif ct.can_move(dir_to_stand.rotate_left()):
+                        ct.move(dir_to_stand.rotate_left())
+                    elif ct.can_move(dir_to_stand.rotate_right()):
+                        ct.move(dir_to_stand.rotate_right())
+                    Debug.tee(f'moving to stand {STAND_POS} from {ct.get_position()}')
+                elif ct.get_action_cooldown() == 0:
+                    harvester_current = ct.get_tile_building_id(HARVESTER_POS)
+                    if harvester_current is None:
+                        ct.build_harvester(HARVESTER_POS)
+                        return
+                    
+                    foundry_current = ct.get_tile_building_id(FOUNDRY_POS)
+                    if ct.get_entity_type(foundry_current) != EntityType.FOUNDRY:
+                        if ct.can_destroy(FOUNDRY_POS):
+                            ct.destroy(FOUNDRY_POS)
+                        if ct.can_build_foundry(FOUNDRY_POS):
+                            ct.build_foundry(FOUNDRY_POS)
+                            return
+                        
+                    second_harvester_current = ct.get_tile_building_id(SECOND_HARVESTER_POS)
+                    if second_harvester_current is None:
+                        if ct.can_destroy(SECOND_HARVESTER_POS):
+                            ct.destroy(SECOND_HARVESTER_POS)
+                        if ct.can_build_harvester(SECOND_HARVESTER_POS):
+                            ct.build_harvester(SECOND_HARVESTER_POS)
+                            return
+                        
+                    first_bridge_current = ct.get_tile_building_id(FIRST_BRIDGE_POS)
+                    if first_bridge_current is None:
+                        if ct.can_destroy(FIRST_BRIDGE_POS):
+                            ct.destroy(FIRST_BRIDGE_POS)
+                        if ct.can_build_bridge(FIRST_BRIDGE_POS, FOUNDRY_POS):
+                            ct.build_bridge(FIRST_BRIDGE_POS, FOUNDRY_POS)
+                            return
+                        
+                    if ct.get_position() != FIRST_BRIDGE_POS:
+                        ct.move(ct.get_position().direction_to(FIRST_BRIDGE_POS))
+                        Debug.tee(f'moving to bridge {FIRST_BRIDGE_POS} from {ct.get_position()}')
+                        
+                    third_harvester_current = ct.get_tile_building_id(THIRD_HARVESTER_POS)
+                    if third_harvester_current is None:
+                        if ct.can_destroy(THIRD_HARVESTER_POS):
+                            ct.destroy(THIRD_HARVESTER_POS)
+                        if ct.can_build_harvester(THIRD_HARVESTER_POS):
+                            ct.build_harvester(THIRD_HARVESTER_POS)
+                            return
+                        
+                    conveyor_current = ct.get_tile_building_id(CONVEYOR_POS)
+                    if conveyor_current is None:
+                        if ct.can_build_conveyor(CONVEYOR_POS, CONVEYOR_POS.direction_to(FIRST_BRIDGE_POS)):
+                            ct.build_conveyor(CONVEYOR_POS, CONVEYOR_POS.direction_to(FIRST_BRIDGE_POS))
+                            return
+
+                        
+            return
+        
+        if Globals.my_type == EntityType.CORE:
+            my_id = None
+            ti, ax = ct.get_global_resources()
+            req = int(ct.get_scale_percent())
+            need = req - ti 
+            if need > 0:
+                ct.convert(min(need // 4, ax))
+
+            # flush pending
+            while cls.pending_markers and cls.pending_markers[0][0] <= Globals.round:
+                _, mark_pos, mark_id_val = cls.pending_markers.popleft()
+                ct.place_marker(mark_pos, mark_id_val)
+
+        # pause
+        if cls.PAUSE_ROUND <= Globals.round < cls.PAUSE_ROUND + cls.PAUSE_DURATION:
+            return
+
+        effective_round = Globals.round
+        if Globals.round >= cls.PAUSE_ROUND + cls.PAUSE_DURATION:
+            effective_round = Globals.round - cls.PAUSE_DURATION
+
+        key = (effective_round, my_id)
+        if key not in cls.data:
+            return
+
+        round_actions = cls.data[key]
+
+        for action in round_actions:
+            cls.dispatch(action)
+
+    @classmethod
+    def dispatch(cls, action):
+        if action[0] == 'move':
+            return cls.handle_move(action[1:])
+        else:
+            assert action[0] == 'build'
+            return cls.handle_build(action[1:])
+
+    @classmethod
+    def handle_move(cls, lst):
+        ct = Globals.ct
+        tuplepos = lst[0]
+        pos = Position(*tuplepos)
+
+        dir = ct.get_position().direction_to(pos)
+        if ct.can_move(dir):
+            ct.move(dir)
+            return True
+        else:
+            return False
+
+    @classmethod
+    def handle_build(cls, lst):
+        ct = Globals.ct
+        etype, tuplepos, *xargs = lst
+        pos = Position(*tuplepos)
+
+        if etype == EntityType.BUILDER_BOT:
+            if ct.can_spawn(pos):
+                mark_pos = Globals.my_pos.add(Direction.NORTHWEST).add(Direction.NORTHWEST)
+                mark_id_val = cls.id_ord[cls.num_spawned]
+                cls.num_spawned += 1
+                # queue the marker placement for next round instead of placing immediately
+                cls.pending_markers.append((Globals.round + 1, mark_pos, mark_id_val))
+                ct.spawn_builder(pos)
+            else:
+                Debug.tee(f'couldnt spawn {pos}')
+            return
+
+        # if ct.can_destroy(pos):
+        #     ct.destroy(pos)
+
+        if etype == EntityType.BUILDER_BOT:
+            if ct.can_build_builder_bot(pos, *xargs):
+                ct.build_builder_bot(pos, *xargs)
+                return True
+            else:
+                if ct.can_destroy(pos):
+                    ct.destroy(pos)
+                if ct.can_build_builder_bot(pos, *xargs):
+                    ct.build_builder_bot(pos, *xargs)
+                else:
+                    Debug.tee(f'try destroy, still didnt work {Globals.round} with EntityType.BUILDER_BOT @ {pos}')
+                return
+        if etype == EntityType.CORE:
+            if ct.can_build_core(pos, *xargs):
+                ct.build_core(pos, *xargs)
+                return True
+            else:
+                if ct.can_destroy(pos):
+                    ct.destroy(pos)
+                if ct.can_build_core(pos, *xargs):
+                    ct.build_core(pos, *xargs)
+                else:
+                    Debug.tee(f'try destroy, still didnt work {Globals.round} with EntityType.CORE @ {pos}')
+                return
+        if etype == EntityType.GUNNER:
+            if ct.can_build_gunner(pos, *xargs):
+                ct.build_gunner(pos, *xargs)
+                return True
+            else:
+                if ct.can_destroy(pos):
+                    ct.destroy(pos)
+                if ct.can_build_gunner(pos, *xargs):
+                    ct.build_gunner(pos, *xargs)
+                else:
+                    Debug.tee(f'try destroy, still didnt work {Globals.round} with EntityType.GUNNER @ {pos}')
+                return
+        if etype == EntityType.SENTINEL:
+            if ct.can_build_sentinel(pos, *xargs):
+                ct.build_sentinel(pos, *xargs)
+                return True
+            else:
+                if ct.can_destroy(pos):
+                    ct.destroy(pos)
+                if ct.can_build_sentinel(pos, *xargs):
+                    ct.build_sentinel(pos, *xargs)
+                else:
+                    Debug.tee(f'try destroy, still didnt work {Globals.round} with EntityType.SENTINEL @ {pos}')
+                return
+        if etype == EntityType.BREACH:
+            if ct.can_build_breach(pos, *xargs):
+                ct.build_breach(pos, *xargs)
+                return True
+            else:
+                if ct.can_destroy(pos):
+                    ct.destroy(pos)
+                if ct.can_build_breach(pos, *xargs):
+                    ct.build_breach(pos, *xargs)
+                else:
+                    Debug.tee(f'try destroy, still didnt work {Globals.round} with EntityType.BREACH @ {pos}')
+                return
+        if etype == EntityType.LAUNCHER:
+            if ct.can_build_launcher(pos, *xargs):
+                ct.build_launcher(pos, *xargs)
+                return True
+            else:
+                if ct.can_destroy(pos):
+                    ct.destroy(pos)
+                if ct.can_build_launcher(pos, *xargs):
+                    ct.build_launcher(pos, *xargs)
+                else:
+                    Debug.tee(f'try destroy, still didnt work {Globals.round} with EntityType.LAUNCHER @ {pos}')
+                return
+        if etype == EntityType.CONVEYOR:
+            if ct.can_build_conveyor(pos, *xargs):
+                ct.build_conveyor(pos, *xargs)
+                return True
+            else:
+                if ct.can_destroy(pos):
+                    ct.destroy(pos)
+                if ct.can_build_conveyor(pos, *xargs):
+                    ct.build_conveyor(pos, *xargs)
+                else:
+                    Debug.tee(f'try destroy, still didnt work {Globals.round} with EntityType.CONVEYOR @ {pos}')
+                return
+        if etype == EntityType.SPLITTER:
+            if ct.can_build_splitter(pos, *xargs):
+                ct.build_splitter(pos, *xargs)
+                return True
+            else:
+                if ct.can_destroy(pos):
+                    ct.destroy(pos)
+                if ct.can_build_splitter(pos, *xargs):
+                    ct.build_splitter(pos, *xargs)
+                else:
+                    Debug.tee(f'try destroy, still didnt work {Globals.round} with EntityType.SPLITTER @ {pos}')
+                return
+        if etype == EntityType.ARMOURED_CONVEYOR:
+            if ct.can_build_armoured_conveyor(pos, *xargs):
+                ct.build_armoured_conveyor(pos, *xargs)
+                return True
+            else:
+                Debug.tee(f'skipping armoured - might build normal instead {Globals.round}')
+                if ct.can_build_conveyor(pos, *xargs):
+                    ct.build_conveyor(pos, *xargs)
+                return
+        if etype == EntityType.BRIDGE:
+            if ct.can_build_bridge(pos, *xargs):
+                ct.build_bridge(pos, *xargs)
+                return True
+            else:
+                if ct.can_destroy(pos):
+                    ct.destroy(pos)
+                if ct.can_build_bridge(pos, *xargs):
+                    ct.build_bridge(pos, *xargs)
+                else:
+                    Debug.tee(f'try destroy, still didnt work {Globals.round} with EntityType.BRIDGE @ {pos}')
+                return
+        if etype == EntityType.HARVESTER:
+            if ct.can_build_harvester(pos, *xargs):
+                ct.build_harvester(pos, *xargs)
+                return True
+            else:
+                if ct.can_destroy(pos):
+                    ct.destroy(pos)
+                if ct.can_build_harvester(pos, *xargs):
+                    ct.build_harvester(pos, *xargs)
+                else:
+                    Debug.tee(f'try destroy, still didnt work {Globals.round} with EntityType.HARVESTER @ {pos}')
+                return
+        if etype == EntityType.FOUNDRY:
+            if ct.can_build_foundry(pos, *xargs):
+                ct.build_foundry(pos, *xargs)
+                return True
+            else:
+                if ct.can_destroy(pos):
+                    ct.destroy(pos)
+                if ct.can_build_foundry(pos, *xargs):
+                    ct.build_foundry(pos, *xargs)
+                else:
+                    Debug.tee(f'try destroy, still didnt work {Globals.round} with EntityType.FOUNDRY @ {pos}')
+                return
+        if etype == EntityType.ROAD:
+            if ct.can_build_road(pos, *xargs):
+                ct.build_road(pos, *xargs)
+                return True
+            else:
+                if ct.can_destroy(pos):
+                    ct.destroy(pos)
+                if ct.can_build_road(pos, *xargs):
+                    ct.build_road(pos, *xargs)
+                else:
+                    Debug.tee(f'try destroy, still didnt work {Globals.round} with EntityType.ROAD @ {pos}')
+                return
+        if etype == EntityType.BARRIER:
+            if ct.can_build_barrier(pos, *xargs):
+                ct.build_barrier(pos, *xargs)
+                return True
+            else:
+                if ct.can_destroy(pos):
+                    ct.destroy(pos)
+                if ct.can_build_barrier(pos, *xargs):
+                    ct.build_barrier(pos, *xargs)
+                else:
+                    Debug.tee(f'try destroy, still didnt work {Globals.round} with EntityType.BARRIER @ {pos}')
+                return
+        if etype == EntityType.MARKER:
+            if ct.can_build_marker(pos, *xargs):
+                ct.build_marker(pos, *xargs)
+                return True
+            else:
+                if ct.can_destroy(pos):
+                    ct.destroy(pos)
+                if ct.can_build_marker(pos, *xargs):
+                    ct.build_marker(pos, *xargs)
+                else:
+                    Debug.tee(f'try destroy, still didnt work {Globals.round} with EntityType.MARKER @ {pos}')
+                return
 
 
 # ============================================================
@@ -34236,68 +31797,33 @@ class RouteToCore:
 
     @classmethod
     def try_build_route(cls):
-
+        assert cls.is_active
         bridge_dist = 0
         first_target = None
-        from_pos = cls.from_pos
-        from_pos_enc = (((from_pos.x) + 3) * 56 + ((from_pos.y) + 3))
-
         if cls.isAttack:
-            # coolPos = RushTargeter.enemy_core_turret_target(
-            #     5, 32
-            # )
-            # if coolPos == None:
-            #     cls.give_up(True)
-            #     StateMoveTo.run(Explore.get_target()) # new
-            #     return None
-            # valid_pos_set = set([coolPos])
-
-            # Debug.debug_set(Symmetry.enemy_core_sentinel_set, Color.ORANGE)
-            # Debug.debug_set(Symmetry.enemy_core_gunner_set, Color.RED)
-
-            if from_pos_enc in Symmetry.enemy_core_gunner_set:
+            coolPos = RushTargeter.enemy_core_turret_target(GameConstants.SENTINEL_VISION_RADIUS_SQ)
+            if coolPos == None:
                 cls.give_up(True)
-                StateBuildTurret.run(from_pos) # attempt build
+                StateMoveTo.run(Explore.get_target()) # new
                 return None
-
-            gun_bridge_dist, gun_first_target = BfsBureau.find_bridge_route_check_sinks(
-                from_pos,
-                Symmetry.enemy_core_gunner_set,
-                avoid_pos=cls.pathFindingKill,
-                max_iter=100
+            valid_pos_set = set([coolPos])
+            bridge_dist, first_target = BfsBureau.find_bridge_route(
+                cls.from_pos,
+                valid_pos_set,
+                avoid_pos = cls.pathFindingKill
             )
-            sen_bridge_dist, sen_first_target = BfsBureau.find_bridge_route_check_sinks(
-                from_pos,
-                Symmetry.enemy_core_sentinel_set,
-                avoid_pos=cls.pathFindingKill,
-                max_iter=100
-            )
-
-            # switch to sentinel (instead of gunner) if we can save 2 bridges
-            if sen_bridge_dist + 2 <= gun_bridge_dist:
-                bridge_dist = sen_bridge_dist
-                first_target = sen_first_target
-
-                if from_pos_enc in Symmetry.enemy_core_sentinel_set:
-                    cls.give_up(True)
-                    StateBuildTurret.run(from_pos) # attempt build
-                    return None
-            else:
-                bridge_dist = gun_bridge_dist
-                first_target = gun_first_target
-
         else:
             # short search to core in case it's close
             bridge_dist, first_target = BfsBureau.find_bridge_route(
-                from_pos,
+                cls.from_pos,
                 Unit.core_pos_set,
                 max_iter=0,
-                avoid_pos=cls.pathFindingKill
+                avoid_pos = cls.pathFindingKill
             )
             # otherwise allow all sinks
             if first_target is None:
                 bridge_dist, first_target = BfsBureau.find_bridge_route(
-                    from_pos,
+                    cls.from_pos,
                     DarkForest.core_sink_set,  # was sink_set
                     avoid_pos = cls.pathFindingKill
                 )
@@ -34305,25 +31831,43 @@ class RouteToCore:
         
 
         if first_target is None:
+            Debug.tee("first_target is None: giving up")
             if cls.give_up(True):
                 StateMoveTo.run(Explore.get_target()) # new
             return None
 
         target = Position(*first_target)
-        Debug.line(from_pos, target, Color.GREEN)
+        Debug.line(cls.from_pos, target, Color.GREEN)
 
-        if from_pos.distance_squared(target) == 1:
-            ti = Map.tile_info[from_pos.x][from_pos.y]
+        # # Look-ahead: if target is a shield (ally conveyor feeding a harvester),
+        # # verify we can continue from it before bridging onto it. Otherwise we'd
+        # # leave a dangling bridge with no way forward.
+        # _ti = (((target.x) + 3) * 56 + ((target.y) + 3))
+        # if BfsBureau.harvester_feeder[_ti]:
+        #     _, _ahead_first = BfsBureau.find_bridge_route(
+        #         target,
+        #         DarkForest.core_sink_set,
+        #         avoid_pos = cls.pathFindingKill,
+        #     )
+        #     if _ahead_first is None:
+        #         Debug.tee("RouteToCore: shield first_target with no continuation, giving up")
+        #         if cls.give_up(True):
+        #             StateMoveTo.run(Explore.get_target())
+        #         return
+
+
+        if cls.from_pos.distance_squared(target) == 1:
+            ti = Map.tile_info[cls.from_pos.x][cls.from_pos.y]
             if not ti.has_building or not ti.is_building_ally or target != ti.target:
-                if BuildManager.can_dbuild_conveyor(from_pos):
-                    if BuildManager.should_build_armoured(from_pos) and BuildManager.can_dbuild_armoured_conveyor(from_pos):
-                        BuildManager.dbuild_armoured_conveyor(from_pos, from_pos.direction_to(target))
+                if BuildManager.can_dbuild_conveyor(cls.from_pos):
+                    if BuildManager.should_build_armoured(cls.from_pos) and BuildManager.can_dbuild_armoured_conveyor(cls.from_pos):
+                        BuildManager.dbuild_armoured_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
                     else:
-                        BuildManager.dbuild_conveyor(from_pos, from_pos.direction_to(target))
+                        BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
                     cls.set_pos(target,False)
 
-        elif BuildManager.can_dbuild_bridge(from_pos):
-            BuildManager.dbuild_bridge(from_pos, target)
+        elif BuildManager.can_dbuild_bridge(cls.from_pos):
+            BuildManager.dbuild_bridge(cls.from_pos, target)
             cls.set_pos(target,False)
 
     @classmethod
@@ -34392,7 +31936,7 @@ class RouteToCore:
 
     @classmethod
     def do_routing(cls):
-        print("RouteToCore: doing routing from", cls.from_pos,"(Attack Route!)",cls.isAttack)
+        print("RouteToCore: doing routing from", cls.from_pos,"Attack route",cls.isAttack)
         if cls.should_give_up():
             if cls.give_up():
                 StateMoveTo.run(Explore.get_target()) # new
@@ -34857,12 +32401,13 @@ class RushTargeter:
     killed: set[Position] = set()
 
     @classmethod
-    def enemy_core_turret_target(cls, vision_r, attack_rsq) -> Position | None:
+    def enemy_core_turret_target(cls, attack_r_sq) -> Position | None:
         if not Symmetry.is_sym_known:
             return None
         enemy_core = Symmetry.enemy_core_pos
         print("Yo so the enemy core is at", enemy_core)
 
+        vision_r = int(attack_r_sq ** 0.5) + 1
 
         # ── Step 1: pick best attack landing position ────────────────
         attack_pos = None
@@ -34870,7 +32415,7 @@ class RushTargeter:
         currLoc = Globals.my_pos
         for dx in range(-vision_r, vision_r + 1):
             for dy in range(-vision_r, vision_r + 1):
-                if dx * dx + dy * dy > attack_rsq:
+                if dx * dx + dy * dy >attack_r_sq:
                     continue
                 candidate = Position(enemy_core.x + dx, enemy_core.y + dy)
                 tile = Map.tile_info[candidate.x][candidate.y]
@@ -34890,7 +32435,7 @@ class RushTargeter:
                     attack_pos = candidate
 
         if attack_pos is None:
-            print("No valid attack position within", attack_rsq,"radius square of enemy core")
+            print("No valid attack position within",attack_r_sq,"radius square of enemy core")
             return None
         print("CLEARLY the best attack position is", attack_pos)
         return (((attack_pos.x) + 3) * 56 + ((attack_pos.y) + 3))
@@ -34923,15 +32468,15 @@ class RushTargeter:
                     thepos = Position(x, y)
                     if OreExecutive.state.get(thepos, 0) == 2: #killed
                         continue
-                    if ti.entity_type == EntityType.FOUNDRY:
+                    if ti.entity_type in [EntityType.FOUNDRY]:
                         if thepos in cls.killed:
                             continue
                         return thepos, "R" # for just Route
-                    if ti.entity_type in (EntityType.HARVESTER, EntityType.FOUNDRY):
+                    if ti.entity_type in [EntityType.HARVESTER,EntityType.FOUNDRY]:
                         continue
-                    if ti.has_building and not ti.is_building_ally:
+                    if ti.has_building and not ti.is_building_ally and ti.entity_type != EntityType.MARKER:
                         continue
-                    if env == Environment.ORE_TITANIUM and not ti.has_turret:
+                    if env == Environment.ORE_TITANIUM:
                         return thepos, "B" # for build harvester
 
         return None, "C"  # Nothing found
@@ -34947,7 +32492,7 @@ class RushTargeter:
                     funPos = stuff[0]
                     if funPos == None or not VisionTracker.me_is_canonical_ally(funPos):
                         return Explore.get_target(),'M' #move
-                    return funPos, stuff[1] # <------- non move
+                    return funPos, stuff[1] 
                 else:
                     return Explore.get_target(),'M' #move
         elif Builder.mode == 2:
@@ -38846,25 +36391,9 @@ class SpawnManager:
 
 
     @classmethod
-    def try_spawn(cls):
+    def spawn(cls):
         # rework this
-        my_pos = Globals.my_pos        
-        
-        if cls.nearest_dangerous_enemy != None:
-            enemy_dir = my_pos.direction_to(cls.nearest_dangerous_enemy)
-            pos = my_pos.add(enemy_dir)
-            if Globals.ct.can_spawn(pos):
-                Globals.ct.spawn_builder(pos)
-                cls.num_spawned += 1
-            pos = my_pos.add(enemy_dir.rotate_left())
-            if Globals.ct.can_spawn(pos):
-                Globals.ct.spawn_builder(pos)
-                cls.num_spawned += 1
-            pos = my_pos.add(enemy_dir.rotate_right())
-            if Globals.ct.can_spawn(pos):
-                Globals.ct.spawn_builder(pos)
-                cls.num_spawned += 1
-
+        my_pos = Globals.my_pos
 
         pos = my_pos.add(Direction.CENTRE)
 
@@ -38961,7 +36490,7 @@ class SpawnManager:
 
     @classmethod
     def should_spawn_emergency(cls):
-        if cls.dangerous_enemy_counter >= 6 or (cls.dangerous_enemy_counter >= 2 and cls.last_spawned - Globals.round >= 10):
+        if cls.dangerous_enemy_counter >= 5 or (cls.dangerous_enemy_counter >= 1 and cls.last_spawned - Globals.round >= 5):
             return True
         
         lost_short = CoreHistory.hp_delta(1) < 0 
@@ -39230,39 +36759,29 @@ class StateBuildTurret:
 
         return None
 
+
+            
+
+
     @classmethod
-    def run(cls, pos, should_build_sentinel=True):
+    def run(cls, pos, banned_dir: Direction | None = None):
+        Pathfinder.move_to(pos, ban_target_pos=False)
+
         core_dir = None
         if Symmetry.is_sym_known:
             core_dir = cls.gunner_can_hit_core(pos)
             
+        if BuildManager.can_smartbuild_gunner(pos) and core_dir is not None:
+            # who cares all turrets are the same anyways
+            BuildManager.smartbuild_gunner(pos, core_dir)
+        elif BuildManager.can_smartbuild_sentinel(pos):
+            
+            dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
+            
 
-
-        if Globals.my_pos.distance_squared(pos) <= 2:
-            if BuildManager.can_smartbuild_gunner(pos) and core_dir is not None:
-                BuildManager.smartbuild_gunner(pos, core_dir)
-            elif should_build_sentinel and BuildManager.can_smartbuild_sentinel(pos):
-                
-                dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
-                
-                BuildManager.smartbuild_sentinel(pos, dir)
-            elif BuildManager.can_build_road(pos):
-                BuildManager.build_road(pos)
-
-
-        if Globals.ct.get_move_cooldown() == 0:
-            Pathfinder.move_to(pos, ban_target_pos=False)
-
-        if Globals.my_pos.distance_squared(pos) <= 2:
-            if BuildManager.can_smartbuild_gunner(pos) and core_dir is not None:
-                BuildManager.smartbuild_gunner(pos, core_dir)
-            elif should_build_sentinel and BuildManager.can_smartbuild_sentinel(pos):
-                
-                dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
-                
-                BuildManager.smartbuild_sentinel(pos, dir)
-            elif BuildManager.can_build_road(pos):
-                BuildManager.build_road(pos)
+            BuildManager.smartbuild_sentinel(pos, dir)
+        elif Globals.ct.can_build_road(pos):
+            Globals.ct.build_road(pos)
 
 
 # ============================================================
@@ -39384,7 +36903,7 @@ class StateRouteFoundryInput:
 
 class StateRush:
     @classmethod
-    def run(cls, targ: tuple[Position, str]):
+    def run(cls, targ):
         pos = targ[0]
         type = targ[1]
         if type == 'M': #move
@@ -39430,9 +36949,6 @@ class Symmetry:
     enemy_core_pos_set: set[int]
     enemy_core_pos: Position
 
-    enemy_core_sentinel_set: set[int]
-    enemy_core_gunner_set: set[int]
-
     @classmethod
     def predict_enemy_core(cls):
         cls.enemy_core_pos = cls.sym_pos(Unit.core_pos)
@@ -39448,182 +36964,6 @@ class Symmetry:
             idx -57,
             idx ,
         }
-        cls.enemy_core_sentinel_set = {
-            idx -285,
-            idx -284,
-            idx -283,
-            idx -282,
-            idx -281,
-            idx -280,
-            idx -279,
-            idx -278,
-            idx -277,
-            idx -276,
-            idx -275,
-            idx -229,
-            idx -228,
-            idx -227,
-            idx -226,
-            idx -225,
-            idx -224,
-            idx -223,
-            idx -222,
-            idx -221,
-            idx -220,
-            idx -219,
-            idx -173,
-            idx -172,
-            idx -171,
-            idx -170,
-            idx -169,
-            idx -168,
-            idx -167,
-            idx -166,
-            idx -165,
-            idx -164,
-            idx -163,
-            idx -117,
-            idx -116,
-            idx -115,
-            idx -114,
-            idx -113,
-            idx -112,
-            idx -111,
-            idx -110,
-            idx -109,
-            idx -108,
-            idx -107,
-            idx -61,
-            idx -60,
-            idx -59,
-            idx -58,
-            idx -54,
-            idx -53,
-            idx -52,
-            idx -51,
-            idx -5,
-            idx -4,
-            idx -3,
-            idx -2,
-            idx +2,
-            idx +3,
-            idx +4,
-            idx +5,
-            idx +51,
-            idx +52,
-            idx +53,
-            idx +54,
-            idx +58,
-            idx +59,
-            idx +60,
-            idx +61,
-            idx +107,
-            idx +108,
-            idx +109,
-            idx +110,
-            idx +111,
-            idx +112,
-            idx +113,
-            idx +114,
-            idx +115,
-            idx +116,
-            idx +117,
-            idx +163,
-            idx +164,
-            idx +165,
-            idx +166,
-            idx +167,
-            idx +168,
-            idx +169,
-            idx +170,
-            idx +171,
-            idx +172,
-            idx +173,
-            idx +219,
-            idx +220,
-            idx +221,
-            idx +222,
-            idx +223,
-            idx +224,
-            idx +225,
-            idx +226,
-            idx +227,
-            idx +228,
-            idx +229,
-            idx +275,
-            idx +276,
-            idx +277,
-            idx +278,
-            idx +279,
-            idx +280,
-            idx +281,
-            idx +282,
-            idx +283,
-            idx +284,
-            idx +285,
-        }
-        cls.enemy_core_gunner_set = {
-            idx -225,
-            idx -224,
-            idx -223,
-            idx -171,
-            idx -170,
-            idx -169,
-            idx -168,
-            idx -167,
-            idx -166,
-            idx -165,
-            idx -115,
-            idx -114,
-            idx -113,
-            idx -112,
-            idx -111,
-            idx -110,
-            idx -109,
-            idx -60,
-            idx -59,
-            idx -58,
-            idx -54,
-            idx -53,
-            idx -52,
-            idx -4,
-            idx -3,
-            idx -2,
-            idx +2,
-            idx +3,
-            idx +4,
-            idx +52,
-            idx +53,
-            idx +54,
-            idx +58,
-            idx +59,
-            idx +60,
-            idx +109,
-            idx +110,
-            idx +111,
-            idx +112,
-            idx +113,
-            idx +114,
-            idx +115,
-            idx +165,
-            idx +166,
-            idx +167,
-            idx +168,
-            idx +169,
-            idx +170,
-            idx +171,
-            idx +223,
-            idx +224,
-            idx +225,
-        }
-
-        # # the category Set is categorised
-        # Set = cls.enemy_core_sentinel_set if Globals.round & 1 else cls.enemy_core_gunner_set
-        # for i in Set:
-        #             #     Debug.dot(Position(((i) // 56 - 3), ((i) % 56 - 3)))
-
-
-        
 
     @classmethod
     def and_sym(cls, V, H, R):
@@ -39938,9 +37278,7 @@ class TileInfo:
         'resource_id', 'resource_type',
         'ally_outward_transporters_adjacent',
         'is_pointed_to', 'ally_non_road_buildings_adjacent',
-        'ally_core_adj',
-        'is_shield',
-        'ally_fed_foundries_adjacent',  # fed by a (presumably) axionite line
+        'ally_core_adj'
     )
 
 
@@ -40103,6 +37441,7 @@ class Unit:
     core_pos_list: list[tuple[int, int]]
     core_pos_set: set[int]
 
+    on_pong: bool = False
 
     @staticmethod
     def core_pos_init():
@@ -40146,11 +37485,23 @@ class Unit:
         else:
             cls.core_pos_set = set()
 
+        if Globals.my_type in (EntityType.BUILDER_BOT, EntityType.CORE) and (Map.maxX, Map.maxY) == (49, 34):
+            cx, cy = cls.core_pos.x, cls.core_pos.y
+            isA = Globals.ct.get_team() == Team.A
+
+            if (isA and (cx, cy) == (8, 8)) or (not isA and (cx, cy) == (41, 8)):
+                PongManager.init()
+                Debug.log('PONG detected!!')
+                cls.on_pong = True
 
 
     @classmethod
     def start_turn(cls):
 
+        if cls.on_pong:
+            Globals.start_tick()
+            PongManager.run()
+            raise NotImplementedError
 
         Globals.start_tick()
         MarketMaker.refresh()
@@ -40170,6 +37521,7 @@ class Unit:
 
         if Globals.round == 1999:
             Profiler.report()
+        print(f'scale ratio {MarketMaker.scale_ratio:.2f}')
 
 
 # ============================================================
@@ -40243,9 +37595,8 @@ class Builder(Unit):
         DarkForest.init()
         BfsBureau.enclosed_init()
         cls.state = 'Explore'
-
-        # if Globals.round == 5:
-        #     cls.role = 1
+        if Globals.round == 5:
+            cls.role = 1
 
     @classmethod
     def start_turn(cls):
@@ -40280,15 +37631,12 @@ class Builder(Unit):
                 Explore.target = Explore.new_target()
             else:
                 cls.mode = 1
-
         if cls.mode != 2 and cls.mode != 3 and (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 40 and Globals.round > 100):
             cls.mode = 2
             Explore.target = Explore.new_target()
-
         if cls.mode == 3 and Globals.round >= Constants.HEAL_OVER:
             cls.mode = 1
             Explore.target = Explore.new_target()
-
         print("Mode:", cls.mode)
 
 
@@ -40334,6 +37682,7 @@ class Builder(Unit):
             cls.route_from_pos = RouteToFoundry.from_pos
 
         cls.should_fire = Attacker.should_fire(Globals.my_pos)
+
 
 
     @classmethod
@@ -40397,9 +37746,9 @@ class Builder(Unit):
 
         # now changed to sentinel/gunner pos near enemy?
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
-                
+
         destroypos = VisionTracker.get_best_destroy_position()
-        
+
         if destroypos is not None:
             return 'Destroy', destroypos
 
@@ -40410,14 +37759,11 @@ class Builder(Unit):
              and (Globals.round - HealExecutor.last_healed_round) <= 5
              # and misinfo is None  already fixed by healpos check
         ):
-            if healpos is not None:
+            if healpos is not None:  # redundant, OK
                 return 'MoveTo', healpos, '[lrh: move to heal]'
-            elif (Globals.round - HealExecutor.last_healed_round) <= 3:
-
-                return 'MoveTo', HealExecutor.last_healed.position, '[lrh: WAIT to heal]'
 
         if takedownpos is not None:
-
+            Debug.dot(takedownpos, Color.PURPLE)
             return 'BuildGunner', takedownpos, None
 
         sitterpos = SitterTakedown.get_best_launcher_position()
@@ -40428,32 +37774,17 @@ class Builder(Unit):
         if healpos is not None and misinfo is None:
             return 'MoveTo', healpos, 'Heal'
 
-<<<<<<< HEAD
-        if misinfo is not None: # and not ((RouteToCore.backTracking or RouteToFoundry.backTracking) and not RouteToCore.is_active and not RouteToFoundry.is_active):
-            if misinfo.on_ally_side:
-                return 'Reroute', misinfo.position
-            else:
-                return 'Reroute', misinfo.position  # same
-
-
-=======
         # reinstating CORE_HEALER
         if cls.role == 1:
             return 'MoveTo', Unit.core_pos.add(random.choice(Constants.DIRECTIONS)), '[core healer]'
-    
->>>>>>> main
+
         buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0) or (RouteToFoundryInput.is_active and len(RouteToFoundryInput.prevRoute) == 0)
-            
+
         if not buildingFirstConveyor and sentinelpos is None:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
             if shieldpos is not None:
                 return 'BuildShield', shieldpos
-<<<<<<< HEAD
 
-
-=======
-                
->>>>>>> main
         attackpos = Attacker.get_target()
         secondaryattackpos = Attacker.get_secondary_target()
 
@@ -40462,22 +37793,23 @@ class Builder(Unit):
             return 'Attack', secondaryattackpos, 'Preroute'
 
         if RouteToBreach.is_active:
-            
             return ('RouteBreach',)
 
         if RouteToFoundry.is_active:
-            
             return ('RouteFoundry',)
 
         if RouteToFoundryInput.is_active:
-            
             return ('RouteFoundryInput',)
 
         if RouteToCore.is_active:
-            
             return ('Route',)
 
 
+        if misinfo is not None and not ((RouteToCore.backTracking or RouteToFoundry.backTracking) and not RouteToCore.is_active and not RouteToFoundry.is_active):
+            if misinfo.on_ally_side:
+                return 'Reroute', misinfo.position
+            else:
+                return 'Reroute', misinfo.position  # same
 
         trans: TransporterInfo = ConnectManager.get_connect_target_info()
         if trans is not None:
@@ -40497,7 +37829,7 @@ class Builder(Unit):
                     < Util.dist_sq(route_pos, Unit.core_pos):
 
                 # if sentinelpos is not None:
-                #     return 'BuildTurret', sentinelpos
+                #     return 'BuildTurret', sentinelpos, None
                 pass
 
             elif route_pos not in RouteToCore.killed:
@@ -40508,7 +37840,7 @@ class Builder(Unit):
 
         if sentinelpos is not None:
             Debug.dot(sentinelpos, Color.PURPLE)
-            return 'BuildTurret', sentinelpos
+            return 'BuildTurret', sentinelpos, None
 
         if cls.should_fire:
             return 'Attack', Globals.my_pos, 'ShouldFire'
@@ -40607,13 +37939,18 @@ class Core(Unit):
 
     @classmethod
     def run_turn(cls):
-        BurnManager.maybe_burn_for_ti()
-
         if BurnManager.should_burn_emergency(): 
-            BurnManager.burn_for_builder()
+            BurnManager.burn()
 
+        # Emergyspawn tries to build a bot the moment it sees an enemy, which is pretty inefficient in most scenarios. 
+        """
+        # I think this is cleaner
+        if SpawnManager.should_spawn_emergency():
+            BurnManager.burn()
+        """
+        
         if SpawnManager.should_spawn() or SpawnManager.should_spawn_emergency():
-            SpawnManager.try_spawn()
+            SpawnManager.spawn()
 
     @classmethod
     def end_turn(cls):

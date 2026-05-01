@@ -198,7 +198,6 @@ class OreExecutive:
             Debug.line(pos, Color.YELLOW)
             BuildManager.dbuild_harvester(pos)
 
-            cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
             # Check if already routed naturally
             for d in Constants.CARDINAL_DIRECTIONS:
                 newPos = pos.add(d)
@@ -209,11 +208,18 @@ class OreExecutive:
                 if ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET and not ti.is_shield and encoded in DarkForest.core_sink_set:
                     break  # already connected, skip
             else:
+                # Prefer routing to an existing foundry with spare ti capacity
+                # over routing all the way back to core — it's cheaper and
+                # boosts an under-fed foundry's output.
+                fi_target = FoundryInputTracker.get_best_ti_foundry(pos)
+                if fi_target is not None and not RouteToFoundryInput.is_active:
+                    {% set fx, fy = decode_pos('fi_target') %}
+                    target_pos = Position({{ fx }}, {{ fy }})
+                else:
+                    target_pos = Unit.core_pos
+
+                cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos, target_pos=target_pos)
                 if cand is not None:
-                    # Prefer routing to an existing foundry with spare ti capacity
-                    # over routing all the way back to core — it's cheaper and
-                    # boosts an under-fed foundry's output.
-                    fi_target = FoundryInputTracker.get_best_ti_foundry(pos)
                     if fi_target is not None and not RouteToFoundryInput.is_active and RouteToFoundry.axionite_can_reach_foundry(cand.position, fi_target):
                         FoundryInputTracker.claim_ti(fi_target)
                         RouteToFoundryInput.set_pos(cand.position, fi_target, is_ax=False)
@@ -232,7 +238,7 @@ class OreExecutive:
             cls.state[pos] = {{ PATHFINDING_KILL }}
             return
 
-        cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos,True)
+        cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos, forAx=True)
         if cand == None:
             Debug.line(pos, Color.RED)
             Debug.diamond(Color.RED)
