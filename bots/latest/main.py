@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-01 10:34:02 (local)
+# latest,  @ 2026-05-01 11:00:34 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -34342,12 +34342,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.NORTH
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.NORTH
             nx += 0 
             ny += 0 -1
             ti = Map.tile_info[nx][ny]
@@ -34359,12 +34361,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.NORTH
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.NORTH
             nx += 0 
             ny += 0 -1
             ti = Map.tile_info[nx][ny]
@@ -34376,12 +34380,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.NORTH
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.NORTH
             thingValid = True
             nx, ny = cls.from_pos
             nx += 0 +1
@@ -34395,12 +34401,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.NORTHEAST
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.NORTHEAST
             nx += 0 +1
             ny += 0 -1
             ti = Map.tile_info[nx][ny]
@@ -34412,12 +34420,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.NORTHEAST
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.NORTHEAST
             nx += 0 +1
             ny += 0 -1
             ti = Map.tile_info[nx][ny]
@@ -34429,12 +34439,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.NORTHEAST
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.NORTHEAST
             thingValid = True
             nx, ny = cls.from_pos
             nx += 0 +1
@@ -34448,12 +34460,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.EAST
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.EAST
             nx += 0 +1
             ny += 0 
             ti = Map.tile_info[nx][ny]
@@ -34465,12 +34479,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.EAST
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.EAST
             nx += 0 +1
             ny += 0 
             ti = Map.tile_info[nx][ny]
@@ -34482,12 +34498,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.EAST
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.EAST
             thingValid = True
             nx, ny = cls.from_pos
             nx += 0 +1
@@ -34501,12 +34519,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.SOUTHEAST
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.SOUTHEAST
             nx += 0 +1
             ny += 0 +1
             ti = Map.tile_info[nx][ny]
@@ -34518,12 +34538,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.SOUTHEAST
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.SOUTHEAST
             nx += 0 +1
             ny += 0 +1
             ti = Map.tile_info[nx][ny]
@@ -34535,12 +34557,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.SOUTHEAST
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.SOUTHEAST
             thingValid = True
             nx, ny = cls.from_pos
             nx += 0 
@@ -34554,12 +34578,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.SOUTH
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.SOUTH
             nx += 0 
             ny += 0 +1
             ti = Map.tile_info[nx][ny]
@@ -34571,12 +34597,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.SOUTH
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.SOUTH
             nx += 0 
             ny += 0 +1
             ti = Map.tile_info[nx][ny]
@@ -34588,12 +34616,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.SOUTH
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.SOUTH
             thingValid = True
             nx, ny = cls.from_pos
             nx += 0 -1
@@ -34607,12 +34637,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.SOUTHWEST
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.SOUTHWEST
             nx += 0 -1
             ny += 0 +1
             ti = Map.tile_info[nx][ny]
@@ -34624,12 +34656,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.SOUTHWEST
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.SOUTHWEST
             nx += 0 -1
             ny += 0 +1
             ti = Map.tile_info[nx][ny]
@@ -34641,12 +34675,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.SOUTHWEST
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.SOUTHWEST
             thingValid = True
             nx, ny = cls.from_pos
             nx += 0 -1
@@ -34660,12 +34696,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.WEST
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.WEST
             nx += 0 -1
             ny += 0 
             ti = Map.tile_info[nx][ny]
@@ -34677,12 +34715,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.WEST
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.WEST
             nx += 0 -1
             ny += 0 
             ti = Map.tile_info[nx][ny]
@@ -34694,12 +34734,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.WEST
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.WEST
             thingValid = True
             nx, ny = cls.from_pos
             nx += 0 -1
@@ -34713,12 +34755,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.NORTHWEST
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.NORTHWEST
             nx += 0 -1
             ny += 0 -1
             ti = Map.tile_info[nx][ny]
@@ -34730,12 +34774,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.NORTHWEST
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.NORTHWEST
             nx += 0 -1
             ny += 0 -1
             ti = Map.tile_info[nx][ny]
@@ -34747,12 +34793,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.NORTHWEST
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.NORTHWEST
             thingValid = True
             nx, ny = cls.from_pos
             nx += 0 
@@ -34766,12 +34814,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.CENTRE
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.CENTRE
             nx += 0 
             ny += 0 
             ti = Map.tile_info[nx][ny]
@@ -34783,12 +34833,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.CENTRE
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.CENTRE
             nx += 0 
             ny += 0 
             ti = Map.tile_info[nx][ny]
@@ -34800,12 +34852,14 @@ class RouteToCore:
                 elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
                     thingValid = False
                 elif ti.has_building and not ti.is_building_ally:
-                    gunnerPossible = True
-                    thingValid = False
-                    d = cls.from_pos.distance_squared(Position(nx,ny))
-                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
-                        closestGunnerPossibleDistsq = d
-                        gunnerPossibleDir = Direction.CENTRE
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.CENTRE
         
         if gunnerPossible and BuildManager.can_dbuild_gunner(cls.from_pos):
             BuildManager.dbuild_gunner(cls.from_pos, gunnerPossibleDir)
