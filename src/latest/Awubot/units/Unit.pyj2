@@ -91,7 +91,10 @@ class Unit:
         Globals.start_tick()
         MarketMaker.refresh()
 
-        if Globals.ct.get_entity_type() != EntityType.LAUNCHER:
+        if Globals.my_type == EntityType.BUILDER_BOT and Globals.round != Unit.creation_round:
+            DarkForest.needs_update = False
+
+        if Globals.my_type != EntityType.LAUNCHER:
             {{ P.start('Map.fill_tile_info') }}
             Map.fill_tile_info()
             {{ P.end('Map.fill_tile_info') }}

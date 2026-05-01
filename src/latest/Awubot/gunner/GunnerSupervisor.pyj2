@@ -134,9 +134,11 @@ class GunnerSupervisor:
         if not ct.can_fire_from(Globals.my_pos, dirToPos, EntityType.GUNNER, pos):
             print(f'[try_fire] can_fire_from me to {pos} is False')
             return
-        
+
+        in_coma = not TurretSuicide.has_feeder and not any(TurretSuicide.has_ammo_history)
+
         if dirToPos != ct.get_direction(): # Rotate if the target isn't in our current direction
-            if ct.can_rotate(dirToPos):
+            if not in_coma and ct.can_rotate(dirToPos):
                 ct.rotate(dirToPos)
         else:
             if ct.can_fire(pos):

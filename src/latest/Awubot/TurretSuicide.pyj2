@@ -25,6 +25,7 @@ class TurretSuicide:
     has_ammo_history: list[bool]
     enemy_core_visible: bool
     post_init_completed: bool
+    has_feeder: bool
     
 
     @classmethod
@@ -56,14 +57,14 @@ class TurretSuicide:
         r = Globals.round % {{ length }}
         cls.has_ammo_history[r] = Globals.ct.get_ammo_amount() > 0
 
-        has_feeder = Map.tile_info[sx][sy].harvester_adjacent
+        cls.has_feeder = Map.tile_info[sx][sy].harvester_adjacent
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             ti: TileInfo
             if ti.target == my_pos:
-                has_feeder = True
+                cls.has_feeder = True
                 break
 
-        if not has_feeder and not cls.enemy_core_visible and not any(cls.has_ammo_history):
+        if not cls.has_feeder and not cls.enemy_core_visible and not any(cls.has_ammo_history):
             Debug.diamond(Color.ORANGE)
             Debug.log(f'This {Globals.my_type} is self-destructing :(')
             Globals.ct.self_destruct()

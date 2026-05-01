@@ -190,8 +190,12 @@ class RouteToCore:
                 ({{ Kind.ALLY_CONSUMER }}, {{ Kind.ALLY_CORE }}):
             cls.is_active = False
             cls.killed.add(from_pos)
+
+            {% if LOCAL %}
             Debug.diamond(Color.PURPLE)
             print("RouteToCore: giving up, no previous route to backtrack to or finished")
+            {% endif %}
+
             if Pathfinder.given_up:
                 cls.pathFindingKill.add(enc)
             cls.backTracking = False
@@ -201,14 +205,22 @@ class RouteToCore:
             if Pathfinder.given_up:
                 cls.pathFindingKill.add(enc)
             cls.from_pos = cls.prevRoute.pop()
+
+            {% if LOCAL %}
             print("RouteToCore: backtracking to", cls.from_pos)
+            {% endif %}
+
             cls.backTracking = True
             return False
 
 
     @classmethod
     def do_routing(cls):
+
+        {% if LOCAL %}
         print("RouteToCore: doing routing from", cls.from_pos,"(Attack Route!)",cls.isAttack)
+        {% endif %}
+
         if cls.should_give_up():
             if cls.give_up():
                 StateMoveTo.run(Explore.get_target()) # new

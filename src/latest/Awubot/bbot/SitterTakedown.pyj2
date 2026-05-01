@@ -24,13 +24,16 @@ class SitterTargetInfo:
     __slots__ = (
         'position', 'dist_enemy_core', 'has_ally_transporter',
         'enemy_bots_nearby', 'harvester_nearby', 'launchers_adjacent',
-        'bfs_dist_adj', 'flowing_enemy_transporters_adjacent', 'enemy_buildings_adjacent'
+        'bfs_dist_adj', 'flowing_enemy_transporters_adjacent', 'enemy_buildings_adjacent',
+        'weight'
     )
 
     @staticmethod
     def is_better_than(a: SitterTargetInfo, b: SitterTargetInfo):
         if a.bfs_dist_adj >= 100: return False
         if b.bfs_dist_adj >= 100: return True
+        if a.weight >= 3: return False
+        if b.weight >= 3: return True
 
         if a.launchers_adjacent != b.launchers_adjacent:
             return a.launchers_adjacent < b.launchers_adjacent
@@ -81,6 +84,9 @@ class SitterTakedown:
         for c in cls.cand[1:]:
             if SitterTargetInfo.is_better_than(c, best):
                 best = c
+
+        if best.weight >= 3:
+            return None
 
         if not best.flowing_enemy_transporters_adjacent:
             if best.enemy_bots_nearby < 2:
@@ -138,6 +144,7 @@ class SitterTakedown:
             info.launchers_adjacent = 0
             info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
             info.flowing_enemy_transporters_adjacent = 0
+            info.weight = BfsBureau.now_weight[idx]
             
             info.has_ally_transporter = (
                 ti.has_building 

@@ -94,7 +94,7 @@ class SpawnManager:
         ti, ax = ct.get_global_resources()
         bot_ti, bot_ax = ct.get_builder_bot_cost()
 
-        if Globals.round <= 20 or MarketMaker.ti <= 10:
+        if Globals.round <= 20 or MarketMaker.est_income <= 10:
             return cls.num_spawned < 4
 
         rem_ti = ti - bot_ti

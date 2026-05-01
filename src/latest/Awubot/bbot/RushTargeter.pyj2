@@ -105,6 +105,9 @@ class RushTargeter:
 
     @classmethod
     def get_best_target(cls):
+        if MarketMaker.est_income <= 10:
+            return None
+
         if Symmetry.is_sym_known:
             if Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) < 25: #sufficiently near
                 cls.beenNearbyEnemyCore = True
@@ -113,7 +116,7 @@ class RushTargeter:
                     stuff = cls.nearest_source_to_enemy()
                     funPos = stuff[0]
                     if funPos == None or not VisionTracker.me_is_canonical_ally(funPos):
-                        return Explore.get_target(),'M' #move
+                        return None
                     return funPos, stuff[1] # <------- non move
                 else:
                     return Explore.get_target(),'M' #move

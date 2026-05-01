@@ -297,6 +297,9 @@ class Map:
                 ti.resource_type = None
 
                 if etype in (SENTINEL, GUNNER, BREACH, FOUNDRY):
+                    if etype == FOUNDRY:
+                        DarkForest.foundry_positions.add(idx)
+
                     if etype in (SENTINEL, GUNNER, BREACH):
                         ti.has_turret = True
                         ti.turret_direction = get_direction(building_id)
@@ -441,15 +444,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 {% endfor %}
 

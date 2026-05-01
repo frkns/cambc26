@@ -194,6 +194,11 @@ class BuildManager:
 
         req = {{ req_phase1 }} if Globals.round < {{ phase2_round }} else {{ req_phase2 }}
 
+        {% if etype in slow and etype != EntityType.ROAD %}
+        if MarketMaker.est_income <= 10:
+            req = 0  # reset if no income
+        {% endif %}
+
         leftover_unscaled_ti = 0
 
         {% if etype in slow and etype != EntityType.HARVESTER %}

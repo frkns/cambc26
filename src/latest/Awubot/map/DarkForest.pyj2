@@ -49,6 +49,7 @@ class DarkForest:
     foundry_ax_sink_sets: dict[int, set[int]] # foundry_idx -> axionite-side reachable nodes
     foundry_ti_flow: list[int]   # titanium flow at each node
     foundry_ax_flow: list[int]   # axionite flow at each node
+    needs_update: bool = True
     
     @classmethod
     def init(cls):
@@ -75,20 +76,25 @@ class DarkForest:
     @classmethod
     def register_enemy_core(cls):
         for p in Symmetry.enemy_core_pos_set:
+            cls.needs_update = True
             cls.register_sink(p, {{ Kind.ENEMY_CORE }})
 
     @classmethod
     def remove_node(cls, u: int):
         if cls.kind[u] == {{ Kind.ALLY_CORE }} or cls.kind[u] == {{ Kind.ENEMY_CORE }}:
             return
-        cls.nodes[u] = None
-        cls.kind[u] = {{ Kind.NONE }}
+
+        if cls.nodes[u] is not None:
+            cls.needs_update = True
+            cls.nodes[u] = None
+            cls.kind[u] = {{ Kind.NONE }}
 
     @classmethod
     def detach_node(cls, u: int):
         #severe it from parent/tree
         n = cls.nodes[u]
         if n is not None:
+            cls.needs_update = True
             n.up = None
 
     @classmethod
@@ -266,10 +272,12 @@ class DarkForest:
 # ---===
     @classmethod
     def fcompute(cls):
-
         {# /* Debug.log('called fcompute') */ #}
 
         {% set N = PADDED_GRID_SIZE %}
+
+        if TLEManager.tle_once and not cls.needs_update:
+            return
 
         ns       = cls.nodes
         kind     = cls.kind
@@ -519,3 +527,5 @@ class DarkForest:
 
         {# /* Debug.log('exited fcompute') */ #}
 # ===---
+
+

@@ -29,6 +29,7 @@ class FoundryBuild:
 
         # Persist so fcompute can build refined_ax_line every tick.
         DarkForest.foundry_positions.add(encoded)
+        {# /* DarkForest.register_foundry(encoded) */ #}
 
         # Root this arm of the tree at the foundry (ALLY_CONSUMER sink),
         # so titanium/axionite flow stops here.

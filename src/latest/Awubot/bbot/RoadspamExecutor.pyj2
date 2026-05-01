@@ -22,6 +22,8 @@ class RoadspamExecutor:
 
     @classmethod
     def should_roadspam(cls):
+        if Globals.round < 100 and MarketMaker.est_income <= 10:
+            return False
         return Builder.min_dist_to_a_core <= 20 or Globals.ct.get_unit_count() >= 20
 
     @classmethod
