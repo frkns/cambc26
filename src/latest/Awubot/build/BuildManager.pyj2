@@ -205,7 +205,10 @@ class BuildManager:
 
         {% if etype in slow %}
         if pos is not None:
-            leftover_unscaled_ti += Util.linf(pos, Unit.core_pos) * 2
+            leftover_unscaled_ti += min(
+                Util.linf(pos, Unit.core_pos) * 2,
+                Util.linf(pos, Symmetry.enemy_core_pos) * 2 if Symmetry.is_sym_known else {{ INF }}
+            )
         {% endif %}
         
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \

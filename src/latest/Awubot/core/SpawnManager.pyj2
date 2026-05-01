@@ -106,7 +106,7 @@ class SpawnManager:
 
     @classmethod
     def should_spawn_emergency(cls):
-        if cls.dangerous_enemy_counter >= 5 or (cls.dangerous_enemy_counter >= 1 and cls.last_spawned - Globals.round >= 5):
+        if cls.dangerous_enemy_counter >= 6 or (cls.dangerous_enemy_counter >= 2 and cls.last_spawned - Globals.round >= 10):
             return True
         
         lost_short = CoreHistory.hp_delta(1) < 0 

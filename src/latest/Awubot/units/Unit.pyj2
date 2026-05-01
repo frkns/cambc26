@@ -107,7 +107,8 @@ class Unit:
 
         if Globals.round == {{ REPORT_ROUND }}:
             Profiler.report()
-        print(f'scale ratio {MarketMaker.scale_ratio:.2f}')
+
+        {# /* print(f'scale ratio {MarketMaker.scale_ratio:.2f}') */ #}
 
         {# /* if Globals.round == 330: */ #}
             {# /* Globals.ct.resign() */ #}

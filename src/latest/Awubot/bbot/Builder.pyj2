@@ -79,12 +79,15 @@ class Builder({{ super() }}):
                 Explore.target = Explore.new_target()
             else:
                 cls.mode = {{ Mode.ECON }}
+
         if cls.mode != {{ Mode.EARLY_RUSH }} and cls.mode != {{ Mode.HEALER }} and (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 40 and Globals.round > 100):
             cls.mode = {{ Mode.EARLY_RUSH }}
             Explore.target = Explore.new_target()
+
         if cls.mode == {{ Mode.HEALER }} and Globals.round >= Constants.HEAL_OVER:
             cls.mode = {{ Mode.ECON }}
             Explore.target = Explore.new_target()
+
         print("Mode:", cls.mode)
 
 
@@ -138,7 +141,6 @@ class Builder({{ super() }}):
         {% endfor %}
 
         cls.should_fire = Attacker.should_fire(Globals.my_pos)
-
 
 
     @classmethod
@@ -218,11 +220,20 @@ class Builder({{ super() }}):
              and (Globals.round - HealExecutor.last_healed_round) <= 5
              # and misinfo is None  already fixed by healpos check
         ):
-            if healpos is not None:  # redundant, OK
+            if healpos is not None:
                 return 'MoveTo', healpos, '[lrh: move to heal]'
+            elif (Globals.round - HealExecutor.last_healed_round) <= 3:
+                {% if LOCAL %}
+                Debug.dot(Globals.my_pos, Color.GREEN)
+                {% endif %}
+
+                return 'MoveTo', HealExecutor.last_healed.position, '[lrh: WAIT to heal]'
 
         if takedownpos is not None:
-            Debug.dot(takedownpos, Color.PURPLE)
+            {% if LOCAL %}
+            Debug.diamond(Color.PURPLE) 
+            {% endif %}
+
             return 'BuildGunner', takedownpos, None
 
         sitterpos = SitterTakedown.get_best_launcher_position()
@@ -256,15 +267,19 @@ class Builder({{ super() }}):
             return 'Attack', secondaryattackpos, 'Preroute'
 
         if RouteToBreach.is_active:
+            {{ D.print('(RouteToBreach)') }}
             return ('RouteBreach',)
 
         if RouteToFoundry.is_active:
+            {{ D.print('(RouteToFoundry)') }}
             return ('RouteFoundry',)
 
         if RouteToFoundryInput.is_active:
+            {{ D.print('RouteToFoundryInput') }}
             return ('RouteFoundryInput',)
 
         if RouteToCore.is_active:
+            {{ D.print('RouteToCore') }}
             return ('Route',)
 
 
@@ -287,7 +302,7 @@ class Builder({{ super() }}):
                     < Util.dist_sq(route_pos, Unit.core_pos):
 
                 # if sentinelpos is not None:
-                #     return 'BuildTurret', sentinelpos, None
+                #     return 'BuildTurret', sentinelpos
                 pass
 
             elif route_pos not in RouteToCore.killed:
@@ -298,7 +313,7 @@ class Builder({{ super() }}):
 
         if sentinelpos is not None:
             Debug.dot(sentinelpos, Color.PURPLE)
-            return 'BuildTurret', sentinelpos, None
+            return 'BuildTurret', sentinelpos
 
         if cls.should_fire:
             return 'Attack', Globals.my_pos, 'ShouldFire'

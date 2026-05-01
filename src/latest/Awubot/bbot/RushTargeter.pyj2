@@ -24,13 +24,12 @@ class RushTargeter:
     killed: set[Position] = set()
 
     @classmethod
-    def enemy_core_turret_target(cls, attack_r_sq) -> Position | None:
+    def enemy_core_turret_target(cls, vision_r, attack_rsq) -> Position | None:
         if not Symmetry.is_sym_known:
             return None
         enemy_core = Symmetry.enemy_core_pos
         print("Yo so the enemy core is at", enemy_core)
 
-        vision_r = int(attack_r_sq ** 0.5) + 1
 
         # ── Step 1: pick best attack landing position ────────────────
         attack_pos = None
@@ -38,7 +37,7 @@ class RushTargeter:
         currLoc = Globals.my_pos
         for dx in range(-vision_r, vision_r + 1):
             for dy in range(-vision_r, vision_r + 1):
-                if dx * dx + dy * dy >attack_r_sq:
+                if dx * dx + dy * dy > attack_rsq:
                     continue
                 candidate = Position(enemy_core.x + dx, enemy_core.y + dy)
                 tile = Map.tile_info[candidate.x][candidate.y]
@@ -58,7 +57,7 @@ class RushTargeter:
                     attack_pos = candidate
 
         if attack_pos is None:
-            print("No valid attack position within",attack_r_sq,"radius square of enemy core")
+            print("No valid attack position within", attack_rsq,"radius square of enemy core")
             return None
         print("CLEARLY the best attack position is", attack_pos)
         return {{encode_pos('attack_pos.x', 'attack_pos.y')}}
