@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # latest,  @ 2026-05-01 15:27:36 (local)
+=======
+# latest,  @ 2026-05-01 11:21:58 (local)
+>>>>>>> osteo
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -139,10 +143,17 @@ class AdjacentInfo:
 
 class Attacker:
 
+    seen_enemy_core: bool = False
+
+    @classmethod
+    def update(cls):
+        cls.seen_enemy_core = cls.seen_enemy_core or \
+            Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= 20
+
     @classmethod
     def get_target(cls) -> Position | None:
-        # if Builder.mode == 3 and Globals.my_pos.distance_squared(Unit.core_pos) > 16:
-        #     return
+        if Builder.mode == 2 and not cls.seen_enemy_core:
+            return None
         
         t = cls.get_road_shield_target()
         if t is not None: 
@@ -265,6 +276,9 @@ class Attacker:
 
     @classmethod
     def should_fire(cls, pos):
+        if Builder.mode == 2 and not cls.seen_enemy_core:
+            return False
+
         x, y = pos.x, pos.y
         tile_info = Map.tile_info
         ti = tile_info[x][y]
@@ -391,6 +405,7 @@ class BfsBureau:
 
             if (
                 ti.env == Environment.EMPTY and
+                ti.ally_fed_foundries_adjacent == 0 and
                 (
                     (not ti.has_building) or
                     ((etype := ti.entity_type) == EntityType.MARKER) or
@@ -9212,7 +9227,7 @@ class Constants:
 
     AXIONITE_START: int = 100 # Start producing axionite at this round
 
-    HEAL_OVER: int = 1200 # stop heal attempt now
+    HEAL_OVER: int = 9999 # stop heal attempt now, never
 
     MAX_HP_MAP: dict[EntityType, int] = {
         EntityType.BUILDER_BOT: 40,
@@ -40753,6 +40768,8 @@ class TurretSuicide:
 
 class Unit:
 
+    creation_round: int
+
     core_pos: Position
     core_pos_list: list[tuple[int, int]]
     core_pos_set: set[int]
@@ -40793,6 +40810,7 @@ class Unit:
     def init(cls):
         random.seed(Globals.my_id)
         BfsBureau.init()
+        cls.creation_round = Globals.round
 
         if Globals.my_type in (EntityType.BUILDER_BOT, EntityType.CORE):
             Unit.core_pos_init()
@@ -40930,13 +40948,16 @@ class Builder(Unit):
                 Explore.target = Explore.new_target()
             """
 
-            if Globals.round in [3]:
+            if Unit.creation_round == 3:
                 cls.mode = 3
                 Explore.target = Explore.new_target()
             else:
                 cls.mode = 1
 
-        if cls.mode != 2 and cls.mode != 3 and (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 40 and Globals.round > 100):
+        if cls.mode != 2 and cls.mode != 3 and \
+                Globals.my_id % 3 == 0 and BuildManager.can_afford_gunner() and \
+                MarketMaker.est_income >= 10:
+
             cls.mode = 2
             Explore.target = Explore.new_target()
 
@@ -40977,6 +40998,10 @@ class Builder(Unit):
         HealTargeter.fill()
         Profiler.end(f"""HealTargeter.fill""")
 
+        
+        Attacker.update()
+        
+
         cls.is_routing_active = False
 
         if RouteToCore.is_active:
@@ -41014,6 +41039,7 @@ class Builder(Unit):
         Profiler.start(f"""Marker.attempt_mark""")
         Marker.attempt_mark()
         Profiler.end(f"""Marker.attempt_mark""")
+
 
 
         # BfsBureau.debug_bfs20_dist_adj()
@@ -41158,8 +41184,8 @@ class Builder(Unit):
             Debug.dot(sentinelpos, Color.PURPLE)
             return 'BuildTurret', sentinelpos
 
-        if cls.should_fire:
-            return 'Attack', Globals.my_pos, 'ShouldFire'
+        if cls.should_fire and BfsBureau.enemy_bot_dist_adj[Globals.my_idx] >= 2:
+            return 'Attack', Globals.my_pos, 'ShouldFire&D>=2'
 
         if buildingFirstConveyor:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
