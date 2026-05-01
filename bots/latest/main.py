@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-# latest,  @ 2026-05-01 01:35:54 (local)
-=======
-# latest,  @ 2026-04-30 19:04:37 (local)
->>>>>>> main
+# latest,  @ 2026-05-01 01:44:32 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -40397,9 +40393,9 @@ class Builder(Unit):
 
         # now changed to sentinel/gunner pos near enemy?
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
-                
+
         destroypos = VisionTracker.get_best_destroy_position()
-        
+
         if destroypos is not None:
             return 'Destroy', destroypos
 
@@ -40428,7 +40424,6 @@ class Builder(Unit):
         if healpos is not None and misinfo is None:
             return 'MoveTo', healpos, 'Heal'
 
-<<<<<<< HEAD
         if misinfo is not None: # and not ((RouteToCore.backTracking or RouteToFoundry.backTracking) and not RouteToCore.is_active and not RouteToFoundry.is_active):
             if misinfo.on_ally_side:
                 return 'Reroute', misinfo.position
@@ -40436,24 +40431,14 @@ class Builder(Unit):
                 return 'Reroute', misinfo.position  # same
 
 
-=======
-        # reinstating CORE_HEALER
-        if cls.role == 1:
-            return 'MoveTo', Unit.core_pos.add(random.choice(Constants.DIRECTIONS)), '[core healer]'
-    
->>>>>>> main
         buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0) or (RouteToFoundryInput.is_active and len(RouteToFoundryInput.prevRoute) == 0)
-            
+
         if not buildingFirstConveyor and sentinelpos is None:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
             if shieldpos is not None:
                 return 'BuildShield', shieldpos
-<<<<<<< HEAD
 
 
-=======
-                
->>>>>>> main
         attackpos = Attacker.get_target()
         secondaryattackpos = Attacker.get_secondary_target()
 
