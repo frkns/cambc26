@@ -89,7 +89,7 @@ class Pathfinder:
         # else: in dead-band [19..25], keep previous near_base value
 
         {{ P.start('BfsBureau.find_route') }}
-        if cls.near_base:
+        if cls.near_base or 0 < Map.rounds_since_enemy_unit <= 10: # roadspam near base or if enemies just went away (to prepare for the next wave)
             dist, dir = BfsBureau.find_route_inv(my_pos, target, ban_target_pos)  # prefer empties → lays roads
         else:
             dist, dir = BfsBureau.find_route(my_pos, target, ban_target_pos)      # prefer roads → uses existing roads

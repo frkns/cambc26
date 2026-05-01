@@ -49,6 +49,7 @@ class Map:
     proc_nearby_tiles: list[tuple[Position, int, int, int, TileInfo]]        # in rsq 20
     inner_proc_nearby_tiles: list[tuple[Position, int, int, int, TileInfo]]  # in rsq 10
     num_allies: int
+    num_enemy_units: int
     num_enemies: int
     num_enemies_8: int
     num_enemy_buildings: int
@@ -57,6 +58,8 @@ class Map:
     ti_ally_harvester_set: set[int] = set()
     ax_ally_harvester_set: set[int] = set()
     enemy_route_set: set[int] = set()
+    
+    rounds_since_enemy_unit: int = {{ INF }}
 
     # cleared every turn
     new_syms: list[Position] = []
@@ -139,6 +142,7 @@ class Map:
 
         messages_read = 0
         num_allies = 0
+        num_enemy_units = {{ INF }}
         num_enemies = 0
         num_enemies_8 = 0
         num_enemy_buildings = 0
@@ -259,6 +263,7 @@ class Map:
                     num_enemies += 1
                     if abs(x-my_x) < 2 and abs(y-my_y) < 2:
                         num_enemies_8 += 1
+                    num_enemy_units += 1
 
             ti.easily_passable = False
 
@@ -305,6 +310,7 @@ class Map:
                             DarkForest.register_sink(
                                 pos_idx,
                                 {{ Kind.ALLY_CONSUMER }})
+                    num_enemy_units += 1
                 else:
                     DarkForest.remove_node(pos_idx)
 
@@ -374,9 +380,15 @@ class Map:
 
 
         cls.num_allies = num_allies
+        cls.num_enemy_units = num_enemy_units
         cls.num_enemies = num_enemies
         cls.num_enemies_8 = num_enemies_8
         cls.num_enemy_buildings = num_enemy_buildings
+        
+        if num_enemy_units > 0:
+            cls.rounds_since_enemy_unit = 0
+        else:
+            cls.rounds_since_enemy_unit += 1
 
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
         # + is_pointed_to

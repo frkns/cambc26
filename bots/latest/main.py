@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-01 01:44:32 (local)
+# latest,  @ 2026-05-01 17:22:24 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -30688,6 +30688,7 @@ class Map:
     proc_nearby_tiles: list[tuple[Position, int, int, int, TileInfo]]        # in rsq 20
     inner_proc_nearby_tiles: list[tuple[Position, int, int, int, TileInfo]]  # in rsq 10
     num_allies: int
+    num_enemy_units: int
     num_enemies: int
     num_enemies_8: int
     num_enemy_buildings: int
@@ -30696,6 +30697,8 @@ class Map:
     ti_ally_harvester_set: set[int] = set()
     ax_ally_harvester_set: set[int] = set()
     enemy_route_set: set[int] = set()
+    
+    rounds_since_enemy_unit: int = 1000000
 
     # cleared every turn
     new_syms: list[Position] = []
@@ -30777,6 +30780,7 @@ class Map:
 
         messages_read = 0
         num_allies = 0
+        num_enemy_units = 1000000
         num_enemies = 0
         num_enemies_8 = 0
         num_enemy_buildings = 0
@@ -30887,6 +30891,7 @@ class Map:
                     num_enemies += 1
                     if abs(x-my_x) < 2 and abs(y-my_y) < 2:
                         num_enemies_8 += 1
+                    num_enemy_units += 1
 
             ti.easily_passable = False
 
@@ -30933,6 +30938,7 @@ class Map:
                             DarkForest.register_sink(
                                 pos_idx,
                                 3)
+                    num_enemy_units += 1
                 else:
                     DarkForest.remove_node(pos_idx)
 
@@ -31002,9 +31008,15 @@ class Map:
 
 
         cls.num_allies = num_allies
+        cls.num_enemy_units = num_enemy_units
         cls.num_enemies = num_enemies
         cls.num_enemies_8 = num_enemies_8
         cls.num_enemy_buildings = num_enemy_buildings
+        
+        if num_enemy_units > 0:
+            cls.rounds_since_enemy_unit = 0
+        else:
+            cls.rounds_since_enemy_unit += 1
 
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
         # + is_pointed_to
@@ -31218,6 +31230,7 @@ class Map:
 
         messages_read = 0
         num_allies = 0
+        num_enemy_units = 1000000
         num_enemies = 0
         num_enemies_8 = 0
         num_enemy_buildings = 0
@@ -31328,6 +31341,7 @@ class Map:
                     num_enemies += 1
                     if abs(x-my_x) < 2 and abs(y-my_y) < 2:
                         num_enemies_8 += 1
+                    num_enemy_units += 1
 
             ti.easily_passable = False
 
@@ -31374,6 +31388,7 @@ class Map:
                             DarkForest.register_sink(
                                 pos_idx,
                                 3)
+                    num_enemy_units += 1
                 else:
                     DarkForest.remove_node(pos_idx)
 
@@ -31443,9 +31458,15 @@ class Map:
 
 
         cls.num_allies = num_allies
+        cls.num_enemy_units = num_enemy_units
         cls.num_enemies = num_enemies
         cls.num_enemies_8 = num_enemies_8
         cls.num_enemy_buildings = num_enemy_buildings
+        
+        if num_enemy_units > 0:
+            cls.rounds_since_enemy_unit = 0
+        else:
+            cls.rounds_since_enemy_unit += 1
 
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
         # + is_pointed_to
@@ -31659,6 +31680,7 @@ class Map:
 
         messages_read = 0
         num_allies = 0
+        num_enemy_units = 1000000
         num_enemies = 0
         num_enemies_8 = 0
         num_enemy_buildings = 0
@@ -31769,6 +31791,7 @@ class Map:
                     num_enemies += 1
                     if abs(x-my_x) < 2 and abs(y-my_y) < 2:
                         num_enemies_8 += 1
+                    num_enemy_units += 1
 
             ti.easily_passable = False
 
@@ -31815,6 +31838,7 @@ class Map:
                             DarkForest.register_sink(
                                 pos_idx,
                                 3)
+                    num_enemy_units += 1
                 else:
                     DarkForest.remove_node(pos_idx)
 
@@ -31884,9 +31908,15 @@ class Map:
 
 
         cls.num_allies = num_allies
+        cls.num_enemy_units = num_enemy_units
         cls.num_enemies = num_enemies
         cls.num_enemies_8 = num_enemies_8
         cls.num_enemy_buildings = num_enemy_buildings
+        
+        if num_enemy_units > 0:
+            cls.rounds_since_enemy_unit = 0
+        else:
+            cls.rounds_since_enemy_unit += 1
 
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
         # + is_pointed_to
@@ -32100,6 +32130,7 @@ class Map:
 
         messages_read = 0
         num_allies = 0
+        num_enemy_units = 1000000
         num_enemies = 0
         num_enemies_8 = 0
         num_enemy_buildings = 0
@@ -32189,6 +32220,7 @@ class Map:
                     num_enemies += 1
                     if abs(x-my_x) < 2 and abs(y-my_y) < 2:
                         num_enemies_8 += 1
+                    num_enemy_units += 1
 
             ti.easily_passable = False
 
@@ -32235,6 +32267,7 @@ class Map:
                             DarkForest.register_sink(
                                 pos_idx,
                                 3)
+                    num_enemy_units += 1
                 else:
                     DarkForest.remove_node(pos_idx)
 
@@ -32304,9 +32337,15 @@ class Map:
 
 
         cls.num_allies = num_allies
+        cls.num_enemy_units = num_enemy_units
         cls.num_enemies = num_enemies
         cls.num_enemies_8 = num_enemies_8
         cls.num_enemy_buildings = num_enemy_buildings
+        
+        if num_enemy_units > 0:
+            cls.rounds_since_enemy_unit = 0
+        else:
+            cls.rounds_since_enemy_unit += 1
 
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
         # + is_pointed_to
@@ -33582,7 +33621,7 @@ class Pathfinder:
         # else: in dead-band [19..25], keep previous near_base value
 
         
-        if cls.near_base:
+        if cls.near_base or 0 < Map.rounds_since_enemy_unit <= 10: # roadspam near base or if enemies just went away (to prepare for the next wave)
             dist, dir = BfsBureau.find_route_inv(my_pos, target, ban_target_pos)  # prefer empties → lays roads
         else:
             dist, dir = BfsBureau.find_route(my_pos, target, ban_target_pos)      # prefer roads → uses existing roads
@@ -33855,7 +33894,7 @@ class RoadspamExecutor:
 
     @classmethod
     def should_roadspam(cls):
-        return Builder.min_dist_to_a_core <= 20 or Globals.ct.get_unit_count() >= 20
+        return Builder.min_dist_to_a_core <= 20 or Globals.ct.get_unit_count() >= 20 or Map.rounds_since_enemy_unit <= 10
 
     @classmethod
     def execute_roadspam_attempt(cls):

@@ -22,7 +22,7 @@ class RoadspamExecutor:
 
     @classmethod
     def should_roadspam(cls):
-        return Builder.min_dist_to_a_core <= 20 or Globals.ct.get_unit_count() >= 20
+        return Builder.min_dist_to_a_core <= 20 or Globals.ct.get_unit_count() >= 20 or Map.rounds_since_enemy_unit <= 10
 
     @classmethod
     def execute_roadspam_attempt(cls):
