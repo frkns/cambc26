@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-01 11:00:34 (local)
+# latest,  @ 2026-05-01 11:41:40 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -34862,7 +34862,10 @@ class RouteToCore:
                             gunnerPossibleDir = Direction.CENTRE
         
         if gunnerPossible and BuildManager.can_dbuild_gunner(cls.from_pos):
-            BuildManager.dbuild_gunner(cls.from_pos, gunnerPossibleDir)
+            x, y = cls.from_pos
+            ti = Map.tile_info[x][y]
+            if ti.has_building and ti.entity_type != EntityType.GUNNER:
+                BuildManager.dbuild_gunner(cls.from_pos, gunnerPossibleDir)
         elif cls.from_pos.distance_squared(target) == 1:
             ti = Map.tile_info[cls.from_pos.x][cls.from_pos.y]
             if not ti.has_building or not ti.is_building_ally or target != ti.target:
