@@ -21,6 +21,8 @@ from Generated import *
 class Unit:
     {% from 'hardcode/config.j2' import HARDCODE_ENABLED %}
 
+    creation_round: int
+
     core_pos: Position
     core_pos_list: list[tuple[int, int]]
     core_pos_set: set[int]
@@ -53,6 +55,7 @@ class Unit:
     def init(cls):
         random.seed(Globals.my_id)
         BfsBureau.init()
+        cls.creation_round = Globals.round
 
         if Globals.my_type in (EntityType.BUILDER_BOT, EntityType.CORE):
             Unit.core_pos_init()

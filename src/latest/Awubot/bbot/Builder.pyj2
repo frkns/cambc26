@@ -74,13 +74,16 @@ class Builder({{ super() }}):
                 Explore.target = Explore.new_target()
             """
 
-            if Globals.round in [3]:
+            if Unit.creation_round == 3:
                 cls.mode = {{ Mode.HEALER }}
                 Explore.target = Explore.new_target()
             else:
                 cls.mode = {{ Mode.ECON }}
 
-        if cls.mode != {{ Mode.EARLY_RUSH }} and cls.mode != {{ Mode.HEALER }} and (Globals.my_id % 3 == 0 and BuildManager.can_afford_sentinel() and MarketMaker.est_income >= 40 and Globals.round > 100):
+        if cls.mode != {{ Mode.EARLY_RUSH }} and cls.mode != {{ Mode.HEALER }} and \
+                Globals.my_id % 3 == 0 and BuildManager.can_afford_gunner() and \
+                MarketMaker.est_income >= 10:
+
             cls.mode = {{ Mode.EARLY_RUSH }}
             Explore.target = Explore.new_target()
 
@@ -132,6 +135,10 @@ class Builder({{ super() }}):
         HealTargeter.fill()
         {{ P.end('HealTargeter.fill') }}
 
+        {{ P.start('Attacker.update') }}
+        Attacker.update()
+        {{ P.end('Attacker.update') }}
+
         cls.is_routing_active = False
 
         {% for thing in 'Core', 'Breach', 'Foundry' %}
@@ -168,6 +175,11 @@ class Builder({{ super() }}):
         Marker.attempt_mark()
         {{ P.end('Marker.attempt_mark') }}
 
+
+        {% if LOCAL %}
+        if cls.mode == {{ Mode.EARLY_RUSH }}:
+            Debug.diamond(Color.PINK)
+        {% endif %}
 
         # BfsBureau.debug_bfs20_dist_adj()
         # BfsBureau.debug_enemy_launcher_zone()
@@ -315,8 +327,8 @@ class Builder({{ super() }}):
             Debug.dot(sentinelpos, Color.PURPLE)
             return 'BuildTurret', sentinelpos
 
-        if cls.should_fire:
-            return 'Attack', Globals.my_pos, 'ShouldFire'
+        if cls.should_fire and BfsBureau.enemy_bot_dist_adj[Globals.my_idx] >= 2:
+            return 'Attack', Globals.my_pos, 'ShouldFire&D>=2'
 
         if buildingFirstConveyor:
             shieldpos = HarvesterAdjacent.get_best_shield_position()

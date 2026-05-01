@@ -82,7 +82,7 @@ class Constants:
 
     AXIONITE_START: int = 100 # Start producing axionite at this round
 
-    HEAL_OVER: int = 1200 # stop heal attempt now
+    HEAL_OVER: int = 9999 # stop heal attempt now, never
 
     MAX_HP_MAP: dict[EntityType, int] = {
         {% for etype in EntityType %}

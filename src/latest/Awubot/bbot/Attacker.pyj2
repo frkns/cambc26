@@ -21,10 +21,17 @@ from Generated import *
 class Attacker:
     {% set ATTACK_RANDOM_ROAD_TI = 150 %}
 
+    seen_enemy_core: bool = False
+
+    @classmethod
+    def update(cls):
+        cls.seen_enemy_core = cls.seen_enemy_core or \
+            Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= 20
+
     @classmethod
     def get_target(cls) -> Position | None:
-        # if Builder.mode == {{ Mode.HEALER }} and Globals.my_pos.distance_squared(Unit.core_pos) > 16:
-        #     return
+        if Builder.mode == {{ Mode.EARLY_RUSH }} and not cls.seen_enemy_core:
+            return None
         
         t = cls.get_road_shield_target()
         if t is not None: 
@@ -130,6 +137,9 @@ class Attacker:
 
     @classmethod
     def should_fire(cls, pos):
+        if Builder.mode == {{ Mode.EARLY_RUSH }} and not cls.seen_enemy_core:
+            return False
+
         x, y = pos.x, pos.y
         tile_info = Map.tile_info
         ti = tile_info[x][y]

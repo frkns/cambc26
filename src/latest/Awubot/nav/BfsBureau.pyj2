@@ -99,6 +99,7 @@ class BfsBureau:
 
             if (
                 ti.env == Environment.EMPTY and
+                ti.ally_fed_foundries_adjacent == 0 and
                 (
                     (not ti.has_building) or
                     ((etype := ti.entity_type) == EntityType.MARKER) or
