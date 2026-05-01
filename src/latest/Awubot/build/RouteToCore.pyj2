@@ -105,8 +105,39 @@ class RouteToCore:
         #             StateMoveTo.run(Explore.get_target())
         #         return
 
+        gunnerPossible = False
+        gunnerPossibleDir = None
+        closestGunnerPossibleDistsq = {{ INF }}
 
-        if cls.from_pos.distance_squared(target) == 1:
+        if BuildManager.can_afford_gunner():
+            {% for dir in directions %}
+            {% set dirDx, dirDy = dir.delta() %}
+            thingValid = True
+            nx, ny = cls.from_pos
+            {% for i in range(int(GameConstants.GUNNER_VISION_RADIUS_SQ**0.5))%}
+            nx += 0 {{ sign0(dirDx) }}
+            ny += 0 {{ sign0(dirDy) }}
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    gunnerPossible = True
+                    thingValid = False
+                    d = cls.from_pos.distance_squared(Position(nx,ny))
+                    if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                        closestGunnerPossibleDistsq = d
+                        gunnerPossibleDir = {{ dir }}
+            {% endfor %}
+            {% endfor %}
+        
+        if gunnerPossible and BuildManager.can_dbuild_gunner(cls.from_pos):
+            BuildManager.dbuild_gunner(cls.from_pos, gunnerPossibleDir)
+        elif cls.from_pos.distance_squared(target) == 1:
             ti = Map.tile_info[cls.from_pos.x][cls.from_pos.y]
             if not ti.has_building or not ti.is_building_ally or target != ti.target:
                 if BuildManager.can_dbuild_conveyor(cls.from_pos):
@@ -115,10 +146,11 @@ class RouteToCore:
                     else:
                         BuildManager.dbuild_conveyor(cls.from_pos, cls.from_pos.direction_to(target))
                     cls.set_pos(target,False)
-
+                    return
         elif BuildManager.can_dbuild_bridge(cls.from_pos):
             BuildManager.dbuild_bridge(cls.from_pos, target)
             cls.set_pos(target,False)
+            return
 
     @classmethod
     def move_to_next(cls):
@@ -155,7 +187,7 @@ class RouteToCore:
                     cls.is_active = False
                     cls.prevRoute.clear()
                     return True
-                if ti.entity_type != EntityType.ROAD:
+                if ti.entity_type != EntityType.ROAD and ti.entity_type not in Constants.TURRET_SET:
                     return True
         return False
 
