@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-01 00:20:16 (local)
+# latest,  @ 2026-05-01 01:35:54 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -9513,6 +9513,20 @@ class DarkForest:
                 i = (((x) + 3) * 56 + ((y) + 3))
                 if ns[i] is not None and sf[i]:
                     Debug.dot(Position(x, y), Color.WHITE)
+
+
+    @classmethod
+    def debug_refined_ax_line(cls):
+        """Draw cyan dots on nodes in the refined axionite line."""
+        for i in cls.refined_ax_line:
+            Debug.dot(Position(((i) // 56 - 3), ((i) % 56 - 3)), Color.CYAN)
+
+
+    @classmethod
+    def debug_foundry_positions(cls):
+        """Draw yellow dots on all known foundry positions."""
+        for i in cls.foundry_positions:
+            Debug.dot(Position(((i) // 56 - 3), ((i) % 56 - 3)), Color.YELLOW)
 
 
 
@@ -29442,7 +29456,8 @@ class HarvesterAdjacent:
                     )
                     info.is_working_shield = ti.has_building and ti.is_building_ally and (ti.entity_type != EntityType.ROAD or not is_harvester_ally)
                     if info.h_has_fed_foundry and info.is_working_shield and info.has_ally_transporter:
-                        info.is_working_shield = False
+                        if idx not in DarkForest.refined_ax_line:
+                            info.is_working_shield = False
 
                     
                     # if info.has_ally_transporter:
@@ -29593,7 +29608,8 @@ class HarvesterAdjacent:
                     )
                     info.is_working_shield = ti.has_building and ti.is_building_ally and (ti.entity_type != EntityType.ROAD or not is_harvester_ally)
                     if info.h_has_fed_foundry and info.is_working_shield and info.has_ally_transporter:
-                        info.is_working_shield = False
+                        if idx not in DarkForest.refined_ax_line:
+                            info.is_working_shield = False
 
                     
                     # if info.has_ally_transporter:
@@ -29744,7 +29760,8 @@ class HarvesterAdjacent:
                     )
                     info.is_working_shield = ti.has_building and ti.is_building_ally and (ti.entity_type != EntityType.ROAD or not is_harvester_ally)
                     if info.h_has_fed_foundry and info.is_working_shield and info.has_ally_transporter:
-                        info.is_working_shield = False
+                        if idx not in DarkForest.refined_ax_line:
+                            info.is_working_shield = False
 
                     
                     # if info.has_ally_transporter:
@@ -29895,7 +29912,8 @@ class HarvesterAdjacent:
                     )
                     info.is_working_shield = ti.has_building and ti.is_building_ally and (ti.entity_type != EntityType.ROAD or not is_harvester_ally)
                     if info.h_has_fed_foundry and info.is_working_shield and info.has_ally_transporter:
-                        info.is_working_shield = False
+                        if idx not in DarkForest.refined_ax_line:
+                            info.is_working_shield = False
 
                     
                     # if info.has_ally_transporter:
@@ -31030,19 +31048,6 @@ class Map:
             nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
             ti.allied_bots_adjacent = cnt
 
-            # --- fused cardinal adjacency (single pass) ---
-            ally_non_road = 0
-            foundries = 0
-
-            for nti in (row_xm1[y], row_xp1[y], row_x[ym1], row_x[yp1]):
-                if nti is not None and nti.has_building and nti.is_building_ally:
-                    if nti.entity_type != ROAD:
-                        ally_non_road += 1
-                    if nti.entity_type == FOUNDRY and nti.is_pointed_to:
-                        foundries += 1
-
-            ti.ally_non_road_buildings_adjacent = ally_non_road
-            ti.ally_fed_foundries_adjacent = foundries
 
             # turret/transporter adjacency: only for harvesters
             ally_core_adj = False
@@ -31137,6 +31142,30 @@ class Map:
                 ti.ally_outward_transporters_adjacent = ally_outward_transporters
                 ti.ally_core_adj = ally_core_adj
                 ti.enemy_transporters_adjacent = enemy_transporters
+
+        # --- third pass: fed foundry + ally non roads ---
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
+            row_xm1 = tile_info[x - 1]
+            row_x   = tile_info[x]
+            row_xp1 = tile_info[x + 1]
+            ym1 = y - 1
+            yp1 = y + 1
+
+            # --- fused cardinal adjacency (single pass) ---
+            ally_non_road = 0
+            foundries = 0
+
+            for nti in (row_xm1[y], row_xp1[y], row_x[ym1], row_x[yp1]):
+                if nti is not None and nti.has_building and nti.is_building_ally:
+                    if nti.entity_type != ROAD:
+                        ally_non_road += 1
+                    if nti.entity_type == FOUNDRY and nti.is_pointed_to:
+                        foundries += 1
+
+            ti.ally_non_road_buildings_adjacent = ally_non_road
+            ti.ally_fed_foundries_adjacent = foundries
+            # ---
 
     @classmethod
     def fill_tile_infoH(cls):
@@ -31460,19 +31489,6 @@ class Map:
             nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
             ti.allied_bots_adjacent = cnt
 
-            # --- fused cardinal adjacency (single pass) ---
-            ally_non_road = 0
-            foundries = 0
-
-            for nti in (row_xm1[y], row_xp1[y], row_x[ym1], row_x[yp1]):
-                if nti is not None and nti.has_building and nti.is_building_ally:
-                    if nti.entity_type != ROAD:
-                        ally_non_road += 1
-                    if nti.entity_type == FOUNDRY and nti.is_pointed_to:
-                        foundries += 1
-
-            ti.ally_non_road_buildings_adjacent = ally_non_road
-            ti.ally_fed_foundries_adjacent = foundries
 
             # turret/transporter adjacency: only for harvesters
             ally_core_adj = False
@@ -31567,6 +31583,30 @@ class Map:
                 ti.ally_outward_transporters_adjacent = ally_outward_transporters
                 ti.ally_core_adj = ally_core_adj
                 ti.enemy_transporters_adjacent = enemy_transporters
+
+        # --- third pass: fed foundry + ally non roads ---
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
+            row_xm1 = tile_info[x - 1]
+            row_x   = tile_info[x]
+            row_xp1 = tile_info[x + 1]
+            ym1 = y - 1
+            yp1 = y + 1
+
+            # --- fused cardinal adjacency (single pass) ---
+            ally_non_road = 0
+            foundries = 0
+
+            for nti in (row_xm1[y], row_xp1[y], row_x[ym1], row_x[yp1]):
+                if nti is not None and nti.has_building and nti.is_building_ally:
+                    if nti.entity_type != ROAD:
+                        ally_non_road += 1
+                    if nti.entity_type == FOUNDRY and nti.is_pointed_to:
+                        foundries += 1
+
+            ti.ally_non_road_buildings_adjacent = ally_non_road
+            ti.ally_fed_foundries_adjacent = foundries
+            # ---
 
     @classmethod
     def fill_tile_infoR(cls):
@@ -31890,19 +31930,6 @@ class Map:
             nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
             ti.allied_bots_adjacent = cnt
 
-            # --- fused cardinal adjacency (single pass) ---
-            ally_non_road = 0
-            foundries = 0
-
-            for nti in (row_xm1[y], row_xp1[y], row_x[ym1], row_x[yp1]):
-                if nti is not None and nti.has_building and nti.is_building_ally:
-                    if nti.entity_type != ROAD:
-                        ally_non_road += 1
-                    if nti.entity_type == FOUNDRY and nti.is_pointed_to:
-                        foundries += 1
-
-            ti.ally_non_road_buildings_adjacent = ally_non_road
-            ti.ally_fed_foundries_adjacent = foundries
 
             # turret/transporter adjacency: only for harvesters
             ally_core_adj = False
@@ -31997,6 +32024,30 @@ class Map:
                 ti.ally_outward_transporters_adjacent = ally_outward_transporters
                 ti.ally_core_adj = ally_core_adj
                 ti.enemy_transporters_adjacent = enemy_transporters
+
+        # --- third pass: fed foundry + ally non roads ---
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
+            row_xm1 = tile_info[x - 1]
+            row_x   = tile_info[x]
+            row_xp1 = tile_info[x + 1]
+            ym1 = y - 1
+            yp1 = y + 1
+
+            # --- fused cardinal adjacency (single pass) ---
+            ally_non_road = 0
+            foundries = 0
+
+            for nti in (row_xm1[y], row_xp1[y], row_x[ym1], row_x[yp1]):
+                if nti is not None and nti.has_building and nti.is_building_ally:
+                    if nti.entity_type != ROAD:
+                        ally_non_road += 1
+                    if nti.entity_type == FOUNDRY and nti.is_pointed_to:
+                        foundries += 1
+
+            ti.ally_non_road_buildings_adjacent = ally_non_road
+            ti.ally_fed_foundries_adjacent = foundries
+            # ---
 
     @classmethod
     def fill_tile_infoUNKNOWN(cls):
@@ -32299,19 +32350,6 @@ class Map:
             nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
             ti.allied_bots_adjacent = cnt
 
-            # --- fused cardinal adjacency (single pass) ---
-            ally_non_road = 0
-            foundries = 0
-
-            for nti in (row_xm1[y], row_xp1[y], row_x[ym1], row_x[yp1]):
-                if nti is not None and nti.has_building and nti.is_building_ally:
-                    if nti.entity_type != ROAD:
-                        ally_non_road += 1
-                    if nti.entity_type == FOUNDRY and nti.is_pointed_to:
-                        foundries += 1
-
-            ti.ally_non_road_buildings_adjacent = ally_non_road
-            ti.ally_fed_foundries_adjacent = foundries
 
             # turret/transporter adjacency: only for harvesters
             ally_core_adj = False
@@ -32406,6 +32444,30 @@ class Map:
                 ti.ally_outward_transporters_adjacent = ally_outward_transporters
                 ti.ally_core_adj = ally_core_adj
                 ti.enemy_transporters_adjacent = enemy_transporters
+
+        # --- third pass: fed foundry + ally non roads ---
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
+            row_xm1 = tile_info[x - 1]
+            row_x   = tile_info[x]
+            row_xp1 = tile_info[x + 1]
+            ym1 = y - 1
+            yp1 = y + 1
+
+            # --- fused cardinal adjacency (single pass) ---
+            ally_non_road = 0
+            foundries = 0
+
+            for nti in (row_xm1[y], row_xp1[y], row_x[ym1], row_x[yp1]):
+                if nti is not None and nti.has_building and nti.is_building_ally:
+                    if nti.entity_type != ROAD:
+                        ally_non_road += 1
+                    if nti.entity_type == FOUNDRY and nti.is_pointed_to:
+                        foundries += 1
+
+            ti.ally_non_road_buildings_adjacent = ally_non_road
+            ti.ally_fed_foundries_adjacent = foundries
+            # ---
 
 
 
@@ -34802,15 +34864,15 @@ class RushTargeter:
                     thepos = Position(x, y)
                     if OreExecutive.state.get(thepos, 0) == 2: #killed
                         continue
-                    if ti.entity_type in [EntityType.FOUNDRY]:
+                    if ti.entity_type == EntityType.FOUNDRY:
                         if thepos in cls.killed:
                             continue
                         return thepos, "R" # for just Route
-                    if ti.entity_type in [EntityType.HARVESTER,EntityType.FOUNDRY]:
+                    if ti.entity_type in (EntityType.HARVESTER, EntityType.FOUNDRY):
                         continue
-                    if ti.has_building and not ti.is_building_ally and ti.entity_type != EntityType.MARKER:
+                    if ti.has_building and not ti.is_building_ally:
                         continue
-                    if env == Environment.ORE_TITANIUM:
+                    if env == Environment.ORE_TITANIUM and not ti.has_turret:
                         return thepos, "B" # for build harvester
 
         return None, "C"  # Nothing found
@@ -34826,7 +34888,7 @@ class RushTargeter:
                     funPos = stuff[0]
                     if funPos == None or not VisionTracker.me_is_canonical_ally(funPos):
                         return Explore.get_target(),'M' #move
-                    return funPos, stuff[1] 
+                    return funPos, stuff[1] # <------- non move
                 else:
                     return Explore.get_target(),'M' #move
         elif Builder.mode == 2:
@@ -39247,7 +39309,7 @@ class StateRouteFoundryInput:
 
 class StateRush:
     @classmethod
-    def run(cls, targ):
+    def run(cls, targ: tuple[Position, str]):
         pos = targ[0]
         type = targ[1]
         if type == 'M': #move

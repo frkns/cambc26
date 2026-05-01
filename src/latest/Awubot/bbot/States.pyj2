@@ -116,7 +116,7 @@ class StateMoveTo:
 
 class StateRush:
     @classmethod
-    def run(cls, targ):
+    def run(cls, targ: tuple[Position, str]):
         pos = targ[0]
         type = targ[1]
         if type == 'M': #move
@@ -131,6 +131,9 @@ class StateRush:
             if Globals.my_pos.distance_squared(pos) <= 4: #sufficiently close
                 cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
                 if cand is not None and cand.ti.entity_type not in Constants.TRANSPORTERS_SET:
+                    {% if LOCAL %}
+                    Debug.log('RouteToBreach set @ StateRush')
+                    {% endif %}
                     RouteToBreach.set_pos(cand.position)
                 else:
                     RushTargeter.killed.add(pos)

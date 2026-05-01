@@ -420,19 +420,6 @@ class Map:
             nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
             ti.allied_bots_adjacent = cnt
 
-            # --- fused cardinal adjacency (single pass) ---
-            ally_non_road = 0
-            foundries = 0
-
-            for nti in (row_xm1[y], row_xp1[y], row_x[ym1], row_x[yp1]):
-                if nti is not None and nti.has_building and nti.is_building_ally:
-                    if nti.entity_type != ROAD:
-                        ally_non_road += 1
-                    if nti.entity_type == FOUNDRY and nti.is_pointed_to:
-                        foundries += 1
-
-            ti.ally_non_road_buildings_adjacent = ally_non_road
-            ti.ally_fed_foundries_adjacent = foundries
 
             # turret/transporter adjacency: only for harvesters
             ally_core_adj = False
@@ -473,6 +460,30 @@ class Map:
                 ti.ally_outward_transporters_adjacent = ally_outward_transporters
                 ti.ally_core_adj = ally_core_adj
                 ti.enemy_transporters_adjacent = enemy_transporters
+
+        # --- third pass: fed foundry + ally non roads ---
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
+            row_xm1 = tile_info[x - 1]
+            row_x   = tile_info[x]
+            row_xp1 = tile_info[x + 1]
+            ym1 = y - 1
+            yp1 = y + 1
+
+            # --- fused cardinal adjacency (single pass) ---
+            ally_non_road = 0
+            foundries = 0
+
+            for nti in (row_xm1[y], row_xp1[y], row_x[ym1], row_x[yp1]):
+                if nti is not None and nti.has_building and nti.is_building_ally:
+                    if nti.entity_type != ROAD:
+                        ally_non_road += 1
+                    if nti.entity_type == FOUNDRY and nti.is_pointed_to:
+                        foundries += 1
+
+            ti.ally_non_road_buildings_adjacent = ally_non_road
+            ti.ally_fed_foundries_adjacent = foundries
+            # ---
 
     {% endfor %}
 

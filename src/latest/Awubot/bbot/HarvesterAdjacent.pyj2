@@ -355,7 +355,11 @@ class HarvesterAdjacent:
                     )
                     info.is_working_shield = ti.has_building and ti.is_building_ally and (ti.entity_type != EntityType.ROAD or not is_harvester_ally)
                     if info.h_has_fed_foundry and info.is_working_shield and info.has_ally_transporter:
-                        info.is_working_shield = False
+                        {# /* {% if LOCAL %} */ #}
+                        {# /* Debug.log(idx not in DarkForest.refined_ax_line) */ #}
+                        {# /* {% endif %} */ #}
+                        if idx not in DarkForest.refined_ax_line:
+                            info.is_working_shield = False
 
                     
                     # if info.has_ally_transporter:

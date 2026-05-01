@@ -245,6 +245,22 @@ class DarkForest:
                 if ns[i] is not None and sf[i]:
                     Debug.dot(Position(x, y), Color.WHITE)
 # ===---
+# ---===
+    @classmethod
+    def debug_refined_ax_line(cls):
+        """Draw cyan dots on nodes in the refined axionite line."""
+        for i in cls.refined_ax_line:
+            {% set x, y = decode_pos('i') %}
+            Debug.dot(Position({{ x }}, {{ y }}), Color.CYAN)
+# ===---
+# ---===
+    @classmethod
+    def debug_foundry_positions(cls):
+        """Draw yellow dots on all known foundry positions."""
+        for i in cls.foundry_positions:
+            {% set x, y = decode_pos('i') %}
+            Debug.dot(Position({{ x }}, {{ y }}), Color.YELLOW)
+# ===---
 
 
 # ---===
@@ -494,6 +510,12 @@ class DarkForest:
                     and u not in _ral):
                 _ti_leaves.add(u)
         cls.leaf_set = _ti_leaves
+
+
+        {# /* if Globals.round & 1: */ #}
+            {# /* cls.debug_refined_ax_line() */ #}
+        {# /* else: */ #}
+            {# /* cls.debug_foundry_positions() */ #}
 
         {# /* Debug.log('exited fcompute') */ #}
 # ===---
