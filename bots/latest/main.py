@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-01 23:18:53 (local)
+# latest,  @ 2026-05-01 23:28:50 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -28569,7 +28569,7 @@ class GunnerSupervisor:
                     continue
                 if not ti.has_building:
                     continue
-                if ti.is_building_ally and not (ti.has_bot and not ti.is_bot_ally and ti.entity_type in Constants.TRANSPORTERS_SET): #only attack enemy bots on our transporters
+                if ti.is_building_ally and not (ti.has_bot and not ti.is_bot_ally and ti.building_hp <= 16 and ti.entity_type in Constants.ATTACKABLE_TRANSPORTERS_SET): #only attack enemy bots on our transporters (that they can attack)
                     continue
                 
 
@@ -28652,7 +28652,7 @@ class GunnerSupervisor:
                     continue
                 if not ti.has_building:
                     continue
-                if ti.is_building_ally and not (ti.has_bot and not ti.is_bot_ally and ti.entity_type in Constants.TRANSPORTERS_SET): #only attack enemy bots on our transporters
+                if ti.is_building_ally and not (ti.has_bot and not ti.is_bot_ally and ti.building_hp <= 16 and ti.entity_type in Constants.ATTACKABLE_TRANSPORTERS_SET): #only attack enemy bots on our transporters (that they can attack)
                     continue
                 
 
@@ -28735,7 +28735,7 @@ class GunnerSupervisor:
                     continue
                 if not ti.has_building:
                     continue
-                if ti.is_building_ally and not (ti.has_bot and not ti.is_bot_ally and ti.entity_type in Constants.TRANSPORTERS_SET): #only attack enemy bots on our transporters
+                if ti.is_building_ally and not (ti.has_bot and not ti.is_bot_ally and ti.building_hp <= 16 and ti.entity_type in Constants.ATTACKABLE_TRANSPORTERS_SET): #only attack enemy bots on our transporters (that they can attack)
                     continue
                 
 
@@ -28818,7 +28818,7 @@ class GunnerSupervisor:
                     continue
                 if not ti.has_building:
                     continue
-                if ti.is_building_ally and not (ti.has_bot and not ti.is_bot_ally and ti.entity_type in Constants.TRANSPORTERS_SET): #only attack enemy bots on our transporters
+                if ti.is_building_ally and not (ti.has_bot and not ti.is_bot_ally and ti.building_hp <= 16 and ti.entity_type in Constants.ATTACKABLE_TRANSPORTERS_SET): #only attack enemy bots on our transporters (that they can attack)
                     continue
                 
 
@@ -28901,7 +28901,7 @@ class GunnerSupervisor:
                     continue
                 if not ti.has_building:
                     continue
-                if ti.is_building_ally and not (ti.has_bot and not ti.is_bot_ally and ti.entity_type in Constants.TRANSPORTERS_SET): #only attack enemy bots on our transporters
+                if ti.is_building_ally and not (ti.has_bot and not ti.is_bot_ally and ti.building_hp <= 16 and ti.entity_type in Constants.ATTACKABLE_TRANSPORTERS_SET): #only attack enemy bots on our transporters (that they can attack)
                     continue
                 
 
@@ -28984,7 +28984,7 @@ class GunnerSupervisor:
                     continue
                 if not ti.has_building:
                     continue
-                if ti.is_building_ally and not (ti.has_bot and not ti.is_bot_ally and ti.entity_type in Constants.TRANSPORTERS_SET): #only attack enemy bots on our transporters
+                if ti.is_building_ally and not (ti.has_bot and not ti.is_bot_ally and ti.building_hp <= 16 and ti.entity_type in Constants.ATTACKABLE_TRANSPORTERS_SET): #only attack enemy bots on our transporters (that they can attack)
                     continue
                 
 
@@ -29067,7 +29067,7 @@ class GunnerSupervisor:
                     continue
                 if not ti.has_building:
                     continue
-                if ti.is_building_ally and not (ti.has_bot and not ti.is_bot_ally and ti.entity_type in Constants.TRANSPORTERS_SET): #only attack enemy bots on our transporters
+                if ti.is_building_ally and not (ti.has_bot and not ti.is_bot_ally and ti.building_hp <= 16 and ti.entity_type in Constants.ATTACKABLE_TRANSPORTERS_SET): #only attack enemy bots on our transporters (that they can attack)
                     continue
                 
 
@@ -29150,7 +29150,7 @@ class GunnerSupervisor:
                     continue
                 if not ti.has_building:
                     continue
-                if ti.is_building_ally and not (ti.has_bot and not ti.is_bot_ally and ti.entity_type in Constants.TRANSPORTERS_SET): #only attack enemy bots on our transporters
+                if ti.is_building_ally and not (ti.has_bot and not ti.is_bot_ally and ti.building_hp <= 16 and ti.entity_type in Constants.ATTACKABLE_TRANSPORTERS_SET): #only attack enemy bots on our transporters (that they can attack)
                     continue
                 
 
