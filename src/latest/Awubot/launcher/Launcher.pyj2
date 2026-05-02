@@ -215,10 +215,28 @@ class Launcher({{ super() }}):
 
             best_pos = max(scores, key=lambda x: x[0])[1] if scores else None
 
+                    {% if LOCAL %}
             print("Plausible place to throw:", best_pos)
+                    {% endif %}
 
             if nearby_ally_bot is not None and best_pos is not None and ct.can_launch(nearby_ally_bot, best_pos):
                 # return  # -- disable supportive launchers for now --
+
+                # check the building on nearby_ally_bot's tile and get its entity type
+                ally_bot_building_id = ct.get_tile_building_id(nearby_ally_bot)
+                if ally_bot_building_id is not None:
+                    ally_bot_building_team = ct.get_team(ally_bot_building_id)
+
+                    {% if LOCAL %}
+                    etype = ct.get_entity_type(ally_bot_building_id)
+                    print(f"etype: {etype}, Team: {ally_bot_building_team}")
+                    {% endif %}
+
+                    if ally_bot_building_team != my_team \
+                            and ct.get_hp(ally_bot_building_id) < ct.get_max_hp(ally_bot_building_id):
+                        {# /* Debug.tee('damaged so not launching') */ #}
+                        return
+
                 ct.launch(nearby_ally_bot, best_pos)
 
     @classmethod

@@ -121,5 +121,6 @@ class RushTargeter:
                 else:
                     return Explore.get_target(),'M' #move
         elif Builder.mode == {{ Mode.EARLY_RUSH }}:
-            return Symmetry.sym_pos(Unit.core_pos),'M' #move
+            return Explore.get_target(),'M' #move
+            {# /* return Symmetry.sym_pos(Unit.core_pos),'M' #move */ #}
         return None

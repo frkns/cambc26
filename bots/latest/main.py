@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-02 02:09:07 (local)
+# latest,  @ 2026-05-02 12:49:13 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -256,8 +256,6 @@ class Attacker:
             return None
         if not VisionTracker.me_is_canonical_ally(road.position):
             return None
-        if not cls.should_fire(road.position):
-            return None
         if Builder.min_dist_to_a_core >= 36 and MarketMaker.ti < BuildManager.scale(150):
             return None
         return road.position
@@ -333,13 +331,18 @@ class Attacker:
         # assume caller passes in position with enemy building
         if not ti.has_building or ti.is_building_ally or etype not in Constants.PASSABLE_ATTACKABLE_SET:        
             return False
+            
+        if etype in Constants.ATTACKABLE_TRANSPORTERS_SET:
+            if DarkForest.node_kind[idx] in \
+                    (1, 3):
+                return False  # flowing into ally
 
-        if DarkForest.ax_tagged[idx]:
-            return False
-
-        if etype in (EntityType.CONVEYOR, EntityType.BRIDGE):
-            if not DarkForest.sight_flowing[idx] and not DarkForest.flow[idx] > 0:
+            if DarkForest.ax_tagged[idx]:
                 return False
+
+            if etype in (EntityType.CONVEYOR, EntityType.BRIDGE):
+                if not DarkForest.sight_flowing[idx] and not DarkForest.flow[idx] > 0:
+                    return False
 
 
         hp = ti.building_hp
@@ -27551,117 +27554,15 @@ class Explore:
 
     @classmethod
     def new_target(cls) -> Position:
-        # return random.choice((Position(0, 0), Position(Map.W - 1, Map.H - 1)))
-        # return random.choice((
-        #     Position(0, 0),
-        #     Position(0, Map.maxY),
-        #     Position(Map.maxX, 0),
-        #     Position(Map.maxX, Map.maxY),
-        # ))
-        
-        # # Special early game heuristics
-        # if Globals.round < 50:
-        #     # Move away from the core when starting out (except for the first couple bots)
-        #     if Globals.spawn_round >= 3 and cls.target is None:
-        #         direction_to_core = Globals.my_pos.direction_to(Unit.core_pos)
-        #         if direction_to_core != Direction.CENTRE:
-        #             return Util.follow_to_edge(Globals.my_pos.x, Globals.my_pos.y, *direction_to_core.delta())
-
-        #     # Find the direction that will let us move the furthest before hitting the edge
-        #     bestDx: int = None
-        #     bestDy: int = None
-        #     best_score: int = -1000000
-
-        #             #     
-        #     score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, 0, -1)
-
-        #     
-        #     if score > best_score:
-        #         best_score = score
-        #         bestDx = 0
-        #         bestDy = -1
-
-        #             #     
-        #     score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, 1, -1)
-
-        #             #     score += 1 # slightly prefer diagonals
-        #     
-        #     if score > best_score:
-        #         best_score = score
-        #         bestDx = 1
-        #         bestDy = -1
-
-        #             #     
-        #     score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, 1, 0)
-
-        #     
-        #     if score > best_score:
-        #         best_score = score
-        #         bestDx = 1
-        #         bestDy = 0
-
-        #             #     
-        #     score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, 1, 1)
-
-        #             #     score += 1 # slightly prefer diagonals
-        #     
-        #     if score > best_score:
-        #         best_score = score
-        #         bestDx = 1
-        #         bestDy = 1
-
-        #             #     
-        #     score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, 0, 1)
-
-        #     
-        #     if score > best_score:
-        #         best_score = score
-        #         bestDx = 0
-        #         bestDy = 1
-
-        #             #     
-        #     score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, -1, 1)
-
-        #             #     score += 1 # slightly prefer diagonals
-        #     
-        #     if score > best_score:
-        #         best_score = score
-        #         bestDx = -1
-        #         bestDy = 1
-
-        #             #     
-        #     score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, -1, 0)
-
-        #     
-        #     if score > best_score:
-        #         best_score = score
-        #         bestDx = -1
-        #         bestDy = 0
-
-        #             #     
-        #     score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, -1, -1)
-
-        #             #     score += 1 # slightly prefer diagonals
-        #     
-        #     if score > best_score:
-        #         best_score = score
-        #         bestDx = -1
-        #         bestDy = -1
-
-        #     
-        #     if bestDx is None:
-        #         return Util.rand_pos()
-
-        #     return Util.follow_to_edge(Globals.my_pos.x, Globals.my_pos.y, bestDx, bestDy)
         # # Later in the game, we should just go to random places to hit every last corner
         # else:
         if Builder.mode == 2:
             pos = Symmetry.sym_pos(Unit.core_pos)
-            dx, dy = random.choice([(dx, dy) for dx in range(-6, 6) for dy in range(-6, 6) if abs(dx) > 1 or abs(dy) > 1])
+            dx, dy = random.choice(cls.one)
             return Position(max(0, min(pos.x + dx, Map.maxX)), max(0, min(pos.y + dy, Map.maxY)))
         elif Builder.mode == 3:
             pos = Unit.core_pos
-            dx, dy = random.choice([(dx, dy) for dx in range(-5, 5) for dy in range(-5, 5) if abs(dx) > 1 or abs(dy) > 1])
+            dx, dy = random.choice(cls.two)
             return Position(max(0, min(pos.x + dx, Map.maxX)), max(0, min(pos.y + dy, Map.maxY)))
         else:
             return Util.rand_pos()
@@ -27673,6 +27574,8 @@ class Explore:
             # ny = max(0, min(Map.maxY, int(round(my + dist * math.sin(theta)))))
             # return Position(nx, ny)
 
+    one = [(dx, dy) for dx in range(-6, 6) for dy in range(-6, 6) if abs(dx) > 1 or abs(dy) > 1]
+    two = [(dx, dy) for dx in range(-5, 5) for dy in range(-5, 5) if abs(dx) > 1 or abs(dy) > 1]
 
     @classmethod
     def get_target(cls) -> Position:
@@ -28171,141 +28074,280 @@ class GunnerDirectionPicker:
             infos.append(info7)
 
 
-        info0.has_enemy_turret = False
-        for pos in Globals.ct.get_attackable_tiles_from(spos, Direction.NORTH, EntityType.GUNNER):
-            # Debug.dot(pos, Color.BLUE)
+        WALL = Environment.WALL
+        ROAD = EntityType.ROAD
 
-            ti = tile_info[pos.x][pos.y]
-            if ti is not None:
-                if ti.has_building and not ti.is_building_ally:
+
+        info0.has_enemy_turret = False
+
+        x, y = spos.x, spos.y
+
+        x += 0
+        y += -1
+
+
+        for _ in range(3):
+            ti = tile_info[x][y]
+            if ti is None or ti.env == WALL:
+                break
+
+            if ti.has_building :
+                if ti.is_building_ally:
+                    if ti.entity_type != ROAD:
+                        break
+                else:
                     e_building_hp = ti.building_hp
                     info0.enemy_building_hp += e_building_hp
 
                     if ti.has_turret:
                         info0.has_enemy_turret = True
 
-                if ti.has_bot and not ti.is_bot_ally:
-                    e_bot_hp = ti.bot_hp
-                    info0.enemy_bot_hp += e_bot_hp
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info0.enemy_bot_hp += e_bot_hp
+
+            # Debug.dot(Position(x, y), Color.BLUE if 0 else Color.RED)
+
+            x += 0
+            y += -1
+
 
         info1.has_enemy_turret = False
-        for pos in Globals.ct.get_attackable_tiles_from(spos, Direction.NORTHEAST, EntityType.GUNNER):
-            # Debug.dot(pos, Color.BLUE)
 
-            ti = tile_info[pos.x][pos.y]
-            if ti is not None:
-                if ti.has_building and not ti.is_building_ally:
+        x, y = spos.x, spos.y
+
+        x += 1
+        y += -1
+
+
+        for _ in range(2):
+            ti = tile_info[x][y]
+            if ti is None or ti.env == WALL:
+                break
+
+            if ti.has_building :
+                if ti.is_building_ally:
+                    if ti.entity_type != ROAD:
+                        break
+                else:
                     e_building_hp = ti.building_hp
                     info1.enemy_building_hp += e_building_hp
 
                     if ti.has_turret:
                         info1.has_enemy_turret = True
 
-                if ti.has_bot and not ti.is_bot_ally:
-                    e_bot_hp = ti.bot_hp
-                    info1.enemy_bot_hp += e_bot_hp
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info1.enemy_bot_hp += e_bot_hp
+
+            # Debug.dot(Position(x, y), Color.BLUE if 1 else Color.RED)
+
+            x += 1
+            y += -1
+
 
         info2.has_enemy_turret = False
-        for pos in Globals.ct.get_attackable_tiles_from(spos, Direction.EAST, EntityType.GUNNER):
-            # Debug.dot(pos, Color.BLUE)
 
-            ti = tile_info[pos.x][pos.y]
-            if ti is not None:
-                if ti.has_building and not ti.is_building_ally:
+        x, y = spos.x, spos.y
+
+        x += 1
+        y += 0
+
+
+        for _ in range(3):
+            ti = tile_info[x][y]
+            if ti is None or ti.env == WALL:
+                break
+
+            if ti.has_building :
+                if ti.is_building_ally:
+                    if ti.entity_type != ROAD:
+                        break
+                else:
                     e_building_hp = ti.building_hp
                     info2.enemy_building_hp += e_building_hp
 
                     if ti.has_turret:
                         info2.has_enemy_turret = True
 
-                if ti.has_bot and not ti.is_bot_ally:
-                    e_bot_hp = ti.bot_hp
-                    info2.enemy_bot_hp += e_bot_hp
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info2.enemy_bot_hp += e_bot_hp
+
+            # Debug.dot(Position(x, y), Color.BLUE if 0 else Color.RED)
+
+            x += 1
+            y += 0
+
 
         info3.has_enemy_turret = False
-        for pos in Globals.ct.get_attackable_tiles_from(spos, Direction.SOUTHEAST, EntityType.GUNNER):
-            # Debug.dot(pos, Color.BLUE)
 
-            ti = tile_info[pos.x][pos.y]
-            if ti is not None:
-                if ti.has_building and not ti.is_building_ally:
+        x, y = spos.x, spos.y
+
+        x += 1
+        y += 1
+
+
+        for _ in range(2):
+            ti = tile_info[x][y]
+            if ti is None or ti.env == WALL:
+                break
+
+            if ti.has_building :
+                if ti.is_building_ally:
+                    if ti.entity_type != ROAD:
+                        break
+                else:
                     e_building_hp = ti.building_hp
                     info3.enemy_building_hp += e_building_hp
 
                     if ti.has_turret:
                         info3.has_enemy_turret = True
 
-                if ti.has_bot and not ti.is_bot_ally:
-                    e_bot_hp = ti.bot_hp
-                    info3.enemy_bot_hp += e_bot_hp
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info3.enemy_bot_hp += e_bot_hp
+
+            # Debug.dot(Position(x, y), Color.BLUE if 1 else Color.RED)
+
+            x += 1
+            y += 1
+
 
         info4.has_enemy_turret = False
-        for pos in Globals.ct.get_attackable_tiles_from(spos, Direction.SOUTH, EntityType.GUNNER):
-            # Debug.dot(pos, Color.BLUE)
 
-            ti = tile_info[pos.x][pos.y]
-            if ti is not None:
-                if ti.has_building and not ti.is_building_ally:
+        x, y = spos.x, spos.y
+
+        x += 0
+        y += 1
+
+
+        for _ in range(3):
+            ti = tile_info[x][y]
+            if ti is None or ti.env == WALL:
+                break
+
+            if ti.has_building :
+                if ti.is_building_ally:
+                    if ti.entity_type != ROAD:
+                        break
+                else:
                     e_building_hp = ti.building_hp
                     info4.enemy_building_hp += e_building_hp
 
                     if ti.has_turret:
                         info4.has_enemy_turret = True
 
-                if ti.has_bot and not ti.is_bot_ally:
-                    e_bot_hp = ti.bot_hp
-                    info4.enemy_bot_hp += e_bot_hp
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info4.enemy_bot_hp += e_bot_hp
+
+            # Debug.dot(Position(x, y), Color.BLUE if 0 else Color.RED)
+
+            x += 0
+            y += 1
+
 
         info5.has_enemy_turret = False
-        for pos in Globals.ct.get_attackable_tiles_from(spos, Direction.SOUTHWEST, EntityType.GUNNER):
-            # Debug.dot(pos, Color.BLUE)
 
-            ti = tile_info[pos.x][pos.y]
-            if ti is not None:
-                if ti.has_building and not ti.is_building_ally:
+        x, y = spos.x, spos.y
+
+        x += -1
+        y += 1
+
+
+        for _ in range(2):
+            ti = tile_info[x][y]
+            if ti is None or ti.env == WALL:
+                break
+
+            if ti.has_building :
+                if ti.is_building_ally:
+                    if ti.entity_type != ROAD:
+                        break
+                else:
                     e_building_hp = ti.building_hp
                     info5.enemy_building_hp += e_building_hp
 
                     if ti.has_turret:
                         info5.has_enemy_turret = True
 
-                if ti.has_bot and not ti.is_bot_ally:
-                    e_bot_hp = ti.bot_hp
-                    info5.enemy_bot_hp += e_bot_hp
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info5.enemy_bot_hp += e_bot_hp
+
+            # Debug.dot(Position(x, y), Color.BLUE if 1 else Color.RED)
+
+            x += -1
+            y += 1
+
 
         info6.has_enemy_turret = False
-        for pos in Globals.ct.get_attackable_tiles_from(spos, Direction.WEST, EntityType.GUNNER):
-            # Debug.dot(pos, Color.BLUE)
 
-            ti = tile_info[pos.x][pos.y]
-            if ti is not None:
-                if ti.has_building and not ti.is_building_ally:
+        x, y = spos.x, spos.y
+
+        x += -1
+        y += 0
+
+
+        for _ in range(3):
+            ti = tile_info[x][y]
+            if ti is None or ti.env == WALL:
+                break
+
+            if ti.has_building :
+                if ti.is_building_ally:
+                    if ti.entity_type != ROAD:
+                        break
+                else:
                     e_building_hp = ti.building_hp
                     info6.enemy_building_hp += e_building_hp
 
                     if ti.has_turret:
                         info6.has_enemy_turret = True
 
-                if ti.has_bot and not ti.is_bot_ally:
-                    e_bot_hp = ti.bot_hp
-                    info6.enemy_bot_hp += e_bot_hp
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info6.enemy_bot_hp += e_bot_hp
+
+            # Debug.dot(Position(x, y), Color.BLUE if 0 else Color.RED)
+
+            x += -1
+            y += 0
+
 
         info7.has_enemy_turret = False
-        for pos in Globals.ct.get_attackable_tiles_from(spos, Direction.NORTHWEST, EntityType.GUNNER):
-            # Debug.dot(pos, Color.BLUE)
 
-            ti = tile_info[pos.x][pos.y]
-            if ti is not None:
-                if ti.has_building and not ti.is_building_ally:
+        x, y = spos.x, spos.y
+
+        x += -1
+        y += -1
+
+
+        for _ in range(2):
+            ti = tile_info[x][y]
+            if ti is None or ti.env == WALL:
+                break
+
+            if ti.has_building :
+                if ti.is_building_ally:
+                    if ti.entity_type != ROAD:
+                        break
+                else:
                     e_building_hp = ti.building_hp
                     info7.enemy_building_hp += e_building_hp
 
                     if ti.has_turret:
                         info7.has_enemy_turret = True
 
-                if ti.has_bot and not ti.is_bot_ally:
-                    e_bot_hp = ti.bot_hp
-                    info7.enemy_bot_hp += e_bot_hp
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info7.enemy_bot_hp += e_bot_hp
+
+            # Debug.dot(Position(x, y), Color.BLUE if 1 else Color.RED)
+
+            x += -1
+            y += -1
 
 
 # ============================================================
@@ -33176,6 +33218,9 @@ class OreExecutive:
                 heapq.heappop(cls.ax_queue)
                 cls.state[pos] = 3
                 continue
+
+            if ti.is_pointed_to:
+                cls.state[pos] = 3  # for ax bug
             
             if not VisionTracker.me_is_canonical_ally(pos):
                 heapq.heappop(cls.ax_queue)
@@ -33617,7 +33662,7 @@ class Pathfinder:
             dsq = my_pos.distance_squared(target)
             ndsq = my_pos.add(dir).distance_squared(target)
             if (dsq == 1 or dsq == 2) and dsq < ndsq: 
-                if BfsBureau.now_weight[midx] <= 3:
+                if BfsBureau.now_weight[midx] <= 3 and Globals.ct.get_hp() == 40:
                     if not MoveManager.can_fill_move(my_pos.direction_to(target)):
                         
                         return
@@ -34975,7 +35020,7 @@ class RushTargeter:
                 else:
                     return Explore.get_target(),'M' #move
         elif Builder.mode == 2:
-            return Symmetry.sym_pos(Unit.core_pos),'M' #move
+            return Explore.get_target(),'M' #move
         return None
 
 
@@ -35420,37 +35465,39 @@ class SentinelDirectionPicker:
 
 
 
+        ROAD = EntityType.ROAD
+
         ti = tile_info[sx + -5][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -5][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -5][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -5][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -5][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info6.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35461,7 +35508,7 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -5][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info6.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35472,7 +35519,7 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -5][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info6.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35483,42 +35530,42 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -5][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -5][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -5][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -5][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -4][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -4][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info7.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35529,7 +35576,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -4][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info7.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35540,7 +35587,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -4][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info7.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35551,7 +35598,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -4][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info6.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35562,7 +35609,7 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -4][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info6.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35573,7 +35620,7 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -4][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info6.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35584,7 +35631,7 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -4][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35595,7 +35642,7 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -4][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35606,7 +35653,7 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -4][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35617,21 +35664,21 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -4][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -3][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -3][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info7.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35642,7 +35689,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -3][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info7.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35653,7 +35700,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -3][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info7.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35664,7 +35711,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -3][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info6.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35679,7 +35726,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -3][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info6.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35690,7 +35737,7 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -3][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35705,7 +35752,7 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -3][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35716,7 +35763,7 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -3][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35727,7 +35774,7 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -3][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35738,21 +35785,21 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -3][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -2][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -2][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info7.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35763,7 +35810,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info7.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35774,7 +35821,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info7.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35785,7 +35832,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info6.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35800,7 +35847,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35819,7 +35866,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35834,7 +35881,7 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35845,7 +35892,7 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35856,7 +35903,7 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35867,14 +35914,14 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -1][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35885,7 +35932,7 @@ class SentinelDirectionPicker:
                 info0.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35896,7 +35943,7 @@ class SentinelDirectionPicker:
                 info0.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35911,7 +35958,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35926,7 +35973,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35945,7 +35992,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35972,7 +36019,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info4.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35991,7 +36038,7 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info4.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36006,7 +36053,7 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info4.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36021,7 +36068,7 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info4.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36032,7 +36079,7 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info4.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36043,7 +36090,7 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36054,7 +36101,7 @@ class SentinelDirectionPicker:
                 info0.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36065,7 +36112,7 @@ class SentinelDirectionPicker:
                 info0.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36076,7 +36123,7 @@ class SentinelDirectionPicker:
                 info0.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36095,7 +36142,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36122,14 +36169,14 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 0][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36156,7 +36203,7 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36175,7 +36222,7 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info4.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36186,7 +36233,7 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info4.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36197,7 +36244,7 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info4.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36208,7 +36255,7 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36219,7 +36266,7 @@ class SentinelDirectionPicker:
                 info0.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36230,7 +36277,7 @@ class SentinelDirectionPicker:
                 info0.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36245,7 +36292,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36260,7 +36307,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36279,7 +36326,7 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36306,7 +36353,7 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36325,7 +36372,7 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36340,7 +36387,7 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36355,7 +36402,7 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info4.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36366,7 +36413,7 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info4.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36377,14 +36424,14 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 2][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36395,7 +36442,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36406,7 +36453,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36417,7 +36464,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36432,7 +36479,7 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36451,7 +36498,7 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36466,7 +36513,7 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36477,7 +36524,7 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36488,7 +36535,7 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36499,21 +36546,21 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 3][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 3][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36524,7 +36571,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 3][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36535,7 +36582,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 3][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36546,7 +36593,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 3][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36561,7 +36608,7 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 3][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36572,7 +36619,7 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 3][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36587,7 +36634,7 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 3][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36598,7 +36645,7 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 3][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36609,7 +36656,7 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 3][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36620,21 +36667,21 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 3][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 4][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 4][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36645,7 +36692,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 4][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36656,7 +36703,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 4][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36667,7 +36714,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 4][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36678,7 +36725,7 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 4][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36689,7 +36736,7 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 4][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36700,7 +36747,7 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 4][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36711,7 +36758,7 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 4][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36722,7 +36769,7 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 4][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36733,42 +36780,42 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 4][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 5][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 5][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 5][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 5][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 5][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36779,7 +36826,7 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 5][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36790,7 +36837,7 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 5][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36801,28 +36848,28 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 5][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 5][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 5][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 5][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
@@ -39112,21 +39159,29 @@ class StateBuildAdvancedShield:
 
         ally_gunners_adjacent = 0
 
-        if tile_info[x ][y -1].entity_type == GUNNER:
+        ti = tile_info[x ][y -1]
+        if ti is not None and ti.entity_type == GUNNER:
             ally_gunners_adjacent += 1
-        if tile_info[x +1][y -1].entity_type == GUNNER:
+        ti = tile_info[x +1][y -1]
+        if ti is not None and ti.entity_type == GUNNER:
             ally_gunners_adjacent += 1
-        if tile_info[x +1][y ].entity_type == GUNNER:
+        ti = tile_info[x +1][y ]
+        if ti is not None and ti.entity_type == GUNNER:
             ally_gunners_adjacent += 1
-        if tile_info[x +1][y +1].entity_type == GUNNER:
+        ti = tile_info[x +1][y +1]
+        if ti is not None and ti.entity_type == GUNNER:
             ally_gunners_adjacent += 1
-        if tile_info[x ][y +1].entity_type == GUNNER:
+        ti = tile_info[x ][y +1]
+        if ti is not None and ti.entity_type == GUNNER:
             ally_gunners_adjacent += 1
-        if tile_info[x -1][y +1].entity_type == GUNNER:
+        ti = tile_info[x -1][y +1]
+        if ti is not None and ti.entity_type == GUNNER:
             ally_gunners_adjacent += 1
-        if tile_info[x -1][y ].entity_type == GUNNER:
+        ti = tile_info[x -1][y ]
+        if ti is not None and ti.entity_type == GUNNER:
             ally_gunners_adjacent += 1
-        if tile_info[x -1][y -1].entity_type == GUNNER:
+        ti = tile_info[x -1][y -1]
+        if ti is not None and ti.entity_type == GUNNER:
             ally_gunners_adjacent += 1
 
         can_barrier = ally_gunners_adjacent == 0
@@ -40125,7 +40180,7 @@ class TransporterInfo:
             return a.enemy_bot1 < b.enemy_bot1
 
         if a.low_weight != b.low_weight:
-            return a.low_weight < b.low_weight
+            return a.low_weight > b.low_weight
 
         if abs(a.bfs_dist - b.bfs_dist) > 2:  # breaks strict weak ordering
             return a.bfs_dist < b.bfs_dist
@@ -41097,10 +41152,20 @@ class Launcher(Unit):
 
             best_pos = max(scores, key=lambda x: x[0])[1] if scores else None
 
-            print("Plausible place to throw:", best_pos)
 
             if nearby_ally_bot is not None and best_pos is not None and ct.can_launch(nearby_ally_bot, best_pos):
                 # return  # -- disable supportive launchers for now --
+
+                # check the building on nearby_ally_bot's tile and get its entity type
+                ally_bot_building_id = ct.get_tile_building_id(nearby_ally_bot)
+                if ally_bot_building_id is not None:
+                    ally_bot_building_team = ct.get_team(ally_bot_building_id)
+
+
+                    if ally_bot_building_team != my_team \
+                            and ct.get_hp(ally_bot_building_id) < ct.get_max_hp(ally_bot_building_id):
+                        return
+
                 ct.launch(nearby_ally_bot, best_pos)
 
     @classmethod

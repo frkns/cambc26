@@ -121,7 +121,7 @@ env = os.environ.copy()
 # FETCH LADDER + TEAM IDs
 # -------------------------
 print("Fetching ladder...")
-output = run_cmd(["cambc", "ladder", "--limit", "10"], env)
+output = run_cmd(["cambc", "ladder", "--limit", "4"], env)
 ladder = parse_ladder(output)
 
 teams = []
