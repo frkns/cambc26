@@ -19,12 +19,15 @@ from Generated import *
 
 
 class GunnerDirectionInfo:
-    __slots__ = ('direction', 'banned', 'enemy_building_hp', 'enemy_bot_hp', 'has_enemy_turret')
+    __slots__ = ('direction', 'banned', 'enemy_building_hp', 'enemy_bot_hp', 'has_enemy_turret', 'has_core')
 
     @staticmethod
     def is_better_than(a: GunnerDirectionInfo, b: GunnerDirectionInfo) -> bool:
         if a.banned: return False
         if b.banned: return True
+
+        if a.has_core != b.has_core:
+            return a.has_core > b.has_core
 
         if a.has_enemy_turret != b.has_enemy_turret:
             return a.has_enemy_turret > b.has_enemy_turret
@@ -117,6 +120,7 @@ class GunnerDirectionPicker:
         {% set i = loop.index0 %}
 
         info{{ i }}.has_enemy_turret = False
+        info{{ i }}.has_core = False
 
         x, y = spos.x, spos.y
 
@@ -139,11 +143,14 @@ class GunnerDirectionPicker:
                     if ti.entity_type != ROAD:
                         break
                 else:
-                    e_building_hp = ti.building_hp
-                    info{{ i }}.enemy_building_hp += e_building_hp
+                    if ti.entity_type == CORE:
+                        info{{ i }}.has_core = True
+                    else:
+                        e_building_hp = ti.building_hp
+                        info{{ i }}.enemy_building_hp += e_building_hp
 
-                    if ti.has_turret:
-                        info{{ i }}.has_enemy_turret = True
+                        if ti.has_turret:
+                            info{{ i }}.has_enemy_turret = True
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp

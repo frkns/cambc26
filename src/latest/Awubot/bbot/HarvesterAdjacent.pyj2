@@ -221,7 +221,7 @@ class HarvesterAdjacent:
             return None, False
 
         sen_score = (si.enemy_building_hp + bool(si.enemy_turret_hp) * 100) if sen_ok else 0
-        gun_score = (gi.enemy_building_hp * 5 + gi.has_enemy_turret * 200) if gun_ok else 0
+        gun_score = (gi.enemy_building_hp * 5 + gi.has_enemy_turret * 200 + gi.has_core * 1_000_000) if gun_ok else 0
 
         {# /* Debug.log(f'{sen_score=} {gun_score=}') */ #}
 

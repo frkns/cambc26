@@ -162,8 +162,8 @@ class Attacker:
                     ({{ Kind.ALLY_CORE }}, {{ Kind.ALLY_CONSUMER }}):
                 return False  # flowing into ally
 
-            if DarkForest.ax_tagged[idx]:
-                return False
+            {# /* if DarkForest.ax_tagged[idx]: */ #}
+                {# /* return False */ #}
 
             if etype in (EntityType.CONVEYOR, EntityType.BRIDGE):
                 if not DarkForest.sight_flowing[idx] and not DarkForest.flow[idx] > 0:
@@ -171,7 +171,7 @@ class Attacker:
 
 
         hp = ti.building_hp
-        max_hp = Constants.MAX_HP_MAP[ti.entity_type]
+        max_hp = Constants.MAX_HP_MAP[etype]
 
         if 2 * hp <= max_hp:
             {% if LOCAL %}

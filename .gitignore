@@ -17,8 +17,6 @@ tests/*.html
 # !bots/
 # !bots/bot3v4
 
-src/latest/main.py
-
 # # Ignore everything in src (recursive)
 # src/**
 # !src/
@@ -36,7 +34,7 @@ src/latest/Generated/**
 src/latest/main.py    
 
 # new
-bots/latest/main.py  
+# bots/latest/main.py  
 
 # Python compiled files
 __pycache__/

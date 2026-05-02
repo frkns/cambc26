@@ -1,0 +1,11 @@
+{% macro show(obj) %}
+{% if LOCAL -%}
+    print(f"""{{'{'}}{{obj}}={{'}'}}""")
+{%- endif %}
+{% endmacro %}
+
+{% macro print(s) %}
+{% if LOCAL -%}
+    print("""{{ s }}""")
+{%- endif %}
+{% endmacro %}
