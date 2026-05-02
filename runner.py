@@ -95,7 +95,8 @@ def runMatch(a, b, m, verbose=False):
                 titaniumB = int(mined[1])
             break
 
-    safe_print(f"Match complete in {totalTime:.1f}s ({winnerName} ({winner}) wins) [Titanium mined: {a}={titaniumA:,}, {b}={titaniumB:,}, margin={abs(titaniumA-titaniumB):,}]")
+    winnerSide = "A" if winner == "a" else "B"
+    safe_print(f"Match complete in {totalTime:.1f}s ({winnerName} local side {winnerSide} wins) [Titanium mined: {a}={titaniumA:,}, {b}={titaniumB:,}, margin={abs(titaniumA-titaniumB):,}]")
 
     return winner, totalTime, titaniumA, titaniumB
 
@@ -253,9 +254,8 @@ def generateOutput(aWins, bWins, mapValues, aName="?", bName="?"):
     avgTitaniumDiff = abs(totalTitaniumA - totalTitaniumB) / len(mapValues) if mapValues else 0
     avgMatchTime = sum(mv[3] for mv in mapValues) / len(mapValues) if mapValues else 0
 
-    winner = aName if aWins > bWins else bName
-    winnerColor = "#2ecc71" if aWins > bWins else "#e74c3c"
-    loserColor = "#e74c3c" if aWins > bWins else "#2ecc71"
+    aClass = "winner" if aWins > bWins else "loser" if aWins < bWins else "tie"
+    bClass = "winner" if bWins > aWins else "loser" if bWins < aWins else "tie"
 
     u = str(uuid.uuid4())
     if not os.path.exists("tests"):
@@ -318,14 +318,18 @@ f"""
                 box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             }}
             .score-card.winner {{
-                background: {winnerColor};
+                background: #2ecc71;
                 color: white;
                 transform: scale(1.05);
             }}
             .score-card.loser {{
-                background: {loserColor};
+                background: #e74c3c;
                 color: white;
                 opacity: 0.8;
+            }}
+            .score-card.tie {{
+                background: #95a5a6;
+                color: white;
             }}
             .score-card h2 {{
                 font-size: 24px;
@@ -453,12 +457,12 @@ f"""
             </div>
 
             <div class="scoreboard">
-                <div class="score-card winner">
+                <div class="score-card {aClass}">
                     <div class="team-name">{aName}</div>
                     <div class="wins">{aWins}</div>
                     <div class="percentage">{(ap*100):.1f}%</div>
                 </div>
-                <div class="score-card loser">
+                <div class="score-card {bClass}">
                     <div class="team-name">{bName}</div>
                     <div class="wins">{bWins}</div>
                     <div class="percentage">{(bp*100):.1f}%</div>
