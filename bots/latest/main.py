@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-02 17:36:57 (local)
+# latest,  @ 2026-05-02 17:49:32 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -34083,7 +34083,7 @@ class RouteToCore:
     backTracking = False
     pathFindingKill: set[int] = set()
     isAttack = False
-    gunnerBeenHereTick = 0
+    turretBeenHereTick = 0
 
     @classmethod
     def set_pos(cls, pos: Position, fullReset = True):
@@ -34101,7 +34101,7 @@ class RouteToCore:
             cls.backTracking = False
         cls.is_active = True
         cls.from_pos = pos
-        cls.gunnerBeenHereTick = 0
+        cls.turretBeenHereTick = 0
 
 
     @classmethod
@@ -34175,7 +34175,7 @@ class RouteToCore:
         gi = GunnerDirectionPicker.get_best_info(cls.from_pos)
         gun_ok = BuildManager.can_afford_gunner() \
             and not gi.banned \
-            and (gi.has_enemy_turret or gi.enemy_building_hp > 10)
+            and (gi.has_core or gi.has_enemy_turret or gi.enemy_building_hp > 10)
         gun_score = (gi.enemy_building_hp * 5 + gi.has_enemy_turret * 200 + gi.has_core * 1_000_000) if gun_ok else 0
 
         si = SentinelDirectionPicker.get_best_info(cls.from_pos)
@@ -34196,8 +34196,10 @@ class RouteToCore:
                 turretIsGunner = False
 
         if turretPossible:
-            cls.gunnerBeenHereTick += 1
-        if cls.gunnerBeenHereTick > 20:
+            cls.turretBeenHereTick += 1
+        else:
+            cls.turretBeenHereTick = 0
+        if cls.turretBeenHereTick > 20:
             turretPossible = False
 
         if turretPossible and (
