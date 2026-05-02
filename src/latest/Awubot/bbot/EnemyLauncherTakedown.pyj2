@@ -21,10 +21,10 @@ from Generated import *
 # Find the closest buildable position adjacent to an enemy launcher that does
 # not already have an allied launcher next to it.
 #
-# Uses BfsBureau bitmasks: dilate ally_launcher to a 3x3 zone, subtract from
-# enemy_launcher to get targetable enemies, dilate that to get the zone of
-# valid candidate tiles. Then a single bit test per candidate replaces the
-# 8x8 nested adjacency scan.
+# Iterates enemy launcher positions found in current vision and walks each
+# launcher's 8 neighbors as candidates. Avoids whole-board bitmask dilations
+# and the per-candidate big-int shift; cost scales with launcher count
+# (typically 0–2) rather than map area.
 
 class EnemyLauncherTakedown:
     best_position: Position | None = None
@@ -38,25 +38,10 @@ class EnemyLauncherTakedown:
 
 
     @classmethod
-    def get_best_launcher_position(cls, allow_new_target: bool = True) -> Position | None:
-        # Stay near a just-built counter-launcher so it can grab us, OR keep
-        # trying to build at the existing target if we already committed.
-        pp = cls.pending_pos
-        if pp is not None:
-            rounds_elapsed = Globals.round - cls.pending_round
-            if rounds_elapsed > 10 or Globals.my_pos.distance_squared(pp) > 8:
-                cls.pending_pos = None
-            else:
-                ti = Map.tile_info[pp.x][pp.y]
-                if ti is not None and ti.has_building and ti.is_building_ally and ti.entity_type == EntityType.LAUNCHER:
-                    return pp
-                # Launcher not yet built but we've committed; keep going (skip
-                # the caller's gate — we're mid-build).
-                allow_new_target = True
-
-        if not allow_new_target:
-            return None
-
+    def get_best_launcher_position(cls) -> Position | None:
+        """Best fresh build target adjacent to an undefended enemy launcher,
+        or None. Does NOT handle stickiness — see get_stick_position for that.
+        """
         if not BuildManager.can_afford_launcher():
             return None
 
@@ -74,12 +59,34 @@ class EnemyLauncherTakedown:
 
 
     @classmethod
+    def get_stick_position(cls) -> Position | None:
+        """If we previously dispatched and the counter-launcher is now up at
+        pending_pos, return that pos so the bot stays adjacent to be launched.
+        Auto-clears pending_pos on timeout (10 rounds) or after we've been
+        launched far away. Returns None when no launcher exists yet at the
+        pending pos (the mid-build path is handled separately by the caller).
+        """
+        pp = cls.pending_pos
+        if pp is None:
+            return None
+
+        if Globals.round - cls.pending_round > 10 or Globals.my_pos.distance_squared(pp) > 8:
+            cls.pending_pos = None
+            return None
+
+        ti = Map.tile_info[pp.x][pp.y]
+        if ti is None or not ti.has_building or not ti.is_building_ally or ti.entity_type != EntityType.LAUNCHER:
+            # Launcher destroyed or never existed — give up.
+            cls.pending_pos = None
+            return None
+
+        return pp
+
+
+    @classmethod
     def mark_dispatched(cls, pos: Position):
-        # Only set on initial dispatch — don't refresh pending_round on
-        # subsequent ticks, so the 10-round timeout actually fires if stuck.
-        if cls.pending_pos is None:
-            cls.pending_pos = pos
-            cls.pending_round = Globals.round
+        cls.pending_pos = pos
+        cls.pending_round = Globals.round
 
 
     @classmethod
@@ -87,67 +94,87 @@ class EnemyLauncherTakedown:
         cls.best_position = None
         cls._best_bfs = 100
 
-        el = BfsBureau.enemy_launcher
-        if not el:
+        # Fast-path early-out: if no enemy launcher is known anywhere on the
+        # board, skip the proc_nearby_tiles scan entirely. The bitmask is
+        # maintained incrementally by Map.add/remove_enemy_launcher.
+        if not BfsBureau.enemy_launcher:
             return
 
-        stride = BfsBureau.STRIDE
-        board_mask = BfsBureau.board_mask
-        al = BfsBureau.ally_launcher
+        LAUNCHER = EntityType.LAUNCHER
+        ROAD = EntityType.ROAD
+        WALL = Environment.WALL
 
-        if al:
-            al_wide = (al | (al << 1) | (al >> 1)) & board_mask
-            al_3x3  = (al_wide | (al_wide << stride) | (al_wide >> stride)) & board_mask
-            targetable = el & ~al_3x3
-        else:
-            targetable = el
-
-        if not targetable:
-            return
-
-        t_wide = (targetable | (targetable << 1) | (targetable >> 1)) & board_mask
-        zone   = (t_wide | (t_wide << stride) | (t_wide >> stride)) & board_mask
-
+        tile_info = Map.tile_info
         bfs_dist_adj = BfsBureau.bfs20_dist_adj
         ecx, ecy = Symmetry.enemy_core_pos.x, Symmetry.enemy_core_pos.y
+        my_pos = Globals.my_pos
+        mx, my = my_pos.x, my_pos.y
+        map_w = Map.W
+        map_h = Map.H
+
         is_routing = Builder.is_routing_active
-        route_from_pos = Builder.route_from_pos if is_routing else None
+        if is_routing:
+            _rfp = Builder.route_from_pos
+            rfx, rfy = _rfp.x, _rfp.y
+        else:
+            rfx, rfy = -1, -1
+
+        # Pass 1: collect enemy launcher positions in current vision.
+        enemy_launchers = []
+        for _pos, _x, _y, _idx, _ti in Map.proc_nearby_tiles:
+            if _ti.has_building and not _ti.is_building_ally and _ti.entity_type == LAUNCHER:
+                enemy_launchers.append((_x, _y))
+
+        if not enemy_launchers:
+            return
 
         best_bfs = 100
         best_dist_core = 0
         best_pos = None
 
-        for pos, x, y, idx, ti in Map.inner_proc_nearby_tiles:
-            if not ((zone >> (x * stride + y)) & 1):
+        # Pass 2: for each enemy launcher, skip if any 8-neighbor is an ally
+        # launcher; otherwise walk 8 neighbors as candidate build positions.
+        for elx, ely in enemy_launchers:
+            has_ally_adj = False
+            {% for dir in directions if dir != Direction.CENTRE %}
+            {% set dx, dy = dir.delta() %}
+            if not has_ally_adj:
+                _nx = elx + ({{ dx }})
+                _ny = ely + ({{ dy }})
+                if 0 <= _nx < map_w and 0 <= _ny < map_h:
+                    _nti = tile_info[_nx][_ny]
+                    if _nti is not None and _nti.has_building and _nti.is_building_ally and _nti.entity_type == LAUNCHER:
+                        has_ally_adj = True
+            {% endfor %}
+            if has_ally_adj:
                 continue
 
-            if ti.env == Environment.WALL:
-                continue
-
-            if ti.has_bot:
-                continue
-
-            if ti.has_building:
-                if not ti.is_building_ally:
-                    continue
-                if ti.entity_type != EntityType.ROAD:
-                    continue
-
-            if is_routing and pos == route_from_pos:
-                continue
-
-            d = bfs_dist_adj[idx]
-            if d > best_bfs:
-                continue
-
-            dx = x - ecx
-            dy = y - ecy
-            dc = dx * dx + dy * dy
-
-            if d < best_bfs or dc < best_dist_core:
-                best_bfs = d
-                best_dist_core = dc
-                best_pos = pos
+            {% for dir in directions if dir != Direction.CENTRE %}
+            {% set dx, dy = dir.delta() %}
+            cx = elx + ({{ dx }})
+            cy = ely + ({{ dy }})
+            if 0 <= cx < map_w and 0 <= cy < map_h:
+                _dxm = cx - mx
+                _dym = cy - my
+                if _dxm * _dxm + _dym * _dym <= 10:
+                    cti = tile_info[cx][cy]
+                    if (
+                        cti is not None
+                        and cti.env != WALL
+                        and not cti.has_bot
+                        and (not cti.has_building or (cti.is_building_ally and cti.entity_type == ROAD))
+                        and not (is_routing and cx == rfx and cy == rfy)
+                    ):
+                        d = bfs_dist_adj[{{ encode_pos('cx', 'cy') }}]
+                        if d <= best_bfs:
+                            _dxe = cx - ecx
+                            _dye = cy - ecy
+                            dc = _dxe * _dxe + _dye * _dye
+                            if d < best_bfs or dc < best_dist_core:
+                                best_bfs = d
+                                best_dist_core = dc
+                                best_pos = Position(cx, cy)
+            {% endfor %}
 
         cls.best_position = best_pos
         cls._best_bfs = best_bfs

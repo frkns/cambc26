@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-02 14:48:35 (local)
+# latest,  @ 2026-05-02 18:14:28 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -27416,25 +27416,10 @@ class EnemyLauncherTakedown:
 
 
     @classmethod
-    def get_best_launcher_position(cls, allow_new_target: bool = True) -> Position | None:
-        # Stay near a just-built counter-launcher so it can grab us, OR keep
-        # trying to build at the existing target if we already committed.
-        pp = cls.pending_pos
-        if pp is not None:
-            rounds_elapsed = Globals.round - cls.pending_round
-            if rounds_elapsed > 10 or Globals.my_pos.distance_squared(pp) > 8:
-                cls.pending_pos = None
-            else:
-                ti = Map.tile_info[pp.x][pp.y]
-                if ti is not None and ti.has_building and ti.is_building_ally and ti.entity_type == EntityType.LAUNCHER:
-                    return pp
-                # Launcher not yet built but we've committed; keep going (skip
-                # the caller's gate — we're mid-build).
-                allow_new_target = True
-
-        if not allow_new_target:
-            return None
-
+    def get_best_launcher_position(cls) -> Position | None:
+        """Best fresh build target adjacent to an undefended enemy launcher,
+        or None. Does NOT handle stickiness — see get_stick_position for that.
+        """
         if not BuildManager.can_afford_launcher():
             return None
 
@@ -27452,12 +27437,34 @@ class EnemyLauncherTakedown:
 
 
     @classmethod
+    def get_stick_position(cls) -> Position | None:
+        """If we previously dispatched and the counter-launcher is now up at
+        pending_pos, return that pos so the bot stays adjacent to be launched.
+        Auto-clears pending_pos on timeout (10 rounds) or after we've been
+        launched far away. Returns None when no launcher exists yet at the
+        pending pos (the mid-build path is handled separately by the caller).
+        """
+        pp = cls.pending_pos
+        if pp is None:
+            return None
+
+        if Globals.round - cls.pending_round > 10 or Globals.my_pos.distance_squared(pp) > 8:
+            cls.pending_pos = None
+            return None
+
+        ti = Map.tile_info[pp.x][pp.y]
+        if ti is None or not ti.has_building or not ti.is_building_ally or ti.entity_type != EntityType.LAUNCHER:
+            # Launcher destroyed or never existed — give up.
+            cls.pending_pos = None
+            return None
+
+        return pp
+
+
+    @classmethod
     def mark_dispatched(cls, pos: Position):
-        # Only set on initial dispatch — don't refresh pending_round on
-        # subsequent ticks, so the 10-round timeout actually fires if stuck.
-        if cls.pending_pos is None:
-            cls.pending_pos = pos
-            cls.pending_round = Globals.round
+        cls.pending_pos = pos
+        cls.pending_round = Globals.round
 
 
     @classmethod
@@ -27465,67 +27472,291 @@ class EnemyLauncherTakedown:
         cls.best_position = None
         cls._best_bfs = 100
 
-        el = BfsBureau.enemy_launcher
-        if not el:
+        # Fast-path early-out: if no enemy launcher is known anywhere on the
+        # board, skip the proc_nearby_tiles scan entirely. The bitmask is
+        # maintained incrementally by Map.add/remove_enemy_launcher.
+        if not BfsBureau.enemy_launcher:
             return
 
-        stride = BfsBureau.STRIDE
-        board_mask = BfsBureau.board_mask
-        al = BfsBureau.ally_launcher
+        LAUNCHER = EntityType.LAUNCHER
+        ROAD = EntityType.ROAD
+        WALL = Environment.WALL
 
-        if al:
-            al_wide = (al | (al << 1) | (al >> 1)) & board_mask
-            al_3x3  = (al_wide | (al_wide << stride) | (al_wide >> stride)) & board_mask
-            targetable = el & ~al_3x3
-        else:
-            targetable = el
-
-        if not targetable:
-            return
-
-        t_wide = (targetable | (targetable << 1) | (targetable >> 1)) & board_mask
-        zone   = (t_wide | (t_wide << stride) | (t_wide >> stride)) & board_mask
-
+        tile_info = Map.tile_info
         bfs_dist_adj = BfsBureau.bfs20_dist_adj
         ecx, ecy = Symmetry.enemy_core_pos.x, Symmetry.enemy_core_pos.y
+        my_pos = Globals.my_pos
+        mx, my = my_pos.x, my_pos.y
+        map_w = Map.W
+        map_h = Map.H
+
         is_routing = Builder.is_routing_active
-        route_from_pos = Builder.route_from_pos if is_routing else None
+        if is_routing:
+            _rfp = Builder.route_from_pos
+            rfx, rfy = _rfp.x, _rfp.y
+        else:
+            rfx, rfy = -1, -1
+
+        # Pass 1: collect enemy launcher positions in current vision.
+        enemy_launchers = []
+        for _pos, _x, _y, _idx, _ti in Map.proc_nearby_tiles:
+            if _ti.has_building and not _ti.is_building_ally and _ti.entity_type == LAUNCHER:
+                enemy_launchers.append((_x, _y))
+
+        if not enemy_launchers:
+            return
 
         best_bfs = 100
         best_dist_core = 0
         best_pos = None
 
-        for pos, x, y, idx, ti in Map.inner_proc_nearby_tiles:
-            if not ((zone >> (x * stride + y)) & 1):
+        # Pass 2: for each enemy launcher, skip if any 8-neighbor is an ally
+        # launcher; otherwise walk 8 neighbors as candidate build positions.
+        for elx, ely in enemy_launchers:
+            has_ally_adj = False
+            if not has_ally_adj:
+                _nx = elx + (0)
+                _ny = ely + (-1)
+                if 0 <= _nx < map_w and 0 <= _ny < map_h:
+                    _nti = tile_info[_nx][_ny]
+                    if _nti is not None and _nti.has_building and _nti.is_building_ally and _nti.entity_type == LAUNCHER:
+                        has_ally_adj = True
+            if not has_ally_adj:
+                _nx = elx + (1)
+                _ny = ely + (-1)
+                if 0 <= _nx < map_w and 0 <= _ny < map_h:
+                    _nti = tile_info[_nx][_ny]
+                    if _nti is not None and _nti.has_building and _nti.is_building_ally and _nti.entity_type == LAUNCHER:
+                        has_ally_adj = True
+            if not has_ally_adj:
+                _nx = elx + (1)
+                _ny = ely + (0)
+                if 0 <= _nx < map_w and 0 <= _ny < map_h:
+                    _nti = tile_info[_nx][_ny]
+                    if _nti is not None and _nti.has_building and _nti.is_building_ally and _nti.entity_type == LAUNCHER:
+                        has_ally_adj = True
+            if not has_ally_adj:
+                _nx = elx + (1)
+                _ny = ely + (1)
+                if 0 <= _nx < map_w and 0 <= _ny < map_h:
+                    _nti = tile_info[_nx][_ny]
+                    if _nti is not None and _nti.has_building and _nti.is_building_ally and _nti.entity_type == LAUNCHER:
+                        has_ally_adj = True
+            if not has_ally_adj:
+                _nx = elx + (0)
+                _ny = ely + (1)
+                if 0 <= _nx < map_w and 0 <= _ny < map_h:
+                    _nti = tile_info[_nx][_ny]
+                    if _nti is not None and _nti.has_building and _nti.is_building_ally and _nti.entity_type == LAUNCHER:
+                        has_ally_adj = True
+            if not has_ally_adj:
+                _nx = elx + (-1)
+                _ny = ely + (1)
+                if 0 <= _nx < map_w and 0 <= _ny < map_h:
+                    _nti = tile_info[_nx][_ny]
+                    if _nti is not None and _nti.has_building and _nti.is_building_ally and _nti.entity_type == LAUNCHER:
+                        has_ally_adj = True
+            if not has_ally_adj:
+                _nx = elx + (-1)
+                _ny = ely + (0)
+                if 0 <= _nx < map_w and 0 <= _ny < map_h:
+                    _nti = tile_info[_nx][_ny]
+                    if _nti is not None and _nti.has_building and _nti.is_building_ally and _nti.entity_type == LAUNCHER:
+                        has_ally_adj = True
+            if not has_ally_adj:
+                _nx = elx + (-1)
+                _ny = ely + (-1)
+                if 0 <= _nx < map_w and 0 <= _ny < map_h:
+                    _nti = tile_info[_nx][_ny]
+                    if _nti is not None and _nti.has_building and _nti.is_building_ally and _nti.entity_type == LAUNCHER:
+                        has_ally_adj = True
+            if has_ally_adj:
                 continue
 
-            if ti.env == Environment.WALL:
-                continue
-
-            if ti.has_bot:
-                continue
-
-            if ti.has_building:
-                if not ti.is_building_ally:
-                    continue
-                if ti.entity_type != EntityType.ROAD:
-                    continue
-
-            if is_routing and pos == route_from_pos:
-                continue
-
-            d = bfs_dist_adj[idx]
-            if d > best_bfs:
-                continue
-
-            dx = x - ecx
-            dy = y - ecy
-            dc = dx * dx + dy * dy
-
-            if d < best_bfs or dc < best_dist_core:
-                best_bfs = d
-                best_dist_core = dc
-                best_pos = pos
+            cx = elx + (0)
+            cy = ely + (-1)
+            if 0 <= cx < map_w and 0 <= cy < map_h:
+                _dxm = cx - mx
+                _dym = cy - my
+                if _dxm * _dxm + _dym * _dym <= 10:
+                    cti = tile_info[cx][cy]
+                    if (
+                        cti is not None
+                        and cti.env != WALL
+                        and not cti.has_bot
+                        and (not cti.has_building or (cti.is_building_ally and cti.entity_type == ROAD))
+                        and not (is_routing and cx == rfx and cy == rfy)
+                    ):
+                        d = bfs_dist_adj[(((cx) + 3) * 56 + ((cy) + 3))]
+                        if d <= best_bfs:
+                            _dxe = cx - ecx
+                            _dye = cy - ecy
+                            dc = _dxe * _dxe + _dye * _dye
+                            if d < best_bfs or dc < best_dist_core:
+                                best_bfs = d
+                                best_dist_core = dc
+                                best_pos = Position(cx, cy)
+            cx = elx + (1)
+            cy = ely + (-1)
+            if 0 <= cx < map_w and 0 <= cy < map_h:
+                _dxm = cx - mx
+                _dym = cy - my
+                if _dxm * _dxm + _dym * _dym <= 10:
+                    cti = tile_info[cx][cy]
+                    if (
+                        cti is not None
+                        and cti.env != WALL
+                        and not cti.has_bot
+                        and (not cti.has_building or (cti.is_building_ally and cti.entity_type == ROAD))
+                        and not (is_routing and cx == rfx and cy == rfy)
+                    ):
+                        d = bfs_dist_adj[(((cx) + 3) * 56 + ((cy) + 3))]
+                        if d <= best_bfs:
+                            _dxe = cx - ecx
+                            _dye = cy - ecy
+                            dc = _dxe * _dxe + _dye * _dye
+                            if d < best_bfs or dc < best_dist_core:
+                                best_bfs = d
+                                best_dist_core = dc
+                                best_pos = Position(cx, cy)
+            cx = elx + (1)
+            cy = ely + (0)
+            if 0 <= cx < map_w and 0 <= cy < map_h:
+                _dxm = cx - mx
+                _dym = cy - my
+                if _dxm * _dxm + _dym * _dym <= 10:
+                    cti = tile_info[cx][cy]
+                    if (
+                        cti is not None
+                        and cti.env != WALL
+                        and not cti.has_bot
+                        and (not cti.has_building or (cti.is_building_ally and cti.entity_type == ROAD))
+                        and not (is_routing and cx == rfx and cy == rfy)
+                    ):
+                        d = bfs_dist_adj[(((cx) + 3) * 56 + ((cy) + 3))]
+                        if d <= best_bfs:
+                            _dxe = cx - ecx
+                            _dye = cy - ecy
+                            dc = _dxe * _dxe + _dye * _dye
+                            if d < best_bfs or dc < best_dist_core:
+                                best_bfs = d
+                                best_dist_core = dc
+                                best_pos = Position(cx, cy)
+            cx = elx + (1)
+            cy = ely + (1)
+            if 0 <= cx < map_w and 0 <= cy < map_h:
+                _dxm = cx - mx
+                _dym = cy - my
+                if _dxm * _dxm + _dym * _dym <= 10:
+                    cti = tile_info[cx][cy]
+                    if (
+                        cti is not None
+                        and cti.env != WALL
+                        and not cti.has_bot
+                        and (not cti.has_building or (cti.is_building_ally and cti.entity_type == ROAD))
+                        and not (is_routing and cx == rfx and cy == rfy)
+                    ):
+                        d = bfs_dist_adj[(((cx) + 3) * 56 + ((cy) + 3))]
+                        if d <= best_bfs:
+                            _dxe = cx - ecx
+                            _dye = cy - ecy
+                            dc = _dxe * _dxe + _dye * _dye
+                            if d < best_bfs or dc < best_dist_core:
+                                best_bfs = d
+                                best_dist_core = dc
+                                best_pos = Position(cx, cy)
+            cx = elx + (0)
+            cy = ely + (1)
+            if 0 <= cx < map_w and 0 <= cy < map_h:
+                _dxm = cx - mx
+                _dym = cy - my
+                if _dxm * _dxm + _dym * _dym <= 10:
+                    cti = tile_info[cx][cy]
+                    if (
+                        cti is not None
+                        and cti.env != WALL
+                        and not cti.has_bot
+                        and (not cti.has_building or (cti.is_building_ally and cti.entity_type == ROAD))
+                        and not (is_routing and cx == rfx and cy == rfy)
+                    ):
+                        d = bfs_dist_adj[(((cx) + 3) * 56 + ((cy) + 3))]
+                        if d <= best_bfs:
+                            _dxe = cx - ecx
+                            _dye = cy - ecy
+                            dc = _dxe * _dxe + _dye * _dye
+                            if d < best_bfs or dc < best_dist_core:
+                                best_bfs = d
+                                best_dist_core = dc
+                                best_pos = Position(cx, cy)
+            cx = elx + (-1)
+            cy = ely + (1)
+            if 0 <= cx < map_w and 0 <= cy < map_h:
+                _dxm = cx - mx
+                _dym = cy - my
+                if _dxm * _dxm + _dym * _dym <= 10:
+                    cti = tile_info[cx][cy]
+                    if (
+                        cti is not None
+                        and cti.env != WALL
+                        and not cti.has_bot
+                        and (not cti.has_building or (cti.is_building_ally and cti.entity_type == ROAD))
+                        and not (is_routing and cx == rfx and cy == rfy)
+                    ):
+                        d = bfs_dist_adj[(((cx) + 3) * 56 + ((cy) + 3))]
+                        if d <= best_bfs:
+                            _dxe = cx - ecx
+                            _dye = cy - ecy
+                            dc = _dxe * _dxe + _dye * _dye
+                            if d < best_bfs or dc < best_dist_core:
+                                best_bfs = d
+                                best_dist_core = dc
+                                best_pos = Position(cx, cy)
+            cx = elx + (-1)
+            cy = ely + (0)
+            if 0 <= cx < map_w and 0 <= cy < map_h:
+                _dxm = cx - mx
+                _dym = cy - my
+                if _dxm * _dxm + _dym * _dym <= 10:
+                    cti = tile_info[cx][cy]
+                    if (
+                        cti is not None
+                        and cti.env != WALL
+                        and not cti.has_bot
+                        and (not cti.has_building or (cti.is_building_ally and cti.entity_type == ROAD))
+                        and not (is_routing and cx == rfx and cy == rfy)
+                    ):
+                        d = bfs_dist_adj[(((cx) + 3) * 56 + ((cy) + 3))]
+                        if d <= best_bfs:
+                            _dxe = cx - ecx
+                            _dye = cy - ecy
+                            dc = _dxe * _dxe + _dye * _dye
+                            if d < best_bfs or dc < best_dist_core:
+                                best_bfs = d
+                                best_dist_core = dc
+                                best_pos = Position(cx, cy)
+            cx = elx + (-1)
+            cy = ely + (-1)
+            if 0 <= cx < map_w and 0 <= cy < map_h:
+                _dxm = cx - mx
+                _dym = cy - my
+                if _dxm * _dxm + _dym * _dym <= 10:
+                    cti = tile_info[cx][cy]
+                    if (
+                        cti is not None
+                        and cti.env != WALL
+                        and not cti.has_bot
+                        and (not cti.has_building or (cti.is_building_ally and cti.entity_type == ROAD))
+                        and not (is_routing and cx == rfx and cy == rfy)
+                    ):
+                        d = bfs_dist_adj[(((cx) + 3) * 56 + ((cy) + 3))]
+                        if d <= best_bfs:
+                            _dxe = cx - ecx
+                            _dye = cy - ecy
+                            dc = _dxe * _dxe + _dye * _dye
+                            if d < best_bfs or dc < best_dist_core:
+                                best_bfs = d
+                                best_dist_core = dc
+                                best_pos = Position(cx, cy)
 
         cls.best_position = best_pos
         cls._best_bfs = best_bfs
@@ -39294,11 +39525,13 @@ class StateBuildHarvesterAx:
 
 class StateBuildLauncher:
     @classmethod
-    def run(cls, pos):
+    def run(cls, pos, for_takedown=False):
         Pathfinder.move_to(pos, ban_target_pos=True)
-        
-        if BuildManager.can_dbuild_launcher(pos):            
+
+        if BuildManager.can_dbuild_launcher(pos):
             BuildManager.dbuild_launcher(pos)
+            if for_takedown:
+                EnemyLauncherTakedown.mark_dispatched(pos)
             return
 
 
@@ -40588,25 +40821,6 @@ class Builder(Unit):
 
         misinfo: TransporterInfo = VisionTracker.get_best_misrouted_target()
 
-        # Gate for initiating an EnemyLauncherTakedown: only allowed when a
-        # heal candidate or misrouted transporter we'd otherwise pursue is
-        # currently unreachable. HealTargeter.get_best_target_info and
-        # VisionTracker.get_best_misrouted_target both return None when their
-        # best candidate is unreachable, so we inspect the unfiltered
-        # candidate lists directly. Once committed (pending_pos set), the
-        # build/stickiness continues regardless of this gate.
-        enemylauncher_allow_new = False
-        if EnemyLauncherTakedown.pending_pos is None:
-            for _t in HealTargeter.targets:
-                if _t.bfs_dist_adj >= 8 and not _t.is_launcher and (_t.building_heal + _t.bot_heal) > 0:
-                    enemylauncher_allow_new = True
-                    break
-            if not enemylauncher_allow_new:
-                for _t in VisionTracker.misrouted_transporters:
-                    if not _t.easily_reachable_adj:
-                        enemylauncher_allow_new = True
-                        break
-
         # now changed to sentinel/gunner pos near enemy?
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
 
@@ -40637,11 +40851,41 @@ class Builder(Unit):
             Debug.dot(sitterpos, Color.PURPLE)
             return 'BuildLauncher', sitterpos
 
-        enemylauncherpos = EnemyLauncherTakedown.get_best_launcher_position(allow_new_target=enemylauncher_allow_new)
-        if enemylauncherpos is not None:
-            Debug.dot(enemylauncherpos, Color.RED)
-            EnemyLauncherTakedown.mark_dispatched(enemylauncherpos)
-            return 'BuildLauncher', enemylauncherpos
+        # Stickiness: stay adjacent to the just-built counter-launcher so it
+        # can launch us. Highest-priority once the launcher is up — we don't
+        # want to wander off while the launcher waits its turn to fire.
+        stickpos = EnemyLauncherTakedown.get_stick_position()
+        if stickpos is not None:
+            Debug.dot(stickpos, Color.RED)
+            return 'BuildLauncher', stickpos
+
+        # Initial build (gated). pending_pos is set only by StateBuildLauncher
+        # after a successful dbuild — so if it's already set, stickiness above
+        # would have fired (or just cleared on launcher death / timeout). No
+        # need for a separate mid-build continuation branch: as long as the
+        # gate stays True across walk-and-cooldown turns, this branch keeps
+        # firing until the build lands and pending_pos becomes truthy.
+        #
+        # Gate is computed lazily here (only when fill() actually produced a
+        # candidate) to avoid the heal/misroute loop work on the common
+        # no-launcher turn.
+        if EnemyLauncherTakedown.best_position is not None:
+            enemylauncher_allow_new = False
+            for _t in HealTargeter.targets:
+                if _t.bfs_dist_adj >= 8 and not _t.is_launcher and (_t.building_heal + _t.bot_heal) > 0:
+                    enemylauncher_allow_new = True
+                    break
+            if not enemylauncher_allow_new:
+                for _t in VisionTracker.misrouted_transporters:
+                    if not _t.easily_reachable_adj:
+                        enemylauncher_allow_new = True
+                        break
+
+            if enemylauncher_allow_new:
+                enemylauncherpos = EnemyLauncherTakedown.get_best_launcher_position()
+                if enemylauncherpos is not None:
+                    Debug.dot(enemylauncherpos, Color.RED)
+                    return 'BuildLauncher', enemylauncherpos, True
 
         if healpos is not None and misinfo is None:
             return 'MoveTo', healpos, 'Heal'

@@ -209,25 +209,6 @@ class Builder({{ super() }}):
 
         misinfo: TransporterInfo = VisionTracker.get_best_misrouted_target()
 
-        # Gate for initiating an EnemyLauncherTakedown: only allowed when a
-        # heal candidate or misrouted transporter we'd otherwise pursue is
-        # currently unreachable. HealTargeter.get_best_target_info and
-        # VisionTracker.get_best_misrouted_target both return None when their
-        # best candidate is unreachable, so we inspect the unfiltered
-        # candidate lists directly. Once committed (pending_pos set), the
-        # build/stickiness continues regardless of this gate.
-        enemylauncher_allow_new = False
-        if EnemyLauncherTakedown.pending_pos is None:
-            for _t in HealTargeter.targets:
-                if _t.bfs_dist_adj >= 8 and not _t.is_launcher and (_t.building_heal + _t.bot_heal) > 0:
-                    enemylauncher_allow_new = True
-                    break
-            if not enemylauncher_allow_new:
-                for _t in VisionTracker.misrouted_transporters:
-                    if not _t.easily_reachable_adj:
-                        enemylauncher_allow_new = True
-                        break
-
         # now changed to sentinel/gunner pos near enemy?
         sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
 
@@ -264,11 +245,41 @@ class Builder({{ super() }}):
             Debug.dot(sitterpos, Color.PURPLE)
             return 'BuildLauncher', sitterpos
 
-        enemylauncherpos = EnemyLauncherTakedown.get_best_launcher_position(allow_new_target=enemylauncher_allow_new)
-        if enemylauncherpos is not None:
-            Debug.dot(enemylauncherpos, Color.RED)
-            EnemyLauncherTakedown.mark_dispatched(enemylauncherpos)
-            return 'BuildLauncher', enemylauncherpos
+        # Stickiness: stay adjacent to the just-built counter-launcher so it
+        # can launch us. Highest-priority once the launcher is up — we don't
+        # want to wander off while the launcher waits its turn to fire.
+        stickpos = EnemyLauncherTakedown.get_stick_position()
+        if stickpos is not None:
+            Debug.dot(stickpos, Color.RED)
+            return 'BuildLauncher', stickpos
+
+        # Initial build (gated). pending_pos is set only by StateBuildLauncher
+        # after a successful dbuild — so if it's already set, stickiness above
+        # would have fired (or just cleared on launcher death / timeout). No
+        # need for a separate mid-build continuation branch: as long as the
+        # gate stays True across walk-and-cooldown turns, this branch keeps
+        # firing until the build lands and pending_pos becomes truthy.
+        #
+        # Gate is computed lazily here (only when fill() actually produced a
+        # candidate) to avoid the heal/misroute loop work on the common
+        # no-launcher turn.
+        if EnemyLauncherTakedown.best_position is not None:
+            enemylauncher_allow_new = False
+            for _t in HealTargeter.targets:
+                if _t.bfs_dist_adj >= 8 and not _t.is_launcher and (_t.building_heal + _t.bot_heal) > 0:
+                    enemylauncher_allow_new = True
+                    break
+            if not enemylauncher_allow_new:
+                for _t in VisionTracker.misrouted_transporters:
+                    if not _t.easily_reachable_adj:
+                        enemylauncher_allow_new = True
+                        break
+
+            if enemylauncher_allow_new:
+                enemylauncherpos = EnemyLauncherTakedown.get_best_launcher_position()
+                if enemylauncherpos is not None:
+                    Debug.dot(enemylauncherpos, Color.RED)
+                    return 'BuildLauncher', enemylauncherpos, True
 
         if healpos is not None and misinfo is None:
             return 'MoveTo', healpos, 'Heal'

@@ -213,11 +213,13 @@ class StateBuildGunner:
 
 class StateBuildLauncher:
     @classmethod
-    def run(cls, pos):
+    def run(cls, pos, for_takedown=False):
         Pathfinder.move_to(pos, ban_target_pos=True)
-        
-        if BuildManager.can_dbuild_launcher(pos):            
+
+        if BuildManager.can_dbuild_launcher(pos):
             BuildManager.dbuild_launcher(pos)
+            if for_takedown:
+                EnemyLauncherTakedown.mark_dispatched(pos)
             return
 
 class StateNoOp:
