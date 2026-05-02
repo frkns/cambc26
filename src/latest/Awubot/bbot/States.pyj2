@@ -224,7 +224,8 @@ class StateBuildAdvancedShield:
         {% set dx, dy = dir.delta() %}
         {% set nx %}x {{ sign0(dx) }}{% endset %}
         {% set ny %}y {{ sign0(dy) }}{% endset %}
-        if tile_info[{{ nx }}][{{ ny }}].entity_type == GUNNER:
+        ti = tile_info[{{ nx }}][{{ ny }}]
+        if ti is not None and ti.entity_type == GUNNER:
             ally_gunners_adjacent += 1
         {% endfor %}
 
