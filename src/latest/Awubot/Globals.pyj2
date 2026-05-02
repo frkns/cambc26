@@ -30,6 +30,8 @@ class Globals:
     round: int
     my_pos: Position
     my_idx: int
+    pos_history: deque[Position] = deque(maxlen=10)
+    toggling: bool = False
 
     @classmethod
     def init(cls, ct: Controller):
@@ -47,4 +49,9 @@ class Globals:
         cls.round = cls.ct.get_current_round()
         cls.my_pos = cls.ct.get_position()
         cls.my_idx = {{ encode_pos('cls.my_pos.x', 'cls.my_pos.y') }}
+        if len(cls.pos_history) >= 2 and cls.my_pos == cls.pos_history[-2]:
+            cls.toggling = True
+        else:
+            cls.toggling = False
+        cls.pos_history.append(cls.my_pos)
 

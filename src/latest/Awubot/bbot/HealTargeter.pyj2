@@ -59,12 +59,19 @@ class HealTargetInfo:
 
         if ahp != bhp:
             return ahp < bhp
-    
-        if a.has_enemy_bot != b.has_enemy_bot:
-            return a.has_enemy_bot > b.has_enemy_bot
+        
+        if Globals.toggling:
+            if adist != bdist:
+                return adist < bdist
 
-        if adist != bdist:
-            return adist < bdist
+            if a.has_enemy_bot != b.has_enemy_bot:
+                return a.has_enemy_bot > b.has_enemy_bot
+        else:
+            if a.has_enemy_bot != b.has_enemy_bot:
+                return a.has_enemy_bot > b.has_enemy_bot
+
+            if adist != bdist:
+                return adist < bdist
 
         if a.bot_heal != b.bot_heal:
             return a.bot_heal > b.bot_heal

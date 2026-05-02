@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-02 14:05:46 (local)
+# latest,  @ 2026-05-02 14:48:35 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -27958,6 +27958,8 @@ class Globals:
     round: int
     my_pos: Position
     my_idx: int
+    pos_history: deque[Position] = deque(maxlen=10)
+    toggling: bool = False
 
     @classmethod
     def init(cls, ct: Controller):
@@ -27975,6 +27977,11 @@ class Globals:
         cls.round = cls.ct.get_current_round()
         cls.my_pos = cls.ct.get_position()
         cls.my_idx = (((cls.my_pos.x) + 3) * 56 + ((cls.my_pos.y) + 3))
+        if len(cls.pos_history) >= 2 and cls.my_pos == cls.pos_history[-2]:
+            cls.toggling = True
+        else:
+            cls.toggling = False
+        cls.pos_history.append(cls.my_pos)
 
 
 # ============================================================
@@ -30679,12 +30686,19 @@ class HealTargetInfo:
 
         if ahp != bhp:
             return ahp < bhp
-    
-        if a.has_enemy_bot != b.has_enemy_bot:
-            return a.has_enemy_bot > b.has_enemy_bot
+        
+        if Globals.toggling:
+            if adist != bdist:
+                return adist < bdist
 
-        if adist != bdist:
-            return adist < bdist
+            if a.has_enemy_bot != b.has_enemy_bot:
+                return a.has_enemy_bot > b.has_enemy_bot
+        else:
+            if a.has_enemy_bot != b.has_enemy_bot:
+                return a.has_enemy_bot > b.has_enemy_bot
+
+            if adist != bdist:
+                return adist < bdist
 
         if a.bot_heal != b.bot_heal:
             return a.bot_heal > b.bot_heal
