@@ -153,5 +153,5 @@ for i in range(1000):
         print(f"  Running unrated vs {team} (rank {rank}, id {tid})")
         output = run_cmd(["cambc", "match", "unrated", tid], env)
         print(output)
-        sleep(60 * 21)
+        sleep(61 * 2)
 
