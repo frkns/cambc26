@@ -80,7 +80,7 @@ class Explore:
             dx, dy = random.choice([(dx, dy) for dx in range(-5, 5) for dy in range(-5, 5) if abs(dx) > 1 or abs(dy) > 1])
             return Position(max(0, min(pos.x + dx, Map.maxX)), max(0, min(pos.y + dy, Map.maxY)))
         else:
-            return Util.rand_pos()
+            return Util.rand_ring_pos(Globals.my_pos, max(Map.W, Map.H) // 2)
             # mx, my = Globals.my_pos.x, Globals.my_pos.y
             # r = max(Map.W, Map.H) / 2
             # theta = random.uniform(0, 2 * math.pi)

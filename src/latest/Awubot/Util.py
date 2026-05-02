@@ -21,6 +21,16 @@ class Util:
     @staticmethod
     def rand_pos() -> Position:
         return Position(random.randrange(Map.W), random.randrange(Map.H))
+    
+    @staticmethod
+    def rand_ring_pos(center: Position, radius: int) -> Position:
+        angle = random.uniform(0, 2 * math.pi)
+        x = center.x + round(radius * math.cos(angle))
+        y = center.y + round(radius * math.sin(angle))
+        # Clamp x and y to map bounds
+        x = max(0, min(Map.W - 1, x))
+        y = max(0, min(Map.H - 1, y))
+        return Position(x, y)
 
     @staticmethod
     def distance_to_edge(x, y, dx, dy):
