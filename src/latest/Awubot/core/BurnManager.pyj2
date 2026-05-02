@@ -19,7 +19,7 @@ from Generated import *
 
 
 class BurnManager:
-    {% set keep_ax = 2 %}
+    {% set keep_ax = 17 %}
 
     @classmethod
     def burn_for_builder(cls):
@@ -50,14 +50,15 @@ class BurnManager:
     
     @classmethod
     def maybe_burn_for_ti(cls):
-        {% set burn_per_round = 30 %}
+        {% set burn_per_round = 100 %}
 
         ct = Globals.ct
         ti, ax = ct.get_global_resources()
 
         # cnf1 = int(ti * MarketMaker.scale_ratio) < 50 or MarketMaker.est_income <= 10
         cnf1 = True
-        cnf2 = (MarketMaker.est_income - 10) <= MarketMaker.est_income_ax
+        # cnf2 = (MarketMaker.est_income - 10) <= MarketMaker.est_income_ax
+        cnf2 = True
         cnf3 = Globals.round < 1000
         cond = cnf1 and cnf2 and cnf3
 
