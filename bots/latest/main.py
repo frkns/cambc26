@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-01 11:21:58 (local)
+# latest,  @ 2026-05-01 19:21:02 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -140,9 +140,12 @@ class AdjacentInfo:
 class Attacker:
 
     seen_enemy_core: bool = False
+    allies_ready: int
+    enemies_ready: int
 
     @classmethod
     def update(cls):
+        cls.allies_ready, cls.enemies_ready = cls.compute_readiness()
         cls.seen_enemy_core = cls.seen_enemy_core or \
             Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= 20
 
@@ -299,8 +302,7 @@ class Attacker:
         if 2 * hp <= max_hp:
             return True
 
-        allies_ready, enemies_ready = cls.compute_readiness()
-        if allies_ready > 2 * enemies_ready:
+        if cls.allies_ready > 2 * cls.enemies_ready:
             return True
 
         ebot_dist_adj = BfsBureau.enemy_bot_dist_adj[idx]
@@ -332,10 +334,8 @@ class BfsBureau:
 
     passable_bridge: list[bool] = [False] * 3136
 
-    # pure terrain weights — only written from update() based on tile_info
     weight: list[int] = [1000000] * 3136
 
-    # incremental penalty overlay — written by add/remove_enemy_launcher/sentinel
     # applied to now_weight after copy, never touches weight
     penalty: list[int] = [0] * 3136
     _penalty_indices: set[int] = set()
@@ -392,7 +392,6 @@ class BfsBureau:
                 w = 1000000
                 cls.passable_int &= ~bit
 
-            # pure terrain — just assign, no max()
             weight[idx] = w
 
             if (
@@ -401,7 +400,7 @@ class BfsBureau:
                 (
                     (not ti.has_building) or
                     ((etype := ti.entity_type) == EntityType.MARKER) or
-                    (ti.is_shield) or
+                    (ti.is_shield and ti.ally_fed_foundries_adjacent == 0) or
                     (ti.is_building_ally and (
                         etype == EntityType.ROAD or etype == EntityType.CORE))
                 )
@@ -415,7 +414,6 @@ class BfsBureau:
         cls.now_weight = weight.copy()
         now_weight = cls.now_weight
 
-        # apply incremental penalties (launcher zones, sentinel zones) —
         # only iterate the small set of touched indices, not the whole grid
         penalty = cls.penalty
         for idx in cls._penalty_indices:
@@ -450,7 +448,6 @@ class BfsBureau:
                 ti_ore_adj[idx +56] = True
 
 
-    # ── incremental penalty helpers ───────────────────────────────────────────────
 
     @classmethod
     def _add_penalty(cls, idx: int, amount: int):
@@ -464,11 +461,10 @@ class BfsBureau:
             cls.penalty[idx] = 0
             cls._penalty_indices.discard(idx)
 
-    # ── sentinel ──────────────────────────────────────────────────────────────────
 
     @classmethod
     def add_enemy_sentinel(cls, pos, ti):
-        for apos in Globals.ct.get_attackable_tiles_from(pos, ti.turret_direction, ti.entity_type):
+        for apos in Globals.ct.get_attackable_tiles_from(pos, ti.turret_direction, EntityType.SENTINEL):
             cls._add_penalty((((apos.x) + 3) * 56 + ((apos.y) + 3)), 3)
 
     @classmethod
@@ -476,7 +472,15 @@ class BfsBureau:
         for apos in Globals.ct.get_attackable_tiles_from(pos, turret_dir, EntityType.SENTINEL):
             cls._remove_penalty((((apos.x) + 3) * 56 + ((apos.y) + 3)), 3)
 
-    # ── enemy launcher ────────────────────────────────────────────────────────────
+    @classmethod
+    def add_enemy_gunner(cls, pos, ti):
+        for apos in Globals.ct.get_attackable_tiles_from(pos, ti.turret_direction, EntityType.GUNNER):
+            cls._add_penalty((((apos.x) + 3) * 56 + ((apos.y) + 3)), 7)
+
+    @classmethod
+    def remove_enemy_gunner(cls, pos, turret_dir):
+        for apos in Globals.ct.get_attackable_tiles_from(pos, turret_dir, EntityType.GUNNER):
+            cls._remove_penalty((((apos.x) + 3) * 56 + ((apos.y) + 3)), 7)
 
     @classmethod
     def add_enemy_launcher(cls, idx):
@@ -509,8 +513,6 @@ class BfsBureau:
         cls._remove_penalty(idx + -56, 1000000)
         cls._remove_penalty(idx + -57, 1000000)
 
-
-    # ── ally launcher (enemy-perspective danger zones) ────────────────────────────
 
     @classmethod
     def add_ally_launcher(cls, idx: int):
@@ -5705,7 +5707,6 @@ class BfsBureau:
         return 1000000, None
 
 
-    # ── bfs20 ────────────────────────────────────────────────────────────────────
     bfs20_dist: list[int] = [1000000] * 3136
     bfs20_dist_adj: list[int] = [1000000] * 3136
     _bfs20_touched_indices: list[int] = []
@@ -7872,6 +7873,7 @@ class BuildManager:
 
         req = 50 if Globals.round < 150 else 50
 
+
         leftover_unscaled_ti = 0
 
         leftover_unscaled_ti += req
@@ -7957,6 +7959,7 @@ class BuildManager:
         
 
         req = 0 if Globals.round < 150 else 0
+
 
         leftover_unscaled_ti = 0
 
@@ -8044,6 +8047,7 @@ class BuildManager:
 
         req = 0 if Globals.round < 150 else 50
 
+
         leftover_unscaled_ti = 0
 
         leftover_unscaled_ti += req
@@ -8129,6 +8133,7 @@ class BuildManager:
         
 
         req = 50 if Globals.round < 150 else 50
+
 
         leftover_unscaled_ti = 0
 
@@ -8216,6 +8221,7 @@ class BuildManager:
 
         req = 0 if Globals.round < 150 else 50
 
+
         leftover_unscaled_ti = 0
 
         leftover_unscaled_ti += req
@@ -8299,6 +8305,9 @@ class BuildManager:
         
 
         req = 20 if Globals.round < 150 else 50
+
+        if MarketMaker.est_income <= 10:
+            req = 0  # reset if no income
 
         leftover_unscaled_ti = 0
 
@@ -8390,6 +8399,9 @@ class BuildManager:
 
         req = 20 if Globals.round < 150 else 50
 
+        if MarketMaker.est_income <= 10:
+            req = 0  # reset if no income
+
         leftover_unscaled_ti = 0
 
         if Globals.round > 50:
@@ -8479,6 +8491,9 @@ class BuildManager:
         
 
         req = 20 if Globals.round < 150 else 50
+
+        if MarketMaker.est_income <= 10:
+            req = 0  # reset if no income
 
         leftover_unscaled_ti = 0
 
@@ -8570,6 +8585,9 @@ class BuildManager:
 
         req = 20 if Globals.round < 150 else 50
 
+        if MarketMaker.est_income <= 10:
+            req = 0  # reset if no income
+
         leftover_unscaled_ti = 0
 
         if Globals.round > 50:
@@ -8660,6 +8678,9 @@ class BuildManager:
 
         req = 20 if Globals.round < 150 else 50
 
+        if MarketMaker.est_income <= 10:
+            req = 0  # reset if no income
+
         leftover_unscaled_ti = 0
 
         leftover_unscaled_ti += req
@@ -8749,6 +8770,7 @@ class BuildManager:
 
         req = 0 if Globals.round < 150 else 0
 
+
         leftover_unscaled_ti = 0
 
         leftover_unscaled_ti += req
@@ -8832,6 +8854,7 @@ class BuildManager:
         
 
         req = 20 if Globals.round < 150 else 50
+
 
         leftover_unscaled_ti = 0
 
@@ -8923,6 +8946,7 @@ class BuildManager:
 
         req = 50 if Globals.round < 150 else 50
 
+
         leftover_unscaled_ti = 0
 
         leftover_unscaled_ti += req
@@ -8997,7 +9021,8 @@ class BurnManager:
         ct = Globals.ct
         ti, ax = ct.get_global_resources()
 
-        cnf1 = int(ti * MarketMaker.scale_ratio) < 50 or MarketMaker.est_income <= 10
+        # cnf1 = int(ti * MarketMaker.scale_ratio) < 50 or MarketMaker.est_income <= 10
+        cnf1 = True
         cnf2 = (MarketMaker.est_income - 10) <= MarketMaker.est_income_ax
         cnf3 = Globals.round < 1000
         cond = cnf1 and cnf2 and cnf3
@@ -9323,7 +9348,7 @@ class DarkForest:
     node_kind: list[int]   # propagated kind per node (top-down)
     core_sink_set: set[int] = set()  # titanium-only ALLY_CORE reachable nodes below pressure threshold
     sink_set: set[int]               # alias for core_sink_set (backward compat)
-    leaf_set: set[int]               # titanium leaf nodes — valid foundry sites
+    leaf_set: set[int]               # titanium leaf nodes (no bridge + has flow)
     ax_tagged: list[bool]            # True if node has any axionite flow in subtree
     sight_last_id: list[int]         # last resource-ID seen at this position; -1 = never
     sight_last_round: list[int]      # game-round when that ID was last observed
@@ -9335,6 +9360,7 @@ class DarkForest:
     foundry_ax_sink_sets: dict[int, set[int]] # foundry_idx -> axionite-side reachable nodes
     foundry_ti_flow: list[int]   # titanium flow at each node
     foundry_ax_flow: list[int]   # axionite flow at each node
+    needs_update: bool = True
     
     @classmethod
     def init(cls):
@@ -9359,20 +9385,25 @@ class DarkForest:
     @classmethod
     def register_enemy_core(cls):
         for p in Symmetry.enemy_core_pos_set:
+            cls.needs_update = True
             cls.register_sink(p, 2)
 
     @classmethod
     def remove_node(cls, u: int):
         if cls.kind[u] == 1 or cls.kind[u] == 2:
             return
-        cls.nodes[u] = None
-        cls.kind[u] = 0
+
+        if cls.nodes[u] is not None:
+            cls.needs_update = True
+            cls.nodes[u] = None
+            cls.kind[u] = 0
 
     @classmethod
     def detach_node(cls, u: int):
         #severe it from parent/tree
         n = cls.nodes[u]
         if n is not None:
+            cls.needs_update = True
             n.up = None
 
     @classmethod
@@ -9546,6 +9577,8 @@ class DarkForest:
     def fcompute(cls):
 
 
+        if TLEManager.tle_once and not cls.needs_update:
+            return
 
         ns       = cls.nodes
         kind     = cls.kind
@@ -27294,13 +27327,19 @@ class DarkForest:
                         _curr = _pn.up
         cls.refined_ax_line = _ral
 
+        BRIDGE = EntityType.BRIDGE
+        tile_info_idx = Map.tile_info_idx
+
         # ── titanium leaf set ──
         _ti_leaves: set[int] = set()
         for u in _initial_leaves:
             if (nk[u] == 1
                     and u not in core_pos_set
                     and not ax_tagged[u]
-                    and u not in _ral):
+                    and u not in _ral
+                    and tile_info_idx[u].entity_type != BRIDGE
+                    and flow[u] > 0
+                    ):
                 _ti_leaves.add(u)
         cls.leaf_set = _ti_leaves
 
@@ -28389,9 +28428,11 @@ class GunnerSupervisor:
         if not ct.can_fire_from(Globals.my_pos, dirToPos, EntityType.GUNNER, pos):
             print(f'[try_fire] can_fire_from me to {pos} is False')
             return
-        
+
+        in_coma = not TurretSuicide.has_feeder and not any(TurretSuicide.has_ammo_history)
+
         if dirToPos != ct.get_direction(): # Rotate if the target isn't in our current direction
-            if ct.can_rotate(dirToPos):
+            if not in_coma and ct.can_rotate(dirToPos):
                 ct.rotate(dirToPos)
         else:
             if ct.can_fire(pos):
@@ -30694,6 +30735,7 @@ class Map:
     maxY: int
 
     # [x][y], some buffer right/bot side
+    tile_info_idx: list[int] = [None] * 3136
     tile_info: list[list[TileInfo | None]]
     nearby_tiles: list[Position]
     proc_nearby_tiles: list[tuple[Position, int, int, int, TileInfo]]        # in rsq 20
@@ -30801,6 +30843,7 @@ class Map:
         ax_harvester_set = cls.ax_harvester_set
         ti_ally_harvester_set = cls.ti_ally_harvester_set
         ax_ally_harvester_set = cls.ax_ally_harvester_set
+        tile_info_idx = cls.tile_info_idx
 
         proc_nearby_tiles = []
         inner_proc_nearby_tiles = []
@@ -30810,6 +30853,7 @@ class Map:
             ti: TileInfo | None = tile_info[x][y]
             if ti is None:
                 ti = TileInfo()
+                tile_info_idx[idx] = ti
                 tile_info[x][y] = ti
                 ti.has_building = False
                 ti.has_turret = False
@@ -30839,25 +30883,6 @@ class Map:
             if ti.has_turret:
                 old_turret_direction = ti.turret_direction
 
-            ox, oy = maxX - x, y
-
-            opp_ti = tile_info[ox][oy]
-            if opp_ti is None:
-                opp_ti = TileInfo()
-                opp_ti.env = tile_env
-                opp_ti.has_bot = False
-                opp_ti.has_turret = False
-                opp_ti.has_building = False
-                opp_ti.easily_passable = False
-                opp_ti.harvester_adjacent = 0
-                opp_ti.entity_type = None
-                opp_ti.target = None
-                opp_ti.allied_bots_adjacent = 0
-                opp_ti.resource_id = None
-                opp_ti.resource_type = None
-                tile_info[ox][oy] = opp_ti
-                new_syms.append(Position(ox, oy))
-                BfsBureau.ti_ore_adj[(((ox) + 3) * 56 + ((oy) + 3))] = BfsBureau.ti_ore_adj[pos_idx]
 
             ti.env = tile_env
             ti.round = round
@@ -30936,6 +30961,9 @@ class Map:
                 ti.resource_type = None
 
                 if etype in (SENTINEL, GUNNER, BREACH, FOUNDRY):
+                    if etype == FOUNDRY:
+                        DarkForest.foundry_positions.add(idx)
+
                     if etype in (SENTINEL, GUNNER, BREACH):
                         ti.has_turret = True
                         ti.turret_direction = get_direction(building_id)
@@ -30963,12 +30991,16 @@ class Map:
                     BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
                 elif old_etype == LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
+                elif old_etype == GUNNER:
+                    BfsBureau.remove_enemy_gunner(pos, old_turret_direction)
 
             elif new_enemy_tower and not old_enemy_tower:
                 if etype == SENTINEL:
                     BfsBureau.add_enemy_sentinel(pos, ti)
                 elif etype == LAUNCHER:
                     BfsBureau.add_enemy_launcher(pos_idx)
+                elif etype == GUNNER:
+                    BfsBureau.add_enemy_gunner(pos, ti)
 
             # [new enemy bot bfs]
             old_ally_launcher = (old_etype == LAUNCHER and old_is_building_ally)
@@ -31078,15 +31110,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x +1][y ]
                 if nti is not None:
@@ -31097,15 +31129,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x ][y +1]
                 if nti is not None:
@@ -31116,15 +31148,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x -1][y ]
                 if nti is not None:
@@ -31135,15 +31167,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
 
                 ti.ally_turrets_adjacent = ally_turrets
@@ -31242,6 +31274,7 @@ class Map:
         ax_harvester_set = cls.ax_harvester_set
         ti_ally_harvester_set = cls.ti_ally_harvester_set
         ax_ally_harvester_set = cls.ax_ally_harvester_set
+        tile_info_idx = cls.tile_info_idx
 
         proc_nearby_tiles = []
         inner_proc_nearby_tiles = []
@@ -31251,6 +31284,7 @@ class Map:
             ti: TileInfo | None = tile_info[x][y]
             if ti is None:
                 ti = TileInfo()
+                tile_info_idx[idx] = ti
                 tile_info[x][y] = ti
                 ti.has_building = False
                 ti.has_turret = False
@@ -31280,25 +31314,6 @@ class Map:
             if ti.has_turret:
                 old_turret_direction = ti.turret_direction
 
-            ox, oy = x, maxY - y
-
-            opp_ti = tile_info[ox][oy]
-            if opp_ti is None:
-                opp_ti = TileInfo()
-                opp_ti.env = tile_env
-                opp_ti.has_bot = False
-                opp_ti.has_turret = False
-                opp_ti.has_building = False
-                opp_ti.easily_passable = False
-                opp_ti.harvester_adjacent = 0
-                opp_ti.entity_type = None
-                opp_ti.target = None
-                opp_ti.allied_bots_adjacent = 0
-                opp_ti.resource_id = None
-                opp_ti.resource_type = None
-                tile_info[ox][oy] = opp_ti
-                new_syms.append(Position(ox, oy))
-                BfsBureau.ti_ore_adj[(((ox) + 3) * 56 + ((oy) + 3))] = BfsBureau.ti_ore_adj[pos_idx]
 
             ti.env = tile_env
             ti.round = round
@@ -31377,6 +31392,9 @@ class Map:
                 ti.resource_type = None
 
                 if etype in (SENTINEL, GUNNER, BREACH, FOUNDRY):
+                    if etype == FOUNDRY:
+                        DarkForest.foundry_positions.add(idx)
+
                     if etype in (SENTINEL, GUNNER, BREACH):
                         ti.has_turret = True
                         ti.turret_direction = get_direction(building_id)
@@ -31404,12 +31422,16 @@ class Map:
                     BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
                 elif old_etype == LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
+                elif old_etype == GUNNER:
+                    BfsBureau.remove_enemy_gunner(pos, old_turret_direction)
 
             elif new_enemy_tower and not old_enemy_tower:
                 if etype == SENTINEL:
                     BfsBureau.add_enemy_sentinel(pos, ti)
                 elif etype == LAUNCHER:
                     BfsBureau.add_enemy_launcher(pos_idx)
+                elif etype == GUNNER:
+                    BfsBureau.add_enemy_gunner(pos, ti)
 
             # [new enemy bot bfs]
             old_ally_launcher = (old_etype == LAUNCHER and old_is_building_ally)
@@ -31519,15 +31541,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x +1][y ]
                 if nti is not None:
@@ -31538,15 +31560,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x ][y +1]
                 if nti is not None:
@@ -31557,15 +31579,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x -1][y ]
                 if nti is not None:
@@ -31576,15 +31598,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
 
                 ti.ally_turrets_adjacent = ally_turrets
@@ -31683,6 +31705,7 @@ class Map:
         ax_harvester_set = cls.ax_harvester_set
         ti_ally_harvester_set = cls.ti_ally_harvester_set
         ax_ally_harvester_set = cls.ax_ally_harvester_set
+        tile_info_idx = cls.tile_info_idx
 
         proc_nearby_tiles = []
         inner_proc_nearby_tiles = []
@@ -31692,6 +31715,7 @@ class Map:
             ti: TileInfo | None = tile_info[x][y]
             if ti is None:
                 ti = TileInfo()
+                tile_info_idx[idx] = ti
                 tile_info[x][y] = ti
                 ti.has_building = False
                 ti.has_turret = False
@@ -31721,25 +31745,6 @@ class Map:
             if ti.has_turret:
                 old_turret_direction = ti.turret_direction
 
-            ox, oy = maxX - x, maxY - y
-
-            opp_ti = tile_info[ox][oy]
-            if opp_ti is None:
-                opp_ti = TileInfo()
-                opp_ti.env = tile_env
-                opp_ti.has_bot = False
-                opp_ti.has_turret = False
-                opp_ti.has_building = False
-                opp_ti.easily_passable = False
-                opp_ti.harvester_adjacent = 0
-                opp_ti.entity_type = None
-                opp_ti.target = None
-                opp_ti.allied_bots_adjacent = 0
-                opp_ti.resource_id = None
-                opp_ti.resource_type = None
-                tile_info[ox][oy] = opp_ti
-                new_syms.append(Position(ox, oy))
-                BfsBureau.ti_ore_adj[(((ox) + 3) * 56 + ((oy) + 3))] = BfsBureau.ti_ore_adj[pos_idx]
 
             ti.env = tile_env
             ti.round = round
@@ -31818,6 +31823,9 @@ class Map:
                 ti.resource_type = None
 
                 if etype in (SENTINEL, GUNNER, BREACH, FOUNDRY):
+                    if etype == FOUNDRY:
+                        DarkForest.foundry_positions.add(idx)
+
                     if etype in (SENTINEL, GUNNER, BREACH):
                         ti.has_turret = True
                         ti.turret_direction = get_direction(building_id)
@@ -31845,12 +31853,16 @@ class Map:
                     BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
                 elif old_etype == LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
+                elif old_etype == GUNNER:
+                    BfsBureau.remove_enemy_gunner(pos, old_turret_direction)
 
             elif new_enemy_tower and not old_enemy_tower:
                 if etype == SENTINEL:
                     BfsBureau.add_enemy_sentinel(pos, ti)
                 elif etype == LAUNCHER:
                     BfsBureau.add_enemy_launcher(pos_idx)
+                elif etype == GUNNER:
+                    BfsBureau.add_enemy_gunner(pos, ti)
 
             # [new enemy bot bfs]
             old_ally_launcher = (old_etype == LAUNCHER and old_is_building_ally)
@@ -31960,15 +31972,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x +1][y ]
                 if nti is not None:
@@ -31979,15 +31991,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x ][y +1]
                 if nti is not None:
@@ -31998,15 +32010,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x -1][y ]
                 if nti is not None:
@@ -32017,15 +32029,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
 
                 ti.ally_turrets_adjacent = ally_turrets
@@ -32121,6 +32133,7 @@ class Map:
         ax_harvester_set = cls.ax_harvester_set
         ti_ally_harvester_set = cls.ti_ally_harvester_set
         ax_ally_harvester_set = cls.ax_ally_harvester_set
+        tile_info_idx = cls.tile_info_idx
 
         proc_nearby_tiles = []
         inner_proc_nearby_tiles = []
@@ -32130,6 +32143,7 @@ class Map:
             ti: TileInfo | None = tile_info[x][y]
             if ti is None:
                 ti = TileInfo()
+                tile_info_idx[idx] = ti
                 tile_info[x][y] = ti
                 ti.has_building = False
                 ti.has_turret = False
@@ -32158,7 +32172,6 @@ class Map:
             old_is_building_ally = ti.has_building and ti.is_building_ally
             if ti.has_turret:
                 old_turret_direction = ti.turret_direction
-
 
 
             ti.env = tile_env
@@ -32238,6 +32251,9 @@ class Map:
                 ti.resource_type = None
 
                 if etype in (SENTINEL, GUNNER, BREACH, FOUNDRY):
+                    if etype == FOUNDRY:
+                        DarkForest.foundry_positions.add(idx)
+
                     if etype in (SENTINEL, GUNNER, BREACH):
                         ti.has_turret = True
                         ti.turret_direction = get_direction(building_id)
@@ -32265,12 +32281,16 @@ class Map:
                     BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
                 elif old_etype == LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
+                elif old_etype == GUNNER:
+                    BfsBureau.remove_enemy_gunner(pos, old_turret_direction)
 
             elif new_enemy_tower and not old_enemy_tower:
                 if etype == SENTINEL:
                     BfsBureau.add_enemy_sentinel(pos, ti)
                 elif etype == LAUNCHER:
                     BfsBureau.add_enemy_launcher(pos_idx)
+                elif etype == GUNNER:
+                    BfsBureau.add_enemy_gunner(pos, ti)
 
             # [new enemy bot bfs]
             old_ally_launcher = (old_etype == LAUNCHER and old_is_building_ally)
@@ -32380,15 +32400,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x +1][y ]
                 if nti is not None:
@@ -32399,15 +32419,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x ][y +1]
                 if nti is not None:
@@ -32418,15 +32438,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x -1][y ]
                 if nti is not None:
@@ -32437,15 +32457,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
 
                 ti.ally_turrets_adjacent = ally_turrets
@@ -33866,6 +33886,8 @@ class RoadspamExecutor:
 
     @classmethod
     def should_roadspam(cls):
+        if Globals.round < 100 and MarketMaker.est_income <= 10:
+            return False
         return Builder.min_dist_to_a_core <= 20 or Globals.ct.get_unit_count() >= 20
 
     @classmethod
@@ -34381,8 +34403,8 @@ class RouteToCore:
                 (3, 1):
             cls.is_active = False
             cls.killed.add(from_pos)
-            Debug.diamond(Color.PURPLE)
-            print("RouteToCore: giving up, no previous route to backtrack to or finished")
+
+
             if Pathfinder.given_up:
                 cls.pathFindingKill.add(enc)
             cls.backTracking = False
@@ -34392,14 +34414,16 @@ class RouteToCore:
             if Pathfinder.given_up:
                 cls.pathFindingKill.add(enc)
             cls.from_pos = cls.prevRoute.pop()
-            print("RouteToCore: backtracking to", cls.from_pos)
+
+
             cls.backTracking = True
             return False
 
 
     @classmethod
     def do_routing(cls):
-        print("RouteToCore: doing routing from", cls.from_pos,"(Attack Route!)",cls.isAttack)
+
+
         if cls.should_give_up():
             if cls.give_up():
                 StateMoveTo.run(Explore.get_target()) # new
@@ -34945,6 +34969,9 @@ class RushTargeter:
 
     @classmethod
     def get_best_target(cls):
+        if MarketMaker.est_income <= 10:
+            return None
+
         if Symmetry.is_sym_known:
             if Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) < 25: #sufficiently near
                 cls.beenNearbyEnemyCore = True
@@ -34953,7 +34980,7 @@ class RushTargeter:
                     stuff = cls.nearest_source_to_enemy()
                     funPos = stuff[0]
                     if funPos == None or not VisionTracker.me_is_canonical_ally(funPos):
-                        return Explore.get_target(),'M' #move
+                        return None
                     return funPos, stuff[1] # <------- non move
                 else:
                     return Explore.get_target(),'M' #move
@@ -38526,6 +38553,9 @@ class SitterTakedown:
             if SitterTargetInfo.is_better_than(c, best):
                 best = c
 
+        if best.weight >= 3:
+            return None
+
         if not best.flowing_enemy_transporters_adjacent:
             if best.enemy_bots_nearby < 2:
                 return None
@@ -38582,6 +38612,7 @@ class SitterTakedown:
             info.launchers_adjacent = 0
             info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
             info.flowing_enemy_transporters_adjacent = 0
+            info.weight = BfsBureau.now_weight[idx]
             
             info.has_ally_transporter = (
                 ti.has_building 
@@ -38765,13 +38796,16 @@ class SitterTargetInfo:
     __slots__ = (
         'position', 'dist_enemy_core', 'has_ally_transporter',
         'enemy_bots_nearby', 'harvester_nearby', 'launchers_adjacent',
-        'bfs_dist_adj', 'flowing_enemy_transporters_adjacent', 'enemy_buildings_adjacent'
+        'bfs_dist_adj', 'flowing_enemy_transporters_adjacent', 'enemy_buildings_adjacent',
+        'weight'
     )
 
     @staticmethod
     def is_better_than(a: SitterTargetInfo, b: SitterTargetInfo):
         if a.bfs_dist_adj >= 100: return False
         if b.bfs_dist_adj >= 100: return True
+        if a.weight >= 3: return False
+        if b.weight >= 3: return True
 
         if a.launchers_adjacent != b.launchers_adjacent:
             return a.launchers_adjacent < b.launchers_adjacent
@@ -38946,7 +38980,7 @@ class SpawnManager:
         ti, ax = ct.get_global_resources()
         bot_ti, bot_ax = ct.get_builder_bot_cost()
 
-        if Globals.round <= 20 or MarketMaker.ti <= 10:
+        if Globals.round <= 20 or MarketMaker.est_income <= 10:
             return cls.num_spawned < 4
 
         rem_ti = ti - bot_ti
@@ -39929,6 +39963,47 @@ class Symmetry:
 
 
 # ============================================================
+# TLEManager
+# ============================================================
+
+class TLEManager:
+    daylight_savings_time: bool = False
+    tle_last_turn: bool = False
+    tle_consec: int = 0
+    no_tle_consec: int = 0
+    end_round: int | None = None
+    tle_once: bool = False
+
+    @classmethod
+    def start_turn(cls):
+        if cls.end_round is not None and (Globals.round - cls.end_round) > 1:
+            cls.tle_last_turn = True
+            cls.tle_once = True
+        else:
+            cls.tle_last_turn = False  # also need this
+
+        if cls.tle_last_turn:
+            cls.tle_consec += 1
+            cls.no_tle_consec = 0
+        else:
+            cls.tle_consec = 0
+            cls.no_tle_consec += 1
+
+        if cls.tle_consec > 2:
+            cls.daylight_savings_time = True
+
+        # recover after N consecutive clean turns
+        if cls.daylight_savings_time and cls.no_tle_consec > 5:
+            cls.daylight_savings_time = False
+
+        cls.start_round = Globals.round
+
+    @classmethod
+    def end_turn(cls):
+        cls.end_round = Globals.round
+
+
+# ============================================================
 # TileInfo
 # ============================================================
 
@@ -40055,6 +40130,7 @@ class TurretSuicide:
     has_ammo_history: list[bool]
     enemy_core_visible: bool
     post_init_completed: bool
+    has_feeder: bool
     
 
     @classmethod
@@ -40086,14 +40162,14 @@ class TurretSuicide:
         r = Globals.round % 20
         cls.has_ammo_history[r] = Globals.ct.get_ammo_amount() > 0
 
-        has_feeder = Map.tile_info[sx][sy].harvester_adjacent
+        cls.has_feeder = Map.tile_info[sx][sy].harvester_adjacent
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             ti: TileInfo
             if ti.target == my_pos:
-                has_feeder = True
+                cls.has_feeder = True
                 break
 
-        if not has_feeder and not cls.enemy_core_visible and not any(cls.has_ammo_history):
+        if not cls.has_feeder and not cls.enemy_core_visible and not any(cls.has_ammo_history):
             Debug.diamond(Color.ORANGE)
             Debug.log(f'This {Globals.my_type} is self-destructing :(')
             Globals.ct.self_destruct()
@@ -40165,7 +40241,10 @@ class Unit:
         Globals.start_tick()
         MarketMaker.refresh()
 
-        if Globals.ct.get_entity_type() != EntityType.LAUNCHER:
+        if Globals.my_type == EntityType.BUILDER_BOT and Globals.round != Unit.creation_round:
+            DarkForest.needs_update = False
+
+        if Globals.my_type != EntityType.LAUNCHER:
             
             Map.fill_tile_info()
             
@@ -40260,6 +40339,7 @@ class Builder(Unit):
     @classmethod
     def start_turn(cls):
         Unit.start_turn()
+        TLEManager.start_turn()
 
         my_pos = Globals.my_pos
         cls.min_dist_to_a_core = min(my_pos.distance_squared(Unit.core_pos), my_pos.distance_squared(Symmetry.enemy_core_pos))
@@ -40269,14 +40349,47 @@ class Builder(Unit):
         
 
         
-        FoundryInputTracker.compute()
-        
-
-        
         BfsBureau.update()
         
 
-        Symmetry.run_sym_check()
+        
+        BfsBureau.bfs20()
+        
+
+        if not TLEManager.daylight_savings_time:
+            
+            Symmetry.run_sym_check()
+            
+
+            
+            BfsBureau.update_enclosed_regions()
+            
+
+            
+            OreExecutive.fill()
+            
+
+        
+        VisionTracker.fill()
+        
+
+        if not TLEManager.daylight_savings_time:
+            
+            SitterTakedown.fill()
+            
+
+            
+            HarvesterAdjacent.fill()
+            
+
+        
+        Attacker.update()
+        
+
+        
+        HealTargeter.fill()
+        
+
 
         if cls.mode == 0:
             """
@@ -40302,41 +40415,6 @@ class Builder(Unit):
             cls.mode = 1
             Explore.target = Explore.new_target()
 
-        print("Mode:", cls.mode)
-
-
-        
-        BfsBureau.bfs20()
-        
-
-        
-        BfsBureau.update_enclosed_regions()
-        
-
-
-        
-        OreExecutive.fill()
-        
-
-        
-        VisionTracker.fill()
-        
-
-        
-        SitterTakedown.fill()
-        
-
-        
-        HarvesterAdjacent.fill()
-        
-
-        
-        HealTargeter.fill()
-        
-
-        
-        Attacker.update()
-        
 
         cls.is_routing_active = False
 
@@ -40355,7 +40433,10 @@ class Builder(Unit):
 
     @classmethod
     def run_turn(cls):
-        cls.state, *args = cls.determine_state()
+        if TLEManager.daylight_savings_time:
+            cls.state, *args = cls.fast_path_determine_state()
+        else:
+            cls.state, *args = cls.determine_state()
 
 
         
@@ -40377,6 +40458,9 @@ class Builder(Unit):
 
 
 
+        if TLEManager.daylight_savings_time:
+            Debug.diamond(Color.BLACK)
+
         # BfsBureau.debug_bfs20_dist_adj()
         # BfsBureau.debug_enemy_launcher_zone()
         # BfsBureau.debug_ally_launcher_zone()
@@ -40391,8 +40475,37 @@ class Builder(Unit):
         #     Globals.ct.fire(my_pos)
 
         RoadspamExecutor.execute_roadspam_attempt()
+        TLEManager.end_turn()
 
 
+    @classmethod
+    def fast_path_determine_state(cls):
+        # --------------- for TLE ########################
+        my_pos = Globals.my_pos                          #
+        ct = Globals.ct                                  #
+                                                         #
+        healinfo = HealTargeter.get_best_target_info()   #
+        healpos = None                                   #
+        if healinfo is not None:                         #
+            if healinfo.entity_type == EntityType.CORE:  #
+                healpos = Unit.core_pos                  #
+            else:                                        #
+                healpos = healinfo.position              #
+                                                         #
+        if healpos is not None:                          #
+            return 'MoveTo', healpos, 'Heal'             #
+                                                         #
+        attackpos = Attacker.get_target()                #
+                                                         #
+        if attackpos is not None:                        #
+            return 'Attack', attackpos, 'Primary'        #
+                                                         #
+        rushTarget = RushTargeter.get_best_target()      #
+        if rushTarget is not None:                       #
+            return 'Rush', rushTarget                    #
+                                                         #
+        return 'MoveTo', Explore.get_target(), 'Explore' #
+        # --------------- for TLE ########################
 
 
     @classmethod
@@ -40438,10 +40551,6 @@ class Builder(Unit):
 
             return 'BuildGunner', takedownpos, None
 
-        sitterpos = SitterTakedown.get_best_launcher_position()
-        if sitterpos is not None:
-            Debug.dot(sitterpos, Color.PURPLE)
-            return 'BuildLauncher', sitterpos
 
         if healpos is not None and misinfo is None:
             return 'MoveTo', healpos, 'Heal'
@@ -40453,9 +40562,12 @@ class Builder(Unit):
                 return 'Reroute', misinfo.position  # same
 
 
-        buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0) or (RouteToFoundryInput.is_active and len(RouteToFoundryInput.prevRoute) == 0)
+        buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0)
 
-        if not buildingFirstConveyor and sentinelpos is None:
+        if not buildingFirstConveyor:
+            if sentinelpos is not None:
+                Debug.dot(sentinelpos, Color.PURPLE)
+                return 'BuildTurret', sentinelpos
             shieldpos = HarvesterAdjacent.get_best_shield_position()
             if shieldpos is not None:
                 return 'BuildShield', shieldpos
@@ -40517,8 +40629,14 @@ class Builder(Unit):
             Debug.dot(sentinelpos, Color.PURPLE)
             return 'BuildTurret', sentinelpos
 
-        if cls.should_fire and BfsBureau.enemy_bot_dist_adj[Globals.my_idx] >= 2:
-            return 'Attack', Globals.my_pos, 'ShouldFire&D>=2'
+        sitterpos = SitterTakedown.get_best_launcher_position()
+        if sitterpos is not None:
+            Debug.dot(sitterpos, Color.PURPLE)
+            return 'BuildLauncher', sitterpos
+
+        if cls.should_fire and (BfsBureau.enemy_bot_dist_adj[Globals.my_idx] >= 2 
+                                or Attacker.allies_ready > 2 * Attacker.enemies_ready):
+            return 'Attack', Globals.my_pos, '(ShouldFire&D>=2)|(a>2*e)'
 
         if buildingFirstConveyor:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
@@ -40539,20 +40657,7 @@ class Builder(Unit):
 
         # Attack if position is next to route
         if secondaryattackpos is not None:
-            # Compare position to tip of route
-            close_to_tip = False
-            if RouteToCore.is_active:
-                if len(RouteToCore.prevRoute) > 0:
-                    close_to_tip = RouteToCore.prevRoute[-1].distance_squared(secondaryattackpos) < 2
-            elif RouteToFoundry.is_active:
-                if len(RouteToFoundry.prevRoute) > 0:
-                    close_to_tip = RouteToFoundry.prevRoute[-1].distance_squared(secondaryattackpos) < 2
-            elif RouteToBreach.is_active:
-                if len(RouteToBreach.prevRoute) > 0:
-                    close_to_tip = RouteToBreach.prevRoute[-1].distance_squared(secondaryattackpos) < 2
-
-            # Attack if close to tip
-            if close_to_tip:
+            if cls.is_routing_active and cls.route_from_pos.distance_squared(secondaryattackpos) < 2:
                 return 'Attack', secondaryattackpos, 'Secondary'
 
         ax_target = OreExecutive.get_axionite_target()
@@ -40587,7 +40692,7 @@ class Builder(Unit):
         if rushTarget is not None:
             return 'Rush', rushTarget
 
-        if ct.get_unit_count() < 15 or Globals.my_id % 3 == 1:
+        if ct.get_unit_count() < 10 or Globals.my_id % 3 == 1:
             patrolTarget = PatrolTargeter.get_best_target()
             if patrolTarget is not None:
                 return 'MoveTo', patrolTarget, 'Patrol'

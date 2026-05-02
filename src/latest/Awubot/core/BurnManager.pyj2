@@ -55,7 +55,8 @@ class BurnManager:
         ct = Globals.ct
         ti, ax = ct.get_global_resources()
 
-        cnf1 = int(ti * MarketMaker.scale_ratio) < 50 or MarketMaker.est_income <= 10
+        # cnf1 = int(ti * MarketMaker.scale_ratio) < 50 or MarketMaker.est_income <= 10
+        cnf1 = True
         cnf2 = (MarketMaker.est_income - 10) <= MarketMaker.est_income_ax
         cnf3 = Globals.round < 1000
         cond = cnf1 and cnf2 and cnf3

@@ -147,12 +147,15 @@ print(f"\nReady. Running matches against {len(teams)} teams every X minutes.\n")
 # -------------------------
 # MAIN LOOP
 # -------------------------
+repeat = 2
+
 for rank, team, tid in zip(ranks, teams, team_ids):
-    print(f"  Running unrated vs {team} (rank {rank}, id {tid})")
-    output = run_cmd(["cambc", "match", "unrated", tid], env)
-    print(output)
-    if 'ratelimitexceeded' in output.lower().replace(' ', ''):
-        print('so we exceeded rate limit...')
-        print(output.lower().replace(' ', ''))
-        break
+    for _ in range(repeat):
+        print(f"  Running unrated vs {team} (rank {rank}, id {tid})")
+        output = run_cmd(["cambc", "match", "unrated", tid], env)
+        print(output)
+        if 'ratelimitexceeded' in output.lower().replace(' ', ''):
+            print('so we exceeded rate limit...')
+            print(output.lower().replace(' ', ''))
+            break
 

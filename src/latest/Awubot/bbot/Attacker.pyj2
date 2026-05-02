@@ -22,9 +22,12 @@ class Attacker:
     {% set ATTACK_RANDOM_ROAD_TI = 150 %}
 
     seen_enemy_core: bool = False
+    allies_ready: int
+    enemies_ready: int
 
     @classmethod
     def update(cls):
+        cls.allies_ready, cls.enemies_ready = cls.compute_readiness()
         cls.seen_enemy_core = cls.seen_enemy_core or \
             Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= 20
 
@@ -167,8 +170,7 @@ class Attacker:
             {% endif %}
             return True
 
-        allies_ready, enemies_ready = cls.compute_readiness()
-        if allies_ready > 2 * enemies_ready:
+        if cls.allies_ready > 2 * cls.enemies_ready:
             {% if LOCAL %}
             print(pos, 'ShouldFire since readiness is high')
             {% endif %}

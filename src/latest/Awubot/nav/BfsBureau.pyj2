@@ -34,10 +34,8 @@ class BfsBureau:
 
     passable_bridge: list[bool] = [{{ False }}] * {{ PADDED_GRID_SIZE }}
 
-    # pure terrain weights — only written from update() based on tile_info
     weight: list[int] = [{{ INF }}] * {{ PADDED_GRID_SIZE }}
 
-    # incremental penalty overlay — written by add/remove_enemy_launcher/sentinel
     # applied to now_weight after copy, never touches weight
     penalty: list[int] = [0] * {{ PADDED_GRID_SIZE }}
     _penalty_indices: set[int] = set()
@@ -94,7 +92,6 @@ class BfsBureau:
                 w = {{ INF }}
                 cls.passable_int &= ~bit
 
-            # pure terrain — just assign, no max()
             weight[idx] = w
 
             if (
@@ -103,7 +100,7 @@ class BfsBureau:
                 (
                     (not ti.has_building) or
                     ((etype := ti.entity_type) == EntityType.MARKER) or
-                    (ti.is_shield) or
+                    (ti.is_shield and ti.ally_fed_foundries_adjacent == 0) or
                     (ti.is_building_ally and (
                         etype == EntityType.ROAD or etype == EntityType.CORE))
                 )
@@ -117,7 +114,6 @@ class BfsBureau:
         cls.now_weight = weight.copy()
         now_weight = cls.now_weight
 
-        # apply incremental penalties (launcher zones, sentinel zones) —
         # only iterate the small set of touched indices, not the whole grid
         penalty = cls.penalty
         for idx in cls._penalty_indices:
@@ -151,7 +147,6 @@ class BfsBureau:
                 {% endfor %}
 # ===---
 
-    # ── incremental penalty helpers ───────────────────────────────────────────────
 
     @classmethod
     def _add_penalty(cls, idx: int, amount: int):
@@ -165,12 +160,11 @@ class BfsBureau:
             cls.penalty[idx] = 0
             cls._penalty_indices.discard(idx)
 
-    # ── sentinel ──────────────────────────────────────────────────────────────────
 
     {% set SENTINEL_WEIGHT = 3 %}
     @classmethod
     def add_enemy_sentinel(cls, pos, ti):
-        for apos in Globals.ct.get_attackable_tiles_from(pos, ti.turret_direction, ti.entity_type):
+        for apos in Globals.ct.get_attackable_tiles_from(pos, ti.turret_direction, EntityType.SENTINEL):
             cls._add_penalty({{ encode_pos('apos.x', 'apos.y') }}, {{ SENTINEL_WEIGHT }})
 
     @classmethod
@@ -178,7 +172,16 @@ class BfsBureau:
         for apos in Globals.ct.get_attackable_tiles_from(pos, turret_dir, EntityType.SENTINEL):
             cls._remove_penalty({{ encode_pos('apos.x', 'apos.y') }}, {{ SENTINEL_WEIGHT }})
 
-    # ── enemy launcher ────────────────────────────────────────────────────────────
+    {% set GUNNER_WEIGHT = 7 %}
+    @classmethod
+    def add_enemy_gunner(cls, pos, ti):
+        for apos in Globals.ct.get_attackable_tiles_from(pos, ti.turret_direction, EntityType.GUNNER):
+            cls._add_penalty({{ encode_pos('apos.x', 'apos.y') }}, {{ GUNNER_WEIGHT }})
+
+    @classmethod
+    def remove_enemy_gunner(cls, pos, turret_dir):
+        for apos in Globals.ct.get_attackable_tiles_from(pos, turret_dir, EntityType.GUNNER):
+            cls._remove_penalty({{ encode_pos('apos.x', 'apos.y') }}, {{ GUNNER_WEIGHT }})
 
     @classmethod
     def add_enemy_launcher(cls, idx):
@@ -211,8 +214,6 @@ class BfsBureau:
         {% if LOCAL %}
         Debug.dot(Position(x, y), Color.GREEN)
         {% endif %}
-
-    # ── ally launcher (enemy-perspective danger zones) ────────────────────────────
 
     @classmethod
     def add_ally_launcher(cls, idx: int):
@@ -608,7 +609,6 @@ class BfsBureau:
 # ===---
     {% endfor %}
 
-    # ── bfs20 ────────────────────────────────────────────────────────────────────
     bfs20_dist: list[int] = [{{ INF }}] * {{ PADDED_GRID_SIZE }}
     bfs20_dist_adj: list[int] = [{{ INF }}] * {{ PADDED_GRID_SIZE }}
     _bfs20_touched_indices: list[int] = []

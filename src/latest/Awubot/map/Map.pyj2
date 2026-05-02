@@ -44,6 +44,7 @@ class Map:
 
     {% set NONE_BUFFER = 5 %}
     # [x][y], some buffer right/bot side
+    tile_info_idx: list[int] = [None] * {{ PADDED_GRID_SIZE }}
     tile_info: list[list[TileInfo | None]]
     nearby_tiles: list[Position]
     proc_nearby_tiles: list[tuple[Position, int, int, int, TileInfo]]        # in rsq 20
@@ -154,6 +155,7 @@ class Map:
         ax_harvester_set = cls.ax_harvester_set
         ti_ally_harvester_set = cls.ti_ally_harvester_set
         ax_ally_harvester_set = cls.ax_ally_harvester_set
+        tile_info_idx = cls.tile_info_idx
 
         proc_nearby_tiles = []
         inner_proc_nearby_tiles = []
@@ -163,6 +165,7 @@ class Map:
             ti: TileInfo | None = tile_info[x][y]
             if ti is None:
                 ti = TileInfo()
+                tile_info_idx[idx] = ti
                 tile_info[x][y] = ti
                 ti.has_building = False
                 ti.has_turret = False
@@ -192,6 +195,7 @@ class Map:
             if ti.has_turret:
                 old_turret_direction = ti.turret_direction
 
+            {% if sym != 'UNKNOWN' and False %}
             {% if sym == 'V' %}
             ox, oy = maxX - x, y
             {% elif sym == 'H' %}
@@ -200,7 +204,6 @@ class Map:
             ox, oy = maxX - x, maxY - y
             {% endif %}
 
-            {% if sym != 'UNKNOWN' %}
             opp_ti = tile_info[ox][oy]
             if opp_ti is None:
                 opp_ti = TileInfo()
@@ -327,12 +330,16 @@ class Map:
                     BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
                 elif old_etype == LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
+                elif old_etype == GUNNER:
+                    BfsBureau.remove_enemy_gunner(pos, old_turret_direction)
 
             elif new_enemy_tower and not old_enemy_tower:
                 if etype == SENTINEL:
                     BfsBureau.add_enemy_sentinel(pos, ti)
                 elif etype == LAUNCHER:
                     BfsBureau.add_enemy_launcher(pos_idx)
+                elif etype == GUNNER:
+                    BfsBureau.add_enemy_gunner(pos, ti)
 
             # [new enemy bot bfs]
             old_ally_launcher = (old_etype == LAUNCHER and old_is_building_ally)
