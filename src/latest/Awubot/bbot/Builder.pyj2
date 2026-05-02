@@ -294,7 +294,7 @@ class Builder({{ super() }}):
         if healpos is not None and misinfo is None:
             return 'MoveTo', healpos, 'Heal'
 
-        if misinfo is not None: # and not ((RouteToCore.backTracking or RouteToFoundry.backTracking) and not RouteToCore.is_active and not RouteToFoundry.is_active):
+        if misinfo is not None and not (RouteToCore.backTracking and RouteToCore.is_active):
             if misinfo.on_ally_side:
                 return 'Reroute', misinfo.position
             else:
@@ -302,7 +302,7 @@ class Builder({{ super() }}):
 
 
         buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0)
-        
+
 
         if not buildingFirstConveyor:
             if turretpos is not None:
@@ -334,10 +334,6 @@ class Builder({{ super() }}):
         if RouteToFoundry.is_active:
             {{ D.print('(RouteToFoundry)') }}
             return ('RouteFoundry',)
-
-        if RouteToFoundryInput.is_active:
-            {{ D.print('RouteToFoundryInput') }}
-            return ('RouteFoundryInput',)
 
         if RouteToCore.is_active:
             {{ D.print('RouteToCore') }}
@@ -383,7 +379,7 @@ class Builder({{ super() }}):
         if sitterpos is not None:
             return 'BuildLauncher', sitterpos
 
-        if cls.should_fire and (BfsBureau.enemy_bot_dist_adj[Globals.my_idx] >= 2 
+        if cls.should_fire and (BfsBureau.enemy_bot_dist_adj[Globals.my_idx] >= 2
                                 or Attacker.allies_ready > 2 * Attacker.enemies_ready):
             return 'Attack', Globals.my_pos, '(ShouldFire&D>=2)|(a>2*e)'
 

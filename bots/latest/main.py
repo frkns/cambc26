@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-02 12:49:13 (local)
+# latest,  @ 2026-05-02 16:09:36 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -349,17 +349,21 @@ class Attacker:
         max_hp = Constants.MAX_HP_MAP[ti.entity_type]
 
         if 2 * hp <= max_hp:
+            print(pos, 'ShouldFire since low hp')
             return True
 
         if cls.allies_ready > 2 * cls.enemies_ready:
+            print(pos, 'ShouldFire since readiness is high')
             return True
 
         ebot_dist_adj = BfsBureau.enemy_bot_dist_adj[idx]
 
         if ebot_dist_adj >= 2:
+            print(pos, 'ShouldFire since enemies far away')
             return True
 
         if etype == EntityType.ROAD and ebot_dist_adj >= 1:
+            print(pos, 'ShouldFire since road + no adjacent enemy')
             return True
 
         return False
@@ -546,6 +550,7 @@ class BfsBureau:
         cls._add_penalty(idx + -56, 1000000)
         cls._add_penalty(idx + -57, 1000000)
 
+        Debug.dot(Position(x, y), Color.YELLOW)
 
     @classmethod
     def remove_enemy_launcher(cls, idx):
@@ -562,18 +567,21 @@ class BfsBureau:
         cls._remove_penalty(idx + -56, 1000000)
         cls._remove_penalty(idx + -57, 1000000)
 
+        Debug.dot(Position(x, y), Color.GREEN)
 
     @classmethod
     def add_ally_launcher(cls, idx: int):
         x = idx // 56 - 3
         y = idx %  56 - 3
         cls.ally_launcher |= 1 << (x * cls.STRIDE + y)
+        Debug.dot(Position(x, y), Color.CYAN)
 
     @classmethod
     def remove_ally_launcher(cls, idx: int):
         x = idx // 56 - 3
         y = idx %  56 - 3
         cls.ally_launcher &= ~(1 << (x * cls.STRIDE + y))
+        Debug.dot(Position(x, y), Color.LIME)
 
     # generate 4 different find_bridge_route variants
 
@@ -4654,6 +4662,7 @@ class BfsBureau:
         _D = (Direction.NORTH, Direction.NORTHEAST, Direction.EAST, Direction.SOUTHEAST, Direction.SOUTH, Direction.SOUTHWEST, Direction.WEST, Direction.NORTHWEST)
 
         if si == ti:
+            print(f'[on top of find_route target with {ban_target=}]')
 
             if ban_target:
                 _best_c = 1000000
@@ -4766,7 +4775,7 @@ class BfsBureau:
         pre_weight = weight[ti]
         weight[ti] = 1
 
-        
+        Profiler.start(f"""BfsBureau.find_route{{ variant_suffix }}""")
 
         dist = [1000000] * 3136
         fhd  = [0]       * 3136
@@ -4785,7 +4794,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 0
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.NORTH
             _hp(heap, (w, ni))
         ni = si + 55
@@ -4794,7 +4803,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 1
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.NORTHEAST
             _hp(heap, (w, ni))
         ni = si + 56
@@ -4803,7 +4812,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 2
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.EAST
             _hp(heap, (w, ni))
         ni = si + 57
@@ -4812,7 +4821,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 3
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.SOUTHEAST
             _hp(heap, (w, ni))
         ni = si + 1
@@ -4821,7 +4830,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 4
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.SOUTH
             _hp(heap, (w, ni))
         ni = si + -55
@@ -4830,7 +4839,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 5
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.SOUTHWEST
             _hp(heap, (w, ni))
         ni = si + -56
@@ -4839,7 +4848,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 6
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.WEST
             _hp(heap, (w, ni))
         ni = si + -57
@@ -4848,7 +4857,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 7
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.NORTHWEST
             _hp(heap, (w, ni))
 
@@ -4875,6 +4884,7 @@ class BfsBureau:
             ni = idx + -1
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4882,12 +4892,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 55
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4895,12 +4906,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 56
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4908,12 +4920,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 57
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4921,12 +4934,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 1
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4934,12 +4948,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -55
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4947,12 +4962,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -56
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4960,12 +4976,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -57
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4973,12 +4990,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
 
         if not phase2_seeds:
-            weight[ti] = pre_weight; 
+            weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
             return 1000000, None
 
 
@@ -5063,7 +5080,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md0 + _bfs_d + 1, _D[0]
                 else:
                     _fh0 = 0
@@ -5077,7 +5094,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md1 + _bfs_d + 1, _D[1]
                 else:
                     _fh1 = 0
@@ -5091,7 +5108,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md2 + _bfs_d + 1, _D[2]
                 else:
                     _fh2 = 0
@@ -5105,7 +5122,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md3 + _bfs_d + 1, _D[3]
                 else:
                     _fh3 = 0
@@ -5119,7 +5136,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md4 + _bfs_d + 1, _D[4]
                 else:
                     _fh4 = 0
@@ -5133,7 +5150,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md5 + _bfs_d + 1, _D[5]
                 else:
                     _fh5 = 0
@@ -5147,7 +5164,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md6 + _bfs_d + 1, _D[6]
                 else:
                     _fh6 = 0
@@ -5161,7 +5178,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md7 + _bfs_d + 1, _D[7]
                 else:
                     _fh7 = 0
@@ -5170,7 +5187,7 @@ class BfsBureau:
                 break
             _bfs_d += 1
 
-        weight[ti] = pre_weight; 
+        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
         return 1000000, None
 
 
@@ -5192,6 +5209,7 @@ class BfsBureau:
         _D = (Direction.NORTH, Direction.NORTHEAST, Direction.EAST, Direction.SOUTHEAST, Direction.SOUTH, Direction.SOUTHWEST, Direction.WEST, Direction.NORTHWEST)
 
         if si == ti:
+            print(f'[on top of find_route_inv target with {ban_target=}]')
 
             if ban_target:
                 _best_c = 1000000
@@ -5320,7 +5338,7 @@ class BfsBureau:
         pre_weight = weight[ti]
         weight[ti] = 1
 
-        
+        Profiler.start(f"""BfsBureau.find_route{{ variant_suffix }}""")
 
         dist = [1000000] * 3136
         fhd  = [0]       * 3136
@@ -5340,7 +5358,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 0
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.NORTH
             _hp(heap, (w, ni))
         ni = si + 56
@@ -5350,7 +5368,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 2
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.EAST
             _hp(heap, (w, ni))
         ni = si + 1
@@ -5360,7 +5378,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 4
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.SOUTH
             _hp(heap, (w, ni))
         ni = si + -56
@@ -5370,7 +5388,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 6
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.WEST
             _hp(heap, (w, ni))
         ni = si + 55
@@ -5381,7 +5399,7 @@ class BfsBureau:
                 dist[ni] = w
                 fhd[ni]  = 1
                 if ni == ti:
-                    weight[ti] = pre_weight; 
+                    weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                     return w, Direction.NORTHEAST
                 _hp(heap, (w, ni))
             elif w == dist[ni]:
@@ -5394,7 +5412,7 @@ class BfsBureau:
                 dist[ni] = w
                 fhd[ni]  = 3
                 if ni == ti:
-                    weight[ti] = pre_weight; 
+                    weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                     return w, Direction.SOUTHEAST
                 _hp(heap, (w, ni))
             elif w == dist[ni]:
@@ -5407,7 +5425,7 @@ class BfsBureau:
                 dist[ni] = w
                 fhd[ni]  = 5
                 if ni == ti:
-                    weight[ti] = pre_weight; 
+                    weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                     return w, Direction.SOUTHWEST
                 _hp(heap, (w, ni))
             elif w == dist[ni]:
@@ -5420,7 +5438,7 @@ class BfsBureau:
                 dist[ni] = w
                 fhd[ni]  = 7
                 if ni == ti:
-                    weight[ti] = pre_weight; 
+                    weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                     return w, Direction.NORTHWEST
                 _hp(heap, (w, ni))
             elif w == dist[ni]:
@@ -5449,6 +5467,7 @@ class BfsBureau:
             ni = idx + -1
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5457,12 +5476,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 55
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5471,12 +5491,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 56
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5485,12 +5506,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 57
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5499,12 +5521,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 1
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5513,12 +5536,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -55
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5527,12 +5551,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -56
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5541,12 +5566,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -57
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5555,12 +5581,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
 
         if not phase2_seeds:
-            weight[ti] = pre_weight; 
+            weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
             return 1000000, None
 
 
@@ -5645,7 +5671,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md0 + _bfs_d + 1, _D[0]
                 else:
                     _fh0 = 0
@@ -5659,7 +5685,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md1 + _bfs_d + 1, _D[1]
                 else:
                     _fh1 = 0
@@ -5673,7 +5699,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md2 + _bfs_d + 1, _D[2]
                 else:
                     _fh2 = 0
@@ -5687,7 +5713,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md3 + _bfs_d + 1, _D[3]
                 else:
                     _fh3 = 0
@@ -5701,7 +5727,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md4 + _bfs_d + 1, _D[4]
                 else:
                     _fh4 = 0
@@ -5715,7 +5741,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md5 + _bfs_d + 1, _D[5]
                 else:
                     _fh5 = 0
@@ -5729,7 +5755,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md6 + _bfs_d + 1, _D[6]
                 else:
                     _fh6 = 0
@@ -5743,7 +5769,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md7 + _bfs_d + 1, _D[7]
                 else:
                     _fh7 = 0
@@ -5752,7 +5778,7 @@ class BfsBureau:
                 break
             _bfs_d += 1
 
-        weight[ti] = pre_weight; 
+        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
         return 1000000, None
 
 
@@ -7860,6 +7886,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_builder_bot() -> bool:
+        # assert EntityType.BUILDER_BOT in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -7893,7 +7920,10 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        Pathfinder.move_off()
+        success = Pathfinder.move_off()
+        if not success:
+            Debug.tee('failed move off')
+            Debug.diamond(Color.YELLOW)
 
         if BuildManager.can_build_builder_bot(pos, *a):
             Globals.ct.build_builder_bot(pos, *a)
@@ -7947,6 +7977,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_gunner() -> bool:
+        # assert EntityType.GUNNER in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -7980,7 +8011,10 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        Pathfinder.move_off()
+        success = Pathfinder.move_off()
+        if not success:
+            Debug.tee('failed move off')
+            Debug.diamond(Color.YELLOW)
 
         if BuildManager.can_build_gunner(pos, *a):
             Globals.ct.build_gunner(pos, *a)
@@ -8034,6 +8068,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_sentinel() -> bool:
+        # assert EntityType.SENTINEL in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8067,7 +8102,10 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        Pathfinder.move_off()
+        success = Pathfinder.move_off()
+        if not success:
+            Debug.tee('failed move off')
+            Debug.diamond(Color.YELLOW)
 
         if BuildManager.can_build_sentinel(pos, *a):
             Globals.ct.build_sentinel(pos, *a)
@@ -8121,6 +8159,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_breach() -> bool:
+        # assert EntityType.BREACH in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8154,7 +8193,10 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        Pathfinder.move_off()
+        success = Pathfinder.move_off()
+        if not success:
+            Debug.tee('failed move off')
+            Debug.diamond(Color.YELLOW)
 
         if BuildManager.can_build_breach(pos, *a):
             Globals.ct.build_breach(pos, *a)
@@ -8208,6 +8250,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_launcher() -> bool:
+        # assert EntityType.LAUNCHER in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8241,7 +8284,10 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        Pathfinder.move_off()
+        success = Pathfinder.move_off()
+        if not success:
+            Debug.tee('failed move off')
+            Debug.diamond(Color.YELLOW)
 
         if BuildManager.can_build_launcher(pos, *a):
             Globals.ct.build_launcher(pos, *a)
@@ -8295,6 +8341,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_conveyor() -> bool:
+        # assert EntityType.CONVEYOR in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8388,6 +8435,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_splitter() -> bool:
+        # assert EntityType.SPLITTER in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8481,6 +8529,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_armoured_conveyor() -> bool:
+        # assert EntityType.ARMOURED_CONVEYOR in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8574,6 +8623,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_bridge() -> bool:
+        # assert EntityType.BRIDGE in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8667,6 +8717,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_harvester() -> bool:
+        # assert EntityType.HARVESTER in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8699,7 +8750,10 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        Pathfinder.move_off()
+        success = Pathfinder.move_off()
+        if not success:
+            Debug.tee('failed move off')
+            Debug.diamond(Color.YELLOW)
 
         if BuildManager.can_build_harvester(pos, *a):
             Globals.ct.build_harvester(pos, *a)
@@ -8759,6 +8813,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_foundry() -> bool:
+        # assert EntityType.FOUNDRY in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8791,7 +8846,10 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        Pathfinder.move_off()
+        success = Pathfinder.move_off()
+        if not success:
+            Debug.tee('failed move off')
+            Debug.diamond(Color.YELLOW)
 
         if BuildManager.can_build_foundry(pos, *a):
             Globals.ct.build_foundry(pos, *a)
@@ -8844,6 +8902,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_road() -> bool:
+        # assert EntityType.ROAD in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8935,6 +8994,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_barrier() -> bool:
+        # assert EntityType.BARRIER in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8967,7 +9027,10 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        Pathfinder.move_off()
+        success = Pathfinder.move_off()
+        if not success:
+            Debug.tee('failed move off')
+            Debug.diamond(Color.YELLOW)
 
         if BuildManager.can_build_barrier(pos, *a):
             Globals.ct.build_barrier(pos, *a)
@@ -9404,13 +9467,7 @@ class DarkForest:
     sight_flowing: list[bool]        # sight-based flow: True if fresh valid resource seen recently
     foundry_positions: set[int] = set()  # persistent: encoded positions of built foundries
     refined_ax_line: set[int] = set()    # recomputed each tick: ALLY_CORE nodes on refined-axionite output paths
-    foundry_owner:        list[int]           # per-node encoded foundry pos, -1 if none
-    foundry_ti_sink_sets: dict[int, set[int]] # foundry_idx -> titanium-side reachable nodes
-    foundry_ax_sink_sets: dict[int, set[int]] # foundry_idx -> axionite-side reachable nodes
-    foundry_ti_flow: list[int]   # titanium flow at each node
-    foundry_ax_flow: list[int]   # axionite flow at each node
-    needs_update: bool = True
-    
+
     @classmethod
     def init(cls):
 
@@ -9647,9 +9704,6 @@ class DarkForest:
         _sh = (0, 12, 6,
                4, 3)
 
-        ti_flow = [0] * 3136
-        ax_flow = [0] * 3136
-
         for h in harvesters:
             _is_ax = h in ax_harvesters
             _n0 = h -1
@@ -9670,31 +9724,19 @@ class DarkForest:
                 if _e0:
                     flow[_n0] += s
                     if _is_ax:
-                        ax_flow[_n0] += s
                         ax_tagged[_n0] = True
-                    else:
-                        ti_flow[_n0] += s
                 if _e1:
                     flow[_n1] += s
                     if _is_ax:
-                        ax_flow[_n1] += s
                         ax_tagged[_n1] = True
-                    else:
-                        ti_flow[_n1] += s
                 if _e2:
                     flow[_n2] += s
                     if _is_ax:
-                        ax_flow[_n2] += s
                         ax_tagged[_n2] = True
-                    else:
-                        ti_flow[_n2] += s
                 if _e3:
                     flow[_n3] += s
                     if _is_ax:
-                        ax_flow[_n3] += s
                         ax_tagged[_n3] = True
-                    else:
-                        ti_flow[_n3] += s
 
         # TODO: Maybe weight higher
         # ── foundries as refined-axionite sources (act like titanium harvesters) ──
@@ -9707,7 +9749,6 @@ class DarkForest:
                 _s = _sh[_cnt]
                 for _fn in _fn_list:
                     flow[_fn] += _s
-                    ti_flow[_fn] += _s   # refined axionite acts as titanium downstream
 
         # ── fix dead parents, indegree, collect active ──
         active = []
@@ -27229,8 +27270,6 @@ class DarkForest:
             p = ns[u].up
             if p is not None and ns[p] is not None and p not in harvesters:
                 flow[p]    += flow[u]
-                ti_flow[p] += ti_flow[u]
-                ax_flow[p] += ax_flow[u]
                 # propagate ax taint upward
                 if ax_tagged[u]:
                     ax_tagged[p] = True
@@ -27287,7 +27326,6 @@ class DarkForest:
         # ── top-down pass: pressure, node_kind, core_sink_set, per-foundry sink sets ──
         pressure    = [0] * 3136
         nk          = [0] * 3136
-        foundry_owner = [-1] * 3136   # encoded pos of the foundry this node feeds, or -1
 
         _ALLY_CONSUMER_K = 3
         _foundry_set     = cls.foundry_positions
@@ -27318,9 +27356,7 @@ class DarkForest:
             else:
                 pressure[u] = pressure[p]
                 k = nk[p]
-                fo = foundry_owner[p]            # inherit from parent
             nk[u] = k
-            foundry_owner[u] = fo
             if (k == 1
                     and pressure[u] <= THR
                     and not ax_tagged[u]
@@ -27330,19 +27366,7 @@ class DarkForest:
         # cores themselves are always valid sinks regardless of the above
         core_sink_set |= core_pos_set
 
-        # ── per-foundry titanium / axionite sink sets ──
-        foundry_ti_sink_sets: dict[int, set[int]] = {f: set() for f in _foundry_set}
-        foundry_ax_sink_sets: dict[int, set[int]] = {f: set() for f in _foundry_set}
-    
 
-        for u in active:
-            fo = foundry_owner[u]
-            if fo == -1:
-                continue
-            if ax_tagged[u]:
-                foundry_ax_sink_sets[fo].add(u)
-            else:
-                foundry_ti_sink_sets[fo].add(u)
 
         cls.flow          = flow
         cls.pressure      = pressure
@@ -27350,11 +27374,6 @@ class DarkForest:
         cls.ax_tagged     = ax_tagged
         cls.core_sink_set = core_sink_set
         cls.sink_set      = core_sink_set   # backward-compat alias
-        cls.foundry_owner        = foundry_owner        # per-node encoded foundry pos, -1 if none
-        cls.foundry_ti_sink_sets = foundry_ti_sink_sets # {foundry_idx -> set of ti-feeding nodes}
-        cls.foundry_ax_sink_sets = foundry_ax_sink_sets # {foundry_idx -> set of ax-feeding nodes}
-        cls.foundry_ti_flow = ti_flow   # total titanium flow at each node
-        cls.foundry_ax_flow = ax_flow   # total axionite flow at each node
 
         _ral: set[int] = set()
         _ALLY_CORE_K = 1
@@ -27646,161 +27665,6 @@ class FoundryBuild:
             return None
         t = ((RouteToFoundry._foundry_target) // 56 - 3), ((RouteToFoundry._foundry_target) % 56 - 3)
         return Position(t[0], t[1])
-
-
-# ============================================================
-# FoundryInputTracker
-# ============================================================
-
-class FoundryInputTracker:
-    MAX_INPUTS    = 8
-    MAX_TI_INPUTS = 4 
-    MAX_AX_INPUTS = 4
-
-    # Built-connection counts (from DarkForest, reset each tick).
-    ti_count: dict[int, int] = {}
-    ax_count: dict[int, int, ] = {}
-
-    # Pending-route reservations (persist across ticks, cleared on
-    # give-up / success).  Keyed by foundry encoded position.
-    claimed_ti: dict[int, int] = defaultdict(int)
-    claimed_ax: dict[int, int] = defaultdict(int)
-
-    ti_sink_sets: dict[int, set[int]] = {}
-    ax_sink_sets: dict[int, set[int]] = {}
-
-    @classmethod
-    def compute(cls):
-        """Read per-foundry ti/ax flow directly from DarkForest and sync sink sets."""
-        ti_flow = DarkForest.foundry_ti_flow
-        ax_flow = DarkForest.foundry_ax_flow
-
-        ti_c: dict[int, int] = {}
-        ax_c: dict[int, int] = {}
-        for f in DarkForest.foundry_positions:
-            ti_c[f] = ti_flow[f]
-            ax_c[f] = ax_flow[f]
-
-        cls.ti_count = ti_c
-        cls.ax_count = ax_c
-
-        cls.ti_sink_sets = DarkForest.foundry_ti_sink_sets
-        cls.ax_sink_sets = DarkForest.foundry_ax_sink_sets
-    # ── capacity helpers (built + claimed) ──
-
-    @classmethod
-    def get_ti_sink_set(cls, f: int) -> set[int]:
-        """Titanium-side routing targets for foundry f (empty set if unknown)."""
-        return cls.ti_sink_sets.get(f, set())
-
-    @classmethod
-    def get_ax_sink_set(cls, f: int) -> set[int]:
-        """Axionite-side routing targets for foundry f (empty set if unknown)."""
-        return cls.ax_sink_sets.get(f, set())
-
-    @classmethod
-    def _ti_used(cls, f: int) -> int:
-        return cls.ti_count.get(f, 0) + cls.claimed_ti[f]
-
-    @classmethod
-    def _ax_used(cls, f: int) -> int:
-        return cls.ax_count.get(f, 0) + cls.claimed_ax[f]
-
-    @classmethod
-    def has_ti_capacity(cls, f: int) -> bool:
-        return (cls._ti_used(f) < cls.MAX_TI_INPUTS
-                and cls._ti_used(f) + cls._ax_used(f) < cls.MAX_INPUTS)
-
-    @classmethod
-    def has_ax_capacity(cls, f: int) -> bool:
-        return (cls._ax_used(f) < cls.MAX_AX_INPUTS
-                and cls._ti_used(f) + cls._ax_used(f) < cls.MAX_INPUTS)
-
-    # ── reservation management ──
-
-    @classmethod
-    def claim_ti(cls, f: int):
-        cls.claimed_ti[f] += 1
-
-    @classmethod
-    def release_ti(cls, f: int):
-        if cls.claimed_ti[f] > 0:
-            cls.claimed_ti[f] -= 1
-
-    @classmethod
-    def claim_ax(cls, f: int):
-        cls.claimed_ax[f] += 1
-
-    @classmethod
-    def release_ax(cls, f: int):
-        if cls.claimed_ax[f] > 0:
-            cls.claimed_ax[f] -= 1
-
-    # ── target selection ──
-
-    @classmethod
-    def get_best_ti_foundry(cls, from_pos: Position) -> int | None:
-        """
-        Nearest existing foundry (by Manhattan distance) that still has
-        a spare titanium input slot.  Returns encoded position or None.
-        """
-        sx, sy  = from_pos.x, from_pos.y
-        best    = None
-        best_d  = 1000000
-        for f in DarkForest.foundry_positions:
-            if not cls.has_ti_capacity(f):
-                continue
-            fx = f // 56 - 3
-            fy = f % 56  - 3
-            d  = abs(fx - sx) + abs(fy - sy)
-            if d < best_d:
-                best_d = d
-                best   = f
-        return best
-
-    @classmethod
-    def get_best_ax_foundry(cls, from_pos: Position) -> int | None:
-        """
-        Nearest existing foundry with a spare axionite input slot.
-        Prefers foundries that already have at least one ti input (so
-        the foundry can actually produce refined axionite).
-        """
-        sx, sy  = from_pos.x, from_pos.y
-        best    = None
-        best_d  = 1000000
-        for f in DarkForest.foundry_positions:
-            if not cls.has_ax_capacity(f):
-                continue
-            fx = f // 56 - 3
-            fy = f % 56  - 3
-            d  = abs(fx - sx) + abs(fy - sy)
-            # Prefer foundries that already have a titanium connection.
-            if cls._ti_used(f) > 0:
-                d = d // 2     # half-distance bias toward productive foundries
-            if d < best_d:
-                best_d = d
-                best   = f
-        return best
-
-
-# ══════════════════════════════════════════════════════════════════════
-# RouteToFoundryInput
-#
-# Routes a just-built harvester (titanium OR axionite) toward an
-# existing foundry that has spare input capacity.
-#
-# Titanium mode  (is_ax=False): uses find_bridge_route.
-# Axionite mode  (is_ax=True):  uses find_bridge_route_avoid_ti_adj
-#                                to keep axionite paths off titanium
-#                                territory.
-#
-# Completion: when from_pos is adjacent to the foundry and we build
-# a conveyor pointing toward it, set_pos(foundry_pos) triggers
-# deactivation (encoded == _target).
-#
-# Mirrors RouteToCore / RouteToFoundry structure so determine_state
-# can handle all three uniformly.
-# ══════════════════════════════════════════════════════════════════════
 
 
 # ============================================================
@@ -29523,6 +29387,8 @@ class HarvesterAdjacent:
                     #     Debug.diline(Position(0,0), pos, Color.BLUE)
 
 
+                    if info.h_has_fed_foundry:
+                        Debug.diamond(Color.BLUE, hpos)
 
                     info.has_ally_transporter = (
                         ti.has_building 
@@ -29677,6 +29543,8 @@ class HarvesterAdjacent:
                     #     Debug.diline(Position(0,0), pos, Color.BLUE)
 
 
+                    if info.h_has_fed_foundry:
+                        Debug.diamond(Color.BLUE, hpos)
 
                     info.has_ally_transporter = (
                         ti.has_building 
@@ -29831,6 +29699,8 @@ class HarvesterAdjacent:
                     #     Debug.diline(Position(0,0), pos, Color.BLUE)
 
 
+                    if info.h_has_fed_foundry:
+                        Debug.diamond(Color.BLUE, hpos)
 
                     info.has_ally_transporter = (
                         ti.has_building 
@@ -29985,6 +29855,8 @@ class HarvesterAdjacent:
                     #     Debug.diline(Position(0,0), pos, Color.BLUE)
 
 
+                    if info.h_has_fed_foundry:
+                        Debug.diamond(Color.BLUE, hpos)
 
                     info.has_ally_transporter = (
                         ti.has_building 
@@ -30091,11 +29963,12 @@ class HarvesterAdjacent:
                     infos.append(info)
 
         
-        
+        Profiler.start(f"""(Gunner/Sentinel)DirectionPicker.get_best_info (x5)""")
         sample = random.sample(infos, min(5, len(infos)))
         for info in sample:
             info.gunner_dir_info = GunnerDirectionPicker.get_best_info(info.position)
             info.sentinel_dir_info = SentinelDirectionPicker.get_best_info(info.position)
+        Profiler.end(f"""(Gunner/Sentinel)DirectionPicker.get_best_info (x5)""")
 
 
 # ============================================================
@@ -30675,9 +30548,11 @@ class HealTargeter:
         if best.is_launcher:
             return None
 
+        print(f'(possible) heal target {best.position=} {best.building_heal=} {best.building_hp=}')
 
         total_heal = best.building_heal + best.bot_heal
         if total_heal < 4:
+            print(f'{total_heal=}')
             # Still heal buildings next to harvesters for shielding
             if not best.harvester_adjacent or total_heal == 0:
                 return None
@@ -31069,9 +30944,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+                Profiler.start(f"""Comms.handle_message""")
                 Comms.handle_message(get_marker_value(building_id))
-                
+                Profiler.end(f"""Comms.handle_message""")
 
             ti.is_pointed_to = False
 
@@ -31500,9 +31375,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+                Profiler.start(f"""Comms.handle_message""")
                 Comms.handle_message(get_marker_value(building_id))
-                
+                Profiler.end(f"""Comms.handle_message""")
 
             ti.is_pointed_to = False
 
@@ -31931,9 +31806,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+                Profiler.start(f"""Comms.handle_message""")
                 Comms.handle_message(get_marker_value(building_id))
-                
+                Profiler.end(f"""Comms.handle_message""")
 
             ti.is_pointed_to = False
 
@@ -32359,9 +32234,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+                Profiler.start(f"""Comms.handle_message""")
                 Comms.handle_message(get_marker_value(building_id))
-                
+                Profiler.end(f"""Comms.handle_message""")
 
             ti.is_pointed_to = False
 
@@ -32932,9 +32807,9 @@ class MarketMaker:
             return cls.hres
 
         
-        
+        Profiler.start(f"""BfsBureau.find_bridge_route""")
         bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.core_sink_set)
-        
+        Profiler.end(f"""BfsBureau.find_bridge_route""")
 
         h_cost, _ = Globals.ct.get_harvester_cost()
         b_cost, _ = Globals.ct.get_bridge_cost()
@@ -33260,24 +33135,11 @@ class OreExecutive:
                 if ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET and not ti.is_shield and encoded in DarkForest.core_sink_set:
                     break  # already connected, skip
             else:
-                # Prefer routing to an existing foundry with spare ti capacity
-                # over routing all the way back to core — it's cheaper and
-                # boosts an under-fed foundry's output.
-                fi_target = FoundryInputTracker.get_best_ti_foundry(pos)
-                if fi_target is not None and not RouteToFoundryInput.is_active:
-                    target_pos = Position(((fi_target) // 56 - 3), ((fi_target) % 56 - 3))
-                else:
-                    target_pos = Unit.core_pos
-
+                target_pos = Unit.core_pos
                 cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos, target_pos=target_pos)
                 if cand is not None:
-                    if fi_target is not None and not RouteToFoundryInput.is_active and RouteToFoundry.axionite_can_reach_foundry(cand.position, fi_target):
-                        FoundryInputTracker.claim_ti(fi_target)
-                        RouteToFoundryInput.set_pos(cand.position, fi_target, is_ax=False)
-                        print("go_build_harvester: routing ti to existing foundry", fi_target)
-                    else:
-                        RouteToCore.set_pos(cand.position)
-                        RouteToCore.isAttack = isAttack
+                    RouteToCore.set_pos(cand.position)
+                    RouteToCore.isAttack = isAttack
 
     @classmethod
     def go_build_ax_harvester(cls, pos):
@@ -33302,27 +33164,8 @@ class OreExecutive:
             Debug.diamond(Color.RED)
             return
 
-        # ── Strategy 1: route to an existing foundry with spare ax capacity ──
-        # This is preferred because it immediately boosts an already-built
-        # foundry's refined-axionite output without needing to build a new one.
-        fi_target = FoundryInputTracker.get_best_ax_foundry(pos)
-        if (fi_target is not None
-                and not RouteToFoundryInput.is_active
-                and RouteToFoundry.axionite_can_reach_foundry(cand.position, fi_target)):
-            if BuildManager.can_dbuild_harvester(pos):
-                Debug.line(pos, Color.YELLOW)
-                BuildManager.dbuild_harvester(pos)
-                FoundryInputTracker.claim_ax(fi_target)
-                RouteToFoundryInput.set_pos(cand.position, fi_target, is_ax=True)
-                print("go_build_ax_harvester: routing ax to existing foundry", fi_target)
-            else:
-                RouteToFoundry.give_up(True)
-            return
-
-        # ── Strategy 2: route to a new foundry leaf (existing behaviour) ──
-        # Prefer cluster-aware leaf selection when nearby ores form a cluster.
+        # route to a new foundry leaf
         RouteToFoundry.from_pos = pos
-
 
         RouteToFoundry.try_claim_target()
         foundry_enc = RouteToFoundry._foundry_target
@@ -33647,12 +33490,12 @@ class Pathfinder:
             cls.near_base = False
         # else: in dead-band [19..25], keep previous near_base value
 
-        
+        Profiler.start(f"""BfsBureau.find_route""")
         if cls.near_base:
             dist, dir = BfsBureau.find_route_inv(my_pos, target, ban_target_pos)  # prefer empties → lays roads
         else:
             dist, dir = BfsBureau.find_route(my_pos, target, ban_target_pos)      # prefer roads → uses existing roads
-        
+        Profiler.end(f"""BfsBureau.find_route""")
 
         if orbit and 0 < target.distance_squared(my_pos) <= 2:
             dir = my_pos.direction_to(target).rotate_left()
@@ -33757,6 +33600,8 @@ class Player:
             err = traceback.format_exc()
             Debug.tee(err)
             Debug.tee(f'(I am a {Globals.my_type})')
+
+            ct.resign()
 
 
 # ============================================================
@@ -34141,7 +33986,7 @@ class RouteToBreach:
             avoid_pos = RouteToCore.pathFindingKill
         )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("RouteToBreach: first_target is None, giving up")
@@ -34279,6 +34124,7 @@ class RouteToCore:
     backTracking = False
     pathFindingKill: set[int] = set()
     isAttack = False
+    gunnerBeenHereTick = 0
 
     @classmethod
     def set_pos(cls, pos: Position, fullReset = True):
@@ -34296,10 +34142,12 @@ class RouteToCore:
             cls.backTracking = False # Added here to clear backtracking once we resume forward progress
         cls.is_active = True
         cls.from_pos = pos
+        cls.gunnerBeenHereTick = 0
 
 
     @classmethod
     def try_build_route(cls):
+        assert cls.is_active
 
         bridge_dist = 0
         first_target = None
@@ -34366,7 +34214,7 @@ class RouteToCore:
                     avoid_pos = cls.pathFindingKill
                 )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             if cls.give_up(True):
@@ -34376,8 +34224,570 @@ class RouteToCore:
         target = Position(*first_target)
         Debug.line(from_pos, target, Color.GREEN)
 
-        if from_pos.distance_squared(target) == 1:
-            ti = Map.tile_info[from_pos.x][from_pos.y]
+        # # Look-ahead: if target is a shield (ally conveyor feeding a harvester),
+        # # verify we can continue from it before bridging onto it. Otherwise we'd
+        # # leave a dangling bridge with no way forward.
+        # _ti = (((target.x) + 3) * 56 + ((target.y) + 3))
+        # if BfsBureau.harvester_feeder[_ti]:
+        #     _, _ahead_first = BfsBureau.find_bridge_route(
+        #         target,
+        #         DarkForest.core_sink_set,
+        #         avoid_pos = cls.pathFindingKill,
+        #     )
+        #     if _ahead_first is None:
+        #         Debug.tee("RouteToCore: shield first_target with no continuation, giving up")
+        #         if cls.give_up(True):
+        #             StateMoveTo.run(Explore.get_target())
+        #         return
+
+        gunnerPossible = False
+        gunnerPossibleDir = None
+        closestGunnerPossibleDistsq = 1000000
+
+        if BuildManager.can_afford_gunner():
+            thingValid = True
+            nx, ny = cls.from_pos
+            nx += 0 
+            ny += 0 -1
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.NORTH
+            nx += 0 
+            ny += 0 -1
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.NORTH
+            nx += 0 
+            ny += 0 -1
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.NORTH
+            thingValid = True
+            nx, ny = cls.from_pos
+            nx += 0 +1
+            ny += 0 -1
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.NORTHEAST
+            nx += 0 +1
+            ny += 0 -1
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.NORTHEAST
+            nx += 0 +1
+            ny += 0 -1
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.NORTHEAST
+            thingValid = True
+            nx, ny = cls.from_pos
+            nx += 0 +1
+            ny += 0 
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.EAST
+            nx += 0 +1
+            ny += 0 
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.EAST
+            nx += 0 +1
+            ny += 0 
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.EAST
+            thingValid = True
+            nx, ny = cls.from_pos
+            nx += 0 +1
+            ny += 0 +1
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.SOUTHEAST
+            nx += 0 +1
+            ny += 0 +1
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.SOUTHEAST
+            nx += 0 +1
+            ny += 0 +1
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.SOUTHEAST
+            thingValid = True
+            nx, ny = cls.from_pos
+            nx += 0 
+            ny += 0 +1
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.SOUTH
+            nx += 0 
+            ny += 0 +1
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.SOUTH
+            nx += 0 
+            ny += 0 +1
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.SOUTH
+            thingValid = True
+            nx, ny = cls.from_pos
+            nx += 0 -1
+            ny += 0 +1
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.SOUTHWEST
+            nx += 0 -1
+            ny += 0 +1
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.SOUTHWEST
+            nx += 0 -1
+            ny += 0 +1
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.SOUTHWEST
+            thingValid = True
+            nx, ny = cls.from_pos
+            nx += 0 -1
+            ny += 0 
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.WEST
+            nx += 0 -1
+            ny += 0 
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.WEST
+            nx += 0 -1
+            ny += 0 
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.WEST
+            thingValid = True
+            nx, ny = cls.from_pos
+            nx += 0 -1
+            ny += 0 -1
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.NORTHWEST
+            nx += 0 -1
+            ny += 0 -1
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.NORTHWEST
+            nx += 0 -1
+            ny += 0 -1
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.NORTHWEST
+            thingValid = True
+            nx, ny = cls.from_pos
+            nx += 0 
+            ny += 0 
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.CENTRE
+            nx += 0 
+            ny += 0 
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.CENTRE
+            nx += 0 
+            ny += 0 
+            ti = Map.tile_info[nx][ny]
+            if ti is None:
+                thingValid = False
+            if thingValid:
+                if ti.env == Environment.WALL:
+                    thingValid = False
+                elif ti.has_building and ti.is_building_ally and ti.entity_type != EntityType.ROAD:
+                    thingValid = False
+                elif ti.has_building and not ti.is_building_ally:
+                    if ti.entity_type != EntityType.ROAD: #doing it for roads is a waste of resources
+                        gunnerPossible = True
+                        Debug.dot(Position(nx,ny), Color.RED)
+                        thingValid = False # keep it HERE so in case there are valuable targets after roads
+                        d = cls.from_pos.distance_squared(Position(nx,ny))
+                        if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
+                            closestGunnerPossibleDistsq = d
+                            gunnerPossibleDir = Direction.CENTRE
+        
+        if gunnerPossible:
+            cls.gunnerBeenHereTick += 1
+        if cls.gunnerBeenHereTick > 20:
+            gunnerPossible = False
+        if gunnerPossible and BuildManager.can_dbuild_gunner(cls.from_pos):
+            x, y = cls.from_pos
+            ti = Map.tile_info[x][y]
+            if ti.has_building and ti.entity_type != EntityType.GUNNER:
+                BuildManager.dbuild_gunner(cls.from_pos, gunnerPossibleDir)
+        elif cls.from_pos.distance_squared(target) == 1:
+            ti = Map.tile_info[cls.from_pos.x][cls.from_pos.y]
             if not ti.has_building or not ti.is_building_ally or target != ti.target:
                 if BuildManager.can_dbuild_conveyor(from_pos):
                     if BuildManager.should_build_armoured(from_pos) and BuildManager.can_dbuild_armoured_conveyor(from_pos):
@@ -34385,10 +34795,11 @@ class RouteToCore:
                     else:
                         BuildManager.dbuild_conveyor(from_pos, from_pos.direction_to(target))
                     cls.set_pos(target,False)
-
-        elif BuildManager.can_dbuild_bridge(from_pos):
-            BuildManager.dbuild_bridge(from_pos, target)
+                    return
+        elif BuildManager.can_dbuild_bridge(cls.from_pos):
+            BuildManager.dbuild_bridge(cls.from_pos, target)
             cls.set_pos(target,False)
+            return
 
     @classmethod
     def move_to_next(cls):
@@ -34410,7 +34821,11 @@ class RouteToCore:
             return False
         if not cls.backTracking and Pathfinder.given_up:
             return True
-
+        if len(cls.prevRoute) != 0:
+            px,py = cls.prevRoute[-1]
+            print("flow at",px,py,"is",DarkForest.flow[(((px) + 3) * 56 + ((py) + 3))])
+            if DarkForest.flow[(((px) + 3) * 56 + ((py) + 3))] == 0:
+                return True
         if ti.has_building:
             if not ti.is_building_ally:
                 return True
@@ -34425,7 +34840,7 @@ class RouteToCore:
                     cls.is_active = False
                     cls.prevRoute.clear()
                     return True
-                if ti.entity_type != EntityType.ROAD:
+                if ti.entity_type != EntityType.ROAD and ti.entity_type not in Constants.TURRET_SET:
                     return True
         return False
 
@@ -34434,11 +34849,18 @@ class RouteToCore:
     def give_up(cls, hard = False):
         from_pos = cls.from_pos
         enc = (((from_pos.x) + 3) * 56 + ((from_pos.y) + 3))
+        print(cls.prevRoute)
+        if len(cls.prevRoute) != 0:
+            px,py = cls.prevRoute[-1]
+            if DarkForest.flow[(((px) + 3) * 56 + ((py) + 3))] == 0:
+                hard = True
         if hard or len(cls.prevRoute) == 0 or DarkForest.node_kind[enc] in \
                 (3, 1):
             cls.is_active = False
             cls.killed.add(from_pos)
 
+            Debug.diamond(Color.PURPLE)
+            print("RouteToCore: giving up, no previous route to backtrack to or finished")
 
             if Pathfinder.given_up:
                 cls.pathFindingKill.add(enc)
@@ -34450,6 +34872,7 @@ class RouteToCore:
                 cls.pathFindingKill.add(enc)
             cls.from_pos = cls.prevRoute.pop()
 
+            print("RouteToCore: backtracking to", cls.from_pos)
 
             cls.backTracking = True
             return False
@@ -34458,6 +34881,7 @@ class RouteToCore:
     @classmethod
     def do_routing(cls):
 
+        print("RouteToCore: doing routing from", cls.from_pos,"(Attack Route!)",cls.isAttack)
 
         if cls.should_give_up():
             if cls.give_up():
@@ -34612,7 +35036,7 @@ class RouteToFoundry:
             avoid_pos = RouteToCore.pathFindingKill
         )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("RouteToFoundry: first_target is None, giving up")
@@ -34734,181 +35158,6 @@ class RouteToFoundry:
             cls.move_to_next()
             # if Globals.ct.can_build_road(cls.from_pos):
             #     Globals.ct.build_road(cls.from_pos)
-        else:
-            cls.move_to_next()
-
-
-# ============================================================
-# RouteToFoundryInput
-# ============================================================
-
-class RouteToFoundryInput:
-    is_active:    bool          = False
-    from_pos:     Position
-    _target:      int | None    = None   # encoded foundry position
-    _is_ax:       bool          = False  # True → axionite routing rules
-    prevRoute:    list          = []
-    backTracking: bool          = False
-    killed:       set[int]      = set()
-
-    @classmethod
-    def set_pos(cls, pos: Position, target: int, is_ax: bool,
-                full_reset: bool = True):
-        enc = (((pos.x) + 3) * 56 + ((pos.y) + 3))
-
-        # Arrived at the foundry — success.
-        if enc == target:
-            if is_ax:
-                FoundryInputTracker.release_ax(target)
-            else:
-                FoundryInputTracker.release_ti(target)
-            cls.is_active = False
-            cls.prevRoute.clear()
-            cls.backTracking = False
-            return
-
-        if full_reset:
-            cls.prevRoute.clear()
-            cls.backTracking = False
-        else:
-            cls.prevRoute.append(cls.from_pos)
-            cls.backTracking = False
-
-        cls.is_active    = True
-        cls.from_pos     = pos
-        cls._target      = target
-        cls._is_ax       = is_ax
-
-    @classmethod
-    def try_build_route(cls):
-        assert cls.is_active
-        if cls._target is None:
-            cls.give_up()
-            return
-
-        target_set = {}
-        if cls._is_ax:
-            target_set = FoundryInputTracker.get_ax_sink_set(cls._target) | {cls._target}
-        else:
-            target_set = FoundryInputTracker.get_ti_sink_set(cls._target) | {cls._target}
-
-        if cls._is_ax:
-            bridge_dist, first_target = BfsBureau.find_bridge_route_avoid_ti_adj(
-                cls.from_pos,
-                target_set,
-                avoid_pos=RouteToCore.pathFindingKill,
-            )
-        else:
-            bridge_dist, first_target = BfsBureau.find_bridge_route(
-                cls.from_pos,
-                target_set,
-                avoid_pos=RouteToCore.pathFindingKill.union(Unit.core_pos_set),
-            )
-
-        
-
-        if first_target is None:
-            Debug.tee("RouteToFoundryInput: no route to foundry, giving up")
-            if cls.give_up():
-                StateMoveTo.run(Explore.get_target())
-            return
-
-        target = Position(*first_target)
-        Debug.line(cls.from_pos, target, Color.CYAN)
-
-        dsq = cls.from_pos.distance_squared(target)
-        if dsq == 1:
-            ti = Map.tile_info[cls.from_pos.x][cls.from_pos.y]
-            if not ti.has_building or not ti.is_building_ally or target != ti.target:
-                if BuildManager.can_dbuild_conveyor(cls.from_pos):
-                    BuildManager.dbuild_conveyor(
-                        cls.from_pos,
-                        cls.from_pos.direction_to(target),
-                    )
-                    cls.set_pos(target, cls._target, cls._is_ax, full_reset=False)
-        elif BuildManager.can_dbuild_bridge(cls.from_pos):
-            BuildManager.dbuild_bridge(cls.from_pos, target)
-            cls.set_pos(target, cls._target, cls._is_ax, full_reset=False)
-
-    @classmethod
-    def move_to_next(cls):
-        Pathfinder.move_to(cls.from_pos, ban_target_pos=True)
-
-    @classmethod
-    def should_give_up(cls) -> bool:
-        if cls._target is None:
-            return True
-
-        # Re-check capacity each tick: if the foundry is now full (another
-        # bot beat us to it), abandon and let the builder find a new target.
-        if cls._is_ax:
-            if not FoundryInputTracker.has_ax_capacity(cls._target):
-                # keep claimed until give_up
-                Debug.tee("RouteToFoundryInput: target foundry ax-full, giving up")
-                return True
-        else:
-            if not FoundryInputTracker.has_ti_capacity(cls._target):
-                Debug.tee("RouteToFoundryInput: target foundry ti-full, giving up")
-                return True
-
-        x, y = cls.from_pos.x, cls.from_pos.y
-        ti   = Map.tile_info[x][y]
-        if ti is None:
-            return False
-        if not cls.backTracking and Pathfinder.given_up:
-            return True
-        if ti.has_building:
-            if not ti.is_building_ally:
-                return True
-            if not cls.backTracking:
-                if ti.entity_type in Constants.TRANSPORTERS_SET:
-                    return True
-                if ti.entity_type != EntityType.ROAD:
-                    return True
-        return False
-
-    @classmethod
-    def give_up(cls) -> bool:
-        enc = (((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3))
-        if not cls.prevRoute:
-            cls.is_active = False
-            if cls._target is not None:
-                if cls._is_ax:
-                    FoundryInputTracker.release_ax(cls._target)
-                else:
-                    FoundryInputTracker.release_ti(cls._target)
-            cls._target = None
-            cls.killed.add(enc)
-            if Pathfinder.given_up:
-                RouteToCore.pathFindingKill.add(enc)
-            cls.backTracking = False
-            Debug.diamond(Color.CYAN)
-          
-            print("RouteToFoundryInput: giving up from", cls.from_pos)
-            return True
-        else:
-            cls.killed.add(enc)
-            if Pathfinder.given_up:
-                RouteToCore.pathFindingKill.add(enc)
-            cls.from_pos = cls.prevRoute.pop()
-            cls.backTracking = True
-            print("RouteToFoundryInput: backtracking to", cls.from_pos)
-            return False
-
-    @classmethod
-    def do_routing(cls):
-        if cls.should_give_up():
-            if cls.give_up():
-                StateMoveTo.run(Explore.get_target())
-            return
-        print("RouteToFoundryInput: routing from", cls.from_pos,
-              "ax=" + str(cls._is_ax),
-              "target=", cls._target)
-
-        dsq = Globals.my_pos.distance_squared(cls.from_pos)
-        if Globals.ct.get_action_cooldown() == 0 and dsq <= 2:
-            cls.try_build_route()
-            cls.move_to_next()
         else:
             cls.move_to_next()
 
@@ -39061,16 +39310,16 @@ class SpawnManager:
 class StalkTargeter:
     @classmethod
     def get_best_target(cls) -> Position | None:
-        
+        Profiler.start(f"""StalkTargeter.get_best_target""")
 
         my_pos = Globals.my_pos
 
         if my_pos.distance_squared(Unit.core_pos) > my_pos.distance_squared(Symmetry.enemy_core_pos):
-            
+            Profiler.end(f"""pop""")
             return None
 
         if MarketMaker.est_income < 3:
-            
+            Profiler.end(f"""pop""")
             return None
 
         bfs20_dist_adj = BfsBureau.bfs20_dist_adj
@@ -39111,7 +39360,7 @@ class StalkTargeter:
                     best_transporter_hp = transporter_hp
                     best_id = bot_id
 
-        
+        Profiler.end(f"""StalkTargeter.get_best_target""")
                 
         return best
 
@@ -39123,6 +39372,7 @@ class StalkTargeter:
 class StateAttack:
     @classmethod
     def run(cls, pos, tag='_'):
+        print(f'{tag=}')
         
         if Globals.my_pos != pos:
             Pathfinder.move_to(pos)
@@ -39307,6 +39557,7 @@ class StateBuildShield:
                     if ti.is_building_ally:
                         found_ally_harvester = True
         
+        print(f'{target_dir=}, {found_ally_harvester=}')
 
 
 
@@ -39357,6 +39608,8 @@ class StateBuildTurret:
 
         x, y = gunner_pos.x + dx, gunner_pos.y + dy      # start one step ahead
 
+        assert direction != Direction.CENTRE
+        assert Util.on_the_map(Position(x, y))
 
         while x >= 0 and y >= 0 and x < Map.W and y < Map.H:
             if (x - gunner_pos.x) ** 2 + (y - gunner_pos.y) ** 2 > 13:
@@ -39392,9 +39645,9 @@ class StateBuildTurret:
             if (gdir is not None) and BuildManager.can_smartbuild_gunner(pos):
                 BuildManager.smartbuild_gunner(pos, gdir)
             elif should_build_sentinel and BuildManager.can_smartbuild_sentinel(pos):
-                
+                Profiler.start(f"""SentinelDirectionPicker.get_best_direction""")
                 dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
-                
+                Profiler.end(f"""SentinelDirectionPicker.get_best_direction""")
                 BuildManager.smartbuild_sentinel(pos, dir)
             elif BuildManager.can_build_road(pos):
                 BuildManager.build_road(pos)
@@ -39407,9 +39660,9 @@ class StateBuildTurret:
             if (gdir is not None) and BuildManager.can_smartbuild_gunner(pos):
                 BuildManager.smartbuild_gunner(pos, gdir)
             elif should_build_sentinel and BuildManager.can_smartbuild_sentinel(pos):
-                
+                Profiler.start(f"""SentinelDirectionPicker.get_best_direction""")
                 dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
-                
+                Profiler.end(f"""SentinelDirectionPicker.get_best_direction""")
                 BuildManager.smartbuild_sentinel(pos, dir)
             elif BuildManager.can_build_road(pos):
                 BuildManager.build_road(pos)
@@ -39461,6 +39714,7 @@ class StateFoundryBuild:
 class StateMoveTo:
     @classmethod
     def run(cls, pos, tag='_'):
+        print(f'{tag=}')
         Pathfinder.move_to(pos)
 
 
@@ -39506,6 +39760,7 @@ class StateReroute:  # for misrouted ally transporters
 class StateRoute:
     @classmethod
     def run(cls):
+        assert RouteToCore.is_active
         RouteToCore.do_routing()
 
 
@@ -39530,16 +39785,6 @@ class StateRouteFoundry:
 
 
 # ============================================================
-# StateRouteFoundryInput
-# ============================================================
-
-class StateRouteFoundryInput:
-    @classmethod
-    def run(cls):
-        RouteToFoundryInput.do_routing()
-
-
-# ============================================================
 # StateRush
 # ============================================================
 
@@ -39560,6 +39805,7 @@ class StateRush:
             if Globals.my_pos.distance_squared(pos) <= 4: #sufficiently close
                 cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
                 if cand is not None and cand.ti.entity_type not in Constants.TRANSPORTERS_SET:
+                    Debug.log('RouteToBreach set @ StateRush')
                     RouteToBreach.set_pos(cand.position)
                 else:
                     RushTargeter.killed.add(pos)
@@ -40368,10 +40614,11 @@ class Unit:
             DarkForest.needs_update = False
 
         if Globals.my_type != EntityType.LAUNCHER:
-            
+            Profiler.start(f"""Map.fill_tile_info""")
             Map.fill_tile_info()
-            
+            Profiler.end(f"""Map.fill_tile_info""")
 
+        Profiler.start_turn_check()
 
     @classmethod
     def run_turn(cls):
@@ -40380,7 +40627,7 @@ class Unit:
     @classmethod
     def end_turn(cls):
 
-        if Globals.round == 1999:
+        if Globals.round == 667:
             Profiler.report()
 
 
@@ -40467,51 +40714,51 @@ class Builder(Unit):
         my_pos = Globals.my_pos
         cls.min_dist_to_a_core = min(my_pos.distance_squared(Unit.core_pos), my_pos.distance_squared(Symmetry.enemy_core_pos))
 
-        
+        Profiler.start(f"""DarkForest.fcompute""")
         DarkForest.fcompute()
-        
+        Profiler.end(f"""DarkForest.fcompute""")
 
-        
+        Profiler.start(f"""BfsBureau.update""")
         BfsBureau.update()
-        
+        Profiler.end(f"""BfsBureau.update""")
 
-        
+        Profiler.start(f"""BfsBureau.bfs20""")
         BfsBureau.bfs20()
-        
+        Profiler.end(f"""BfsBureau.bfs20""")
 
         if not TLEManager.daylight_savings_time:
-            
+            Profiler.start(f"""Symmetry.run_sym_check""")
             Symmetry.run_sym_check()
-            
+            Profiler.end(f"""Symmetry.run_sym_check""")
 
-            
+            Profiler.start(f"""BfsBureau.update_enclosed_regions""")
             BfsBureau.update_enclosed_regions()
-            
+            Profiler.end(f"""BfsBureau.update_enclosed_regions""")
 
-            
+            Profiler.start(f"""OreExecutive.fill""")
             OreExecutive.fill()
-            
+            Profiler.end(f"""OreExecutive.fill""")
 
-        
+        Profiler.start(f"""VisionTracker.fill""")
         VisionTracker.fill()
-        
+        Profiler.end(f"""VisionTracker.fill""")
 
         if not TLEManager.daylight_savings_time:
-            
+            Profiler.start(f"""SitterTakedown.fill""")
             SitterTakedown.fill()
-            
+            Profiler.end(f"""SitterTakedown.fill""")
 
-            
+            Profiler.start(f"""HarvesterAdjacent.fill""")
             HarvesterAdjacent.fill()
-            
+            Profiler.end(f"""HarvesterAdjacent.fill""")
 
-        
+        Profiler.start(f"""Attacker.update""")
         Attacker.update()
-        
+        Profiler.end(f"""Attacker.update""")
 
-        
+        Profiler.start(f"""HealTargeter.fill""")
         HealTargeter.fill()
-        
+        Profiler.end(f"""HealTargeter.fill""")
 
 
         if cls.mode == 0:
@@ -40538,6 +40785,7 @@ class Builder(Unit):
             cls.mode = 1
             Explore.target = Explore.new_target()
 
+        print("Mode:", cls.mode)
 
         cls.is_routing_active = False
 
@@ -40561,25 +40809,28 @@ class Builder(Unit):
         else:
             cls.state, *args = cls.determine_state()
 
+        print(f'running: {cls.state}  @', *args, sep=' ')
 
-        
+        Profiler.start(f"""State{cls.state}""")
         globals()[f'State{cls.state}'].run(*args)
-        
+        Profiler.end(f"""State{cls.state}""")
 
 
     @classmethod
     def end_turn(cls):
         Unit.end_turn()
 
-        
+        Profiler.start(f"""HealExecutor.execute_heal_attempt""")
         HealExecutor.execute_heal_attempt()
-        
+        Profiler.end(f"""HealExecutor.execute_heal_attempt""")
 
-        
+        Profiler.start(f"""Marker.attempt_mark""")
         Marker.attempt_mark()
-        
+        Profiler.end(f"""Marker.attempt_mark""")
 
 
+        if cls.mode == 2:
+            Debug.diamond(Color.PINK)
 
         if TLEManager.daylight_savings_time:
             Debug.diamond(Color.BLACK)
@@ -40670,10 +40921,12 @@ class Builder(Unit):
             if healpos is not None:
                 return 'MoveTo', healpos, '[lrh: move to heal]'
             elif (Globals.round - HealExecutor.last_healed_round) <= 3:
+                Debug.dot(Globals.my_pos, Color.GREEN)
 
                 return 'MoveTo', HealExecutor.last_healed.position, '[lrh: WAIT to heal]'
 
         if takedownpos is not None:
+            Debug.diamond(Color.PURPLE)
 
             return 'BuildGunner', takedownpos, None
 
@@ -40681,7 +40934,7 @@ class Builder(Unit):
         if healpos is not None and misinfo is None:
             return 'MoveTo', healpos, 'Heal'
 
-        if misinfo is not None: # and not ((RouteToCore.backTracking or RouteToFoundry.backTracking) and not RouteToCore.is_active and not RouteToFoundry.is_active):
+        if misinfo is not None and not (RouteToCore.backTracking and RouteToCore.is_active):
             if misinfo.on_ally_side:
                 return 'Reroute', misinfo.position
             else:
@@ -40689,10 +40942,11 @@ class Builder(Unit):
 
 
         buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0)
-        
+
 
         if not buildingFirstConveyor:
             if turretpos is not None:
+                Debug.dot(turretpos, Color.PURPLE)
                 if turretinfo.harvester_ally_turrets_adjacent >= 2 and \
                         turretinfo.harvester_enemy_turrets_adjacent == 0:
                     return 'BuildAdvancedShield', turretpos, turretinfo
@@ -40712,19 +40966,15 @@ class Builder(Unit):
             return 'Attack', secondaryattackpos, 'Preroute'
 
         if RouteToBreach.is_active:
-            
+            print("""(RouteToBreach)""")
             return ('RouteBreach',)
 
         if RouteToFoundry.is_active:
-            
+            print("""(RouteToFoundry)""")
             return ('RouteFoundry',)
 
-        if RouteToFoundryInput.is_active:
-            
-            return ('RouteFoundryInput',)
-
         if RouteToCore.is_active:
-            
+            print("""RouteToCore""")
             return ('Route',)
 
 
@@ -40748,12 +40998,13 @@ class Builder(Unit):
                 pass
 
             elif route_pos not in RouteToCore.killed:
-                
+                print("""[HarvesterAdjacent found route]""")
                 RouteToCore.set_pos(route_pos)
                 return 'MoveTo', route_pos, 'InitRoute'
 
 
         if turretpos is not None:
+            Debug.dot(turretpos, Color.PURPLE)
             if turretinfo.harvester_ally_turrets_adjacent >= 2 and \
                     turretinfo.harvester_enemy_turrets_adjacent == 0:
                 return 'BuildAdvancedShield', turretpos, turretinfo
@@ -40764,7 +41015,7 @@ class Builder(Unit):
         if sitterpos is not None:
             return 'BuildLauncher', sitterpos
 
-        if cls.should_fire and (BfsBureau.enemy_bot_dist_adj[Globals.my_idx] >= 2 
+        if cls.should_fire and (BfsBureau.enemy_bot_dist_adj[Globals.my_idx] >= 2
                                 or Attacker.allies_ready > 2 * Attacker.enemies_ready):
             return 'Attack', Globals.my_pos, '(ShouldFire&D>=2)|(a>2*e)'
 
@@ -40860,6 +41111,10 @@ class Core(Unit):
     @classmethod
     def end_turn(cls):
         Unit.end_turn()
+
+        if Globals.round > 666:
+            Globals.ct.resign()
+            raise Exception
 
 
 # ============================================================
@@ -41152,6 +41407,7 @@ class Launcher(Unit):
 
             best_pos = max(scores, key=lambda x: x[0])[1] if scores else None
 
+            print("Plausible place to throw:", best_pos)
 
             if nearby_ally_bot is not None and best_pos is not None and ct.can_launch(nearby_ally_bot, best_pos):
                 # return  # -- disable supportive launchers for now --
@@ -41161,6 +41417,8 @@ class Launcher(Unit):
                 if ally_bot_building_id is not None:
                     ally_bot_building_team = ct.get_team(ally_bot_building_id)
 
+                    etype = ct.get_entity_type(ally_bot_building_id)
+                    print(f"etype: {etype}, Team: {ally_bot_building_team}")
 
                     if ally_bot_building_team != my_team \
                             and ct.get_hp(ally_bot_building_id) < ct.get_max_hp(ally_bot_building_id):
@@ -41421,16 +41679,16 @@ class VisionTracker:
 
     @classmethod
     def canonical_ally(cls, from_pos: Position) -> BotInfo:
-        
+        Profiler.start(f"""canonical_ally""")
         ret = min(cls.allies, key=
             lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )
-        
+        Profiler.end(f"""canonical_ally""")
         return ret
 
     @classmethod
     def canonical_ally_index(cls, from_pos: Position) -> int:
-        
+        Profiler.start(f"""canonical_ally""")
         allyIndex = list(map(lambda x: x.position, sorted(cls.allies, key=
             lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )))
@@ -41439,7 +41697,7 @@ class VisionTracker:
         else:
             Debug.warn("my_pos not found in canonical ally list!")
             i = 0
-        
+        Profiler.end(f"""canonical_ally""")
         return i
 
 
