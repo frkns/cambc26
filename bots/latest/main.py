@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-02 13:24:36 (local)
+# latest,  @ 2026-05-02 14:05:46 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -40149,11 +40149,14 @@ class TransporterInfo:
         if a.ti.has_bot and (not b.ti.has_bot): return False
         if (not a.ti.has_bot) and b.ti.has_bot: return True
 
-        if a.enemy_bot1 != b.enemy_bot1:
-            return a.enemy_bot1 < b.enemy_bot1
-
         if abs(a.bfs_dist - b.bfs_dist) > 2:
             return a.bfs_dist < b.bfs_dist
+
+        if a.ti.building_hp != b.ti.building_hp:
+            return a.ti.building_hp < b.ti.building_hp
+
+        if a.enemy_bot1 != b.enemy_bot1:
+            return a.enemy_bot1 < b.enemy_bot1
 
         if a.enemy_bot_dist_adj != b.enemy_bot_dist_adj:
             return a.enemy_bot_dist_adj > b.enemy_bot_dist_adj
@@ -40161,10 +40164,7 @@ class TransporterInfo:
         # factored in with bot_bfs_dist
         # if a.adjacent_launchers != b.adjacent_launchers:
         #     return a.adjacent_launchers > b.adjacent_launchers
-
-        if a.ti.building_hp != b.ti.building_hp:
-            return a.ti.building_hp < b.ti.building_hp
-
+        
         if a.harvester_adjacent and (not b.harvester_adjacent): return True
         if (not a.harvester_adjacent) and b.harvester_adjacent: return False
 
@@ -40926,6 +40926,9 @@ class Launcher(Unit):
                 if get_team(unit) != my_team:
                     nearby_enemy_bot = ct.get_position(unit)
                 else:
+                    building_id = ct.get_tile_building_id(ct.get_position(unit))
+                    if building_id is not None and get_team(building_id) != my_team and ct.get_hp(building_id) < ct.get_max_hp(building_id):
+                        continue # don't consider bots currently attacking enemy tiles
                     nearby_ally_bot = ct.get_position(unit)
         
         for building in ct.get_nearby_buildings(2):

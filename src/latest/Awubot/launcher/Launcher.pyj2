@@ -116,6 +116,9 @@ class Launcher({{ super() }}):
                 if get_team(unit) != my_team:
                     nearby_enemy_bot = ct.get_position(unit)
                 else:
+                    building_id = ct.get_tile_building_id(ct.get_position(unit))
+                    if building_id is not None and get_team(building_id) != my_team and ct.get_hp(building_id) < ct.get_max_hp(building_id):
+                        continue # don't consider bots currently attacking enemy tiles
                     nearby_ally_bot = ct.get_position(unit)
         
         for building in ct.get_nearby_buildings(2):
