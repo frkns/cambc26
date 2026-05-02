@@ -155,7 +155,10 @@ class RouteToCore:
             {% set dirDx, dirDy = dir.delta() %}
             thingValid = True
             nx, ny = cls.from_pos
-            {% for i in range(int(GameConstants.GUNNER_VISION_RADIUS_SQ**0.5))%}
+            {% for i in range(int(GameConstants.GUNNER_VISION_RADIUS_SQ**0.5)) %}
+            {% set step = i + 1 %}
+            {% set dist_sq = (step * dirDx) ** 2 + (step * dirDy) ** 2 %}
+            {% if dist_sq <= GameConstants.GUNNER_VISION_RADIUS_SQ %}
             nx += 0 {{ sign0(dirDx) }}
             ny += 0 {{ sign0(dirDy) }}
             ti = Map.tile_info[nx][ny]
@@ -175,6 +178,7 @@ class RouteToCore:
                         if gunnerPossibleDir == None or d < closestGunnerPossibleDistsq:
                             closestGunnerPossibleDistsq = d
                             gunnerPossibleDir = {{ dir }}
+            {% endif %}
             {% endfor %}
             {% endfor %}
         
