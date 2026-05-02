@@ -37,13 +37,14 @@ class DarkForest:
     node_kind: list[int]   # propagated kind per node (top-down)
     core_sink_set: set[int] = set()  # titanium-only ALLY_CORE reachable nodes below pressure threshold
     sink_set: set[int]               # alias for core_sink_set (backward compat)
-    leaf_set: set[int]               # titanium leaf nodes — valid foundry sites
+    leaf_set: set[int]               # titanium leaf nodes (no bridge + has flow)
     ax_tagged: list[bool]            # True if node has any axionite flow in subtree
     sight_last_id: list[int]         # last resource-ID seen at this position; -1 = never
     sight_last_round: list[int]      # game-round when that ID was last observed
     sight_flowing: list[bool]        # sight-based flow: True if fresh valid resource seen recently
     foundry_positions: set[int] = set()  # persistent: encoded positions of built foundries
     refined_ax_line: set[int] = set()    # recomputed each tick: ALLY_CORE nodes on refined-axionite output paths
+    needs_update: bool = True
     
     @classmethod
     def init(cls):
@@ -70,20 +71,25 @@ class DarkForest:
     @classmethod
     def register_enemy_core(cls):
         for p in Symmetry.enemy_core_pos_set:
+            cls.needs_update = True
             cls.register_sink(p, {{ Kind.ENEMY_CORE }})
 
     @classmethod
     def remove_node(cls, u: int):
         if cls.kind[u] == {{ Kind.ALLY_CORE }} or cls.kind[u] == {{ Kind.ENEMY_CORE }}:
             return
-        cls.nodes[u] = None
-        cls.kind[u] = {{ Kind.NONE }}
+
+        if cls.nodes[u] is not None:
+            cls.needs_update = True
+            cls.nodes[u] = None
+            cls.kind[u] = {{ Kind.NONE }}
 
     @classmethod
     def detach_node(cls, u: int):
         #severe it from parent/tree
         n = cls.nodes[u]
         if n is not None:
+            cls.needs_update = True
             n.up = None
 
     @classmethod
@@ -261,10 +267,12 @@ class DarkForest:
 # ---===
     @classmethod
     def fcompute(cls):
-
         {# /* Debug.log('called fcompute') */ #}
 
         {% set N = PADDED_GRID_SIZE %}
+
+        if TLEManager.tle_once and not cls.needs_update:
+            return
 
         ns       = cls.nodes
         kind     = cls.kind
@@ -467,16 +475,23 @@ class DarkForest:
                         _curr = _pn.up
         cls.refined_ax_line = _ral
 
+        BRIDGE = EntityType.BRIDGE
+        tile_info_idx = Map.tile_info_idx
+
         # ── titanium leaf set ──
         _ti_leaves: set[int] = set()
         for u in _initial_leaves:
             if (nk[u] == {{ Kind.ALLY_CORE }}
                     and u not in core_pos_set
                     and not ax_tagged[u]
-                    and u not in _ral):
+                    and u not in _ral
+                    and tile_info_idx[u].entity_type != BRIDGE
+                    and flow[u] > 0
+                    ):
                 _ti_leaves.add(u)
         cls.leaf_set = _ti_leaves
 
+        {# /* Debug.debug_set(cls.leaf_set, Color.BLUE) */ #}
 
         {# /* if Globals.round & 1: */ #}
             {# /* cls.debug_refined_ax_line() */ #}
@@ -485,3 +500,5 @@ class DarkForest:
 
         {# /* Debug.log('exited fcompute') */ #}
 # ===---
+
+

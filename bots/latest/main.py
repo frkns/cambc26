@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-01 17:12:26 (local)
+# latest,  @ 2026-05-02 15:03:57 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -20,12 +20,13 @@ from itertools import chain
 
 class AdjacentInfo:
     __slots__ = (
-        'position', 'bfs_dist', 'bfs_dist_adj', 'is_harvester_ally', 'ti',
+        'position', 'bfs_dist', 'bfs_dist_adj', 'is_harvester_ally', 'ti', 'hpos',
         'consider_route', 'dist_to_ally_core', 'has_ally_transporter',
         'easily_buildable', 'is_canonical_ally_harvester', 'is_working_shield',
         'harvester_ally_turrets_adjacent', 'harvester_enemy_turrets_adjacent',
         'enemy_turrets_adjacent', 'ally_turrets_adjacent',
         'sentinel_dir_info',
+        'gunner_dir_info',
         'h_outward_adj',
         'h_has_fed_foundry'
     )
@@ -74,6 +75,9 @@ class AdjacentInfo:
 
         if asi.banned: return False
         if bsi.banned: return True
+
+        if bool(asi.enemy_turret_hp) != bool(bsi.enemy_turret_hp):
+            return asi.enemy_turret_hp > bsi.enemy_turret_hp
         
         if asi.enemy_building_hp != bsi.enemy_building_hp:
             return asi.enemy_building_hp > bsi.enemy_building_hp
@@ -91,6 +95,44 @@ class AdjacentInfo:
             return ati.has_bot < bti.has_bot
 
         return a.bfs_dist_adj < b.bfs_dist_adj
+
+
+    @staticmethod
+    def is_better_than_gunner(a: AdjacentInfo, b: AdjacentInfo):
+        # now is better
+
+        if not a.easily_buildable: return False
+        if not b.easily_buildable: return True
+            
+        if a.bfs_dist_adj >= 100: return False        
+        if b.bfs_dist_adj >= 100: return True
+
+        asi: GunnerDirectionInfo = a.gunner_dir_info
+        bsi: GunnerDirectionInfo = b.gunner_dir_info
+
+        if asi.banned: return False
+        if bsi.banned: return True
+
+        if (asi.has_enemy_turret) != (bsi.has_enemy_turret):
+            return asi.has_enemy_turret > bsi.has_enemy_turret
+        
+        if asi.enemy_building_hp != bsi.enemy_building_hp:
+            return asi.enemy_building_hp > bsi.enemy_building_hp
+
+        if a.is_harvester_ally and (not b.is_harvester_ally): return False
+        if (not a.is_harvester_ally) and b.is_harvester_ally: return True
+
+        if asi.enemy_bot_hp != bsi.enemy_bot_hp:
+            return asi.enemy_bot_hp > bsi.enemy_bot_hp
+        
+        ati = a.ti
+        bti = b.ti
+        
+        if ati.has_bot != bti.has_bot:
+            return ati.has_bot < bti.has_bot
+
+        return a.bfs_dist_adj < b.bfs_dist_adj
+
 
 
     @staticmethod
@@ -140,9 +182,12 @@ class AdjacentInfo:
 class Attacker:
 
     seen_enemy_core: bool = False
+    allies_ready: int
+    enemies_ready: int
 
     @classmethod
     def update(cls):
+        cls.allies_ready, cls.enemies_ready = cls.compute_readiness()
         cls.seen_enemy_core = cls.seen_enemy_core or \
             Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) <= 20
 
@@ -158,9 +203,13 @@ class Attacker:
     
     @classmethod        
     def get_secondary_target(cls) -> Position | None:
-        if Builder.min_dist_to_a_core >= 10 and Globals.round < 100:
+        target = cls.get_road_target()
+        if target is None:
             return None
-        return cls.get_road_target()
+        if Globals.round < 100 and \
+                min(target.distance_squared(Unit.core_pos), 
+                    target.distance_squared(Symmetry.enemy_core_pos)) >= 10:
+            return None
 
     @classmethod
     def get_trans_target(cls) -> Position | None:
@@ -206,8 +255,6 @@ class Attacker:
         if not road.bfs_dist < 10: 
             return None
         if not VisionTracker.me_is_canonical_ally(road.position):
-            return None
-        if not cls.should_fire(road.position):
             return None
         if Builder.min_dist_to_a_core >= 36 and MarketMaker.ti < BuildManager.scale(150):
             return None
@@ -284,31 +331,39 @@ class Attacker:
         # assume caller passes in position with enemy building
         if not ti.has_building or ti.is_building_ally or etype not in Constants.PASSABLE_ATTACKABLE_SET:        
             return False
+            
+        if etype in Constants.ATTACKABLE_TRANSPORTERS_SET:
+            if DarkForest.node_kind[idx] in \
+                    (1, 3):
+                return False  # flowing into ally
 
-        if DarkForest.ax_tagged[idx]:
-            return False
-
-        if etype in (EntityType.CONVEYOR, EntityType.BRIDGE):
-            if not DarkForest.sight_flowing[idx] and not DarkForest.flow[idx] > 0:
+            if DarkForest.ax_tagged[idx]:
                 return False
+
+            if etype in (EntityType.CONVEYOR, EntityType.BRIDGE):
+                if not DarkForest.sight_flowing[idx] and not DarkForest.flow[idx] > 0:
+                    return False
 
 
         hp = ti.building_hp
         max_hp = Constants.MAX_HP_MAP[ti.entity_type]
 
         if 2 * hp <= max_hp:
+            print(pos, 'ShouldFire since low hp')
             return True
 
-        allies_ready, enemies_ready = cls.compute_readiness()
-        if allies_ready > 2 * enemies_ready:
+        if cls.allies_ready > 2 * cls.enemies_ready:
+            print(pos, 'ShouldFire since readiness is high')
             return True
 
         ebot_dist_adj = BfsBureau.enemy_bot_dist_adj[idx]
 
         if ebot_dist_adj >= 2:
+            print(pos, 'ShouldFire since enemies far away')
             return True
 
         if etype == EntityType.ROAD and ebot_dist_adj >= 1:
+            print(pos, 'ShouldFire since road + no adjacent enemy')
             return True
 
         return False
@@ -332,10 +387,8 @@ class BfsBureau:
 
     passable_bridge: list[bool] = [False] * 3136
 
-    # pure terrain weights — only written from update() based on tile_info
     weight: list[int] = [1000000] * 3136
 
-    # incremental penalty overlay — written by add/remove_enemy_launcher/sentinel
     # applied to now_weight after copy, never touches weight
     penalty: list[int] = [0] * 3136
     _penalty_indices: set[int] = set()
@@ -392,7 +445,6 @@ class BfsBureau:
                 w = 1000000
                 cls.passable_int &= ~bit
 
-            # pure terrain — just assign, no max()
             weight[idx] = w
 
             if (
@@ -401,7 +453,7 @@ class BfsBureau:
                 (
                     (not ti.has_building) or
                     ((etype := ti.entity_type) == EntityType.MARKER) or
-                    (ti.is_shield) or
+                    (ti.is_shield and ti.ally_fed_foundries_adjacent == 0) or
                     (ti.is_building_ally and (
                         etype == EntityType.ROAD or etype == EntityType.CORE))
                 )
@@ -415,7 +467,6 @@ class BfsBureau:
         cls.now_weight = weight.copy()
         now_weight = cls.now_weight
 
-        # apply incremental penalties (launcher zones, sentinel zones) —
         # only iterate the small set of touched indices, not the whole grid
         penalty = cls.penalty
         for idx in cls._penalty_indices:
@@ -450,7 +501,6 @@ class BfsBureau:
                 ti_ore_adj[idx +56] = True
 
 
-    # ── incremental penalty helpers ───────────────────────────────────────────────
 
     @classmethod
     def _add_penalty(cls, idx: int, amount: int):
@@ -464,11 +514,10 @@ class BfsBureau:
             cls.penalty[idx] = 0
             cls._penalty_indices.discard(idx)
 
-    # ── sentinel ──────────────────────────────────────────────────────────────────
 
     @classmethod
     def add_enemy_sentinel(cls, pos, ti):
-        for apos in Globals.ct.get_attackable_tiles_from(pos, ti.turret_direction, ti.entity_type):
+        for apos in Globals.ct.get_attackable_tiles_from(pos, ti.turret_direction, EntityType.SENTINEL):
             cls._add_penalty((((apos.x) + 3) * 56 + ((apos.y) + 3)), 3)
 
     @classmethod
@@ -476,7 +525,15 @@ class BfsBureau:
         for apos in Globals.ct.get_attackable_tiles_from(pos, turret_dir, EntityType.SENTINEL):
             cls._remove_penalty((((apos.x) + 3) * 56 + ((apos.y) + 3)), 3)
 
-    # ── enemy launcher ────────────────────────────────────────────────────────────
+    @classmethod
+    def add_enemy_gunner(cls, pos, ti):
+        for apos in Globals.ct.get_attackable_tiles_from(pos, ti.turret_direction, EntityType.GUNNER):
+            cls._add_penalty((((apos.x) + 3) * 56 + ((apos.y) + 3)), 7)
+
+    @classmethod
+    def remove_enemy_gunner(cls, pos, turret_dir):
+        for apos in Globals.ct.get_attackable_tiles_from(pos, turret_dir, EntityType.GUNNER):
+            cls._remove_penalty((((apos.x) + 3) * 56 + ((apos.y) + 3)), 7)
 
     @classmethod
     def add_enemy_launcher(cls, idx):
@@ -493,6 +550,7 @@ class BfsBureau:
         cls._add_penalty(idx + -56, 1000000)
         cls._add_penalty(idx + -57, 1000000)
 
+        Debug.dot(Position(x, y), Color.YELLOW)
 
     @classmethod
     def remove_enemy_launcher(cls, idx):
@@ -509,20 +567,21 @@ class BfsBureau:
         cls._remove_penalty(idx + -56, 1000000)
         cls._remove_penalty(idx + -57, 1000000)
 
-
-    # ── ally launcher (enemy-perspective danger zones) ────────────────────────────
+        Debug.dot(Position(x, y), Color.GREEN)
 
     @classmethod
     def add_ally_launcher(cls, idx: int):
         x = idx // 56 - 3
         y = idx %  56 - 3
         cls.ally_launcher |= 1 << (x * cls.STRIDE + y)
+        Debug.dot(Position(x, y), Color.CYAN)
 
     @classmethod
     def remove_ally_launcher(cls, idx: int):
         x = idx // 56 - 3
         y = idx %  56 - 3
         cls.ally_launcher &= ~(1 << (x * cls.STRIDE + y))
+        Debug.dot(Position(x, y), Color.LIME)
 
     # generate 4 different find_bridge_route variants
 
@@ -4603,6 +4662,7 @@ class BfsBureau:
         _D = (Direction.NORTH, Direction.NORTHEAST, Direction.EAST, Direction.SOUTHEAST, Direction.SOUTH, Direction.SOUTHWEST, Direction.WEST, Direction.NORTHWEST)
 
         if si == ti:
+            print(f'[on top of find_route target with {ban_target=}]')
 
             if ban_target:
                 _best_c = 1000000
@@ -4715,7 +4775,7 @@ class BfsBureau:
         pre_weight = weight[ti]
         weight[ti] = 1
 
-        
+        Profiler.start(f"""BfsBureau.find_route{{ variant_suffix }}""")
 
         dist = [1000000] * 3136
         fhd  = [0]       * 3136
@@ -4734,7 +4794,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 0
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.NORTH
             _hp(heap, (w, ni))
         ni = si + 55
@@ -4743,7 +4803,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 1
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.NORTHEAST
             _hp(heap, (w, ni))
         ni = si + 56
@@ -4752,7 +4812,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 2
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.EAST
             _hp(heap, (w, ni))
         ni = si + 57
@@ -4761,7 +4821,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 3
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.SOUTHEAST
             _hp(heap, (w, ni))
         ni = si + 1
@@ -4770,7 +4830,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 4
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.SOUTH
             _hp(heap, (w, ni))
         ni = si + -55
@@ -4779,7 +4839,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 5
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.SOUTHWEST
             _hp(heap, (w, ni))
         ni = si + -56
@@ -4788,7 +4848,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 6
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.WEST
             _hp(heap, (w, ni))
         ni = si + -57
@@ -4797,7 +4857,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 7
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.NORTHWEST
             _hp(heap, (w, ni))
 
@@ -4824,6 +4884,7 @@ class BfsBureau:
             ni = idx + -1
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4831,12 +4892,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 55
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4844,12 +4906,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 56
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4857,12 +4920,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 57
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4870,12 +4934,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 1
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4883,12 +4948,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -55
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4896,12 +4962,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -56
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4909,12 +4976,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -57
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4922,12 +4990,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
 
         if not phase2_seeds:
-            weight[ti] = pre_weight; 
+            weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
             return 1000000, None
 
 
@@ -5012,7 +5080,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md0 + _bfs_d + 1, _D[0]
                 else:
                     _fh0 = 0
@@ -5026,7 +5094,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md1 + _bfs_d + 1, _D[1]
                 else:
                     _fh1 = 0
@@ -5040,7 +5108,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md2 + _bfs_d + 1, _D[2]
                 else:
                     _fh2 = 0
@@ -5054,7 +5122,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md3 + _bfs_d + 1, _D[3]
                 else:
                     _fh3 = 0
@@ -5068,7 +5136,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md4 + _bfs_d + 1, _D[4]
                 else:
                     _fh4 = 0
@@ -5082,7 +5150,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md5 + _bfs_d + 1, _D[5]
                 else:
                     _fh5 = 0
@@ -5096,7 +5164,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md6 + _bfs_d + 1, _D[6]
                 else:
                     _fh6 = 0
@@ -5110,7 +5178,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md7 + _bfs_d + 1, _D[7]
                 else:
                     _fh7 = 0
@@ -5119,7 +5187,7 @@ class BfsBureau:
                 break
             _bfs_d += 1
 
-        weight[ti] = pre_weight; 
+        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
         return 1000000, None
 
 
@@ -5141,6 +5209,7 @@ class BfsBureau:
         _D = (Direction.NORTH, Direction.NORTHEAST, Direction.EAST, Direction.SOUTHEAST, Direction.SOUTH, Direction.SOUTHWEST, Direction.WEST, Direction.NORTHWEST)
 
         if si == ti:
+            print(f'[on top of find_route_inv target with {ban_target=}]')
 
             if ban_target:
                 _best_c = 1000000
@@ -5269,7 +5338,7 @@ class BfsBureau:
         pre_weight = weight[ti]
         weight[ti] = 1
 
-        
+        Profiler.start(f"""BfsBureau.find_route{{ variant_suffix }}""")
 
         dist = [1000000] * 3136
         fhd  = [0]       * 3136
@@ -5289,7 +5358,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 0
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.NORTH
             _hp(heap, (w, ni))
         ni = si + 56
@@ -5299,7 +5368,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 2
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.EAST
             _hp(heap, (w, ni))
         ni = si + 1
@@ -5309,7 +5378,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 4
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.SOUTH
             _hp(heap, (w, ni))
         ni = si + -56
@@ -5319,7 +5388,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 6
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                 return w, Direction.WEST
             _hp(heap, (w, ni))
         ni = si + 55
@@ -5330,7 +5399,7 @@ class BfsBureau:
                 dist[ni] = w
                 fhd[ni]  = 1
                 if ni == ti:
-                    weight[ti] = pre_weight; 
+                    weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                     return w, Direction.NORTHEAST
                 _hp(heap, (w, ni))
             elif w == dist[ni]:
@@ -5343,7 +5412,7 @@ class BfsBureau:
                 dist[ni] = w
                 fhd[ni]  = 3
                 if ni == ti:
-                    weight[ti] = pre_weight; 
+                    weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                     return w, Direction.SOUTHEAST
                 _hp(heap, (w, ni))
             elif w == dist[ni]:
@@ -5356,7 +5425,7 @@ class BfsBureau:
                 dist[ni] = w
                 fhd[ni]  = 5
                 if ni == ti:
-                    weight[ti] = pre_weight; 
+                    weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                     return w, Direction.SOUTHWEST
                 _hp(heap, (w, ni))
             elif w == dist[ni]:
@@ -5369,7 +5438,7 @@ class BfsBureau:
                 dist[ni] = w
                 fhd[ni]  = 7
                 if ni == ti:
-                    weight[ti] = pre_weight; 
+                    weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                     return w, Direction.NORTHWEST
                 _hp(heap, (w, ni))
             elif w == dist[ni]:
@@ -5398,6 +5467,7 @@ class BfsBureau:
             ni = idx + -1
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5406,12 +5476,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 55
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5420,12 +5491,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 56
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5434,12 +5506,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 57
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5448,12 +5521,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 1
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5462,12 +5536,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -55
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5476,12 +5551,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -56
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5490,12 +5566,13 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -57
             w  = weight[ni]
 
+            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5504,12 +5581,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
 
         if not phase2_seeds:
-            weight[ti] = pre_weight; 
+            weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
             return 1000000, None
 
 
@@ -5594,7 +5671,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md0 + _bfs_d + 1, _D[0]
                 else:
                     _fh0 = 0
@@ -5608,7 +5685,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md1 + _bfs_d + 1, _D[1]
                 else:
                     _fh1 = 0
@@ -5622,7 +5699,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md2 + _bfs_d + 1, _D[2]
                 else:
                     _fh2 = 0
@@ -5636,7 +5713,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md3 + _bfs_d + 1, _D[3]
                 else:
                     _fh3 = 0
@@ -5650,7 +5727,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md4 + _bfs_d + 1, _D[4]
                 else:
                     _fh4 = 0
@@ -5664,7 +5741,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md5 + _bfs_d + 1, _D[5]
                 else:
                     _fh5 = 0
@@ -5678,7 +5755,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md6 + _bfs_d + 1, _D[6]
                 else:
                     _fh6 = 0
@@ -5692,7 +5769,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
                         return _md7 + _bfs_d + 1, _D[7]
                 else:
                     _fh7 = 0
@@ -5701,11 +5778,10 @@ class BfsBureau:
                 break
             _bfs_d += 1
 
-        weight[ti] = pre_weight; 
+        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
         return 1000000, None
 
 
-    # ── bfs20 ────────────────────────────────────────────────────────────────────
     bfs20_dist: list[int] = [1000000] * 3136
     bfs20_dist_adj: list[int] = [1000000] * 3136
     _bfs20_touched_indices: list[int] = []
@@ -7810,6 +7886,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_builder_bot() -> bool:
+        # assert EntityType.BUILDER_BOT in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -7843,7 +7920,10 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        Pathfinder.move_off()
+        success = Pathfinder.move_off()
+        if not success:
+            Debug.tee('failed move off')
+            Debug.diamond(Color.YELLOW)
 
         if BuildManager.can_build_builder_bot(pos, *a):
             Globals.ct.build_builder_bot(pos, *a)
@@ -7872,6 +7952,7 @@ class BuildManager:
 
         req = 50 if Globals.round < 150 else 50
 
+
         leftover_unscaled_ti = 0
 
         leftover_unscaled_ti += req
@@ -7896,6 +7977,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_gunner() -> bool:
+        # assert EntityType.GUNNER in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -7929,7 +8011,10 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        Pathfinder.move_off()
+        success = Pathfinder.move_off()
+        if not success:
+            Debug.tee('failed move off')
+            Debug.diamond(Color.YELLOW)
 
         if BuildManager.can_build_gunner(pos, *a):
             Globals.ct.build_gunner(pos, *a)
@@ -7958,6 +8043,7 @@ class BuildManager:
 
         req = 0 if Globals.round < 150 else 0
 
+
         leftover_unscaled_ti = 0
 
         leftover_unscaled_ti += req
@@ -7982,6 +8068,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_sentinel() -> bool:
+        # assert EntityType.SENTINEL in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8015,7 +8102,10 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        Pathfinder.move_off()
+        success = Pathfinder.move_off()
+        if not success:
+            Debug.tee('failed move off')
+            Debug.diamond(Color.YELLOW)
 
         if BuildManager.can_build_sentinel(pos, *a):
             Globals.ct.build_sentinel(pos, *a)
@@ -8044,6 +8134,7 @@ class BuildManager:
 
         req = 0 if Globals.round < 150 else 50
 
+
         leftover_unscaled_ti = 0
 
         leftover_unscaled_ti += req
@@ -8068,6 +8159,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_breach() -> bool:
+        # assert EntityType.BREACH in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8101,7 +8193,10 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        Pathfinder.move_off()
+        success = Pathfinder.move_off()
+        if not success:
+            Debug.tee('failed move off')
+            Debug.diamond(Color.YELLOW)
 
         if BuildManager.can_build_breach(pos, *a):
             Globals.ct.build_breach(pos, *a)
@@ -8130,6 +8225,7 @@ class BuildManager:
 
         req = 50 if Globals.round < 150 else 50
 
+
         leftover_unscaled_ti = 0
 
         leftover_unscaled_ti += req
@@ -8154,6 +8250,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_launcher() -> bool:
+        # assert EntityType.LAUNCHER in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8187,7 +8284,10 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        Pathfinder.move_off()
+        success = Pathfinder.move_off()
+        if not success:
+            Debug.tee('failed move off')
+            Debug.diamond(Color.YELLOW)
 
         if BuildManager.can_build_launcher(pos, *a):
             Globals.ct.build_launcher(pos, *a)
@@ -8216,6 +8316,7 @@ class BuildManager:
 
         req = 0 if Globals.round < 150 else 50
 
+
         leftover_unscaled_ti = 0
 
         leftover_unscaled_ti += req
@@ -8240,6 +8341,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_conveyor() -> bool:
+        # assert EntityType.CONVEYOR in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8300,6 +8402,9 @@ class BuildManager:
 
         req = 20 if Globals.round < 150 else 50
 
+        if MarketMaker.est_income <= 10:
+            req = 0  # reset if no income
+
         leftover_unscaled_ti = 0
 
         if Globals.round > 50:
@@ -8330,6 +8435,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_splitter() -> bool:
+        # assert EntityType.SPLITTER in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8390,6 +8496,9 @@ class BuildManager:
 
         req = 20 if Globals.round < 150 else 50
 
+        if MarketMaker.est_income <= 10:
+            req = 0  # reset if no income
+
         leftover_unscaled_ti = 0
 
         if Globals.round > 50:
@@ -8420,6 +8529,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_armoured_conveyor() -> bool:
+        # assert EntityType.ARMOURED_CONVEYOR in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8480,6 +8590,9 @@ class BuildManager:
 
         req = 20 if Globals.round < 150 else 50
 
+        if MarketMaker.est_income <= 10:
+            req = 0  # reset if no income
+
         leftover_unscaled_ti = 0
 
         if Globals.round > 50:
@@ -8510,6 +8623,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_bridge() -> bool:
+        # assert EntityType.BRIDGE in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8570,6 +8684,9 @@ class BuildManager:
 
         req = 20 if Globals.round < 150 else 50
 
+        if MarketMaker.est_income <= 10:
+            req = 0  # reset if no income
+
         leftover_unscaled_ti = 0
 
         if Globals.round > 50:
@@ -8600,6 +8717,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_harvester() -> bool:
+        # assert EntityType.HARVESTER in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8632,7 +8750,10 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        Pathfinder.move_off()
+        success = Pathfinder.move_off()
+        if not success:
+            Debug.tee('failed move off')
+            Debug.diamond(Color.YELLOW)
 
         if BuildManager.can_build_harvester(pos, *a):
             Globals.ct.build_harvester(pos, *a)
@@ -8659,6 +8780,9 @@ class BuildManager:
         
 
         req = 20 if Globals.round < 150 else 50
+
+        if MarketMaker.est_income <= 10:
+            req = 0  # reset if no income
 
         leftover_unscaled_ti = 0
 
@@ -8689,6 +8813,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_foundry() -> bool:
+        # assert EntityType.FOUNDRY in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8721,7 +8846,10 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        Pathfinder.move_off()
+        success = Pathfinder.move_off()
+        if not success:
+            Debug.tee('failed move off')
+            Debug.diamond(Color.YELLOW)
 
         if BuildManager.can_build_foundry(pos, *a):
             Globals.ct.build_foundry(pos, *a)
@@ -8749,6 +8877,7 @@ class BuildManager:
 
         req = 0 if Globals.round < 150 else 0
 
+
         leftover_unscaled_ti = 0
 
         leftover_unscaled_ti += req
@@ -8773,6 +8902,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_road() -> bool:
+        # assert EntityType.ROAD in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8833,6 +8963,7 @@ class BuildManager:
 
         req = 20 if Globals.round < 150 else 50
 
+
         leftover_unscaled_ti = 0
 
         if Globals.round > 50:
@@ -8863,6 +8994,7 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_barrier() -> bool:
+        # assert EntityType.BARRIER in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8895,7 +9027,10 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        Pathfinder.move_off()
+        success = Pathfinder.move_off()
+        if not success:
+            Debug.tee('failed move off')
+            Debug.diamond(Color.YELLOW)
 
         if BuildManager.can_build_barrier(pos, *a):
             Globals.ct.build_barrier(pos, *a)
@@ -8921,7 +9056,8 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_barrier_cost()
         
 
-        req = 50 if Globals.round < 150 else 50
+        req = 20 if Globals.round < 150 else 50
+
 
         leftover_unscaled_ti = 0
 
@@ -8997,7 +9133,8 @@ class BurnManager:
         ct = Globals.ct
         ti, ax = ct.get_global_resources()
 
-        cnf1 = int(ti * MarketMaker.scale_ratio) < 50 or MarketMaker.est_income <= 10
+        # cnf1 = int(ti * MarketMaker.scale_ratio) < 50 or MarketMaker.est_income <= 10
+        cnf1 = True
         cnf2 = (MarketMaker.est_income - 10) <= MarketMaker.est_income_ax
         cnf3 = Globals.round < 1000
         cond = cnf1 and cnf2 and cnf3
@@ -9323,13 +9460,14 @@ class DarkForest:
     node_kind: list[int]   # propagated kind per node (top-down)
     core_sink_set: set[int] = set()  # titanium-only ALLY_CORE reachable nodes below pressure threshold
     sink_set: set[int]               # alias for core_sink_set (backward compat)
-    leaf_set: set[int]               # titanium leaf nodes — valid foundry sites
+    leaf_set: set[int]               # titanium leaf nodes (no bridge + has flow)
     ax_tagged: list[bool]            # True if node has any axionite flow in subtree
     sight_last_id: list[int]         # last resource-ID seen at this position; -1 = never
     sight_last_round: list[int]      # game-round when that ID was last observed
     sight_flowing: list[bool]        # sight-based flow: True if fresh valid resource seen recently
     foundry_positions: set[int] = set()  # persistent: encoded positions of built foundries
     refined_ax_line: set[int] = set()    # recomputed each tick: ALLY_CORE nodes on refined-axionite output paths
+    needs_update: bool = True
     
     @classmethod
     def init(cls):
@@ -9354,20 +9492,25 @@ class DarkForest:
     @classmethod
     def register_enemy_core(cls):
         for p in Symmetry.enemy_core_pos_set:
+            cls.needs_update = True
             cls.register_sink(p, 2)
 
     @classmethod
     def remove_node(cls, u: int):
         if cls.kind[u] == 1 or cls.kind[u] == 2:
             return
-        cls.nodes[u] = None
-        cls.kind[u] = 0
+
+        if cls.nodes[u] is not None:
+            cls.needs_update = True
+            cls.nodes[u] = None
+            cls.kind[u] = 0
 
     @classmethod
     def detach_node(cls, u: int):
         #severe it from parent/tree
         n = cls.nodes[u]
         if n is not None:
+            cls.needs_update = True
             n.up = None
 
     @classmethod
@@ -9541,6 +9684,8 @@ class DarkForest:
     def fcompute(cls):
 
 
+        if TLEManager.tle_once and not cls.needs_update:
+            return
 
         ns       = cls.nodes
         kind     = cls.kind
@@ -27251,13 +27396,19 @@ class DarkForest:
                         _curr = _pn.up
         cls.refined_ax_line = _ral
 
+        BRIDGE = EntityType.BRIDGE
+        tile_info_idx = Map.tile_info_idx
+
         # ── titanium leaf set ──
         _ti_leaves: set[int] = set()
         for u in _initial_leaves:
             if (nk[u] == 1
                     and u not in core_pos_set
                     and not ax_tagged[u]
-                    and u not in _ral):
+                    and u not in _ral
+                    and tile_info_idx[u].entity_type != BRIDGE
+                    and flow[u] > 0
+                    ):
                 _ti_leaves.add(u)
         cls.leaf_set = _ti_leaves
 
@@ -27423,117 +27574,15 @@ class Explore:
 
     @classmethod
     def new_target(cls) -> Position:
-        # return random.choice((Position(0, 0), Position(Map.W - 1, Map.H - 1)))
-        # return random.choice((
-        #     Position(0, 0),
-        #     Position(0, Map.maxY),
-        #     Position(Map.maxX, 0),
-        #     Position(Map.maxX, Map.maxY),
-        # ))
-        
-        # # Special early game heuristics
-        # if Globals.round < 50:
-        #     # Move away from the core when starting out (except for the first couple bots)
-        #     if Globals.spawn_round >= 3 and cls.target is None:
-        #         direction_to_core = Globals.my_pos.direction_to(Unit.core_pos)
-        #         if direction_to_core != Direction.CENTRE:
-        #             return Util.follow_to_edge(Globals.my_pos.x, Globals.my_pos.y, *direction_to_core.delta())
-
-        #     # Find the direction that will let us move the furthest before hitting the edge
-        #     bestDx: int = None
-        #     bestDy: int = None
-        #     best_score: int = -1000000
-
-        #             #     
-        #     score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, 0, -1)
-
-        #     
-        #     if score > best_score:
-        #         best_score = score
-        #         bestDx = 0
-        #         bestDy = -1
-
-        #             #     
-        #     score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, 1, -1)
-
-        #             #     score += 1 # slightly prefer diagonals
-        #     
-        #     if score > best_score:
-        #         best_score = score
-        #         bestDx = 1
-        #         bestDy = -1
-
-        #             #     
-        #     score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, 1, 0)
-
-        #     
-        #     if score > best_score:
-        #         best_score = score
-        #         bestDx = 1
-        #         bestDy = 0
-
-        #             #     
-        #     score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, 1, 1)
-
-        #             #     score += 1 # slightly prefer diagonals
-        #     
-        #     if score > best_score:
-        #         best_score = score
-        #         bestDx = 1
-        #         bestDy = 1
-
-        #             #     
-        #     score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, 0, 1)
-
-        #     
-        #     if score > best_score:
-        #         best_score = score
-        #         bestDx = 0
-        #         bestDy = 1
-
-        #             #     
-        #     score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, -1, 1)
-
-        #             #     score += 1 # slightly prefer diagonals
-        #     
-        #     if score > best_score:
-        #         best_score = score
-        #         bestDx = -1
-        #         bestDy = 1
-
-        #             #     
-        #     score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, -1, 0)
-
-        #     
-        #     if score > best_score:
-        #         best_score = score
-        #         bestDx = -1
-        #         bestDy = 0
-
-        #             #     
-        #     score = Util.distance_to_edge(Globals.my_pos.x, Globals.my_pos.y, -1, -1)
-
-        #             #     score += 1 # slightly prefer diagonals
-        #     
-        #     if score > best_score:
-        #         best_score = score
-        #         bestDx = -1
-        #         bestDy = -1
-
-        #     
-        #     if bestDx is None:
-        #         return Util.rand_pos()
-
-        #     return Util.follow_to_edge(Globals.my_pos.x, Globals.my_pos.y, bestDx, bestDy)
         # # Later in the game, we should just go to random places to hit every last corner
         # else:
         if Builder.mode == 2:
             pos = Symmetry.sym_pos(Unit.core_pos)
-            dx, dy = random.choice([(dx, dy) for dx in range(-6, 6) for dy in range(-6, 6) if abs(dx) > 1 or abs(dy) > 1])
+            dx, dy = random.choice(cls.one)
             return Position(max(0, min(pos.x + dx, Map.maxX)), max(0, min(pos.y + dy, Map.maxY)))
         elif Builder.mode == 3:
             pos = Unit.core_pos
-            dx, dy = random.choice([(dx, dy) for dx in range(-5, 5) for dy in range(-5, 5) if abs(dx) > 1 or abs(dy) > 1])
+            dx, dy = random.choice(cls.two)
             return Position(max(0, min(pos.x + dx, Map.maxX)), max(0, min(pos.y + dy, Map.maxY)))
         else:
             return Util.rand_pos()
@@ -27545,6 +27594,8 @@ class Explore:
             # ny = max(0, min(Map.maxY, int(round(my + dist * math.sin(theta)))))
             # return Position(nx, ny)
 
+    one = [(dx, dy) for dx in range(-6, 6) for dy in range(-6, 6) if abs(dx) > 1 or abs(dy) > 1]
+    two = [(dx, dy) for dx in range(-5, 5) for dy in range(-5, 5) if abs(dx) > 1 or abs(dy) > 1]
 
     @classmethod
     def get_target(cls) -> Position:
@@ -27683,6 +27734,15 @@ class GunnerDirectionInfo:
 class GunnerDirectionPicker:
     infos: list[GunnerDirectionInfo] = []
 
+
+    @classmethod
+    def get_best_info(cls, spos) -> GunnerDirectionInfo:
+        cls.precompute(spos)
+        best = cls.infos[0]
+        for info in cls.infos[1:]:
+            if GunnerDirectionInfo.is_better_than(info, best):
+                best = info
+        return best
 
     @classmethod
     def get_best_direction(cls, spos) -> Direction:
@@ -27879,255 +27939,280 @@ class GunnerDirectionPicker:
             infos.append(info7)
 
 
+        WALL = Environment.WALL
+        ROAD = EntityType.ROAD
 
-        ti = tile_info[sx + -2][sy + -2]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info7.enemy_building_hp += e_building_hp
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info7.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + -2][sy + -1]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
+        info0.has_enemy_turret = False
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-        ti = tile_info[sx + -2][sy + 0]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info6.enemy_building_hp += e_building_hp
+        x, y = spos.x, spos.y
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info6.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + -2][sy + 1]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
+        x += 0
+        y += -1
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-        ti = tile_info[sx + -2][sy + 2]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info5.enemy_building_hp += e_building_hp
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info5.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + -1][sy + -2]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
+        for _ in range(3):
+            ti = tile_info[x][y]
+            if ti is None or ti.env == WALL:
+                break
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-        ti = tile_info[sx + -1][sy + -1]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info7.enemy_building_hp += e_building_hp
+            if ti.has_building :
+                if ti.is_building_ally:
+                    if ti.entity_type != ROAD:
+                        break
+                else:
+                    e_building_hp = ti.building_hp
+                    info0.enemy_building_hp += e_building_hp
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info7.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + -1][sy + 0]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info6.enemy_building_hp += e_building_hp
-
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info6.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + -1][sy + 1]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info5.enemy_building_hp += e_building_hp
-
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info5.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + -1][sy + 2]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-        ti = tile_info[sx + 0][sy + -2]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info0.enemy_building_hp += e_building_hp
+                    if ti.has_turret:
+                        info0.has_enemy_turret = True
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info0.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + 0][sy + -1]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info0.enemy_building_hp += e_building_hp
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info0.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + 0][sy + 0]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
+            # Debug.dot(Position(x, y), Color.BLUE if 0 else Color.RED)
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-        ti = tile_info[sx + 0][sy + 1]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info4.enemy_building_hp += e_building_hp
+            x += 0
+            y += -1
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info4.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + 0][sy + 2]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info4.enemy_building_hp += e_building_hp
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info4.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + 1][sy + -2]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
+        info1.has_enemy_turret = False
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-        ti = tile_info[sx + 1][sy + -1]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info1.enemy_building_hp += e_building_hp
+        x, y = spos.x, spos.y
+
+        x += 1
+        y += -1
+
+
+        for _ in range(2):
+            ti = tile_info[x][y]
+            if ti is None or ti.env == WALL:
+                break
+
+            if ti.has_building :
+                if ti.is_building_ally:
+                    if ti.entity_type != ROAD:
+                        break
+                else:
+                    e_building_hp = ti.building_hp
+                    info1.enemy_building_hp += e_building_hp
+
+                    if ti.has_turret:
+                        info1.has_enemy_turret = True
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info1.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + 1][sy + 0]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info2.enemy_building_hp += e_building_hp
+
+            # Debug.dot(Position(x, y), Color.BLUE if 1 else Color.RED)
+
+            x += 1
+            y += -1
+
+
+        info2.has_enemy_turret = False
+
+        x, y = spos.x, spos.y
+
+        x += 1
+        y += 0
+
+
+        for _ in range(3):
+            ti = tile_info[x][y]
+            if ti is None or ti.env == WALL:
+                break
+
+            if ti.has_building :
+                if ti.is_building_ally:
+                    if ti.entity_type != ROAD:
+                        break
+                else:
+                    e_building_hp = ti.building_hp
+                    info2.enemy_building_hp += e_building_hp
+
+                    if ti.has_turret:
+                        info2.has_enemy_turret = True
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info2.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + 1][sy + 1]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info3.enemy_building_hp += e_building_hp
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info3.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + 1][sy + 2]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
+            # Debug.dot(Position(x, y), Color.BLUE if 0 else Color.RED)
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-        ti = tile_info[sx + 2][sy + -2]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info1.enemy_building_hp += e_building_hp
+            x += 1
+            y += 0
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info1.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + 2][sy + -1]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-        ti = tile_info[sx + 2][sy + 0]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info2.enemy_building_hp += e_building_hp
+        info3.has_enemy_turret = False
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info2.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + 2][sy + 1]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
+        x, y = spos.x, spos.y
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-        ti = tile_info[sx + 2][sy + 2]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info3.enemy_building_hp += e_building_hp
+        x += 1
+        y += 1
+
+
+        for _ in range(2):
+            ti = tile_info[x][y]
+            if ti is None or ti.env == WALL:
+                break
+
+            if ti.has_building :
+                if ti.is_building_ally:
+                    if ti.entity_type != ROAD:
+                        break
+                else:
+                    e_building_hp = ti.building_hp
+                    info3.enemy_building_hp += e_building_hp
+
+                    if ti.has_turret:
+                        info3.has_enemy_turret = True
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
                 info3.enemy_bot_hp += e_bot_hp
 
-        ti = tile_info[sx ][sy -1]
-        if ti is not None:
-            info0.has_enemy_turret = ti.has_turret and not ti.is_building_ally
-        else:
-            info0.has_enemy_turret = False
-        ti = tile_info[sx +1][sy -1]
-        if ti is not None:
-            info1.has_enemy_turret = ti.has_turret and not ti.is_building_ally
-        else:
-            info1.has_enemy_turret = False
-        ti = tile_info[sx +1][sy ]
-        if ti is not None:
-            info2.has_enemy_turret = ti.has_turret and not ti.is_building_ally
-        else:
-            info2.has_enemy_turret = False
-        ti = tile_info[sx +1][sy +1]
-        if ti is not None:
-            info3.has_enemy_turret = ti.has_turret and not ti.is_building_ally
-        else:
-            info3.has_enemy_turret = False
-        ti = tile_info[sx ][sy +1]
-        if ti is not None:
-            info4.has_enemy_turret = ti.has_turret and not ti.is_building_ally
-        else:
-            info4.has_enemy_turret = False
-        ti = tile_info[sx -1][sy +1]
-        if ti is not None:
-            info5.has_enemy_turret = ti.has_turret and not ti.is_building_ally
-        else:
-            info5.has_enemy_turret = False
-        ti = tile_info[sx -1][sy ]
-        if ti is not None:
-            info6.has_enemy_turret = ti.has_turret and not ti.is_building_ally
-        else:
-            info6.has_enemy_turret = False
-        ti = tile_info[sx -1][sy -1]
-        if ti is not None:
-            info7.has_enemy_turret = ti.has_turret and not ti.is_building_ally
-        else:
-            info7.has_enemy_turret = False
+            # Debug.dot(Position(x, y), Color.BLUE if 1 else Color.RED)
+
+            x += 1
+            y += 1
+
+
+        info4.has_enemy_turret = False
+
+        x, y = spos.x, spos.y
+
+        x += 0
+        y += 1
+
+
+        for _ in range(3):
+            ti = tile_info[x][y]
+            if ti is None or ti.env == WALL:
+                break
+
+            if ti.has_building :
+                if ti.is_building_ally:
+                    if ti.entity_type != ROAD:
+                        break
+                else:
+                    e_building_hp = ti.building_hp
+                    info4.enemy_building_hp += e_building_hp
+
+                    if ti.has_turret:
+                        info4.has_enemy_turret = True
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info4.enemy_bot_hp += e_bot_hp
+
+            # Debug.dot(Position(x, y), Color.BLUE if 0 else Color.RED)
+
+            x += 0
+            y += 1
+
+
+        info5.has_enemy_turret = False
+
+        x, y = spos.x, spos.y
+
+        x += -1
+        y += 1
+
+
+        for _ in range(2):
+            ti = tile_info[x][y]
+            if ti is None or ti.env == WALL:
+                break
+
+            if ti.has_building :
+                if ti.is_building_ally:
+                    if ti.entity_type != ROAD:
+                        break
+                else:
+                    e_building_hp = ti.building_hp
+                    info5.enemy_building_hp += e_building_hp
+
+                    if ti.has_turret:
+                        info5.has_enemy_turret = True
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info5.enemy_bot_hp += e_bot_hp
+
+            # Debug.dot(Position(x, y), Color.BLUE if 1 else Color.RED)
+
+            x += -1
+            y += 1
+
+
+        info6.has_enemy_turret = False
+
+        x, y = spos.x, spos.y
+
+        x += -1
+        y += 0
+
+
+        for _ in range(3):
+            ti = tile_info[x][y]
+            if ti is None or ti.env == WALL:
+                break
+
+            if ti.has_building :
+                if ti.is_building_ally:
+                    if ti.entity_type != ROAD:
+                        break
+                else:
+                    e_building_hp = ti.building_hp
+                    info6.enemy_building_hp += e_building_hp
+
+                    if ti.has_turret:
+                        info6.has_enemy_turret = True
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info6.enemy_bot_hp += e_bot_hp
+
+            # Debug.dot(Position(x, y), Color.BLUE if 0 else Color.RED)
+
+            x += -1
+            y += 0
+
+
+        info7.has_enemy_turret = False
+
+        x, y = spos.x, spos.y
+
+        x += -1
+        y += -1
+
+
+        for _ in range(2):
+            ti = tile_info[x][y]
+            if ti is None or ti.env == WALL:
+                break
+
+            if ti.has_building :
+                if ti.is_building_ally:
+                    if ti.entity_type != ROAD:
+                        break
+                else:
+                    e_building_hp = ti.building_hp
+                    info7.enemy_building_hp += e_building_hp
+
+                    if ti.has_turret:
+                        info7.has_enemy_turret = True
+
+            if ti.has_bot and not ti.is_bot_ally:
+                e_bot_hp = ti.bot_hp
+                info7.enemy_bot_hp += e_bot_hp
+
+            # Debug.dot(Position(x, y), Color.BLUE if 1 else Color.RED)
+
+            x += -1
+            y += -1
 
 
 # ============================================================
@@ -28191,9 +28276,11 @@ class GunnerSupervisor:
         if not ct.can_fire_from(Globals.my_pos, dirToPos, EntityType.GUNNER, pos):
             print(f'[try_fire] can_fire_from me to {pos} is False')
             return
-        
+
+        in_coma = not TurretSuicide.has_feeder and not any(TurretSuicide.has_ammo_history)
+
         if dirToPos != ct.get_direction(): # Rotate if the target isn't in our current direction
-            if ct.can_rotate(dirToPos):
+            if not in_coma and ct.can_rotate(dirToPos):
                 ct.rotate(dirToPos)
         else:
             if ct.can_fire(pos):
@@ -28224,9 +28311,6 @@ class GunnerSupervisor:
         if not best.has_enemy_bot and best.ally_connected:
             return None
         
-        # Don't bother turning just to knock out some roads
-        if not best.has_enemy_bot and best.is_road and not best.current_dir:
-            return None
 
         if best.is_harvester_feeding_ally:
             return None
@@ -29029,6 +29113,10 @@ class GunnerTargetInfo:
         if a.harvester_adjacent and (not b.harvester_adjacent): return True
         if (not a.harvester_adjacent) and b.harvester_adjacent: return False
 
+        # prefer the direction we're currently facing
+        if a.current_dir != b.current_dir:
+            return a.current_dir > b.current_dir
+
         if a.is_road and (not b.is_road): return False  # prefer non-roads
         if (not a.is_road) and b.is_road: return True
 
@@ -29040,10 +29128,6 @@ class GunnerTargetInfo:
         if a.current_dir == b.current_dir:
             if a.has_enemy_bot and (not b.has_enemy_bot): return True
             if (not a.has_enemy_bot) and b.has_enemy_bot: return False
-
-        # prefer the direction we're currently facing
-        if a.current_dir != b.current_dir:
-            return a.current_dir > b.current_dir
 
         if a.has_enemy_bot and b.has_enemy_bot:
             if a.bot_hp != b.bot_hp:
@@ -29062,41 +29146,84 @@ class HarvesterAdjacent:
 
 
     @classmethod
-    def get_best_sentinel_position(cls) -> Position | None:
+    def get_best_turret_info(cls) -> tuple[AdjacentInfo | None, bool]:  # bool is is_gunner
+        if not BuildManager.can_afford_sentinel() and Globals.round < 250: 
+            return None, False
+
+        if not cls.infos:
+            return None, False
+
+        bestsen = cls.infos[0]
+        for c in cls.infos[1:]:
+            if AdjacentInfo.is_better_than_sentinel(c, bestsen):
+                bestsen = c
+
+        bestgun = cls.infos[0]
+        for c in cls.infos[1:]:
+            if AdjacentInfo.is_better_than_gunner(c, bestgun):
+                bestgun = c
+
+        si: SentinelDirectionInfo = bestsen.sentinel_dir_info
+        sen_ok = not (
+            not bestsen.easily_buildable or bestsen.bfs_dist_adj >= 100 or bestsen.ti.has_bot or si.banned
+            or not VisionTracker.me_is_canonical_ally(bestsen.position)
+        )
+        if sen_ok:
+            sen_ok = (si.enemy_building_hp > 30 and si.enemy_bot_hp > 30) or (si.enemy_building_hp > 40) or (si.enemy_turret_hp > 0)
+
+        gi: GunnerDirectionInfo = bestgun.gunner_dir_info
+        gun_ok = not (
+            not bestgun.easily_buildable or bestgun.bfs_dist_adj >= 100 or bestgun.ti.has_bot or gi.banned
+            or not VisionTracker.me_is_canonical_ally(bestgun.position)
+        )
+        if gun_ok:
+            gun_ok = (gi.enemy_building_hp > 10) or (gi.has_enemy_turret)
+
+        if not (sen_ok or gun_ok):
+            return None, False
+
+        sen_score = (si.enemy_building_hp + bool(si.enemy_turret_hp) * 100) if sen_ok else 0
+        gun_score = (gi.enemy_building_hp * 5 + gi.has_enemy_turret * 200) if gun_ok else 0
+
+
+        return (bestgun, True) if gun_score > sen_score else (bestsen, False)
+
+
+
+    @classmethod
+    def get_best_sentinel_info(cls) -> AdjacentInfo | None:
         if not BuildManager.can_afford_sentinel() and Globals.round < 250: 
             return None 
 
         if not cls.infos:
             return None
 
-        best = cls.infos[0]
+        bestsen = cls.infos[0]
         for c in cls.infos[1:]:
-            if AdjacentInfo.is_better_than_sentinel(c, best):
-                best = c
+            if AdjacentInfo.is_better_than_sentinel(c, bestsen):
+                bestsen = c
 
-        # Debug.tee(best.__dict__)
-
-        if not best.easily_buildable:
+        if not bestsen.easily_buildable:
             return None
         
-        if best.bfs_dist_adj >= 100:
+        if bestsen.bfs_dist_adj >= 100:
             return None
 
-        if best.ti.has_bot:
+        if bestsen.ti.has_bot:
             return None
 
-        si: SentinelDirectionInfo = best.sentinel_dir_info
+        si: SentinelDirectionInfo = bestsen.sentinel_dir_info
         if si.banned:
             return None
         
-        ok = (si.enemy_building_hp > 20 and si.enemy_bot_hp > 20) or (si.enemy_building_hp > 40)
+        ok = (si.enemy_building_hp > 20 and si.enemy_bot_hp > 20) or (si.enemy_building_hp > 40) or (si.enemy_turret_hp > 0)
         if not ok:
             return None
 
-        if not VisionTracker.me_is_canonical_ally(best.position):
+        if not VisionTracker.me_is_canonical_ally(bestsen.position):
             return None
 
-        return best.position
+        return bestsen
 
 
     @classmethod
@@ -29196,7 +29323,7 @@ class HarvesterAdjacent:
         tile_info = Map.tile_info
         my_pos = Globals.my_pos
 
-        for spos, sx, sy, _, hti in Map.proc_nearby_tiles:
+        for hpos, sx, sy, _, hti in Map.proc_nearby_tiles:
             if hti.entity_type != EntityType.HARVESTER or hti.env == Environment.ORE_AXIONITE:
                 continue
 
@@ -29206,10 +29333,10 @@ class HarvesterAdjacent:
                 and hti.enemy_turrets_adjacent == 0 \
                 and not hti.ally_core_adj \
                 and hti.ally_fed_foundries_adjacent == 0 \
-                and my_pos.distance_squared(spos) <= 15  # can see all adjacent
+                and my_pos.distance_squared(hpos) <= 15  # can see all adjacent
 
-            dist_to_ally_core = spos.distance_squared(Unit.core_pos)
-            is_canonical_ally_harvester = VisionTracker.me_is_canonical_ally(spos)
+            dist_to_ally_core = hpos.distance_squared(Unit.core_pos)
+            is_canonical_ally_harvester = VisionTracker.me_is_canonical_ally(hpos)
             
 
             x, y = sx , sy -1
@@ -29232,6 +29359,7 @@ class HarvesterAdjacent:
 
                     info = AdjacentInfo()
                     info.position = pos
+                    info.hpos = hpos
                     info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
                     info.bfs_dist = BfsBureau.bfs20_dist[idx]
                     info.is_harvester_ally = is_harvester_ally
@@ -29260,6 +29388,8 @@ class HarvesterAdjacent:
                     #     Debug.diline(Position(0,0), pos, Color.BLUE)
 
 
+                    if info.h_has_fed_foundry:
+                        Debug.diamond(Color.BLUE, hpos)
 
                     info.has_ally_transporter = (
                         ti.has_building 
@@ -29360,6 +29490,7 @@ class HarvesterAdjacent:
                         elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                             info.enemy_turrets_adjacent += 1
 
+                    info.gunner_dir_info = ZHolder.banned_gunner_dir_info
                     info.sentinel_dir_info = ZHolder.banned_sentinel_dir_info
                     info.h_outward_adj = hti.ally_outward_transporters_adjacent
                     infos.append(info)
@@ -29384,6 +29515,7 @@ class HarvesterAdjacent:
 
                     info = AdjacentInfo()
                     info.position = pos
+                    info.hpos = hpos
                     info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
                     info.bfs_dist = BfsBureau.bfs20_dist[idx]
                     info.is_harvester_ally = is_harvester_ally
@@ -29412,6 +29544,8 @@ class HarvesterAdjacent:
                     #     Debug.diline(Position(0,0), pos, Color.BLUE)
 
 
+                    if info.h_has_fed_foundry:
+                        Debug.diamond(Color.BLUE, hpos)
 
                     info.has_ally_transporter = (
                         ti.has_building 
@@ -29512,6 +29646,7 @@ class HarvesterAdjacent:
                         elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                             info.enemy_turrets_adjacent += 1
 
+                    info.gunner_dir_info = ZHolder.banned_gunner_dir_info
                     info.sentinel_dir_info = ZHolder.banned_sentinel_dir_info
                     info.h_outward_adj = hti.ally_outward_transporters_adjacent
                     infos.append(info)
@@ -29536,6 +29671,7 @@ class HarvesterAdjacent:
 
                     info = AdjacentInfo()
                     info.position = pos
+                    info.hpos = hpos
                     info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
                     info.bfs_dist = BfsBureau.bfs20_dist[idx]
                     info.is_harvester_ally = is_harvester_ally
@@ -29564,6 +29700,8 @@ class HarvesterAdjacent:
                     #     Debug.diline(Position(0,0), pos, Color.BLUE)
 
 
+                    if info.h_has_fed_foundry:
+                        Debug.diamond(Color.BLUE, hpos)
 
                     info.has_ally_transporter = (
                         ti.has_building 
@@ -29664,6 +29802,7 @@ class HarvesterAdjacent:
                         elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                             info.enemy_turrets_adjacent += 1
 
+                    info.gunner_dir_info = ZHolder.banned_gunner_dir_info
                     info.sentinel_dir_info = ZHolder.banned_sentinel_dir_info
                     info.h_outward_adj = hti.ally_outward_transporters_adjacent
                     infos.append(info)
@@ -29688,6 +29827,7 @@ class HarvesterAdjacent:
 
                     info = AdjacentInfo()
                     info.position = pos
+                    info.hpos = hpos
                     info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
                     info.bfs_dist = BfsBureau.bfs20_dist[idx]
                     info.is_harvester_ally = is_harvester_ally
@@ -29716,6 +29856,8 @@ class HarvesterAdjacent:
                     #     Debug.diline(Position(0,0), pos, Color.BLUE)
 
 
+                    if info.h_has_fed_foundry:
+                        Debug.diamond(Color.BLUE, hpos)
 
                     info.has_ally_transporter = (
                         ti.has_building 
@@ -29816,15 +29958,18 @@ class HarvesterAdjacent:
                         elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                             info.enemy_turrets_adjacent += 1
 
+                    info.gunner_dir_info = ZHolder.banned_gunner_dir_info
                     info.sentinel_dir_info = ZHolder.banned_sentinel_dir_info
                     info.h_outward_adj = hti.ally_outward_transporters_adjacent
                     infos.append(info)
 
         
-        
+        Profiler.start(f"""(Gunner/Sentinel)DirectionPicker.get_best_info (x5)""")
         sample = random.sample(infos, min(5, len(infos)))
         for info in sample:
+            info.gunner_dir_info = GunnerDirectionPicker.get_best_info(info.position)
             info.sentinel_dir_info = SentinelDirectionPicker.get_best_info(info.position)
+        Profiler.end(f"""(Gunner/Sentinel)DirectionPicker.get_best_info (x5)""")
 
 
 # ============================================================
@@ -30404,9 +30549,11 @@ class HealTargeter:
         if best.is_launcher:
             return None
 
+        print(f'(possible) heal target {best.position=} {best.building_heal=} {best.building_hp=}')
 
         total_heal = best.building_heal + best.bot_heal
         if total_heal < 4:
+            print(f'{total_heal=}')
             # Still heal buildings next to harvesters for shielding
             if not best.harvester_adjacent or total_heal == 0:
                 return None
@@ -30496,6 +30643,7 @@ class Map:
     maxY: int
 
     # [x][y], some buffer right/bot side
+    tile_info_idx: list[int] = [None] * 3136
     tile_info: list[list[TileInfo | None]]
     nearby_tiles: list[Position]
     proc_nearby_tiles: list[tuple[Position, int, int, int, TileInfo]]        # in rsq 20
@@ -30603,6 +30751,7 @@ class Map:
         ax_harvester_set = cls.ax_harvester_set
         ti_ally_harvester_set = cls.ti_ally_harvester_set
         ax_ally_harvester_set = cls.ax_ally_harvester_set
+        tile_info_idx = cls.tile_info_idx
 
         proc_nearby_tiles = []
         inner_proc_nearby_tiles = []
@@ -30612,6 +30761,7 @@ class Map:
             ti: TileInfo | None = tile_info[x][y]
             if ti is None:
                 ti = TileInfo()
+                tile_info_idx[idx] = ti
                 tile_info[x][y] = ti
                 ti.has_building = False
                 ti.has_turret = False
@@ -30641,25 +30791,6 @@ class Map:
             if ti.has_turret:
                 old_turret_direction = ti.turret_direction
 
-            ox, oy = maxX - x, y
-
-            opp_ti = tile_info[ox][oy]
-            if opp_ti is None:
-                opp_ti = TileInfo()
-                opp_ti.env = tile_env
-                opp_ti.has_bot = False
-                opp_ti.has_turret = False
-                opp_ti.has_building = False
-                opp_ti.easily_passable = False
-                opp_ti.harvester_adjacent = 0
-                opp_ti.entity_type = None
-                opp_ti.target = None
-                opp_ti.allied_bots_adjacent = 0
-                opp_ti.resource_id = None
-                opp_ti.resource_type = None
-                tile_info[ox][oy] = opp_ti
-                new_syms.append(Position(ox, oy))
-                BfsBureau.ti_ore_adj[(((ox) + 3) * 56 + ((oy) + 3))] = BfsBureau.ti_ore_adj[pos_idx]
 
             ti.env = tile_env
             ti.round = round
@@ -30738,6 +30869,9 @@ class Map:
                 ti.resource_type = None
 
                 if etype in (SENTINEL, GUNNER, BREACH, FOUNDRY):
+                    if etype == FOUNDRY:
+                        DarkForest.foundry_positions.add(idx)
+
                     if etype in (SENTINEL, GUNNER, BREACH):
                         ti.has_turret = True
                         ti.turret_direction = get_direction(building_id)
@@ -30765,12 +30899,16 @@ class Map:
                     BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
                 elif old_etype == LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
+                elif old_etype == GUNNER:
+                    BfsBureau.remove_enemy_gunner(pos, old_turret_direction)
 
             elif new_enemy_tower and not old_enemy_tower:
                 if etype == SENTINEL:
                     BfsBureau.add_enemy_sentinel(pos, ti)
                 elif etype == LAUNCHER:
                     BfsBureau.add_enemy_launcher(pos_idx)
+                elif etype == GUNNER:
+                    BfsBureau.add_enemy_gunner(pos, ti)
 
             # [new enemy bot bfs]
             old_ally_launcher = (old_etype == LAUNCHER and old_is_building_ally)
@@ -30807,9 +30945,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+                Profiler.start(f"""Comms.handle_message""")
                 Comms.handle_message(get_marker_value(building_id))
-                
+                Profiler.end(f"""Comms.handle_message""")
 
             ti.is_pointed_to = False
 
@@ -30880,15 +31018,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x +1][y ]
                 if nti is not None:
@@ -30899,15 +31037,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x ][y +1]
                 if nti is not None:
@@ -30918,15 +31056,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x -1][y ]
                 if nti is not None:
@@ -30937,15 +31075,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
 
                 ti.ally_turrets_adjacent = ally_turrets
@@ -31044,6 +31182,7 @@ class Map:
         ax_harvester_set = cls.ax_harvester_set
         ti_ally_harvester_set = cls.ti_ally_harvester_set
         ax_ally_harvester_set = cls.ax_ally_harvester_set
+        tile_info_idx = cls.tile_info_idx
 
         proc_nearby_tiles = []
         inner_proc_nearby_tiles = []
@@ -31053,6 +31192,7 @@ class Map:
             ti: TileInfo | None = tile_info[x][y]
             if ti is None:
                 ti = TileInfo()
+                tile_info_idx[idx] = ti
                 tile_info[x][y] = ti
                 ti.has_building = False
                 ti.has_turret = False
@@ -31082,25 +31222,6 @@ class Map:
             if ti.has_turret:
                 old_turret_direction = ti.turret_direction
 
-            ox, oy = x, maxY - y
-
-            opp_ti = tile_info[ox][oy]
-            if opp_ti is None:
-                opp_ti = TileInfo()
-                opp_ti.env = tile_env
-                opp_ti.has_bot = False
-                opp_ti.has_turret = False
-                opp_ti.has_building = False
-                opp_ti.easily_passable = False
-                opp_ti.harvester_adjacent = 0
-                opp_ti.entity_type = None
-                opp_ti.target = None
-                opp_ti.allied_bots_adjacent = 0
-                opp_ti.resource_id = None
-                opp_ti.resource_type = None
-                tile_info[ox][oy] = opp_ti
-                new_syms.append(Position(ox, oy))
-                BfsBureau.ti_ore_adj[(((ox) + 3) * 56 + ((oy) + 3))] = BfsBureau.ti_ore_adj[pos_idx]
 
             ti.env = tile_env
             ti.round = round
@@ -31179,6 +31300,9 @@ class Map:
                 ti.resource_type = None
 
                 if etype in (SENTINEL, GUNNER, BREACH, FOUNDRY):
+                    if etype == FOUNDRY:
+                        DarkForest.foundry_positions.add(idx)
+
                     if etype in (SENTINEL, GUNNER, BREACH):
                         ti.has_turret = True
                         ti.turret_direction = get_direction(building_id)
@@ -31206,12 +31330,16 @@ class Map:
                     BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
                 elif old_etype == LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
+                elif old_etype == GUNNER:
+                    BfsBureau.remove_enemy_gunner(pos, old_turret_direction)
 
             elif new_enemy_tower and not old_enemy_tower:
                 if etype == SENTINEL:
                     BfsBureau.add_enemy_sentinel(pos, ti)
                 elif etype == LAUNCHER:
                     BfsBureau.add_enemy_launcher(pos_idx)
+                elif etype == GUNNER:
+                    BfsBureau.add_enemy_gunner(pos, ti)
 
             # [new enemy bot bfs]
             old_ally_launcher = (old_etype == LAUNCHER and old_is_building_ally)
@@ -31248,9 +31376,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+                Profiler.start(f"""Comms.handle_message""")
                 Comms.handle_message(get_marker_value(building_id))
-                
+                Profiler.end(f"""Comms.handle_message""")
 
             ti.is_pointed_to = False
 
@@ -31321,15 +31449,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x +1][y ]
                 if nti is not None:
@@ -31340,15 +31468,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x ][y +1]
                 if nti is not None:
@@ -31359,15 +31487,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x -1][y ]
                 if nti is not None:
@@ -31378,15 +31506,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
 
                 ti.ally_turrets_adjacent = ally_turrets
@@ -31485,6 +31613,7 @@ class Map:
         ax_harvester_set = cls.ax_harvester_set
         ti_ally_harvester_set = cls.ti_ally_harvester_set
         ax_ally_harvester_set = cls.ax_ally_harvester_set
+        tile_info_idx = cls.tile_info_idx
 
         proc_nearby_tiles = []
         inner_proc_nearby_tiles = []
@@ -31494,6 +31623,7 @@ class Map:
             ti: TileInfo | None = tile_info[x][y]
             if ti is None:
                 ti = TileInfo()
+                tile_info_idx[idx] = ti
                 tile_info[x][y] = ti
                 ti.has_building = False
                 ti.has_turret = False
@@ -31523,25 +31653,6 @@ class Map:
             if ti.has_turret:
                 old_turret_direction = ti.turret_direction
 
-            ox, oy = maxX - x, maxY - y
-
-            opp_ti = tile_info[ox][oy]
-            if opp_ti is None:
-                opp_ti = TileInfo()
-                opp_ti.env = tile_env
-                opp_ti.has_bot = False
-                opp_ti.has_turret = False
-                opp_ti.has_building = False
-                opp_ti.easily_passable = False
-                opp_ti.harvester_adjacent = 0
-                opp_ti.entity_type = None
-                opp_ti.target = None
-                opp_ti.allied_bots_adjacent = 0
-                opp_ti.resource_id = None
-                opp_ti.resource_type = None
-                tile_info[ox][oy] = opp_ti
-                new_syms.append(Position(ox, oy))
-                BfsBureau.ti_ore_adj[(((ox) + 3) * 56 + ((oy) + 3))] = BfsBureau.ti_ore_adj[pos_idx]
 
             ti.env = tile_env
             ti.round = round
@@ -31620,6 +31731,9 @@ class Map:
                 ti.resource_type = None
 
                 if etype in (SENTINEL, GUNNER, BREACH, FOUNDRY):
+                    if etype == FOUNDRY:
+                        DarkForest.foundry_positions.add(idx)
+
                     if etype in (SENTINEL, GUNNER, BREACH):
                         ti.has_turret = True
                         ti.turret_direction = get_direction(building_id)
@@ -31647,12 +31761,16 @@ class Map:
                     BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
                 elif old_etype == LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
+                elif old_etype == GUNNER:
+                    BfsBureau.remove_enemy_gunner(pos, old_turret_direction)
 
             elif new_enemy_tower and not old_enemy_tower:
                 if etype == SENTINEL:
                     BfsBureau.add_enemy_sentinel(pos, ti)
                 elif etype == LAUNCHER:
                     BfsBureau.add_enemy_launcher(pos_idx)
+                elif etype == GUNNER:
+                    BfsBureau.add_enemy_gunner(pos, ti)
 
             # [new enemy bot bfs]
             old_ally_launcher = (old_etype == LAUNCHER and old_is_building_ally)
@@ -31689,9 +31807,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+                Profiler.start(f"""Comms.handle_message""")
                 Comms.handle_message(get_marker_value(building_id))
-                
+                Profiler.end(f"""Comms.handle_message""")
 
             ti.is_pointed_to = False
 
@@ -31762,15 +31880,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x +1][y ]
                 if nti is not None:
@@ -31781,15 +31899,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x ][y +1]
                 if nti is not None:
@@ -31800,15 +31918,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x -1][y ]
                 if nti is not None:
@@ -31819,15 +31937,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
 
                 ti.ally_turrets_adjacent = ally_turrets
@@ -31923,6 +32041,7 @@ class Map:
         ax_harvester_set = cls.ax_harvester_set
         ti_ally_harvester_set = cls.ti_ally_harvester_set
         ax_ally_harvester_set = cls.ax_ally_harvester_set
+        tile_info_idx = cls.tile_info_idx
 
         proc_nearby_tiles = []
         inner_proc_nearby_tiles = []
@@ -31932,6 +32051,7 @@ class Map:
             ti: TileInfo | None = tile_info[x][y]
             if ti is None:
                 ti = TileInfo()
+                tile_info_idx[idx] = ti
                 tile_info[x][y] = ti
                 ti.has_building = False
                 ti.has_turret = False
@@ -31960,7 +32080,6 @@ class Map:
             old_is_building_ally = ti.has_building and ti.is_building_ally
             if ti.has_turret:
                 old_turret_direction = ti.turret_direction
-
 
 
             ti.env = tile_env
@@ -32040,6 +32159,9 @@ class Map:
                 ti.resource_type = None
 
                 if etype in (SENTINEL, GUNNER, BREACH, FOUNDRY):
+                    if etype == FOUNDRY:
+                        DarkForest.foundry_positions.add(idx)
+
                     if etype in (SENTINEL, GUNNER, BREACH):
                         ti.has_turret = True
                         ti.turret_direction = get_direction(building_id)
@@ -32067,12 +32189,16 @@ class Map:
                     BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
                 elif old_etype == LAUNCHER:
                     BfsBureau.remove_enemy_launcher(pos_idx)
+                elif old_etype == GUNNER:
+                    BfsBureau.remove_enemy_gunner(pos, old_turret_direction)
 
             elif new_enemy_tower and not old_enemy_tower:
                 if etype == SENTINEL:
                     BfsBureau.add_enemy_sentinel(pos, ti)
                 elif etype == LAUNCHER:
                     BfsBureau.add_enemy_launcher(pos_idx)
+                elif etype == GUNNER:
+                    BfsBureau.add_enemy_gunner(pos, ti)
 
             # [new enemy bot bfs]
             old_ally_launcher = (old_etype == LAUNCHER and old_is_building_ally)
@@ -32109,9 +32235,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+                Profiler.start(f"""Comms.handle_message""")
                 Comms.handle_message(get_marker_value(building_id))
-                
+                Profiler.end(f"""Comms.handle_message""")
 
             ti.is_pointed_to = False
 
@@ -32182,15 +32308,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x +1][y ]
                 if nti is not None:
@@ -32201,15 +32327,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x ][y +1]
                 if nti is not None:
@@ -32220,15 +32346,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
                 nti = tile_info[x -1][y ]
                 if nti is not None:
@@ -32239,15 +32365,15 @@ class Map:
                         else:
                             enemy_turrets += 1
 
-                    is_foundry = nti.entity_type == EntityType.FOUNDRY
+                    is_foundry = nti.entity_type == FOUNDRY
                     if nti.entity_type in TRANSPORTERS_SET or is_foundry:
                         if nti.is_building_ally:
                             ally_transporters += 1
-                            if not (nti.entity_type in (EntityType.CONVEYOR, EntityType.ARMOURED_CONVEYOR) and nti.target == pos) or is_foundry:
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
                                 ally_outward_transporters += 1
                         else:
                             enemy_transporters += 1
-                    if nti.entity_type == EntityType.CORE and nti.is_building_ally:
+                    if nti.entity_type == CORE and nti.is_building_ally:
                         ally_core_adj = True
 
                 ti.ally_turrets_adjacent = ally_turrets
@@ -32682,9 +32808,9 @@ class MarketMaker:
             return cls.hres
 
         
-        
+        Profiler.start(f"""BfsBureau.find_bridge_route""")
         bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.core_sink_set)
-        
+        Profiler.end(f"""BfsBureau.find_bridge_route""")
 
         h_cost, _ = Globals.ct.get_harvester_cost()
         b_cost, _ = Globals.ct.get_bridge_cost()
@@ -32968,6 +33094,9 @@ class OreExecutive:
                 heapq.heappop(cls.ax_queue)
                 cls.state[pos] = 3
                 continue
+
+            if ti.is_pointed_to:
+                cls.state[pos] = 3  # for ax bug
             
             if not VisionTracker.me_is_canonical_ally(pos):
                 heapq.heappop(cls.ax_queue)
@@ -33362,12 +33491,12 @@ class Pathfinder:
             cls.near_base = False
         # else: in dead-band [19..25], keep previous near_base value
 
-        
+        Profiler.start(f"""BfsBureau.find_route""")
         if cls.near_base:
             dist, dir = BfsBureau.find_route_inv(my_pos, target, ban_target_pos)  # prefer empties → lays roads
         else:
             dist, dir = BfsBureau.find_route(my_pos, target, ban_target_pos)      # prefer roads → uses existing roads
-        
+        Profiler.end(f"""BfsBureau.find_route""")
 
         if orbit and 0 < target.distance_squared(my_pos) <= 2:
             dir = my_pos.direction_to(target).rotate_left()
@@ -33377,7 +33506,7 @@ class Pathfinder:
             dsq = my_pos.distance_squared(target)
             ndsq = my_pos.add(dir).distance_squared(target)
             if (dsq == 1 or dsq == 2) and dsq < ndsq: 
-                if BfsBureau.now_weight[midx] <= 3:
+                if BfsBureau.now_weight[midx] <= 3 and Globals.ct.get_hp() == 40:
                     if not MoveManager.can_fill_move(my_pos.direction_to(target)):
                         
                         return
@@ -33472,6 +33601,8 @@ class Player:
             err = traceback.format_exc()
             Debug.tee(err)
             Debug.tee(f'(I am a {Globals.my_type})')
+
+            ct.resign()
 
 
 # ============================================================
@@ -33636,6 +33767,8 @@ class RoadspamExecutor:
 
     @classmethod
     def should_roadspam(cls):
+        if Globals.round < 100 and MarketMaker.est_income <= 10:
+            return False
         return Builder.min_dist_to_a_core <= 20 or Globals.ct.get_unit_count() >= 20
 
     @classmethod
@@ -33854,7 +33987,7 @@ class RouteToBreach:
             avoid_pos = RouteToCore.pathFindingKill
         )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("RouteToBreach: first_target is None, giving up")
@@ -34015,6 +34148,7 @@ class RouteToCore:
 
     @classmethod
     def try_build_route(cls):
+        assert cls.is_active
 
         bridge_dist = 0
         first_target = None
@@ -34081,7 +34215,7 @@ class RouteToCore:
                     avoid_pos = cls.pathFindingKill
                 )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             if cls.give_up(True):
@@ -34725,8 +34859,10 @@ class RouteToCore:
                 (3, 1):
             cls.is_active = False
             cls.killed.add(from_pos)
+
             Debug.diamond(Color.PURPLE)
             print("RouteToCore: giving up, no previous route to backtrack to or finished")
+
             if Pathfinder.given_up:
                 cls.pathFindingKill.add(enc)
             cls.backTracking = False
@@ -34736,14 +34872,18 @@ class RouteToCore:
             if Pathfinder.given_up:
                 cls.pathFindingKill.add(enc)
             cls.from_pos = cls.prevRoute.pop()
+
             print("RouteToCore: backtracking to", cls.from_pos)
+
             cls.backTracking = True
             return False
 
 
     @classmethod
     def do_routing(cls):
+
         print("RouteToCore: doing routing from", cls.from_pos,"(Attack Route!)",cls.isAttack)
+
         if cls.should_give_up():
             if cls.give_up():
                 StateMoveTo.run(Explore.get_target()) # new
@@ -34897,7 +35037,7 @@ class RouteToFoundry:
             avoid_pos = RouteToCore.pathFindingKill
         )
 
-        
+        print(f"""{bridge_dist=}""")
 
         if first_target is None:
             Debug.tee("RouteToFoundry: first_target is None, giving up")
@@ -35114,6 +35254,9 @@ class RushTargeter:
 
     @classmethod
     def get_best_target(cls):
+        if MarketMaker.est_income <= 10:
+            return None
+
         if Symmetry.is_sym_known:
             if Globals.my_pos.distance_squared(Symmetry.enemy_core_pos) < 25: #sufficiently near
                 cls.beenNearbyEnemyCore = True
@@ -35122,12 +35265,12 @@ class RushTargeter:
                     stuff = cls.nearest_source_to_enemy()
                     funPos = stuff[0]
                     if funPos == None or not VisionTracker.me_is_canonical_ally(funPos):
-                        return Explore.get_target(),'M' #move
+                        return None
                     return funPos, stuff[1] # <------- non move
                 else:
                     return Explore.get_target(),'M' #move
         elif Builder.mode == 2:
-            return Symmetry.sym_pos(Unit.core_pos),'M' #move
+            return Explore.get_target(),'M' #move
         return None
 
 
@@ -35572,37 +35715,39 @@ class SentinelDirectionPicker:
 
 
 
+        ROAD = EntityType.ROAD
+
         ti = tile_info[sx + -5][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -5][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -5][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -5][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -5][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info6.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35613,7 +35758,7 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -5][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info6.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35624,7 +35769,7 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -5][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info6.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35635,42 +35780,42 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -5][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -5][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -5][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -5][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -4][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -4][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info7.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35681,7 +35826,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -4][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info7.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35692,7 +35837,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -4][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info7.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35703,7 +35848,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -4][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info6.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35714,7 +35859,7 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -4][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info6.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35725,7 +35870,7 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -4][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info6.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35736,7 +35881,7 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -4][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35747,7 +35892,7 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -4][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35758,7 +35903,7 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -4][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35769,21 +35914,21 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -4][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -3][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -3][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info7.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35794,7 +35939,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -3][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info7.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35805,7 +35950,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -3][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info7.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35816,7 +35961,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -3][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info6.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35831,7 +35976,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -3][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info6.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35842,7 +35987,7 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -3][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35857,7 +36002,7 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -3][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35868,7 +36013,7 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -3][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35879,7 +36024,7 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -3][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35890,21 +36035,21 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -3][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -2][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -2][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info7.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35915,7 +36060,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info7.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35926,7 +36071,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info7.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35937,7 +36082,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info6.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35952,7 +36097,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35971,7 +36116,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35986,7 +36131,7 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -35997,7 +36142,7 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36008,7 +36153,7 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info5.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36019,14 +36164,14 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -2][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + -1][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36037,7 +36182,7 @@ class SentinelDirectionPicker:
                 info0.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36048,7 +36193,7 @@ class SentinelDirectionPicker:
                 info0.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36063,7 +36208,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36078,7 +36223,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36097,7 +36242,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36124,7 +36269,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info4.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36143,7 +36288,7 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info4.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36158,7 +36303,7 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info4.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36173,7 +36318,7 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info4.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36184,7 +36329,7 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + -1][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info4.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36195,7 +36340,7 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36206,7 +36351,7 @@ class SentinelDirectionPicker:
                 info0.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36217,7 +36362,7 @@ class SentinelDirectionPicker:
                 info0.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36228,7 +36373,7 @@ class SentinelDirectionPicker:
                 info0.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36247,7 +36392,7 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36274,14 +36419,14 @@ class SentinelDirectionPicker:
                 info7.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 0][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36308,7 +36453,7 @@ class SentinelDirectionPicker:
                 info6.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36327,7 +36472,7 @@ class SentinelDirectionPicker:
                 info5.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info4.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36338,7 +36483,7 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info4.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36349,7 +36494,7 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 0][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info4.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36360,7 +36505,7 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36371,7 +36516,7 @@ class SentinelDirectionPicker:
                 info0.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36382,7 +36527,7 @@ class SentinelDirectionPicker:
                 info0.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36397,7 +36542,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36412,7 +36557,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36431,7 +36576,7 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info0.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36458,7 +36603,7 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36477,7 +36622,7 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36492,7 +36637,7 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36507,7 +36652,7 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info4.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36518,7 +36663,7 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 1][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info4.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36529,14 +36674,14 @@ class SentinelDirectionPicker:
                 info4.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 2][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36547,7 +36692,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36558,7 +36703,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36569,7 +36714,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36584,7 +36729,7 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36603,7 +36748,7 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36618,7 +36763,7 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36629,7 +36774,7 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36640,7 +36785,7 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36651,21 +36796,21 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 2][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 3][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 3][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36676,7 +36821,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 3][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36687,7 +36832,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 3][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36698,7 +36843,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 3][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36713,7 +36858,7 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 3][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36724,7 +36869,7 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 3][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36739,7 +36884,7 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 3][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36750,7 +36895,7 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 3][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36761,7 +36906,7 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 3][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36772,21 +36917,21 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 3][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 4][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 4][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36797,7 +36942,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 4][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36808,7 +36953,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 4][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info1.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36819,7 +36964,7 @@ class SentinelDirectionPicker:
                 info1.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 4][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36830,7 +36975,7 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 4][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36841,7 +36986,7 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 4][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36852,7 +36997,7 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 4][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36863,7 +37008,7 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 4][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36874,7 +37019,7 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 4][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info3.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36885,42 +37030,42 @@ class SentinelDirectionPicker:
                 info3.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 4][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 5][sy + -5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 5][sy + -4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 5][sy + -3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 5][sy + -2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 5][sy + -1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36931,7 +37076,7 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 5][sy + 0]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36942,7 +37087,7 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 5][sy + 1]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
                 info2.enemy_building_hp += e_building_hp
                 if ti.has_turret:
@@ -36953,28 +37098,28 @@ class SentinelDirectionPicker:
                 info2.enemy_bot_hp += e_bot_hp
         ti = tile_info[sx + 5][sy + 2]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 5][sy + 3]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 5][sy + 4]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
         ti = tile_info[sx + 5][sy + 5]
         if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
+            if ti.has_building and not ti.is_building_ally and ti.entity_type != ROAD:
                 e_building_hp = ti.building_hp
 
             if ti.has_bot and not ti.is_bot_ally:
@@ -38695,6 +38840,9 @@ class SitterTakedown:
             if SitterTargetInfo.is_better_than(c, best):
                 best = c
 
+        if best.weight >= 3:
+            return None
+
         if not best.flowing_enemy_transporters_adjacent:
             if best.enemy_bots_nearby < 2:
                 return None
@@ -38751,6 +38899,7 @@ class SitterTakedown:
             info.launchers_adjacent = 0
             info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
             info.flowing_enemy_transporters_adjacent = 0
+            info.weight = BfsBureau.now_weight[idx]
             
             info.has_ally_transporter = (
                 ti.has_building 
@@ -38934,13 +39083,16 @@ class SitterTargetInfo:
     __slots__ = (
         'position', 'dist_enemy_core', 'has_ally_transporter',
         'enemy_bots_nearby', 'harvester_nearby', 'launchers_adjacent',
-        'bfs_dist_adj', 'flowing_enemy_transporters_adjacent', 'enemy_buildings_adjacent'
+        'bfs_dist_adj', 'flowing_enemy_transporters_adjacent', 'enemy_buildings_adjacent',
+        'weight'
     )
 
     @staticmethod
     def is_better_than(a: SitterTargetInfo, b: SitterTargetInfo):
         if a.bfs_dist_adj >= 100: return False
         if b.bfs_dist_adj >= 100: return True
+        if a.weight >= 3: return False
+        if b.weight >= 3: return True
 
         if a.launchers_adjacent != b.launchers_adjacent:
             return a.launchers_adjacent < b.launchers_adjacent
@@ -39115,7 +39267,7 @@ class SpawnManager:
         ti, ax = ct.get_global_resources()
         bot_ti, bot_ax = ct.get_builder_bot_cost()
 
-        if Globals.round <= 20 or MarketMaker.ti <= 10:
+        if Globals.round <= 20 or MarketMaker.est_income <= 10:
             return cls.num_spawned < 4
 
         rem_ti = ti - bot_ti
@@ -39129,10 +39281,12 @@ class SpawnManager:
     @classmethod
     def require_leftover(cls):
         if cls.num_spawned < 8:
+            return 90
+        if cls.num_spawned < 10:
             return 100
-        if cls.num_spawned < 16:
-            return 120
-        return 120 + (10 * Globals.ct.get_unit_count())
+        if cls.num_spawned < 20:
+            return 110
+        return 110 + (10 * Globals.ct.get_unit_count())
 
 
     @classmethod
@@ -39157,16 +39311,16 @@ class SpawnManager:
 class StalkTargeter:
     @classmethod
     def get_best_target(cls) -> Position | None:
-        
+        Profiler.start(f"""StalkTargeter.get_best_target""")
 
         my_pos = Globals.my_pos
 
         if my_pos.distance_squared(Unit.core_pos) > my_pos.distance_squared(Symmetry.enemy_core_pos):
-            
+            Profiler.end(f"""pop""")
             return None
 
         if MarketMaker.est_income < 3:
-            
+            Profiler.end(f"""pop""")
             return None
 
         bfs20_dist_adj = BfsBureau.bfs20_dist_adj
@@ -39207,7 +39361,7 @@ class StalkTargeter:
                     best_transporter_hp = transporter_hp
                     best_id = bot_id
 
-        
+        Profiler.end(f"""StalkTargeter.get_best_target""")
                 
         return best
 
@@ -39219,6 +39373,7 @@ class StalkTargeter:
 class StateAttack:
     @classmethod
     def run(cls, pos, tag='_'):
+        print(f'{tag=}')
         
         if Globals.my_pos != pos:
             Pathfinder.move_to(pos)
@@ -39238,6 +39393,72 @@ class StateBreachBuild:
     @classmethod
     def run(cls, pos):
         BreachBuild.build_breach(pos)
+
+
+# ============================================================
+# StateBuildAdvancedShield
+# ============================================================
+
+class StateBuildAdvancedShield:
+    # build barrier shields on enemy harvesters (do not build conveyor shields - interacts badly)
+
+    @classmethod
+    def run(cls, pos, info: AdjacentInfo):
+        x, y = pos.x, pos.y
+        tile_info = Map.tile_info
+        GUNNER = EntityType.GUNNER
+
+        ally_gunners_adjacent = 0
+
+        ti = tile_info[x ][y -1]
+        if ti is not None and ti.entity_type == GUNNER:
+            ally_gunners_adjacent += 1
+        ti = tile_info[x +1][y -1]
+        if ti is not None and ti.entity_type == GUNNER:
+            ally_gunners_adjacent += 1
+        ti = tile_info[x +1][y ]
+        if ti is not None and ti.entity_type == GUNNER:
+            ally_gunners_adjacent += 1
+        ti = tile_info[x +1][y +1]
+        if ti is not None and ti.entity_type == GUNNER:
+            ally_gunners_adjacent += 1
+        ti = tile_info[x ][y +1]
+        if ti is not None and ti.entity_type == GUNNER:
+            ally_gunners_adjacent += 1
+        ti = tile_info[x -1][y +1]
+        if ti is not None and ti.entity_type == GUNNER:
+            ally_gunners_adjacent += 1
+        ti = tile_info[x -1][y ]
+        if ti is not None and ti.entity_type == GUNNER:
+            ally_gunners_adjacent += 1
+        ti = tile_info[x -1][y -1]
+        if ti is not None and ti.entity_type == GUNNER:
+            ally_gunners_adjacent += 1
+
+        can_barrier = ally_gunners_adjacent == 0
+        dir_to_h = pos.direction_to(info.hpos)
+
+
+
+        if Globals.my_pos.distance_squared(pos) <= 2:
+            if can_barrier and BuildManager.can_smartbuild_barrier(pos):
+                BuildManager.smartbuild_barrier(pos)
+            # elif BuildManager.can_smartbuild_armoured_conveyor(pos):
+            #     BuildManager.smartbuild_armoured_conveyor(pos, dir_to_h)
+            # elif BuildManager.can_smartbuild_conveyor(pos):
+            #     BuildManager.smartbuild_conveyor(pos, dir_to_h)
+
+
+        if Globals.ct.get_move_cooldown() == 0:
+            Pathfinder.move_to(pos, ban_target_pos=False)
+
+        if Globals.my_pos.distance_squared(pos) <= 2:
+            if can_barrier and BuildManager.can_smartbuild_barrier(pos):
+                BuildManager.smartbuild_barrier(pos)
+            # elif BuildManager.can_smartbuild_armoured_conveyor(pos):
+            #     BuildManager.smartbuild_armoured_conveyor(pos, dir_to_h)
+            # elif BuildManager.can_smartbuild_conveyor(pos):
+            #     BuildManager.smartbuild_conveyor(pos, dir_to_h)
 
 
 # ============================================================
@@ -39337,12 +39558,16 @@ class StateBuildShield:
                     if ti.is_building_ally:
                         found_ally_harvester = True
         
+        print(f'{target_dir=}, {found_ally_harvester=}')
+
 
 
         if pos != Globals.my_pos:
             if target_dir is not None:
                 if found_ally_harvester:
-                    if (
+                    if (pos.distance_squared(Symmetry.enemy_core_pos) < pos.distance_squared(Unit.core_pos)) and BuildManager.can_smartbuild_barrier(pos):
+                        BuildManager.smartbuild_barrier(pos)
+                    elif (
             Map.num_enemy_buildings > 0
         ) and BuildManager.can_dbuild_armoured_conveyor(pos):
                         BuildManager.dbuild_armoured_conveyor(pos, target_dir)
@@ -39376,6 +39601,7 @@ class StateBuildShield:
 # ============================================================
 
 class StateBuildTurret:
+
     @classmethod
     def gunner_can_hit_core(cls, gunner_pos: MapLocation) -> Direction | None:
         direction = gunner_pos.direction_to(Symmetry.enemy_core_pos)
@@ -39383,6 +39609,8 @@ class StateBuildTurret:
 
         x, y = gunner_pos.x + dx, gunner_pos.y + dy      # start one step ahead
 
+        assert direction != Direction.CENTRE
+        assert Util.on_the_map(Position(x, y))
 
         while x >= 0 and y >= 0 and x < Map.W and y < Map.H:
             if (x - gunner_pos.x) ** 2 + (y - gunner_pos.y) ** 2 > 13:
@@ -39406,21 +39634,21 @@ class StateBuildTurret:
 
         return None
 
+
     @classmethod
-    def run(cls, pos, should_build_sentinel=True):
-        core_dir = None
-        if Symmetry.is_sym_known:
-            core_dir = cls.gunner_can_hit_core(pos)
+    def run(cls, pos, should_build_sentinel=True, gdir=None):
+        if Symmetry.is_sym_known and gdir is None:
+            gdir = cls.gunner_can_hit_core(pos)
             
 
 
         if Globals.my_pos.distance_squared(pos) <= 2:
-            if BuildManager.can_smartbuild_gunner(pos) and core_dir is not None:
-                BuildManager.smartbuild_gunner(pos, core_dir)
+            if (gdir is not None) and BuildManager.can_smartbuild_gunner(pos):
+                BuildManager.smartbuild_gunner(pos, gdir)
             elif should_build_sentinel and BuildManager.can_smartbuild_sentinel(pos):
-                
+                Profiler.start(f"""SentinelDirectionPicker.get_best_direction""")
                 dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
-                
+                Profiler.end(f"""SentinelDirectionPicker.get_best_direction""")
                 BuildManager.smartbuild_sentinel(pos, dir)
             elif BuildManager.can_build_road(pos):
                 BuildManager.build_road(pos)
@@ -39430,15 +39658,26 @@ class StateBuildTurret:
             Pathfinder.move_to(pos, ban_target_pos=False)
 
         if Globals.my_pos.distance_squared(pos) <= 2:
-            if BuildManager.can_smartbuild_gunner(pos) and core_dir is not None:
-                BuildManager.smartbuild_gunner(pos, core_dir)
+            if (gdir is not None) and BuildManager.can_smartbuild_gunner(pos):
+                BuildManager.smartbuild_gunner(pos, gdir)
             elif should_build_sentinel and BuildManager.can_smartbuild_sentinel(pos):
-                
+                Profiler.start(f"""SentinelDirectionPicker.get_best_direction""")
                 dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
-                
+                Profiler.end(f"""SentinelDirectionPicker.get_best_direction""")
                 BuildManager.smartbuild_sentinel(pos, dir)
             elif BuildManager.can_build_road(pos):
                 BuildManager.build_road(pos)
+
+
+# ============================================================
+# StateBuildTurretWrapper
+# ============================================================
+
+class StateBuildTurretWrapper:
+    @classmethod
+    def run(cls, pos, is_gunner, info: AdjacentInfo):
+        gdir = info.gunner_dir_info.direction if is_gunner else None
+        StateBuildTurret.run(pos, gdir=gdir)
 
 
 # ============================================================
@@ -39476,6 +39715,7 @@ class StateFoundryBuild:
 class StateMoveTo:
     @classmethod
     def run(cls, pos, tag='_'):
+        print(f'{tag=}')
         Pathfinder.move_to(pos)
 
 
@@ -39521,6 +39761,7 @@ class StateReroute:  # for misrouted ally transporters
 class StateRoute:
     @classmethod
     def run(cls):
+        assert RouteToCore.is_active
         RouteToCore.do_routing()
 
 
@@ -39565,6 +39806,7 @@ class StateRush:
             if Globals.my_pos.distance_squared(pos) <= 4: #sufficiently close
                 cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
                 if cand is not None and cand.ti.entity_type not in Constants.TRANSPORTERS_SET:
+                    Debug.log('RouteToBreach set @ StateRush')
                     RouteToBreach.set_pos(cand.position)
                 else:
                     RushTargeter.killed.add(pos)
@@ -40088,6 +40330,47 @@ class Symmetry:
 
 
 # ============================================================
+# TLEManager
+# ============================================================
+
+class TLEManager:
+    daylight_savings_time: bool = False
+    tle_last_turn: bool = False
+    tle_consec: int = 0
+    no_tle_consec: int = 0
+    end_round: int | None = None
+    tle_once: bool = False
+
+    @classmethod
+    def start_turn(cls):
+        if cls.end_round is not None and (Globals.round - cls.end_round) > 1:
+            cls.tle_last_turn = True
+            cls.tle_once = True
+        else:
+            cls.tle_last_turn = False  # also need this
+
+        if cls.tle_last_turn:
+            cls.tle_consec += 1
+            cls.no_tle_consec = 0
+        else:
+            cls.tle_consec = 0
+            cls.no_tle_consec += 1
+
+        if cls.tle_consec > 2:
+            cls.daylight_savings_time = True
+
+        # recover after N consecutive clean turns
+        if cls.daylight_savings_time and cls.no_tle_consec > 5:
+            cls.daylight_savings_time = False
+
+        cls.start_round = Globals.round
+
+    @classmethod
+    def end_turn(cls):
+        cls.end_round = Globals.round
+
+
+# ============================================================
 # TileInfo
 # ============================================================
 
@@ -40120,7 +40403,7 @@ class TransporterInfo:
         'bfs_dist', 'bfs_dist_adj', 'bfs_dist_target_adj', 'flow', 'entity_type',
         'harvester_adjacent', 'is_ally', 'node_kind', 'flowing_into_ally',
         'on_ally_side', 'easily_buildable', 'probably_flowing', 'adjacent_launchers',
-        'enemy_bot_dist_adj', 'enemy_bot1', 'rand_key', 'is_ax'
+        'enemy_bot_dist_adj', 'enemy_bot1', 'rand_key', 'is_ax', 'low_weight'
     )
 
     @staticmethod
@@ -40143,7 +40426,10 @@ class TransporterInfo:
         if a.enemy_bot1 != b.enemy_bot1:
             return a.enemy_bot1 < b.enemy_bot1
 
-        if abs(a.bfs_dist - b.bfs_dist) > 2:
+        if a.low_weight != b.low_weight:
+            return a.low_weight > b.low_weight
+
+        if abs(a.bfs_dist - b.bfs_dist) > 2:  # breaks strict weak ordering
             return a.bfs_dist < b.bfs_dist
 
         if a.enemy_bot_dist_adj != b.enemy_bot_dist_adj:
@@ -40214,6 +40500,7 @@ class TurretSuicide:
     has_ammo_history: list[bool]
     enemy_core_visible: bool
     post_init_completed: bool
+    has_feeder: bool
     
 
     @classmethod
@@ -40245,14 +40532,14 @@ class TurretSuicide:
         r = Globals.round % 20
         cls.has_ammo_history[r] = Globals.ct.get_ammo_amount() > 0
 
-        has_feeder = Map.tile_info[sx][sy].harvester_adjacent
+        cls.has_feeder = Map.tile_info[sx][sy].harvester_adjacent
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             ti: TileInfo
             if ti.target == my_pos:
-                has_feeder = True
+                cls.has_feeder = True
                 break
 
-        if not has_feeder and not cls.enemy_core_visible and not any(cls.has_ammo_history):
+        if not cls.has_feeder and not cls.enemy_core_visible and not any(cls.has_ammo_history):
             Debug.diamond(Color.ORANGE)
             Debug.log(f'This {Globals.my_type} is self-destructing :(')
             Globals.ct.self_destruct()
@@ -40324,11 +40611,15 @@ class Unit:
         Globals.start_tick()
         MarketMaker.refresh()
 
-        if Globals.ct.get_entity_type() != EntityType.LAUNCHER:
-            
-            Map.fill_tile_info()
-            
+        if Globals.my_type == EntityType.BUILDER_BOT and Globals.round != Unit.creation_round:
+            DarkForest.needs_update = False
 
+        if Globals.my_type != EntityType.LAUNCHER:
+            Profiler.start(f"""Map.fill_tile_info""")
+            Map.fill_tile_info()
+            Profiler.end(f"""Map.fill_tile_info""")
+
+        Profiler.start_turn_check()
 
     @classmethod
     def run_turn(cls):
@@ -40337,7 +40628,7 @@ class Unit:
     @classmethod
     def end_turn(cls):
 
-        if Globals.round == 1999:
+        if Globals.round == 667:
             Profiler.report()
 
 
@@ -40419,19 +40710,57 @@ class Builder(Unit):
     @classmethod
     def start_turn(cls):
         Unit.start_turn()
+        TLEManager.start_turn()
 
         my_pos = Globals.my_pos
         cls.min_dist_to_a_core = min(my_pos.distance_squared(Unit.core_pos), my_pos.distance_squared(Symmetry.enemy_core_pos))
 
-        
+        Profiler.start(f"""DarkForest.fcompute""")
         DarkForest.fcompute()
-        
+        Profiler.end(f"""DarkForest.fcompute""")
 
-        
+        Profiler.start(f"""BfsBureau.update""")
         BfsBureau.update()
-        
+        Profiler.end(f"""BfsBureau.update""")
 
-        Symmetry.run_sym_check()
+        Profiler.start(f"""BfsBureau.bfs20""")
+        BfsBureau.bfs20()
+        Profiler.end(f"""BfsBureau.bfs20""")
+
+        if not TLEManager.daylight_savings_time:
+            Profiler.start(f"""Symmetry.run_sym_check""")
+            Symmetry.run_sym_check()
+            Profiler.end(f"""Symmetry.run_sym_check""")
+
+            Profiler.start(f"""BfsBureau.update_enclosed_regions""")
+            BfsBureau.update_enclosed_regions()
+            Profiler.end(f"""BfsBureau.update_enclosed_regions""")
+
+            Profiler.start(f"""OreExecutive.fill""")
+            OreExecutive.fill()
+            Profiler.end(f"""OreExecutive.fill""")
+
+        Profiler.start(f"""VisionTracker.fill""")
+        VisionTracker.fill()
+        Profiler.end(f"""VisionTracker.fill""")
+
+        if not TLEManager.daylight_savings_time:
+            Profiler.start(f"""SitterTakedown.fill""")
+            SitterTakedown.fill()
+            Profiler.end(f"""SitterTakedown.fill""")
+
+            Profiler.start(f"""HarvesterAdjacent.fill""")
+            HarvesterAdjacent.fill()
+            Profiler.end(f"""HarvesterAdjacent.fill""")
+
+        Profiler.start(f"""Attacker.update""")
+        Attacker.update()
+        Profiler.end(f"""Attacker.update""")
+
+        Profiler.start(f"""HealTargeter.fill""")
+        HealTargeter.fill()
+        Profiler.end(f"""HealTargeter.fill""")
+
 
         if cls.mode == 0:
             """
@@ -40460,39 +40789,39 @@ class Builder(Unit):
         print("Mode:", cls.mode)
 
 
-        
+        Profiler.start(f"""BfsBureau.bfs20""")
         BfsBureau.bfs20()
-        
+        Profiler.end(f"""BfsBureau.bfs20""")
 
-        
+        Profiler.start(f"""BfsBureau.update_enclosed_regions""")
         BfsBureau.update_enclosed_regions()
-        
+        Profiler.end(f"""BfsBureau.update_enclosed_regions""")
 
         DarkForest.debug_flow()
 
-        
+        Profiler.start(f"""OreExecutive.fill""")
         OreExecutive.fill()
-        
+        Profiler.end(f"""OreExecutive.fill""")
 
-        
+        Profiler.start(f"""VisionTracker.fill""")
         VisionTracker.fill()
-        
+        Profiler.end(f"""VisionTracker.fill""")
 
-        
+        Profiler.start(f"""SitterTakedown.fill""")
         SitterTakedown.fill()
-        
+        Profiler.end(f"""SitterTakedown.fill""")
 
-        
+        Profiler.start(f"""HarvesterAdjacent.fill""")
         HarvesterAdjacent.fill()
-        
+        Profiler.end(f"""HarvesterAdjacent.fill""")
 
-        
+        Profiler.start(f"""HealTargeter.fill""")
         HealTargeter.fill()
-        
+        Profiler.end(f"""HealTargeter.fill""")
 
-        
+        Profiler.start(f"""Attacker.update""")
         Attacker.update()
-        
+        Profiler.end(f"""Attacker.update""")
 
         cls.is_routing_active = False
 
@@ -40511,27 +40840,36 @@ class Builder(Unit):
 
     @classmethod
     def run_turn(cls):
-        cls.state, *args = cls.determine_state()
+        if TLEManager.daylight_savings_time:
+            cls.state, *args = cls.fast_path_determine_state()
+        else:
+            cls.state, *args = cls.determine_state()
 
+        print(f'running: {cls.state}  @', *args, sep=' ')
 
-        
+        Profiler.start(f"""State{cls.state}""")
         globals()[f'State{cls.state}'].run(*args)
-        
+        Profiler.end(f"""State{cls.state}""")
 
 
     @classmethod
     def end_turn(cls):
         Unit.end_turn()
 
-        
+        Profiler.start(f"""HealExecutor.execute_heal_attempt""")
         HealExecutor.execute_heal_attempt()
-        
+        Profiler.end(f"""HealExecutor.execute_heal_attempt""")
 
-        
+        Profiler.start(f"""Marker.attempt_mark""")
         Marker.attempt_mark()
-        
+        Profiler.end(f"""Marker.attempt_mark""")
 
 
+        if cls.mode == 2:
+            Debug.diamond(Color.PINK)
+
+        if TLEManager.daylight_savings_time:
+            Debug.diamond(Color.BLACK)
 
         # BfsBureau.debug_bfs20_dist_adj()
         # BfsBureau.debug_enemy_launcher_zone()
@@ -40547,8 +40885,37 @@ class Builder(Unit):
         #     Globals.ct.fire(my_pos)
 
         RoadspamExecutor.execute_roadspam_attempt()
+        TLEManager.end_turn()
 
 
+    @classmethod
+    def fast_path_determine_state(cls):
+        # --------------- for TLE ########################
+        my_pos = Globals.my_pos                          #
+        ct = Globals.ct                                  #
+                                                         #
+        healinfo = HealTargeter.get_best_target_info()   #
+        healpos = None                                   #
+        if healinfo is not None:                         #
+            if healinfo.entity_type == EntityType.CORE:  #
+                healpos = Unit.core_pos                  #
+            else:                                        #
+                healpos = healinfo.position              #
+                                                         #
+        if healpos is not None:                          #
+            return 'MoveTo', healpos, 'Heal'             #
+                                                         #
+        attackpos = Attacker.get_target()                #
+                                                         #
+        if attackpos is not None:                        #
+            return 'Attack', attackpos, 'Primary'        #
+                                                         #
+        rushTarget = RushTargeter.get_best_target()      #
+        if rushTarget is not None:                       #
+            return 'Rush', rushTarget                    #
+                                                         #
+        return 'MoveTo', Explore.get_target(), 'Explore' #
+        # --------------- for TLE ########################
 
 
     @classmethod
@@ -40570,7 +40937,10 @@ class Builder(Unit):
         misinfo: TransporterInfo = VisionTracker.get_best_misrouted_target()
 
         # now changed to sentinel/gunner pos near enemy?
-        sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
+
+        turretinfo: AdjacentInfo | None
+        turretinfo, turretinfo_is_gunner = HarvesterAdjacent.get_best_turret_info()
+        turretpos = None if turretinfo is None else turretinfo.position
 
         destroypos = VisionTracker.get_best_destroy_position()
 
@@ -40587,17 +40957,15 @@ class Builder(Unit):
             if healpos is not None:
                 return 'MoveTo', healpos, '[lrh: move to heal]'
             elif (Globals.round - HealExecutor.last_healed_round) <= 3:
+                Debug.dot(Globals.my_pos, Color.GREEN)
 
                 return 'MoveTo', HealExecutor.last_healed.position, '[lrh: WAIT to heal]'
 
         if takedownpos is not None:
+            Debug.diamond(Color.PURPLE)
 
             return 'BuildGunner', takedownpos, None
 
-        sitterpos = SitterTakedown.get_best_launcher_position()
-        if sitterpos is not None:
-            Debug.dot(sitterpos, Color.PURPLE)
-            return 'BuildLauncher', sitterpos
 
         if healpos is not None and misinfo is None:
             return 'MoveTo', healpos, 'Heal'
@@ -40610,8 +40978,17 @@ class Builder(Unit):
 
 
         buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0)
+        
 
-        if not buildingFirstConveyor and sentinelpos is None:
+        if not buildingFirstConveyor:
+            if turretpos is not None:
+                Debug.dot(turretpos, Color.PURPLE)
+                if turretinfo.harvester_ally_turrets_adjacent >= 2 and \
+                        turretinfo.harvester_enemy_turrets_adjacent == 0:
+                    return 'BuildAdvancedShield', turretpos, turretinfo
+                else:
+                    return 'BuildTurretWrapper', turretpos, turretinfo_is_gunner, turretinfo
+
             shieldpos = HarvesterAdjacent.get_best_shield_position()
             if shieldpos is not None:
                 return 'BuildShield', shieldpos
@@ -40625,15 +41002,15 @@ class Builder(Unit):
             return 'Attack', secondaryattackpos, 'Preroute'
 
         if RouteToBreach.is_active:
-            
+            print("""(RouteToBreach)""")
             return ('RouteBreach',)
 
         if RouteToFoundry.is_active:
-            
+            print("""(RouteToFoundry)""")
             return ('RouteFoundry',)
 
         if RouteToCore.is_active:
-            
+            print("""RouteToCore""")
             return ('Route',)
 
 
@@ -40654,23 +41031,29 @@ class Builder(Unit):
         if route_pos is not None and cls.mode != 2:
             if Util.dist_sq(route_pos, Symmetry.enemy_core_pos) \
                     < Util.dist_sq(route_pos, Unit.core_pos):
-
-                # if sentinelpos is not None:
-                #     return 'BuildTurret', sentinelpos
                 pass
 
             elif route_pos not in RouteToCore.killed:
-                
+                print("""[HarvesterAdjacent found route]""")
                 RouteToCore.set_pos(route_pos)
                 return 'MoveTo', route_pos, 'InitRoute'
 
 
-        if sentinelpos is not None:
-            Debug.dot(sentinelpos, Color.PURPLE)
-            return 'BuildTurret', sentinelpos
+        if turretpos is not None:
+            Debug.dot(turretpos, Color.PURPLE)
+            if turretinfo.harvester_ally_turrets_adjacent >= 2 and \
+                    turretinfo.harvester_enemy_turrets_adjacent == 0:
+                return 'BuildAdvancedShield', turretpos, turretinfo
+            else:
+                return 'BuildTurretWrapper', turretpos, turretinfo_is_gunner, turretinfo
 
-        if cls.should_fire and BfsBureau.enemy_bot_dist_adj[Globals.my_idx] >= 2:
-            return 'Attack', Globals.my_pos, 'ShouldFire&D>=2'
+        sitterpos = SitterTakedown.get_best_launcher_position()
+        if sitterpos is not None:
+            return 'BuildLauncher', sitterpos
+
+        if cls.should_fire and (BfsBureau.enemy_bot_dist_adj[Globals.my_idx] >= 2 
+                                or Attacker.allies_ready > 2 * Attacker.enemies_ready):
+            return 'Attack', Globals.my_pos, '(ShouldFire&D>=2)|(a>2*e)'
 
         if buildingFirstConveyor:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
@@ -40691,20 +41074,7 @@ class Builder(Unit):
 
         # Attack if position is next to route
         if secondaryattackpos is not None:
-            # Compare position to tip of route
-            close_to_tip = False
-            if RouteToCore.is_active:
-                if len(RouteToCore.prevRoute) > 0:
-                    close_to_tip = RouteToCore.prevRoute[-1].distance_squared(secondaryattackpos) < 2
-            elif RouteToFoundry.is_active:
-                if len(RouteToFoundry.prevRoute) > 0:
-                    close_to_tip = RouteToFoundry.prevRoute[-1].distance_squared(secondaryattackpos) < 2
-            elif RouteToBreach.is_active:
-                if len(RouteToBreach.prevRoute) > 0:
-                    close_to_tip = RouteToBreach.prevRoute[-1].distance_squared(secondaryattackpos) < 2
-
-            # Attack if close to tip
-            if close_to_tip:
+            if cls.is_routing_active and cls.route_from_pos.distance_squared(secondaryattackpos) < 2:
                 return 'Attack', secondaryattackpos, 'Secondary'
 
         ax_target = OreExecutive.get_axionite_target()
@@ -40739,7 +41109,7 @@ class Builder(Unit):
         if rushTarget is not None:
             return 'Rush', rushTarget
 
-        if ct.get_unit_count() < 15 or Globals.my_id % 3 == 1:
+        if ct.get_unit_count() < 10 or Globals.my_id % 3 == 1:
             patrolTarget = PatrolTargeter.get_best_target()
             if patrolTarget is not None:
                 return 'MoveTo', patrolTarget, 'Patrol'
@@ -40777,6 +41147,10 @@ class Core(Unit):
     @classmethod
     def end_turn(cls):
         Unit.end_turn()
+
+        if Globals.round > 666:
+            Globals.ct.resign()
+            raise Exception
 
 
 # ============================================================
@@ -41073,6 +41447,19 @@ class Launcher(Unit):
 
             if nearby_ally_bot is not None and best_pos is not None and ct.can_launch(nearby_ally_bot, best_pos):
                 # return  # -- disable supportive launchers for now --
+
+                # check the building on nearby_ally_bot's tile and get its entity type
+                ally_bot_building_id = ct.get_tile_building_id(nearby_ally_bot)
+                if ally_bot_building_id is not None:
+                    ally_bot_building_team = ct.get_team(ally_bot_building_id)
+
+                    etype = ct.get_entity_type(ally_bot_building_id)
+                    print(f"etype: {etype}, Team: {ally_bot_building_team}")
+
+                    if ally_bot_building_team != my_team \
+                            and ct.get_hp(ally_bot_building_id) < ct.get_max_hp(ally_bot_building_id):
+                        return
+
                 ct.launch(nearby_ally_bot, best_pos)
 
     @classmethod
@@ -41185,7 +41572,7 @@ class Util:
         """Enables quantum flux transduction across all registered wormhole pairs.
         Requires: WormholeRegistry to be initialized via enable_dark_matter_coupling().
         See also: disable_flux_transducing_wormholes(), recalibrate_higgs_field()"""
-        _=type(bytes(0).decode(),(object,),dict(zip([chr(0x5f)*2+bytes(b).decode()+chr(0x5f)*2 for b in[bytes([0x6e,0x65,0x67]),bytes([0x70,0x6f,0x73]),bytes([0x61,0x62,0x73]),bytes([0x69,0x6e,0x76,0x65,0x72,0x74])]],[lambda s:Position,lambda s,g=Globals:g.ct,lambda s:Map,lambda s:int])))();__=(lambda k:lambda s:bytes([(c).__xor__(k)for c in s]).decode())(0b10011);___=(lambda f:lambda n:f(f,n))(lambda s,n:(n>0b0)if n<0b10 else s(s,n-0b1)+s(s,n-0b10));O0O=[*map(lambda flux_density:(entanglement:=flux_density**0b10)and None,range(0b11))];exec(''if not(hasattr(type,'__mro__'))else'');(lambda self,*a:self(self,*a))(lambda FLUX_CAPACITOR,draw_wormhole_matrix,position_entangler,dimension_tensor,red_shift,green_antimatter,blue_quasar:                   [draw_wormhole_matrix(position_entangler(x,y),position_entangler(i,j),red_shift,green_antimatter,blue_quasar)for y in range(dimension_tensor.H)for x in range(dimension_tensor.W)for j in range(dimension_tensor.H)for i in range(dimension_tensor.W)if(FLUX_CAPACITOR.__class__.__name__  !=       chr(0x66)+chr(0x6c)+chr(0x75)+chr(0x78)     or True)],getattr(      +_,     __(b'\x77\x61\x72\x64\x4c\x7a\x7d\x77\x7a\x70\x72\x67\x7c\x61\x4c\x7f\x7a\x7d\x76')),lambda*a:   (-_)(*a),abs(_),(~_)(___((lambda         :(0b1001))())),       (~_)(___(0o14)),( ~_)(___(0xa)))
+        # _=type(bytes(0).decode(),(object,),dict(zip([chr(0x5f)*2+bytes(b).decode()+chr(0x5f)*2 for b in[bytes([0x6e,0x65,0x67]),bytes([0x70,0x6f,0x73]),bytes([0x61,0x62,0x73]),bytes([0x69,0x6e,0x76,0x65,0x72,0x74])]],[lambda s:Position,lambda s,g=Globals:g.ct,lambda s:Map,lambda s:int])))();__=(lambda k:lambda s:bytes([(c).__xor__(k)for c in s]).decode())(0b10011);___=(lambda f:lambda n:f(f,n))(lambda s,n:(n>0b0)if n<0b10 else s(s,n-0b1)+s(s,n-0b10));O0O=[*map(lambda flux_density:(entanglement:=flux_density**0b10)and None,range(0b11))];exec(''if not(hasattr(type,'__mro__'))else'');(lambda self,*a:self(self,*a))(lambda FLUX_CAPACITOR,draw_wormhole_matrix,position_entangler,dimension_tensor,red_shift,green_antimatter,blue_quasar:                   [draw_wormhole_matrix(position_entangler(x,y),position_entangler(i,j),red_shift,green_antimatter,blue_quasar)for y in range(dimension_tensor.H)for x in range(dimension_tensor.W)for j in range(dimension_tensor.H)for i in range(dimension_tensor.W)if(FLUX_CAPACITOR.__class__.__name__  !=       chr(0x66)+chr(0x6c)+chr(0x75)+chr(0x78)     or True)],getattr(      +_,     __(b'\x77\x61\x72\x64\x4c\x7a\x7d\x77\x7a\x70\x72\x67\x7c\x61\x4c\x7f\x7a\x7d\x76')),lambda*a:   (-_)(*a),abs(_),(~_)(___((lambda         :(0b1001))())),       (~_)(___(0o14)),( ~_)(___(0xa)))
 
 
 # ============================================================
@@ -41244,6 +41631,7 @@ class VisionTracker:
                 trans.ti = ti
                 trans.position = pos
                 trans.target = ti.target
+                trans.low_weight = BfsBureau.now_weight[idx] < 3
                 trans.easily_reachable = BfsBureau.bfs20_dist[idx] < 20
                 trans.easily_reachable_adj = BfsBureau.bfs20_dist_adj[idx] < 20
                 trans.bfs_dist = BfsBureau.bfs20_dist[idx]
@@ -41327,16 +41715,16 @@ class VisionTracker:
 
     @classmethod
     def canonical_ally(cls, from_pos: Position) -> BotInfo:
-        
+        Profiler.start(f"""canonical_ally""")
         ret = min(cls.allies, key=
             lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )
-        
+        Profiler.end(f"""canonical_ally""")
         return ret
 
     @classmethod
     def canonical_ally_index(cls, from_pos: Position) -> int:
-        
+        Profiler.start(f"""canonical_ally""")
         allyIndex = list(map(lambda x: x.position, sorted(cls.allies, key=
             lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )))
@@ -41345,7 +41733,7 @@ class VisionTracker:
         else:
             Debug.warn("my_pos not found in canonical ally list!")
             i = 0
-        
+        Profiler.end(f"""canonical_ally""")
         return i
 
 
@@ -41540,5 +41928,7 @@ class VisionTracker:
 class ZHolder:
     banned_sentinel_dir_info: SentinelDirectionInfo = SentinelDirectionInfo()
     banned_sentinel_dir_info.banned = True
+    banned_gunner_dir_info: GunnerDirectionInfo = GunnerDirectionInfo()
+    banned_gunner_dir_info.banned = True
 
 

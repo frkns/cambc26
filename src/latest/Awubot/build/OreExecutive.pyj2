@@ -169,6 +169,9 @@ class OreExecutive:
                 heapq.heappop(cls.ax_queue)
                 cls.state[pos] = {{ HAS_HARD_BUILDING }}
                 continue
+
+            if ti.is_pointed_to:
+                cls.state[pos] = {{ HAS_HARD_BUILDING }}  # for ax bug
             
             if not VisionTracker.me_is_canonical_ally(pos):
                 heapq.heappop(cls.ax_queue)

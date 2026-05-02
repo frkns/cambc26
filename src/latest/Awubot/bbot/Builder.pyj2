@@ -49,6 +49,7 @@ class Builder({{ super() }}):
     @classmethod
     def start_turn(cls):
         {{ super() }}.start_turn()
+        TLEManager.start_turn()
 
         my_pos = Globals.my_pos
         cls.min_dist_to_a_core = min(my_pos.distance_squared(Unit.core_pos), my_pos.distance_squared(Symmetry.enemy_core_pos))
@@ -61,7 +62,56 @@ class Builder({{ super() }}):
         BfsBureau.update()
         {{ P.end('BfsBureau.update') }}
 
-        Symmetry.run_sym_check()
+        {{ P.start('BfsBureau.bfs20') }}
+        BfsBureau.bfs20()
+        {{ P.end('BfsBureau.bfs20') }}
+
+        if not TLEManager.daylight_savings_time:
+            {{ P.start('Symmetry.run_sym_check') }}
+            Symmetry.run_sym_check()
+            {{ P.end('Symmetry.run_sym_check') }}
+
+            {{ P.start('BfsBureau.update_enclosed_regions') }}
+            BfsBureau.update_enclosed_regions()
+            {{ P.end('BfsBureau.update_enclosed_regions') }}
+
+            {{ P.start('OreExecutive.fill') }}
+            OreExecutive.fill()
+            {{ P.end('OreExecutive.fill') }}
+
+        {{ P.start('VisionTracker.fill') }}
+        VisionTracker.fill()
+        {{ P.end('VisionTracker.fill') }}
+
+        if not TLEManager.daylight_savings_time:
+            {{ P.start('SitterTakedown.fill') }}
+            SitterTakedown.fill()
+            {{ P.end('SitterTakedown.fill') }}
+
+            {{ P.start('HarvesterAdjacent.fill') }}
+            HarvesterAdjacent.fill()
+            {{ P.end('HarvesterAdjacent.fill') }}
+
+        {{ P.start('Attacker.update') }}
+        Attacker.update()
+        {{ P.end('Attacker.update') }}
+
+        {{ P.start('HealTargeter.fill') }}
+        HealTargeter.fill()
+        {{ P.end('HealTargeter.fill') }}
+
+        {# /* DarkForest.debug_sight_flowing() */ #}
+        {# /* DarkForest.debug_ax_tagged() */ #}
+        {# /* DarkForest.debug_flow() */ #}
+        {# /* DarkForest.debug_pressure() */ #}
+        {# /* DarkForest.debug_kind() */ #}
+        {# /* BfsBureau.debug_enclosed_regions() */ #}
+        {# /* BfsBureau.debug_bfs20_dist_adj() */ #}
+        {# /* BfsBureau.debug_bfs20() */ #}
+        {# /* BfsBureau.debug_now_weight_inf() */ #}
+        {# /* BfsBureau.debug_enemy_bot_dist() */ #}
+        {# /* BfsBureau.debug_enemy_bot_dist_adj() */ #}
+        {# /* BfsBureau.debug_penalty() */ #}
 
         if cls.mode == {{ Mode.NONE }}:
             """
@@ -87,6 +137,7 @@ class Builder({{ super() }}):
             cls.mode = {{ Mode.ECON }}
             Explore.target = Explore.new_target()
 
+        {% if LOCAL %}
         print("Mode:", cls.mode)
 
 
@@ -134,6 +185,7 @@ class Builder({{ super() }}):
         {{ P.start('Attacker.update') }}
         Attacker.update()
         {{ P.end('Attacker.update') }}
+        {% endif %}
 
         cls.is_routing_active = False
 
@@ -148,7 +200,10 @@ class Builder({{ super() }}):
 
     @classmethod
     def run_turn(cls):
-        cls.state, *args = cls.determine_state()
+        if TLEManager.daylight_savings_time:
+            cls.state, *args = cls.fast_path_determine_state()
+        else:
+            cls.state, *args = cls.determine_state()
 
         {% if LOCAL %}
         print(f'running: {cls.state}  @', *args, sep=' ')
@@ -177,6 +232,9 @@ class Builder({{ super() }}):
             Debug.diamond(Color.PINK)
         {% endif %}
 
+        if TLEManager.daylight_savings_time:
+            Debug.diamond(Color.BLACK)
+
         # BfsBureau.debug_bfs20_dist_adj()
         # BfsBureau.debug_enemy_launcher_zone()
         # BfsBureau.debug_ally_launcher_zone()
@@ -191,8 +249,37 @@ class Builder({{ super() }}):
         #     Globals.ct.fire(my_pos)
 
         RoadspamExecutor.execute_roadspam_attempt()
+        TLEManager.end_turn()
 
 
+    @classmethod
+    def fast_path_determine_state(cls):
+        # --------------- for TLE ########################
+        my_pos = Globals.my_pos                          #
+        ct = Globals.ct                                  #
+                                                         #
+        healinfo = HealTargeter.get_best_target_info()   #
+        healpos = None                                   #
+        if healinfo is not None:                         #
+            if healinfo.entity_type == EntityType.CORE:  #
+                healpos = Unit.core_pos                  #
+            else:                                        #
+                healpos = healinfo.position              #
+                                                         #
+        if healpos is not None:                          #
+            return 'MoveTo', healpos, 'Heal'             #
+                                                         #
+        attackpos = Attacker.get_target()                #
+                                                         #
+        if attackpos is not None:                        #
+            return 'Attack', attackpos, 'Primary'        #
+                                                         #
+        rushTarget = RushTargeter.get_best_target()      #
+        if rushTarget is not None:                       #
+            return 'Rush', rushTarget                    #
+                                                         #
+        return 'MoveTo', Explore.get_target(), 'Explore' #
+        # --------------- for TLE ########################
 
 
     @classmethod
@@ -214,7 +301,12 @@ class Builder({{ super() }}):
         misinfo: TransporterInfo = VisionTracker.get_best_misrouted_target()
 
         # now changed to sentinel/gunner pos near enemy?
-        sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
+        {# /* sentinelinfo: AdjacentInfo = HarvesterAdjacent.get_best_sentinel_info() */ #}
+        {# /* sentinelpos = None if sentinelinfo is None else sentinelinfo.position */ #}
+
+        turretinfo: AdjacentInfo | None
+        turretinfo, turretinfo_is_gunner = HarvesterAdjacent.get_best_turret_info()
+        turretpos = None if turretinfo is None else turretinfo.position
 
         destroypos = VisionTracker.get_best_destroy_position()
 
@@ -244,10 +336,6 @@ class Builder({{ super() }}):
 
             return 'BuildGunner', takedownpos, None
 
-        sitterpos = SitterTakedown.get_best_launcher_position()
-        if sitterpos is not None:
-            Debug.dot(sitterpos, Color.PURPLE)
-            return 'BuildLauncher', sitterpos
 
         if healpos is not None and misinfo is None:
             return 'MoveTo', healpos, 'Heal'
@@ -260,8 +348,19 @@ class Builder({{ super() }}):
 
 
         buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0)
+        
 
-        if not buildingFirstConveyor and sentinelpos is None:
+        if not buildingFirstConveyor:
+            if turretpos is not None:
+                {% if LOCAL %}
+                Debug.dot(turretpos, Color.PURPLE)
+                {% endif %}
+                if turretinfo.harvester_ally_turrets_adjacent >= 2 and \
+                        turretinfo.harvester_enemy_turrets_adjacent == 0:
+                    return 'BuildAdvancedShield', turretpos, turretinfo
+                else:
+                    return 'BuildTurretWrapper', turretpos, turretinfo_is_gunner, turretinfo
+
             shieldpos = HarvesterAdjacent.get_best_shield_position()
             if shieldpos is not None:
                 return 'BuildShield', shieldpos
@@ -304,9 +403,6 @@ class Builder({{ super() }}):
         if route_pos is not None and cls.mode != {{ Mode.EARLY_RUSH }}:
             if Util.dist_sq(route_pos, Symmetry.enemy_core_pos) \
                     < Util.dist_sq(route_pos, Unit.core_pos):
-
-                # if sentinelpos is not None:
-                #     return 'BuildTurret', sentinelpos
                 pass
 
             elif route_pos not in RouteToCore.killed:
@@ -315,12 +411,23 @@ class Builder({{ super() }}):
                 return 'MoveTo', route_pos, 'InitRoute'
 
 
-        if sentinelpos is not None:
-            Debug.dot(sentinelpos, Color.PURPLE)
-            return 'BuildTurret', sentinelpos
+        if turretpos is not None:
+            {% if LOCAL %}
+            Debug.dot(turretpos, Color.PURPLE)
+            {% endif %}
+            if turretinfo.harvester_ally_turrets_adjacent >= 2 and \
+                    turretinfo.harvester_enemy_turrets_adjacent == 0:
+                return 'BuildAdvancedShield', turretpos, turretinfo
+            else:
+                return 'BuildTurretWrapper', turretpos, turretinfo_is_gunner, turretinfo
 
-        if cls.should_fire and BfsBureau.enemy_bot_dist_adj[Globals.my_idx] >= 2:
-            return 'Attack', Globals.my_pos, 'ShouldFire&D>=2'
+        sitterpos = SitterTakedown.get_best_launcher_position()
+        if sitterpos is not None:
+            return 'BuildLauncher', sitterpos
+
+        if cls.should_fire and (BfsBureau.enemy_bot_dist_adj[Globals.my_idx] >= 2 
+                                or Attacker.allies_ready > 2 * Attacker.enemies_ready):
+            return 'Attack', Globals.my_pos, '(ShouldFire&D>=2)|(a>2*e)'
 
         if buildingFirstConveyor:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
@@ -341,20 +448,7 @@ class Builder({{ super() }}):
 
         # Attack if position is next to route
         if secondaryattackpos is not None:
-            # Compare position to tip of route
-            close_to_tip = False
-            if RouteToCore.is_active:
-                if len(RouteToCore.prevRoute) > 0:
-                    close_to_tip = RouteToCore.prevRoute[-1].distance_squared(secondaryattackpos) < 2
-            elif RouteToFoundry.is_active:
-                if len(RouteToFoundry.prevRoute) > 0:
-                    close_to_tip = RouteToFoundry.prevRoute[-1].distance_squared(secondaryattackpos) < 2
-            elif RouteToBreach.is_active:
-                if len(RouteToBreach.prevRoute) > 0:
-                    close_to_tip = RouteToBreach.prevRoute[-1].distance_squared(secondaryattackpos) < 2
-
-            # Attack if close to tip
-            if close_to_tip:
+            if cls.is_routing_active and cls.route_from_pos.distance_squared(secondaryattackpos) < 2:
                 return 'Attack', secondaryattackpos, 'Secondary'
 
         ax_target = OreExecutive.get_axionite_target()
@@ -389,7 +483,7 @@ class Builder({{ super() }}):
         if rushTarget is not None:
             return 'Rush', rushTarget
 
-        if ct.get_unit_count() < 15 or Globals.my_id % 3 == 1:
+        if ct.get_unit_count() < 10 or Globals.my_id % 3 == 1:
             patrolTarget = PatrolTargeter.get_best_target()
             if patrolTarget is not None:
                 return 'MoveTo', patrolTarget, 'Patrol'

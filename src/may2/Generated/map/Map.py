@@ -1,0 +1,1891 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+
+class TileInfo:
+    __slots__ = (
+        'env', 'round', 'easily_passable', 'harvester_adjacent',
+        'has_building', 'building_hp', 'building_id', 'is_building_ally',
+        'entity_type', 'target',
+        'has_bot', 'bot_hp', 'bot_id', 'is_bot_ally',
+        'allied_bots_adjacent',
+        'has_turret', 'turret_direction',
+        'turrets_adjacent', 'ally_turrets_adjacent', 'enemy_turrets_adjacent',
+        'ally_transporters_adjacent', 'enemy_transporters_adjacent',
+        'resource_id', 'resource_type',
+        'ally_outward_transporters_adjacent',
+        'is_pointed_to', 'ally_non_road_buildings_adjacent',
+        'ally_core_adj',
+        'is_shield',
+        'ally_fed_foundries_adjacent',  # fed by a (presumably) axionite line
+    )
+
+class Map:
+    W: int
+    H: int
+    maxX: int
+    maxY: int
+
+    # [x][y], some buffer right/bot side
+    tile_info_idx: list[int] = [None] * 3136
+    tile_info: list[list[TileInfo | None]]
+    nearby_tiles: list[Position]
+    proc_nearby_tiles: list[tuple[Position, int, int, int, TileInfo]]        # in rsq 20
+    inner_proc_nearby_tiles: list[tuple[Position, int, int, int, TileInfo]]  # in rsq 10
+    num_allies: int
+    num_enemies: int
+    num_enemies_8: int
+    num_enemy_buildings: int
+    harvester_set: set[int] = set()
+    ax_harvester_set: set[int] = set()
+    ti_ally_harvester_set: set[int] = set()
+    ax_ally_harvester_set: set[int] = set()
+    enemy_route_set: set[int] = set()
+
+    # cleared every turn
+    new_syms: list[Position] = []
+
+    @staticmethod
+    def init():
+        Map.W = Globals.ct.get_map_width()
+        Map.H = Globals.ct.get_map_height()
+        Map.maxX = Map.W - 1
+        Map.maxY = Map.H - 1
+
+        Map.tile_info = [[None] * (Map.H + 5) for _ in range(Map.W + 5)]
+
+
+    @classmethod 
+    def fill_tile_info(cls):
+        sym = Symmetry.map_sym
+
+        if sym == Sym.UNKNOWN:
+            cls.fill_tile_infoUNKNOWN()
+            return
+        if sym == Sym.VERTICAL:
+            cls.fill_tile_infoV()
+            return
+        if sym == Sym.HORIZONTAL:
+            cls.fill_tile_infoH()
+            return
+        cls.fill_tile_infoR()
+
+
+    @classmethod
+    def fill_tile_infoV(cls):
+        # --- cache all globals/methods up front ---
+        ct = Globals.ct
+        my_pos = Globals.my_pos
+        my_type = Globals.my_type
+        my_id = Globals.my_id
+        my_team = Globals.my_team
+        round = ct.get_current_round()
+        tile_info = cls.tile_info
+
+        # cache ct method lookups
+        get_tile_env = ct.get_tile_env
+        get_tile_building_id = ct.get_tile_building_id
+        get_tile_builder_bot_id = ct.get_tile_builder_bot_id
+        get_entity_type = ct.get_entity_type
+        get_team = ct.get_team
+        get_hp = ct.get_hp
+        get_direction = ct.get_direction
+        get_bridge_target = ct.get_bridge_target
+        get_marker_value = ct.get_marker_value
+        get_stored_resource_id = ct.get_stored_resource_id
+        get_stored_resource = ct.get_stored_resource
+
+        # cache constants
+        PASSABLE_SET = Constants.PASSABLE_SET
+        TRANSPORTERS_SET = Constants.TRANSPORTERS_SET
+        HARVESTER = EntityType.HARVESTER
+        ROAD = EntityType.ROAD
+        MARKER = EntityType.MARKER
+        SENTINEL = EntityType.SENTINEL
+        GUNNER = EntityType.GUNNER
+        BREACH = EntityType.BREACH
+        FOUNDRY = EntityType.FOUNDRY
+        LAUNCHER = EntityType.LAUNCHER
+        CONVEYOR = EntityType.CONVEYOR
+        ARMOURED_CONVEYOR = EntityType.ARMOURED_CONVEYOR
+        BRIDGE = EntityType.BRIDGE
+        CORE = EntityType.CORE
+        BUILDER_BOT = EntityType.BUILDER_BOT
+        ORE_TITANIUM = Environment.ORE_TITANIUM
+        ORE_AXIONITE = Environment.ORE_AXIONITE
+        WALL = Environment.WALL
+
+        # Transporter types that register DarkForest edges — used for type-change
+        # detection to ensure stale edges are removed when a tile transitions away
+        # from being a transporter (destruction, replacement, or type swap).
+        _TRANSPORTER_TYPES = (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE)
+
+        messages_read = 0
+        num_allies = 0
+        num_enemies = 0
+        num_enemies_8 = 0
+        num_enemy_buildings = 0
+        cls.nearby_tiles = ct.get_nearby_tiles()
+
+        maxX, maxY = cls.maxX, cls.maxY
+        new_syms = cls.new_syms
+        new_syms.clear()
+
+        harvester_set = cls.harvester_set
+        ax_harvester_set = cls.ax_harvester_set
+        ti_ally_harvester_set = cls.ti_ally_harvester_set
+        ax_ally_harvester_set = cls.ax_ally_harvester_set
+        tile_info_idx = cls.tile_info_idx
+
+        proc_nearby_tiles = []
+        inner_proc_nearby_tiles = []
+        for pos in cls.nearby_tiles:
+            x, y = pos.x, pos.y
+            idx = (((x) + 3) * 56 + ((y) + 3))
+            ti: TileInfo | None = tile_info[x][y]
+            if ti is None:
+                ti = TileInfo()
+                tile_info_idx[idx] = ti
+                tile_info[x][y] = ti
+                ti.has_building = False
+                ti.has_turret = False
+                ti.entity_type = None
+                ti.resource_id = None
+                ti.resource_type = None
+            proc_nearby_tiles.append(
+                (pos, x, y, idx, ti)
+            )
+            if my_pos.distance_squared(pos) <= 10:
+                inner_proc_nearby_tiles.append(
+                    (pos, x, y, idx, ti)
+                )
+
+        cls.inner_proc_nearby_tiles = inner_proc_nearby_tiles
+        cls.proc_nearby_tiles = proc_nearby_tiles
+
+        # track harvester tiles for second pass adjacency
+        harvester_proc = []
+        
+        my_x, my_y = Globals.my_pos
+
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            tile_env = get_tile_env(pos)
+            old_etype = ti.entity_type
+            old_is_building_ally = ti.has_building and ti.is_building_ally
+            if ti.has_turret:
+                old_turret_direction = ti.turret_direction
+
+
+            ti.env = tile_env
+            ti.round = round
+
+            building_id = get_tile_building_id(pos)
+            bot_id = get_tile_builder_bot_id(pos)
+            ti.building_id = building_id
+            ti.bot_id = bot_id
+
+            # --- entity type + team in one block, no redundant get_team calls ---
+            if building_id is not None:
+                etype = get_entity_type(building_id)
+                is_building_ally = get_team(building_id) == my_team
+                ti.is_building_ally = is_building_ally
+                if not is_building_ally:
+                    num_enemy_buildings += 1
+            else:
+                etype = None
+                is_building_ally = False
+                ti.is_building_ally = False
+
+            ti.entity_type = etype
+
+            ti.has_building = (
+                building_id is not None and etype != MARKER
+            ) or (pos == my_pos and my_type != BUILDER_BOT)
+
+            # --- bot ---
+            has_bot = bot_id is not None and bot_id != my_id
+            ti.has_bot = has_bot
+            if has_bot:
+                is_bot_ally = get_team(bot_id) == my_team
+                ti.bot_hp = get_hp(bot_id)
+                ti.is_bot_ally = is_bot_ally
+                if is_bot_ally:
+                    num_allies += 1
+                else:
+                    num_enemies += 1
+                    if abs(x-my_x) < 2 and abs(y-my_y) < 2:
+                        num_enemies_8 += 1
+
+            ti.easily_passable = False
+
+            # --- building details ---
+            if ti.has_building:
+                ti.building_hp = get_hp(building_id)
+                if etype in PASSABLE_SET or (etype == CORE and is_building_ally):
+                    ti.easily_passable = True
+
+            ti.has_turret = False
+
+            _was_transporter = old_etype in _TRANSPORTER_TYPES
+            if _was_transporter and etype != old_etype:
+                # Detach for now
+                DarkForest.detach_node(pos_idx)
+
+            if etype == CONVEYOR or etype == ARMOURED_CONVEYOR:
+                tpos = pos.add(get_direction(building_id))
+                ti.target = tpos
+                DarkForest.add_edge(pos_idx, (((tpos.x) + 3) * 56 + ((tpos.y) + 3)))
+                # resource tracking added from main
+                rid = get_stored_resource_id(building_id)
+                ti.resource_id = rid
+                ti.resource_type = get_stored_resource(building_id) if rid is not None else None
+            elif etype == BRIDGE:
+                tpos = get_bridge_target(building_id)
+                ti.target = tpos
+                DarkForest.add_edge(pos_idx, (((tpos.x) + 3) * 56 + ((tpos.y) + 3)))
+                # resource tracking added from main
+                rid = get_stored_resource_id(building_id)
+                ti.resource_id = rid
+                ti.resource_type = get_stored_resource(building_id) if rid is not None else None
+            else:
+                ti.target = None
+                ti.resource_id = None
+                ti.resource_type = None
+
+                if etype in (SENTINEL, GUNNER, BREACH, FOUNDRY):
+                    if etype == FOUNDRY:
+                        DarkForest.foundry_positions.add(idx)
+
+                    if etype in (SENTINEL, GUNNER, BREACH):
+                        ti.has_turret = True
+                        ti.turret_direction = get_direction(building_id)
+
+                        if is_building_ally:
+                            DarkForest.register_sink(
+                                pos_idx,
+                                3)
+                else:
+                    DarkForest.remove_node(pos_idx)
+
+
+            old_enemy_tower = (
+                old_etype in (SENTINEL, LAUNCHER) and
+                not old_is_building_ally
+            )
+
+            new_enemy_tower = (
+                etype in (SENTINEL, LAUNCHER) and
+                not is_building_ally
+            )
+
+            if old_enemy_tower and not new_enemy_tower:
+                if old_etype == SENTINEL:
+                    BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
+                elif old_etype == LAUNCHER:
+                    BfsBureau.remove_enemy_launcher(pos_idx)
+                elif old_etype == GUNNER:
+                    BfsBureau.remove_enemy_gunner(pos, old_turret_direction)
+
+            elif new_enemy_tower and not old_enemy_tower:
+                if etype == SENTINEL:
+                    BfsBureau.add_enemy_sentinel(pos, ti)
+                elif etype == LAUNCHER:
+                    BfsBureau.add_enemy_launcher(pos_idx)
+                elif etype == GUNNER:
+                    BfsBureau.add_enemy_gunner(pos, ti)
+
+            # [new enemy bot bfs]
+            old_ally_launcher = (old_etype == LAUNCHER and old_is_building_ally)
+            new_ally_launcher = (etype     == LAUNCHER and is_building_ally)
+
+            if old_ally_launcher and not new_ally_launcher:
+                # launcher was destroyed, replaced, or lost ally status
+                BfsBureau.remove_ally_launcher(pos_idx)
+            elif new_ally_launcher and not old_ally_launcher:
+                # newly placed ally launcher or first time we see this tile
+                BfsBureau.add_ally_launcher(pos_idx)
+            # [END NEW]
+
+            # --- harvester set tracking ---
+            if etype == HARVESTER:
+                harvester_set.add(pos_idx)
+                if tile_env == ORE_AXIONITE:
+                    ax_harvester_set.add(pos_idx)
+
+                if is_building_ally:
+                    if tile_env == ORE_TITANIUM:
+                        ti_ally_harvester_set.add(pos_idx)
+                        ax_ally_harvester_set.discard(pos_idx)
+                    else:
+                        ax_ally_harvester_set.add(pos_idx)
+                        ti_ally_harvester_set.discard(pos_idx)
+                harvester_proc.append((x, y, ti))
+            else:
+                if pos_idx in harvester_set:
+                    harvester_set.discard(pos_idx)
+                    ax_harvester_set.discard(pos_idx)
+                    ti_ally_harvester_set.discard(pos_idx)
+                    ax_ally_harvester_set.discard(pos_idx)
+
+            if etype == MARKER and is_building_ally and messages_read < 3:
+                messages_read += 1
+                
+                Comms.handle_message(get_marker_value(building_id))
+                
+
+            ti.is_pointed_to = False
+
+
+        cls.num_allies = num_allies
+        cls.num_enemies = num_enemies
+        cls.num_enemies_8 = num_enemies_8
+        cls.num_enemy_buildings = num_enemy_buildings
+
+        # --- second pass: harvester_adjacent + allied_bots_adjacent ---
+        # + is_pointed_to
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            ti.is_shield = False
+
+            if ti.target is not None:
+                targ = ti.target
+                targ_tile_info = tile_info[targ.x][targ.y]
+                if targ_tile_info is not None:
+                    targ_tile_info.is_pointed_to = True
+                    if targ_tile_info.entity_type == HARVESTER:
+                        ti.is_shield = True
+                        # Debug.dot(pos, Color.RED)
+
+            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
+            row_xm1 = tile_info[x - 1]
+            row_x   = tile_info[x]
+            row_xp1 = tile_info[x + 1]
+
+            # harvester_adjacent: cardinal only, titanium harvesters
+            nti = row_xm1[y];   h1 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_xp1[y];   h2 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_x[y - 1]; h3 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_x[y + 1]; h4 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            ti.harvester_adjacent = h1 + h2 + h3 + h4
+
+            # allied_bots_adjacent: 8-neighbors + self
+            ym1 = y - 1
+            yp1 = y + 1
+
+            cnt = 0
+            nti = row_x[y];      cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[y];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[y];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_x[ym1];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_x[yp1];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[ym1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[ym1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            ti.allied_bots_adjacent = cnt
+
+
+            # turret/transporter adjacency: only for harvesters
+            ally_core_adj = False
+            if ti.entity_type == HARVESTER:
+                ally_turrets = 0
+                enemy_turrets = 0
+                ally_transporters = 0
+                ally_outward_transporters = 0  # actually useful (non-shield)
+                enemy_transporters = 0
+
+                nti = tile_info[x ][y -1]
+                if nti is not None:
+
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+
+                    is_foundry = nti.entity_type == FOUNDRY
+                    if nti.entity_type in TRANSPORTERS_SET or is_foundry:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
+                                ally_outward_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                    if nti.entity_type == CORE and nti.is_building_ally:
+                        ally_core_adj = True
+                nti = tile_info[x +1][y ]
+                if nti is not None:
+
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+
+                    is_foundry = nti.entity_type == FOUNDRY
+                    if nti.entity_type in TRANSPORTERS_SET or is_foundry:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
+                                ally_outward_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                    if nti.entity_type == CORE and nti.is_building_ally:
+                        ally_core_adj = True
+                nti = tile_info[x ][y +1]
+                if nti is not None:
+
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+
+                    is_foundry = nti.entity_type == FOUNDRY
+                    if nti.entity_type in TRANSPORTERS_SET or is_foundry:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
+                                ally_outward_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                    if nti.entity_type == CORE and nti.is_building_ally:
+                        ally_core_adj = True
+                nti = tile_info[x -1][y ]
+                if nti is not None:
+
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+
+                    is_foundry = nti.entity_type == FOUNDRY
+                    if nti.entity_type in TRANSPORTERS_SET or is_foundry:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
+                                ally_outward_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                    if nti.entity_type == CORE and nti.is_building_ally:
+                        ally_core_adj = True
+
+                ti.ally_turrets_adjacent = ally_turrets
+                ti.enemy_turrets_adjacent = enemy_turrets
+                ti.turrets_adjacent = ally_turrets + enemy_turrets
+                ti.ally_transporters_adjacent = ally_transporters
+                ti.ally_outward_transporters_adjacent = ally_outward_transporters
+                ti.ally_core_adj = ally_core_adj
+                ti.enemy_transporters_adjacent = enemy_transporters
+
+        # --- third pass: fed foundry + ally non roads ---
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
+            row_xm1 = tile_info[x - 1]
+            row_x   = tile_info[x]
+            row_xp1 = tile_info[x + 1]
+            ym1 = y - 1
+            yp1 = y + 1
+
+            # --- fused cardinal adjacency (single pass) ---
+            ally_non_road = 0
+            foundries = 0
+
+            for nti in (row_xm1[y], row_xp1[y], row_x[ym1], row_x[yp1]):
+                if nti is not None and nti.has_building and nti.is_building_ally:
+                    if nti.entity_type != ROAD:
+                        ally_non_road += 1
+                    if nti.entity_type == FOUNDRY and nti.is_pointed_to:
+                        foundries += 1
+
+            ti.ally_non_road_buildings_adjacent = ally_non_road
+            ti.ally_fed_foundries_adjacent = foundries
+            # ---
+
+    @classmethod
+    def fill_tile_infoH(cls):
+        # --- cache all globals/methods up front ---
+        ct = Globals.ct
+        my_pos = Globals.my_pos
+        my_type = Globals.my_type
+        my_id = Globals.my_id
+        my_team = Globals.my_team
+        round = ct.get_current_round()
+        tile_info = cls.tile_info
+
+        # cache ct method lookups
+        get_tile_env = ct.get_tile_env
+        get_tile_building_id = ct.get_tile_building_id
+        get_tile_builder_bot_id = ct.get_tile_builder_bot_id
+        get_entity_type = ct.get_entity_type
+        get_team = ct.get_team
+        get_hp = ct.get_hp
+        get_direction = ct.get_direction
+        get_bridge_target = ct.get_bridge_target
+        get_marker_value = ct.get_marker_value
+        get_stored_resource_id = ct.get_stored_resource_id
+        get_stored_resource = ct.get_stored_resource
+
+        # cache constants
+        PASSABLE_SET = Constants.PASSABLE_SET
+        TRANSPORTERS_SET = Constants.TRANSPORTERS_SET
+        HARVESTER = EntityType.HARVESTER
+        ROAD = EntityType.ROAD
+        MARKER = EntityType.MARKER
+        SENTINEL = EntityType.SENTINEL
+        GUNNER = EntityType.GUNNER
+        BREACH = EntityType.BREACH
+        FOUNDRY = EntityType.FOUNDRY
+        LAUNCHER = EntityType.LAUNCHER
+        CONVEYOR = EntityType.CONVEYOR
+        ARMOURED_CONVEYOR = EntityType.ARMOURED_CONVEYOR
+        BRIDGE = EntityType.BRIDGE
+        CORE = EntityType.CORE
+        BUILDER_BOT = EntityType.BUILDER_BOT
+        ORE_TITANIUM = Environment.ORE_TITANIUM
+        ORE_AXIONITE = Environment.ORE_AXIONITE
+        WALL = Environment.WALL
+
+        # Transporter types that register DarkForest edges — used for type-change
+        # detection to ensure stale edges are removed when a tile transitions away
+        # from being a transporter (destruction, replacement, or type swap).
+        _TRANSPORTER_TYPES = (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE)
+
+        messages_read = 0
+        num_allies = 0
+        num_enemies = 0
+        num_enemies_8 = 0
+        num_enemy_buildings = 0
+        cls.nearby_tiles = ct.get_nearby_tiles()
+
+        maxX, maxY = cls.maxX, cls.maxY
+        new_syms = cls.new_syms
+        new_syms.clear()
+
+        harvester_set = cls.harvester_set
+        ax_harvester_set = cls.ax_harvester_set
+        ti_ally_harvester_set = cls.ti_ally_harvester_set
+        ax_ally_harvester_set = cls.ax_ally_harvester_set
+        tile_info_idx = cls.tile_info_idx
+
+        proc_nearby_tiles = []
+        inner_proc_nearby_tiles = []
+        for pos in cls.nearby_tiles:
+            x, y = pos.x, pos.y
+            idx = (((x) + 3) * 56 + ((y) + 3))
+            ti: TileInfo | None = tile_info[x][y]
+            if ti is None:
+                ti = TileInfo()
+                tile_info_idx[idx] = ti
+                tile_info[x][y] = ti
+                ti.has_building = False
+                ti.has_turret = False
+                ti.entity_type = None
+                ti.resource_id = None
+                ti.resource_type = None
+            proc_nearby_tiles.append(
+                (pos, x, y, idx, ti)
+            )
+            if my_pos.distance_squared(pos) <= 10:
+                inner_proc_nearby_tiles.append(
+                    (pos, x, y, idx, ti)
+                )
+
+        cls.inner_proc_nearby_tiles = inner_proc_nearby_tiles
+        cls.proc_nearby_tiles = proc_nearby_tiles
+
+        # track harvester tiles for second pass adjacency
+        harvester_proc = []
+        
+        my_x, my_y = Globals.my_pos
+
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            tile_env = get_tile_env(pos)
+            old_etype = ti.entity_type
+            old_is_building_ally = ti.has_building and ti.is_building_ally
+            if ti.has_turret:
+                old_turret_direction = ti.turret_direction
+
+
+            ti.env = tile_env
+            ti.round = round
+
+            building_id = get_tile_building_id(pos)
+            bot_id = get_tile_builder_bot_id(pos)
+            ti.building_id = building_id
+            ti.bot_id = bot_id
+
+            # --- entity type + team in one block, no redundant get_team calls ---
+            if building_id is not None:
+                etype = get_entity_type(building_id)
+                is_building_ally = get_team(building_id) == my_team
+                ti.is_building_ally = is_building_ally
+                if not is_building_ally:
+                    num_enemy_buildings += 1
+            else:
+                etype = None
+                is_building_ally = False
+                ti.is_building_ally = False
+
+            ti.entity_type = etype
+
+            ti.has_building = (
+                building_id is not None and etype != MARKER
+            ) or (pos == my_pos and my_type != BUILDER_BOT)
+
+            # --- bot ---
+            has_bot = bot_id is not None and bot_id != my_id
+            ti.has_bot = has_bot
+            if has_bot:
+                is_bot_ally = get_team(bot_id) == my_team
+                ti.bot_hp = get_hp(bot_id)
+                ti.is_bot_ally = is_bot_ally
+                if is_bot_ally:
+                    num_allies += 1
+                else:
+                    num_enemies += 1
+                    if abs(x-my_x) < 2 and abs(y-my_y) < 2:
+                        num_enemies_8 += 1
+
+            ti.easily_passable = False
+
+            # --- building details ---
+            if ti.has_building:
+                ti.building_hp = get_hp(building_id)
+                if etype in PASSABLE_SET or (etype == CORE and is_building_ally):
+                    ti.easily_passable = True
+
+            ti.has_turret = False
+
+            _was_transporter = old_etype in _TRANSPORTER_TYPES
+            if _was_transporter and etype != old_etype:
+                # Detach for now
+                DarkForest.detach_node(pos_idx)
+
+            if etype == CONVEYOR or etype == ARMOURED_CONVEYOR:
+                tpos = pos.add(get_direction(building_id))
+                ti.target = tpos
+                DarkForest.add_edge(pos_idx, (((tpos.x) + 3) * 56 + ((tpos.y) + 3)))
+                # resource tracking added from main
+                rid = get_stored_resource_id(building_id)
+                ti.resource_id = rid
+                ti.resource_type = get_stored_resource(building_id) if rid is not None else None
+            elif etype == BRIDGE:
+                tpos = get_bridge_target(building_id)
+                ti.target = tpos
+                DarkForest.add_edge(pos_idx, (((tpos.x) + 3) * 56 + ((tpos.y) + 3)))
+                # resource tracking added from main
+                rid = get_stored_resource_id(building_id)
+                ti.resource_id = rid
+                ti.resource_type = get_stored_resource(building_id) if rid is not None else None
+            else:
+                ti.target = None
+                ti.resource_id = None
+                ti.resource_type = None
+
+                if etype in (SENTINEL, GUNNER, BREACH, FOUNDRY):
+                    if etype == FOUNDRY:
+                        DarkForest.foundry_positions.add(idx)
+
+                    if etype in (SENTINEL, GUNNER, BREACH):
+                        ti.has_turret = True
+                        ti.turret_direction = get_direction(building_id)
+
+                        if is_building_ally:
+                            DarkForest.register_sink(
+                                pos_idx,
+                                3)
+                else:
+                    DarkForest.remove_node(pos_idx)
+
+
+            old_enemy_tower = (
+                old_etype in (SENTINEL, LAUNCHER) and
+                not old_is_building_ally
+            )
+
+            new_enemy_tower = (
+                etype in (SENTINEL, LAUNCHER) and
+                not is_building_ally
+            )
+
+            if old_enemy_tower and not new_enemy_tower:
+                if old_etype == SENTINEL:
+                    BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
+                elif old_etype == LAUNCHER:
+                    BfsBureau.remove_enemy_launcher(pos_idx)
+                elif old_etype == GUNNER:
+                    BfsBureau.remove_enemy_gunner(pos, old_turret_direction)
+
+            elif new_enemy_tower and not old_enemy_tower:
+                if etype == SENTINEL:
+                    BfsBureau.add_enemy_sentinel(pos, ti)
+                elif etype == LAUNCHER:
+                    BfsBureau.add_enemy_launcher(pos_idx)
+                elif etype == GUNNER:
+                    BfsBureau.add_enemy_gunner(pos, ti)
+
+            # [new enemy bot bfs]
+            old_ally_launcher = (old_etype == LAUNCHER and old_is_building_ally)
+            new_ally_launcher = (etype     == LAUNCHER and is_building_ally)
+
+            if old_ally_launcher and not new_ally_launcher:
+                # launcher was destroyed, replaced, or lost ally status
+                BfsBureau.remove_ally_launcher(pos_idx)
+            elif new_ally_launcher and not old_ally_launcher:
+                # newly placed ally launcher or first time we see this tile
+                BfsBureau.add_ally_launcher(pos_idx)
+            # [END NEW]
+
+            # --- harvester set tracking ---
+            if etype == HARVESTER:
+                harvester_set.add(pos_idx)
+                if tile_env == ORE_AXIONITE:
+                    ax_harvester_set.add(pos_idx)
+
+                if is_building_ally:
+                    if tile_env == ORE_TITANIUM:
+                        ti_ally_harvester_set.add(pos_idx)
+                        ax_ally_harvester_set.discard(pos_idx)
+                    else:
+                        ax_ally_harvester_set.add(pos_idx)
+                        ti_ally_harvester_set.discard(pos_idx)
+                harvester_proc.append((x, y, ti))
+            else:
+                if pos_idx in harvester_set:
+                    harvester_set.discard(pos_idx)
+                    ax_harvester_set.discard(pos_idx)
+                    ti_ally_harvester_set.discard(pos_idx)
+                    ax_ally_harvester_set.discard(pos_idx)
+
+            if etype == MARKER and is_building_ally and messages_read < 3:
+                messages_read += 1
+                
+                Comms.handle_message(get_marker_value(building_id))
+                
+
+            ti.is_pointed_to = False
+
+
+        cls.num_allies = num_allies
+        cls.num_enemies = num_enemies
+        cls.num_enemies_8 = num_enemies_8
+        cls.num_enemy_buildings = num_enemy_buildings
+
+        # --- second pass: harvester_adjacent + allied_bots_adjacent ---
+        # + is_pointed_to
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            ti.is_shield = False
+
+            if ti.target is not None:
+                targ = ti.target
+                targ_tile_info = tile_info[targ.x][targ.y]
+                if targ_tile_info is not None:
+                    targ_tile_info.is_pointed_to = True
+                    if targ_tile_info.entity_type == HARVESTER:
+                        ti.is_shield = True
+                        # Debug.dot(pos, Color.RED)
+
+            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
+            row_xm1 = tile_info[x - 1]
+            row_x   = tile_info[x]
+            row_xp1 = tile_info[x + 1]
+
+            # harvester_adjacent: cardinal only, titanium harvesters
+            nti = row_xm1[y];   h1 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_xp1[y];   h2 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_x[y - 1]; h3 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_x[y + 1]; h4 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            ti.harvester_adjacent = h1 + h2 + h3 + h4
+
+            # allied_bots_adjacent: 8-neighbors + self
+            ym1 = y - 1
+            yp1 = y + 1
+
+            cnt = 0
+            nti = row_x[y];      cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[y];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[y];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_x[ym1];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_x[yp1];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[ym1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[ym1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            ti.allied_bots_adjacent = cnt
+
+
+            # turret/transporter adjacency: only for harvesters
+            ally_core_adj = False
+            if ti.entity_type == HARVESTER:
+                ally_turrets = 0
+                enemy_turrets = 0
+                ally_transporters = 0
+                ally_outward_transporters = 0  # actually useful (non-shield)
+                enemy_transporters = 0
+
+                nti = tile_info[x ][y -1]
+                if nti is not None:
+
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+
+                    is_foundry = nti.entity_type == FOUNDRY
+                    if nti.entity_type in TRANSPORTERS_SET or is_foundry:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
+                                ally_outward_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                    if nti.entity_type == CORE and nti.is_building_ally:
+                        ally_core_adj = True
+                nti = tile_info[x +1][y ]
+                if nti is not None:
+
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+
+                    is_foundry = nti.entity_type == FOUNDRY
+                    if nti.entity_type in TRANSPORTERS_SET or is_foundry:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
+                                ally_outward_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                    if nti.entity_type == CORE and nti.is_building_ally:
+                        ally_core_adj = True
+                nti = tile_info[x ][y +1]
+                if nti is not None:
+
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+
+                    is_foundry = nti.entity_type == FOUNDRY
+                    if nti.entity_type in TRANSPORTERS_SET or is_foundry:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
+                                ally_outward_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                    if nti.entity_type == CORE and nti.is_building_ally:
+                        ally_core_adj = True
+                nti = tile_info[x -1][y ]
+                if nti is not None:
+
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+
+                    is_foundry = nti.entity_type == FOUNDRY
+                    if nti.entity_type in TRANSPORTERS_SET or is_foundry:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
+                                ally_outward_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                    if nti.entity_type == CORE and nti.is_building_ally:
+                        ally_core_adj = True
+
+                ti.ally_turrets_adjacent = ally_turrets
+                ti.enemy_turrets_adjacent = enemy_turrets
+                ti.turrets_adjacent = ally_turrets + enemy_turrets
+                ti.ally_transporters_adjacent = ally_transporters
+                ti.ally_outward_transporters_adjacent = ally_outward_transporters
+                ti.ally_core_adj = ally_core_adj
+                ti.enemy_transporters_adjacent = enemy_transporters
+
+        # --- third pass: fed foundry + ally non roads ---
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
+            row_xm1 = tile_info[x - 1]
+            row_x   = tile_info[x]
+            row_xp1 = tile_info[x + 1]
+            ym1 = y - 1
+            yp1 = y + 1
+
+            # --- fused cardinal adjacency (single pass) ---
+            ally_non_road = 0
+            foundries = 0
+
+            for nti in (row_xm1[y], row_xp1[y], row_x[ym1], row_x[yp1]):
+                if nti is not None and nti.has_building and nti.is_building_ally:
+                    if nti.entity_type != ROAD:
+                        ally_non_road += 1
+                    if nti.entity_type == FOUNDRY and nti.is_pointed_to:
+                        foundries += 1
+
+            ti.ally_non_road_buildings_adjacent = ally_non_road
+            ti.ally_fed_foundries_adjacent = foundries
+            # ---
+
+    @classmethod
+    def fill_tile_infoR(cls):
+        # --- cache all globals/methods up front ---
+        ct = Globals.ct
+        my_pos = Globals.my_pos
+        my_type = Globals.my_type
+        my_id = Globals.my_id
+        my_team = Globals.my_team
+        round = ct.get_current_round()
+        tile_info = cls.tile_info
+
+        # cache ct method lookups
+        get_tile_env = ct.get_tile_env
+        get_tile_building_id = ct.get_tile_building_id
+        get_tile_builder_bot_id = ct.get_tile_builder_bot_id
+        get_entity_type = ct.get_entity_type
+        get_team = ct.get_team
+        get_hp = ct.get_hp
+        get_direction = ct.get_direction
+        get_bridge_target = ct.get_bridge_target
+        get_marker_value = ct.get_marker_value
+        get_stored_resource_id = ct.get_stored_resource_id
+        get_stored_resource = ct.get_stored_resource
+
+        # cache constants
+        PASSABLE_SET = Constants.PASSABLE_SET
+        TRANSPORTERS_SET = Constants.TRANSPORTERS_SET
+        HARVESTER = EntityType.HARVESTER
+        ROAD = EntityType.ROAD
+        MARKER = EntityType.MARKER
+        SENTINEL = EntityType.SENTINEL
+        GUNNER = EntityType.GUNNER
+        BREACH = EntityType.BREACH
+        FOUNDRY = EntityType.FOUNDRY
+        LAUNCHER = EntityType.LAUNCHER
+        CONVEYOR = EntityType.CONVEYOR
+        ARMOURED_CONVEYOR = EntityType.ARMOURED_CONVEYOR
+        BRIDGE = EntityType.BRIDGE
+        CORE = EntityType.CORE
+        BUILDER_BOT = EntityType.BUILDER_BOT
+        ORE_TITANIUM = Environment.ORE_TITANIUM
+        ORE_AXIONITE = Environment.ORE_AXIONITE
+        WALL = Environment.WALL
+
+        # Transporter types that register DarkForest edges — used for type-change
+        # detection to ensure stale edges are removed when a tile transitions away
+        # from being a transporter (destruction, replacement, or type swap).
+        _TRANSPORTER_TYPES = (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE)
+
+        messages_read = 0
+        num_allies = 0
+        num_enemies = 0
+        num_enemies_8 = 0
+        num_enemy_buildings = 0
+        cls.nearby_tiles = ct.get_nearby_tiles()
+
+        maxX, maxY = cls.maxX, cls.maxY
+        new_syms = cls.new_syms
+        new_syms.clear()
+
+        harvester_set = cls.harvester_set
+        ax_harvester_set = cls.ax_harvester_set
+        ti_ally_harvester_set = cls.ti_ally_harvester_set
+        ax_ally_harvester_set = cls.ax_ally_harvester_set
+        tile_info_idx = cls.tile_info_idx
+
+        proc_nearby_tiles = []
+        inner_proc_nearby_tiles = []
+        for pos in cls.nearby_tiles:
+            x, y = pos.x, pos.y
+            idx = (((x) + 3) * 56 + ((y) + 3))
+            ti: TileInfo | None = tile_info[x][y]
+            if ti is None:
+                ti = TileInfo()
+                tile_info_idx[idx] = ti
+                tile_info[x][y] = ti
+                ti.has_building = False
+                ti.has_turret = False
+                ti.entity_type = None
+                ti.resource_id = None
+                ti.resource_type = None
+            proc_nearby_tiles.append(
+                (pos, x, y, idx, ti)
+            )
+            if my_pos.distance_squared(pos) <= 10:
+                inner_proc_nearby_tiles.append(
+                    (pos, x, y, idx, ti)
+                )
+
+        cls.inner_proc_nearby_tiles = inner_proc_nearby_tiles
+        cls.proc_nearby_tiles = proc_nearby_tiles
+
+        # track harvester tiles for second pass adjacency
+        harvester_proc = []
+        
+        my_x, my_y = Globals.my_pos
+
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            tile_env = get_tile_env(pos)
+            old_etype = ti.entity_type
+            old_is_building_ally = ti.has_building and ti.is_building_ally
+            if ti.has_turret:
+                old_turret_direction = ti.turret_direction
+
+
+            ti.env = tile_env
+            ti.round = round
+
+            building_id = get_tile_building_id(pos)
+            bot_id = get_tile_builder_bot_id(pos)
+            ti.building_id = building_id
+            ti.bot_id = bot_id
+
+            # --- entity type + team in one block, no redundant get_team calls ---
+            if building_id is not None:
+                etype = get_entity_type(building_id)
+                is_building_ally = get_team(building_id) == my_team
+                ti.is_building_ally = is_building_ally
+                if not is_building_ally:
+                    num_enemy_buildings += 1
+            else:
+                etype = None
+                is_building_ally = False
+                ti.is_building_ally = False
+
+            ti.entity_type = etype
+
+            ti.has_building = (
+                building_id is not None and etype != MARKER
+            ) or (pos == my_pos and my_type != BUILDER_BOT)
+
+            # --- bot ---
+            has_bot = bot_id is not None and bot_id != my_id
+            ti.has_bot = has_bot
+            if has_bot:
+                is_bot_ally = get_team(bot_id) == my_team
+                ti.bot_hp = get_hp(bot_id)
+                ti.is_bot_ally = is_bot_ally
+                if is_bot_ally:
+                    num_allies += 1
+                else:
+                    num_enemies += 1
+                    if abs(x-my_x) < 2 and abs(y-my_y) < 2:
+                        num_enemies_8 += 1
+
+            ti.easily_passable = False
+
+            # --- building details ---
+            if ti.has_building:
+                ti.building_hp = get_hp(building_id)
+                if etype in PASSABLE_SET or (etype == CORE and is_building_ally):
+                    ti.easily_passable = True
+
+            ti.has_turret = False
+
+            _was_transporter = old_etype in _TRANSPORTER_TYPES
+            if _was_transporter and etype != old_etype:
+                # Detach for now
+                DarkForest.detach_node(pos_idx)
+
+            if etype == CONVEYOR or etype == ARMOURED_CONVEYOR:
+                tpos = pos.add(get_direction(building_id))
+                ti.target = tpos
+                DarkForest.add_edge(pos_idx, (((tpos.x) + 3) * 56 + ((tpos.y) + 3)))
+                # resource tracking added from main
+                rid = get_stored_resource_id(building_id)
+                ti.resource_id = rid
+                ti.resource_type = get_stored_resource(building_id) if rid is not None else None
+            elif etype == BRIDGE:
+                tpos = get_bridge_target(building_id)
+                ti.target = tpos
+                DarkForest.add_edge(pos_idx, (((tpos.x) + 3) * 56 + ((tpos.y) + 3)))
+                # resource tracking added from main
+                rid = get_stored_resource_id(building_id)
+                ti.resource_id = rid
+                ti.resource_type = get_stored_resource(building_id) if rid is not None else None
+            else:
+                ti.target = None
+                ti.resource_id = None
+                ti.resource_type = None
+
+                if etype in (SENTINEL, GUNNER, BREACH, FOUNDRY):
+                    if etype == FOUNDRY:
+                        DarkForest.foundry_positions.add(idx)
+
+                    if etype in (SENTINEL, GUNNER, BREACH):
+                        ti.has_turret = True
+                        ti.turret_direction = get_direction(building_id)
+
+                        if is_building_ally:
+                            DarkForest.register_sink(
+                                pos_idx,
+                                3)
+                else:
+                    DarkForest.remove_node(pos_idx)
+
+
+            old_enemy_tower = (
+                old_etype in (SENTINEL, LAUNCHER) and
+                not old_is_building_ally
+            )
+
+            new_enemy_tower = (
+                etype in (SENTINEL, LAUNCHER) and
+                not is_building_ally
+            )
+
+            if old_enemy_tower and not new_enemy_tower:
+                if old_etype == SENTINEL:
+                    BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
+                elif old_etype == LAUNCHER:
+                    BfsBureau.remove_enemy_launcher(pos_idx)
+                elif old_etype == GUNNER:
+                    BfsBureau.remove_enemy_gunner(pos, old_turret_direction)
+
+            elif new_enemy_tower and not old_enemy_tower:
+                if etype == SENTINEL:
+                    BfsBureau.add_enemy_sentinel(pos, ti)
+                elif etype == LAUNCHER:
+                    BfsBureau.add_enemy_launcher(pos_idx)
+                elif etype == GUNNER:
+                    BfsBureau.add_enemy_gunner(pos, ti)
+
+            # [new enemy bot bfs]
+            old_ally_launcher = (old_etype == LAUNCHER and old_is_building_ally)
+            new_ally_launcher = (etype     == LAUNCHER and is_building_ally)
+
+            if old_ally_launcher and not new_ally_launcher:
+                # launcher was destroyed, replaced, or lost ally status
+                BfsBureau.remove_ally_launcher(pos_idx)
+            elif new_ally_launcher and not old_ally_launcher:
+                # newly placed ally launcher or first time we see this tile
+                BfsBureau.add_ally_launcher(pos_idx)
+            # [END NEW]
+
+            # --- harvester set tracking ---
+            if etype == HARVESTER:
+                harvester_set.add(pos_idx)
+                if tile_env == ORE_AXIONITE:
+                    ax_harvester_set.add(pos_idx)
+
+                if is_building_ally:
+                    if tile_env == ORE_TITANIUM:
+                        ti_ally_harvester_set.add(pos_idx)
+                        ax_ally_harvester_set.discard(pos_idx)
+                    else:
+                        ax_ally_harvester_set.add(pos_idx)
+                        ti_ally_harvester_set.discard(pos_idx)
+                harvester_proc.append((x, y, ti))
+            else:
+                if pos_idx in harvester_set:
+                    harvester_set.discard(pos_idx)
+                    ax_harvester_set.discard(pos_idx)
+                    ti_ally_harvester_set.discard(pos_idx)
+                    ax_ally_harvester_set.discard(pos_idx)
+
+            if etype == MARKER and is_building_ally and messages_read < 3:
+                messages_read += 1
+                
+                Comms.handle_message(get_marker_value(building_id))
+                
+
+            ti.is_pointed_to = False
+
+
+        cls.num_allies = num_allies
+        cls.num_enemies = num_enemies
+        cls.num_enemies_8 = num_enemies_8
+        cls.num_enemy_buildings = num_enemy_buildings
+
+        # --- second pass: harvester_adjacent + allied_bots_adjacent ---
+        # + is_pointed_to
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            ti.is_shield = False
+
+            if ti.target is not None:
+                targ = ti.target
+                targ_tile_info = tile_info[targ.x][targ.y]
+                if targ_tile_info is not None:
+                    targ_tile_info.is_pointed_to = True
+                    if targ_tile_info.entity_type == HARVESTER:
+                        ti.is_shield = True
+                        # Debug.dot(pos, Color.RED)
+
+            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
+            row_xm1 = tile_info[x - 1]
+            row_x   = tile_info[x]
+            row_xp1 = tile_info[x + 1]
+
+            # harvester_adjacent: cardinal only, titanium harvesters
+            nti = row_xm1[y];   h1 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_xp1[y];   h2 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_x[y - 1]; h3 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_x[y + 1]; h4 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            ti.harvester_adjacent = h1 + h2 + h3 + h4
+
+            # allied_bots_adjacent: 8-neighbors + self
+            ym1 = y - 1
+            yp1 = y + 1
+
+            cnt = 0
+            nti = row_x[y];      cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[y];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[y];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_x[ym1];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_x[yp1];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[ym1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[ym1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            ti.allied_bots_adjacent = cnt
+
+
+            # turret/transporter adjacency: only for harvesters
+            ally_core_adj = False
+            if ti.entity_type == HARVESTER:
+                ally_turrets = 0
+                enemy_turrets = 0
+                ally_transporters = 0
+                ally_outward_transporters = 0  # actually useful (non-shield)
+                enemy_transporters = 0
+
+                nti = tile_info[x ][y -1]
+                if nti is not None:
+
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+
+                    is_foundry = nti.entity_type == FOUNDRY
+                    if nti.entity_type in TRANSPORTERS_SET or is_foundry:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
+                                ally_outward_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                    if nti.entity_type == CORE and nti.is_building_ally:
+                        ally_core_adj = True
+                nti = tile_info[x +1][y ]
+                if nti is not None:
+
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+
+                    is_foundry = nti.entity_type == FOUNDRY
+                    if nti.entity_type in TRANSPORTERS_SET or is_foundry:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
+                                ally_outward_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                    if nti.entity_type == CORE and nti.is_building_ally:
+                        ally_core_adj = True
+                nti = tile_info[x ][y +1]
+                if nti is not None:
+
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+
+                    is_foundry = nti.entity_type == FOUNDRY
+                    if nti.entity_type in TRANSPORTERS_SET or is_foundry:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
+                                ally_outward_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                    if nti.entity_type == CORE and nti.is_building_ally:
+                        ally_core_adj = True
+                nti = tile_info[x -1][y ]
+                if nti is not None:
+
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+
+                    is_foundry = nti.entity_type == FOUNDRY
+                    if nti.entity_type in TRANSPORTERS_SET or is_foundry:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
+                                ally_outward_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                    if nti.entity_type == CORE and nti.is_building_ally:
+                        ally_core_adj = True
+
+                ti.ally_turrets_adjacent = ally_turrets
+                ti.enemy_turrets_adjacent = enemy_turrets
+                ti.turrets_adjacent = ally_turrets + enemy_turrets
+                ti.ally_transporters_adjacent = ally_transporters
+                ti.ally_outward_transporters_adjacent = ally_outward_transporters
+                ti.ally_core_adj = ally_core_adj
+                ti.enemy_transporters_adjacent = enemy_transporters
+
+        # --- third pass: fed foundry + ally non roads ---
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
+            row_xm1 = tile_info[x - 1]
+            row_x   = tile_info[x]
+            row_xp1 = tile_info[x + 1]
+            ym1 = y - 1
+            yp1 = y + 1
+
+            # --- fused cardinal adjacency (single pass) ---
+            ally_non_road = 0
+            foundries = 0
+
+            for nti in (row_xm1[y], row_xp1[y], row_x[ym1], row_x[yp1]):
+                if nti is not None and nti.has_building and nti.is_building_ally:
+                    if nti.entity_type != ROAD:
+                        ally_non_road += 1
+                    if nti.entity_type == FOUNDRY and nti.is_pointed_to:
+                        foundries += 1
+
+            ti.ally_non_road_buildings_adjacent = ally_non_road
+            ti.ally_fed_foundries_adjacent = foundries
+            # ---
+
+    @classmethod
+    def fill_tile_infoUNKNOWN(cls):
+        # --- cache all globals/methods up front ---
+        ct = Globals.ct
+        my_pos = Globals.my_pos
+        my_type = Globals.my_type
+        my_id = Globals.my_id
+        my_team = Globals.my_team
+        round = ct.get_current_round()
+        tile_info = cls.tile_info
+
+        # cache ct method lookups
+        get_tile_env = ct.get_tile_env
+        get_tile_building_id = ct.get_tile_building_id
+        get_tile_builder_bot_id = ct.get_tile_builder_bot_id
+        get_entity_type = ct.get_entity_type
+        get_team = ct.get_team
+        get_hp = ct.get_hp
+        get_direction = ct.get_direction
+        get_bridge_target = ct.get_bridge_target
+        get_marker_value = ct.get_marker_value
+        get_stored_resource_id = ct.get_stored_resource_id
+        get_stored_resource = ct.get_stored_resource
+
+        # cache constants
+        PASSABLE_SET = Constants.PASSABLE_SET
+        TRANSPORTERS_SET = Constants.TRANSPORTERS_SET
+        HARVESTER = EntityType.HARVESTER
+        ROAD = EntityType.ROAD
+        MARKER = EntityType.MARKER
+        SENTINEL = EntityType.SENTINEL
+        GUNNER = EntityType.GUNNER
+        BREACH = EntityType.BREACH
+        FOUNDRY = EntityType.FOUNDRY
+        LAUNCHER = EntityType.LAUNCHER
+        CONVEYOR = EntityType.CONVEYOR
+        ARMOURED_CONVEYOR = EntityType.ARMOURED_CONVEYOR
+        BRIDGE = EntityType.BRIDGE
+        CORE = EntityType.CORE
+        BUILDER_BOT = EntityType.BUILDER_BOT
+        ORE_TITANIUM = Environment.ORE_TITANIUM
+        ORE_AXIONITE = Environment.ORE_AXIONITE
+        WALL = Environment.WALL
+
+        # Transporter types that register DarkForest edges — used for type-change
+        # detection to ensure stale edges are removed when a tile transitions away
+        # from being a transporter (destruction, replacement, or type swap).
+        _TRANSPORTER_TYPES = (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE)
+
+        messages_read = 0
+        num_allies = 0
+        num_enemies = 0
+        num_enemies_8 = 0
+        num_enemy_buildings = 0
+        cls.nearby_tiles = ct.get_nearby_tiles()
+
+
+        harvester_set = cls.harvester_set
+        ax_harvester_set = cls.ax_harvester_set
+        ti_ally_harvester_set = cls.ti_ally_harvester_set
+        ax_ally_harvester_set = cls.ax_ally_harvester_set
+        tile_info_idx = cls.tile_info_idx
+
+        proc_nearby_tiles = []
+        inner_proc_nearby_tiles = []
+        for pos in cls.nearby_tiles:
+            x, y = pos.x, pos.y
+            idx = (((x) + 3) * 56 + ((y) + 3))
+            ti: TileInfo | None = tile_info[x][y]
+            if ti is None:
+                ti = TileInfo()
+                tile_info_idx[idx] = ti
+                tile_info[x][y] = ti
+                ti.has_building = False
+                ti.has_turret = False
+                ti.entity_type = None
+                ti.resource_id = None
+                ti.resource_type = None
+            proc_nearby_tiles.append(
+                (pos, x, y, idx, ti)
+            )
+            if my_pos.distance_squared(pos) <= 10:
+                inner_proc_nearby_tiles.append(
+                    (pos, x, y, idx, ti)
+                )
+
+        cls.inner_proc_nearby_tiles = inner_proc_nearby_tiles
+        cls.proc_nearby_tiles = proc_nearby_tiles
+
+        # track harvester tiles for second pass adjacency
+        harvester_proc = []
+        
+        my_x, my_y = Globals.my_pos
+
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            tile_env = get_tile_env(pos)
+            old_etype = ti.entity_type
+            old_is_building_ally = ti.has_building and ti.is_building_ally
+            if ti.has_turret:
+                old_turret_direction = ti.turret_direction
+
+
+            ti.env = tile_env
+            ti.round = round
+
+            building_id = get_tile_building_id(pos)
+            bot_id = get_tile_builder_bot_id(pos)
+            ti.building_id = building_id
+            ti.bot_id = bot_id
+
+            # --- entity type + team in one block, no redundant get_team calls ---
+            if building_id is not None:
+                etype = get_entity_type(building_id)
+                is_building_ally = get_team(building_id) == my_team
+                ti.is_building_ally = is_building_ally
+                if not is_building_ally:
+                    num_enemy_buildings += 1
+            else:
+                etype = None
+                is_building_ally = False
+                ti.is_building_ally = False
+
+            ti.entity_type = etype
+
+            ti.has_building = (
+                building_id is not None and etype != MARKER
+            ) or (pos == my_pos and my_type != BUILDER_BOT)
+
+            # --- bot ---
+            has_bot = bot_id is not None and bot_id != my_id
+            ti.has_bot = has_bot
+            if has_bot:
+                is_bot_ally = get_team(bot_id) == my_team
+                ti.bot_hp = get_hp(bot_id)
+                ti.is_bot_ally = is_bot_ally
+                if is_bot_ally:
+                    num_allies += 1
+                else:
+                    num_enemies += 1
+                    if abs(x-my_x) < 2 and abs(y-my_y) < 2:
+                        num_enemies_8 += 1
+
+            ti.easily_passable = False
+
+            # --- building details ---
+            if ti.has_building:
+                ti.building_hp = get_hp(building_id)
+                if etype in PASSABLE_SET or (etype == CORE and is_building_ally):
+                    ti.easily_passable = True
+
+            ti.has_turret = False
+
+            _was_transporter = old_etype in _TRANSPORTER_TYPES
+            if _was_transporter and etype != old_etype:
+                # Detach for now
+                DarkForest.detach_node(pos_idx)
+
+            if etype == CONVEYOR or etype == ARMOURED_CONVEYOR:
+                tpos = pos.add(get_direction(building_id))
+                ti.target = tpos
+                DarkForest.add_edge(pos_idx, (((tpos.x) + 3) * 56 + ((tpos.y) + 3)))
+                # resource tracking added from main
+                rid = get_stored_resource_id(building_id)
+                ti.resource_id = rid
+                ti.resource_type = get_stored_resource(building_id) if rid is not None else None
+            elif etype == BRIDGE:
+                tpos = get_bridge_target(building_id)
+                ti.target = tpos
+                DarkForest.add_edge(pos_idx, (((tpos.x) + 3) * 56 + ((tpos.y) + 3)))
+                # resource tracking added from main
+                rid = get_stored_resource_id(building_id)
+                ti.resource_id = rid
+                ti.resource_type = get_stored_resource(building_id) if rid is not None else None
+            else:
+                ti.target = None
+                ti.resource_id = None
+                ti.resource_type = None
+
+                if etype in (SENTINEL, GUNNER, BREACH, FOUNDRY):
+                    if etype == FOUNDRY:
+                        DarkForest.foundry_positions.add(idx)
+
+                    if etype in (SENTINEL, GUNNER, BREACH):
+                        ti.has_turret = True
+                        ti.turret_direction = get_direction(building_id)
+
+                        if is_building_ally:
+                            DarkForest.register_sink(
+                                pos_idx,
+                                3)
+                else:
+                    DarkForest.remove_node(pos_idx)
+
+
+            old_enemy_tower = (
+                old_etype in (SENTINEL, LAUNCHER) and
+                not old_is_building_ally
+            )
+
+            new_enemy_tower = (
+                etype in (SENTINEL, LAUNCHER) and
+                not is_building_ally
+            )
+
+            if old_enemy_tower and not new_enemy_tower:
+                if old_etype == SENTINEL:
+                    BfsBureau.remove_enemy_sentinel(pos, old_turret_direction)
+                elif old_etype == LAUNCHER:
+                    BfsBureau.remove_enemy_launcher(pos_idx)
+                elif old_etype == GUNNER:
+                    BfsBureau.remove_enemy_gunner(pos, old_turret_direction)
+
+            elif new_enemy_tower and not old_enemy_tower:
+                if etype == SENTINEL:
+                    BfsBureau.add_enemy_sentinel(pos, ti)
+                elif etype == LAUNCHER:
+                    BfsBureau.add_enemy_launcher(pos_idx)
+                elif etype == GUNNER:
+                    BfsBureau.add_enemy_gunner(pos, ti)
+
+            # [new enemy bot bfs]
+            old_ally_launcher = (old_etype == LAUNCHER and old_is_building_ally)
+            new_ally_launcher = (etype     == LAUNCHER and is_building_ally)
+
+            if old_ally_launcher and not new_ally_launcher:
+                # launcher was destroyed, replaced, or lost ally status
+                BfsBureau.remove_ally_launcher(pos_idx)
+            elif new_ally_launcher and not old_ally_launcher:
+                # newly placed ally launcher or first time we see this tile
+                BfsBureau.add_ally_launcher(pos_idx)
+            # [END NEW]
+
+            # --- harvester set tracking ---
+            if etype == HARVESTER:
+                harvester_set.add(pos_idx)
+                if tile_env == ORE_AXIONITE:
+                    ax_harvester_set.add(pos_idx)
+
+                if is_building_ally:
+                    if tile_env == ORE_TITANIUM:
+                        ti_ally_harvester_set.add(pos_idx)
+                        ax_ally_harvester_set.discard(pos_idx)
+                    else:
+                        ax_ally_harvester_set.add(pos_idx)
+                        ti_ally_harvester_set.discard(pos_idx)
+                harvester_proc.append((x, y, ti))
+            else:
+                if pos_idx in harvester_set:
+                    harvester_set.discard(pos_idx)
+                    ax_harvester_set.discard(pos_idx)
+                    ti_ally_harvester_set.discard(pos_idx)
+                    ax_ally_harvester_set.discard(pos_idx)
+
+            if etype == MARKER and is_building_ally and messages_read < 3:
+                messages_read += 1
+                
+                Comms.handle_message(get_marker_value(building_id))
+                
+
+            ti.is_pointed_to = False
+
+
+        cls.num_allies = num_allies
+        cls.num_enemies = num_enemies
+        cls.num_enemies_8 = num_enemies_8
+        cls.num_enemy_buildings = num_enemy_buildings
+
+        # --- second pass: harvester_adjacent + allied_bots_adjacent ---
+        # + is_pointed_to
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            ti.is_shield = False
+
+            if ti.target is not None:
+                targ = ti.target
+                targ_tile_info = tile_info[targ.x][targ.y]
+                if targ_tile_info is not None:
+                    targ_tile_info.is_pointed_to = True
+                    if targ_tile_info.entity_type == HARVESTER:
+                        ti.is_shield = True
+                        # Debug.dot(pos, Color.RED)
+
+            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
+            row_xm1 = tile_info[x - 1]
+            row_x   = tile_info[x]
+            row_xp1 = tile_info[x + 1]
+
+            # harvester_adjacent: cardinal only, titanium harvesters
+            nti = row_xm1[y];   h1 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_xp1[y];   h2 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_x[y - 1]; h3 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            nti = row_x[y + 1]; h4 = nti is not None and nti.has_building and nti.entity_type == HARVESTER and nti.env == ORE_TITANIUM
+            ti.harvester_adjacent = h1 + h2 + h3 + h4
+
+            # allied_bots_adjacent: 8-neighbors + self
+            ym1 = y - 1
+            yp1 = y + 1
+
+            cnt = 0
+            nti = row_x[y];      cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[y];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[y];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_x[ym1];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_x[yp1];    cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[ym1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[ym1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xm1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            nti = row_xp1[yp1];  cnt += nti is not None and nti.has_bot and nti.is_bot_ally
+            ti.allied_bots_adjacent = cnt
+
+
+            # turret/transporter adjacency: only for harvesters
+            ally_core_adj = False
+            if ti.entity_type == HARVESTER:
+                ally_turrets = 0
+                enemy_turrets = 0
+                ally_transporters = 0
+                ally_outward_transporters = 0  # actually useful (non-shield)
+                enemy_transporters = 0
+
+                nti = tile_info[x ][y -1]
+                if nti is not None:
+
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+
+                    is_foundry = nti.entity_type == FOUNDRY
+                    if nti.entity_type in TRANSPORTERS_SET or is_foundry:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
+                                ally_outward_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                    if nti.entity_type == CORE and nti.is_building_ally:
+                        ally_core_adj = True
+                nti = tile_info[x +1][y ]
+                if nti is not None:
+
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+
+                    is_foundry = nti.entity_type == FOUNDRY
+                    if nti.entity_type in TRANSPORTERS_SET or is_foundry:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
+                                ally_outward_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                    if nti.entity_type == CORE and nti.is_building_ally:
+                        ally_core_adj = True
+                nti = tile_info[x ][y +1]
+                if nti is not None:
+
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+
+                    is_foundry = nti.entity_type == FOUNDRY
+                    if nti.entity_type in TRANSPORTERS_SET or is_foundry:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
+                                ally_outward_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                    if nti.entity_type == CORE and nti.is_building_ally:
+                        ally_core_adj = True
+                nti = tile_info[x -1][y ]
+                if nti is not None:
+
+                    if nti.has_turret:
+                        if nti.is_building_ally:
+                            ally_turrets += 1
+                        else:
+                            enemy_turrets += 1
+
+                    is_foundry = nti.entity_type == FOUNDRY
+                    if nti.entity_type in TRANSPORTERS_SET or is_foundry:
+                        if nti.is_building_ally:
+                            ally_transporters += 1
+                            if not (nti.entity_type in (CONVEYOR, ARMOURED_CONVEYOR, BRIDGE) and nti.target == pos) or is_foundry:
+                                ally_outward_transporters += 1
+                        else:
+                            enemy_transporters += 1
+                    if nti.entity_type == CORE and nti.is_building_ally:
+                        ally_core_adj = True
+
+                ti.ally_turrets_adjacent = ally_turrets
+                ti.enemy_turrets_adjacent = enemy_turrets
+                ti.turrets_adjacent = ally_turrets + enemy_turrets
+                ti.ally_transporters_adjacent = ally_transporters
+                ti.ally_outward_transporters_adjacent = ally_outward_transporters
+                ti.ally_core_adj = ally_core_adj
+                ti.enemy_transporters_adjacent = enemy_transporters
+
+        # --- third pass: fed foundry + ally non roads ---
+        for pos, x, y, pos_idx, ti in proc_nearby_tiles:
+            # pre-fetch rows for adjacency to avoid repeated tile_info[x+/-1] lookups
+            row_xm1 = tile_info[x - 1]
+            row_x   = tile_info[x]
+            row_xp1 = tile_info[x + 1]
+            ym1 = y - 1
+            yp1 = y + 1
+
+            # --- fused cardinal adjacency (single pass) ---
+            ally_non_road = 0
+            foundries = 0
+
+            for nti in (row_xm1[y], row_xp1[y], row_x[ym1], row_x[yp1]):
+                if nti is not None and nti.has_building and nti.is_building_ally:
+                    if nti.entity_type != ROAD:
+                        ally_non_road += 1
+                    if nti.entity_type == FOUNDRY and nti.is_pointed_to:
+                        foundries += 1
+
+            ti.ally_non_road_buildings_adjacent = ally_non_road
+            ti.ally_fed_foundries_adjacent = foundries
+            # ---
+
+
+
+# ---===
+    @classmethod
+    def debug_tile_info(cls):
+        """Debug all tile infos: wall=GREEN, titan ore=BLUE, axium ore=ORANGE, unseen=BLACK"""
+        tile_info = cls.tile_info
+        
+        for x in range(cls.W):
+            for y in range(cls.H):
+                pos = Position(x, y)
+                ti = tile_info[x][y]
+                
+                if ti is None:
+                    Debug.dot(pos, Color.BLACK)
+                else:
+                    env = ti.env
+                    if env == Environment.WALL:
+                        Debug.dot(pos, Color.GREEN)
+                    elif env == Environment.ORE_TITANIUM:
+                        Debug.dot(pos, Color.BLUE)
+                    elif env == Environment.ORE_AXIONITE:
+                        Debug.dot(pos, Color.ORANGE)
+# ===---
+
+# ---===
+    @classmethod
+    def debug_pointed_to(cls):
+        """Debug proc_nearby_tiles: pointed-to=RED, not pointed-to=WHITE"""
+        for pos, x, y, pos_idx, ti in cls.proc_nearby_tiles:
+            if ti.is_pointed_to:
+                Debug.dot(pos, Color.RED)
+            else:
+                Debug.dot(pos, Color.WHITE)
+# ===---
+
+# ---===
+    @classmethod
+    def sync_tile_infos(cls):
+        # can be made more efficient
+
+        tile_info = cls.tile_info
+        maxX, maxY = cls.maxX, cls.maxY
+        sym = Symmetry.map_sym
+        new_syms = cls.new_syms
+
+        for x in range(cls.W):
+            row = tile_info[x]
+            if sym == Sym.VERTICAL:
+                ox = maxX - x
+            elif sym == Sym.HORIZONTAL:
+                ox = x
+            else:
+                ox = maxX - x
+            orow = tile_info[ox]
+            
+            for y in range(cls.H):
+                ti = row[y]
+                if ti is None:
+                    continue
+
+                if sym == Sym.VERTICAL:
+                    oy = y
+                elif sym == Sym.HORIZONTAL:
+                    oy = maxY - y
+                else:
+                    oy = maxY - y
+
+                opp_ti = tile_info[ox][oy]
+                if opp_ti is None:
+                    opp_ti = TileInfo()
+                    opp_ti.env = ti.env
+                    opp_ti.has_bot = False
+                    opp_ti.has_turret = False
+                    opp_ti.has_building = False
+                    opp_ti.easily_passable = False
+                    opp_ti.harvester_adjacent = 0
+                    opp_ti.entity_type = None
+                    opp_ti.target = None
+                    opp_ti.allied_bots_adjacent = 0
+                    opp_ti.resource_id = None
+                    opp_ti.resource_type = None
+                    orow[oy] = opp_ti
+                    BfsBureau.ti_ore_adj[(((ox) + 3) * 56 + ((oy) + 3))] = BfsBureau.ti_ore_adj[(((x) + 3) * 56 + ((y) + 3))]
+                    new_syms.append(Position(ox, oy))
+# ===---

@@ -1,0 +1,538 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+{% from 'bbot/mode.j2' import Mode %}
+
+
+class TreeNode:
+    __slots__ = ('up',)
+    up: int | None  # can be detached. if None then is root
+
+
+# total flow/harvester is set to 12 (LCM of 1,2,3,4)
+# bottleneck of a route is 4 harvesters = 4 * 12 = 48 pressure
+{% set FLOW_PER_HARVESTER = 12 %}
+{% set MAX_ACCEPTABLE_PRESSURE = FLOW_PER_HARVESTER * 3 %}
+
+
+class DarkForest:
+    nodes: list[TreeNode | None] = [None] * {{ PADDED_GRID_SIZE }}
+    kind: list[int] = [0] * {{ PADDED_GRID_SIZE }}   # per-position sink class
+    flow: list[int]        # flow in subtree (bottom-up)
+    pressure: list[int]    # pressure at node (top-down, reset at sink boundaries)
+    node_kind: list[int]   # propagated kind per node (top-down)
+    core_sink_set: set[int] = set()  # titanium-only ALLY_CORE reachable nodes below pressure threshold
+    sink_set: set[int]               # alias for core_sink_set (backward compat)
+    leaf_set: set[int]               # titanium leaf nodes (no bridge + has flow)
+    ax_tagged: list[bool]            # True if node has any axionite flow in subtree
+    sight_last_id: list[int]         # last resource-ID seen at this position; -1 = never
+    sight_last_round: list[int]      # game-round when that ID was last observed
+    sight_flowing: list[bool]        # sight-based flow: True if fresh valid resource seen recently
+    foundry_positions: set[int] = set()  # persistent: encoded positions of built foundries
+    refined_ax_line: set[int] = set()    # recomputed each tick: ALLY_CORE nodes on refined-axionite output paths
+    foundry_owner:        list[int]           # per-node encoded foundry pos, -1 if none
+    foundry_ti_sink_sets: dict[int, set[int]] # foundry_idx -> titanium-side reachable nodes
+    foundry_ax_sink_sets: dict[int, set[int]] # foundry_idx -> axionite-side reachable nodes
+    foundry_ti_flow: list[int]   # titanium flow at each node
+    foundry_ax_flow: list[int]   # axionite flow at each node
+    needs_update: bool = True
+    
+    @classmethod
+    def init(cls):
+        {% set N = PADDED_GRID_SIZE %}
+        {% set SIGHT_WINDOW = 4 %}
+
+        cls.sight_last_id    = [-1]                      * {{ N }}
+        cls.sight_last_round = [{{ -SIGHT_WINDOW }} - 1] * {{ N }}
+
+        if Globals.my_type == EntityType.BUILDER_BOT:
+            for p in Unit.core_pos_set:
+                cls.register_sink(p, {{ Kind.ALLY_CORE }})
+            return
+
+        if Globals.my_type in (EntityType.SENTINEL, EntityType.GUNNER):
+            cls.register_sink({{ encode_pos('Globals.my_pos.x', 'Globals.my_pos.y') }},
+                              {{ Kind.ALLY_CONSUMER }})
+
+    @classmethod
+    def compute_core_sink_set(cls):
+        """No-op: core_sink_set is now computed directly in fcompute."""
+        pass
+
+    @classmethod
+    def register_enemy_core(cls):
+        for p in Symmetry.enemy_core_pos_set:
+            cls.needs_update = True
+            cls.register_sink(p, {{ Kind.ENEMY_CORE }})
+
+    @classmethod
+    def remove_node(cls, u: int):
+        if cls.kind[u] == {{ Kind.ALLY_CORE }} or cls.kind[u] == {{ Kind.ENEMY_CORE }}:
+            return
+
+        if cls.nodes[u] is not None:
+            cls.needs_update = True
+            cls.nodes[u] = None
+            cls.kind[u] = {{ Kind.NONE }}
+
+    @classmethod
+    def detach_node(cls, u: int):
+        #severe it from parent/tree
+        n = cls.nodes[u]
+        if n is not None:
+            cls.needs_update = True
+            n.up = None
+
+    @classmethod
+    def register_sink(cls, u: int, k: int):
+        """Mark position u as a sink of class k and ensure a root node exists there."""
+        cls.kind[u] = k
+        ns = cls.nodes
+        if ns[u] is None:
+            n = TreeNode()
+            n.up = None
+            ns[u] = n
+        else:
+            ns[u].up = None  # sinks are roots
+
+    @classmethod
+    def add_edge(cls, u: int, v: int):
+
+        {# /* # infinite loop test */ #}
+        {# /* if u < v: */ #}
+            {# /* cls.add_edge(v, u) */ #}
+
+        # register (u,v) edge: u.up = v
+        ns = cls.nodes
+        if ns[u] is None:
+            ns[u] = TreeNode()
+        ns[u].up = v
+
+
+# ---===
+    @classmethod
+    def debug_pressure(cls):
+        """Draw dots: green=low, yellow=med, orange=high, red=saturated."""
+        ns = cls.nodes
+        pressure = cls.pressure
+        ct = Globals.ct
+        for x in range(50):
+            for y in range(50):
+                i = {{ encode_pos('x', 'y') }}
+                if ns[i] is not None and pressure[i] > 0:
+                    p = pressure[i]
+                    if p <= {{ FLOW_PER_HARVESTER }}:
+                        ct.draw_indicator_dot(Position(x, y), 0, 255, 0)
+                    elif p <= {{ FLOW_PER_HARVESTER * 2 }}:
+                        ct.draw_indicator_dot(Position(x, y), 255, 255, 0)
+                    elif p <= {{ FLOW_PER_HARVESTER * 3 }}:
+                        ct.draw_indicator_dot(Position(x, y), 255, 128, 0)
+                    else:
+                        ct.draw_indicator_dot(Position(x, y), 255, 0, 0)
+# ===---
+# ---===
+    @classmethod
+    def debug_flow(cls):
+        """Draw dots: green=low, yellow=med, orange=high, red=saturated."""
+        ns = cls.nodes
+        flow = cls.flow
+        ct = Globals.ct
+        for x in range(50):
+            for y in range(50):
+                i = {{ encode_pos('x', 'y') }}
+                if ns[i] is not None and flow[i] > 0:
+                    p = flow[i]
+                    if p <= {{ FLOW_PER_HARVESTER }}:
+                        ct.draw_indicator_dot(Position(x, y), 0, 255, 0)
+                    elif p <= {{ FLOW_PER_HARVESTER * 2 }}:
+                        ct.draw_indicator_dot(Position(x, y), 255, 255, 0)
+                    elif p <= {{ FLOW_PER_HARVESTER * 3 }}:
+                        ct.draw_indicator_dot(Position(x, y), 255, 128, 0)
+                    else:
+                        ct.draw_indicator_dot(Position(x, y), 255, 0, 0)
+# ===---
+# ---===
+    @classmethod
+    def debug_sink_set(cls):
+        for i in cls.core_sink_set:
+            {% set x, y = decode_pos('i') %}
+            Globals.ct.draw_indicator_dot(Position({{ x }}, {{ y }}), 0, 255, 255)
+# ===---
+# ---===
+    @classmethod
+    def debug_enemy_core_connected(cls):
+        """Draw magenta dots on nodes whose propagated kind is Kind.ENEMY_CORE."""
+        ns = cls.nodes
+        nk = cls.node_kind
+        ct = Globals.ct
+        for x in range(50):
+            for y in range(50):
+                i = {{ encode_pos('x', 'y') }}
+                if ns[i] is not None and nk[i] == {{ Kind.ENEMY_CORE }}:
+                    ct.draw_indicator_dot(Position(x, y), 255, 0, 255)
+# ===---
+# ---===
+    @classmethod
+    def debug_kind(cls):
+        """Draw dots colored by propagated node_kind."""
+        ns = cls.nodes
+        nk = cls.node_kind
+        ct = Globals.ct
+        _palette = (
+            (128, 128, 128),
+            (0,   255, 0  ),
+            (255, 0,   0  ),
+            (0,   128, 255),
+            (255, 255, 0  ),
+            (255, 0,   255),
+            (0,   255, 255),
+            (255, 128, 0  ),
+            (128, 0,   255),
+            (128, 255, 0  ),
+        )
+        _plen = len(_palette)
+        for x in range(50):
+            for y in range(50):
+                i = {{ encode_pos('x', 'y') }}
+                if ns[i] is not None:
+                    k = nk[i]
+                    if k:
+                        if k < _plen:
+                            r, g, b = _palette[k]
+                        else:
+                            hue = (k * 137) % 360
+                            h6 = hue // 60
+                            f = (hue % 60) * 255 // 60
+                            if   h6 == 0: r, g, b = 255, f, 0
+                            elif h6 == 1: r, g, b = 255 - f, 255, 0
+                            elif h6 == 2: r, g, b = 0, 255, f
+                            elif h6 == 3: r, g, b = 0, 255 - f, 255
+                            elif h6 == 4: r, g, b = f, 0, 255
+                            else:         r, g, b = 255, 0, 255 - f
+                        ct.draw_indicator_dot(Position(x, y), r, g, b)
+# ===---
+# ---===
+    @classmethod
+    def debug_ax_tagged(cls):
+        """Draw orange dots on nodes tagged as carrying axionite flow."""
+        ns = cls.nodes
+        ax = cls.ax_tagged
+        ct = Globals.ct
+        for x in range(50):
+            for y in range(50):
+                i = {{ encode_pos('x', 'y') }}
+                if ns[i] is not None and ax[i]:
+                    Debug.dot(Position(x, y), Color.ORANGE)
+# ===---
+# ---===
+    @classmethod
+    def debug_sight_flowing(cls):
+        """Draw white dots on nodes that have active sight-based flow."""
+        ns = cls.nodes
+        sf = cls.sight_flowing
+        ct = Globals.ct
+        for x in range(50):
+            for y in range(50):
+                i = {{ encode_pos('x', 'y') }}
+                if ns[i] is not None and sf[i]:
+                    Debug.dot(Position(x, y), Color.WHITE)
+# ===---
+# ---===
+    @classmethod
+    def debug_refined_ax_line(cls):
+        """Draw cyan dots on nodes in the refined axionite line."""
+        for i in cls.refined_ax_line:
+            {% set x, y = decode_pos('i') %}
+            Debug.dot(Position({{ x }}, {{ y }}), Color.CYAN)
+# ===---
+# ---===
+    @classmethod
+    def debug_foundry_positions(cls):
+        """Draw yellow dots on all known foundry positions."""
+        for i in cls.foundry_positions:
+            {% set x, y = decode_pos('i') %}
+            Debug.dot(Position({{ x }}, {{ y }}), Color.YELLOW)
+# ===---
+
+
+# ---===
+    @classmethod
+    def fcompute(cls):
+        {# /* Debug.log('called fcompute') */ #}
+
+        {% set N = PADDED_GRID_SIZE %}
+
+        if TLEManager.tle_once and not cls.needs_update:
+            return
+
+        ns       = cls.nodes
+        kind     = cls.kind
+        core_pos_set = Unit.core_pos_set
+        harvesters   = Map.harvester_set
+        ax_harvesters = Map.ax_harvester_set   # axionite harvesters
+
+        flow     = [0] * {{ N }}
+        cc       = [0] * {{ N }}
+        ax_tagged = [False] * {{ N }}   # True if node sits on an axionite-fed subtree
+
+        # ── harvest → flow; seed ax_tagged for axionite harvester neighbours ──
+        _sh = (0, {{ FLOW_PER_HARVESTER }}, {{ FLOW_PER_HARVESTER // 2 }},
+               {{ FLOW_PER_HARVESTER // 3 }}, {{ FLOW_PER_HARVESTER // 4 }})
+
+        # ── harvest → flow; seed ax_tagged for axionite harvester neighbours ──
+        _sh = (0, {{ FLOW_PER_HARVESTER }}, {{ FLOW_PER_HARVESTER // 2 }},
+               {{ FLOW_PER_HARVESTER // 3 }}, {{ FLOW_PER_HARVESTER // 4 }})
+
+        ti_flow = [0] * {{ N }}
+        ax_flow = [0] * {{ N }}
+
+        for h in harvesters:
+            _is_ax = h in ax_harvesters
+            {% for d in (-1, 1, -PH, PH) %}
+            _n{{ loop.index0 }} = h {{ sign0(d) }}
+            _t{{ loop.index0 }} = ns[_n{{ loop.index0 }}]
+            _e{{ loop.index0 }} = _t{{ loop.index0 }} is not None and _t{{ loop.index0 }}.up != h
+            {% endfor %}
+            cnt = _e0 + _e1 + _e2 + _e3
+            if cnt:
+                s = _sh[cnt]
+                {% for d in (-1, 1, -PH, PH) %}
+                if _e{{ loop.index0 }}:
+                    flow[_n{{ loop.index0 }}] += s
+                    if _is_ax:
+                        ax_flow[_n{{ loop.index0 }}] += s
+                        ax_tagged[_n{{ loop.index0 }}] = True
+                    else:
+                        ti_flow[_n{{ loop.index0 }}] += s
+                {% endfor %}
+
+        # TODO: Maybe weight higher
+        # ── foundries as refined-axionite sources (act like titanium harvesters) ──
+        _fo = ({{ -1 }}, {{ 1 }}, {{ -PH }}, {{ PH }})
+        for _f in cls.foundry_positions:
+            _fn_list = [_f + _d for _d in _fo
+                        if ns[_f + _d] is not None and ns[_f + _d].up != _f]
+            _cnt = len(_fn_list)
+            if _cnt:
+                _s = _sh[_cnt]
+                for _fn in _fn_list:
+                    flow[_fn] += _s
+                    ti_flow[_fn] += _s   # refined axionite acts as titanium downstream
+
+        # ── fix dead parents, indegree, collect active ──
+        active = []
+        aa = active.append
+        {% for i in pos2500 %}
+        if (t := ns[{{ i }}]) is not None:
+            aa({{ i }})
+            if (p := t.up) is not None:
+                if ns[p] is not None and p not in harvesters:
+                    cc[p] += 1
+                # else:
+                #     t.up = None
+        {% endfor %}
+
+        # ── find leaves (zero in-degree) ──
+        q = []
+        qa = q.append
+        for i in active:
+            if not cc[i]:
+                qa(i)
+
+        _initial_leaves = list(q)
+
+        # ── bottom-up BFS: propagate flow AND ax_tagged leaf→root ──
+        qi = 0
+        while qi < len(q):
+            u = q[qi]; qi += 1
+            p = ns[u].up
+            if p is not None and ns[p] is not None and p not in harvesters:
+                flow[p]    += flow[u]
+                ti_flow[p] += ti_flow[u]
+                ax_flow[p] += ax_flow[u]
+                # propagate ax taint upward
+                if ax_tagged[u]:
+                    ax_tagged[p] = True
+                cc[p] -= 1
+                if not cc[p]:
+                    qa(p)
+
+        # ════════════════════════════════════════════════════════════════
+        # ── sight-based flow tracking (must run before top-down pass) ──
+        # A node is sight_flowing if a valid resource was observed at it
+        # within the last {{ SIGHT_WINDOW }} rounds.  Propagated leaf→root so
+        # any ancestor of a flowing node also becomes sight_flowing.
+        # Used below to gate core_sink_set: no empirical flow → not a
+        # valid routing target, even if pressure is under threshold.
+        # ════════════════════════════════════════════════════════════════
+
+        _valid_rt = (ResourceType.TITANIUM, ResourceType.REFINED_AXIONITE)
+
+        # moved
+        # if not hasattr(cls, 'sight_last_id'):
+        #     cls.sight_last_id    = [-1]                  * {{ N }}
+        #     cls.sight_last_round = [-{{ SIGHT_WINDOW }} - 1]  * {{ N }}
+
+        _sight_last_id    = cls.sight_last_id
+        _sight_last_round = cls.sight_last_round
+        _cur_round        = Globals.round
+
+        for _pos, _x, _y, _idx, _ti in Map.proc_nearby_tiles:
+            _rt = _ti.resource_type
+            if _rt in _valid_rt:
+                _rid = _ti.resource_id
+                if _rid is not None:
+                    if _sight_last_id[_idx] != _rid:
+                        _sight_last_id[_idx] = _rid
+                    _sight_last_round[_idx] = _cur_round
+
+        sight_flowing = [False] * {{ N }}
+        for u in active:
+            if (
+                _sight_last_id[u] != -1
+                and (_cur_round - _sight_last_round[u]) <= {{ SIGHT_WINDOW }}
+            ):
+                sight_flowing[u] = True
+
+        # propagate leaf→root along existing tree edges
+        for u in q:
+            if sight_flowing[u]:
+                p = ns[u].up
+                if p is not None:
+                    sight_flowing[p] = True
+
+        cls.sight_flowing = sight_flowing
+
+        # ── top-down pass: pressure, node_kind, core_sink_set, per-foundry sink sets ──
+        pressure    = [0] * {{ N }}
+        nk          = [0] * {{ N }}
+        foundry_owner = [-1] * {{ N }}   # encoded pos of the foundry this node feeds, or -1
+
+        _ALLY_CONSUMER_K = {{ Kind.ALLY_CONSUMER }}
+        _foundry_set     = cls.foundry_positions
+
+        # core_sink_set: ALLY_CORE-reachable nodes that are:
+        #   1. below the pressure threshold (not saturated)
+        #   2. not ax_tagged (pure titanium subtree)
+        #   3. sight_flowing (empirically observed to carry resources)
+        # All three conditions must hold.  This is strictly narrower than
+        # the old (pressure + ax_tagged) pair — sight_flowing can only
+        # remove nodes, never add ones the old code wouldn't include.
+        core_sink_set: set[int] = set()
+        cs_add = core_sink_set.add
+        THR = {{ MAX_ACCEPTABLE_PRESSURE - FLOW_PER_HARVESTER }}
+
+        for u in reversed(q):
+            p = ns[u].up
+            if p is None:                        # u is a root / sink
+                pressure[u] = flow[u]
+                k = kind[u]
+                # foundry roots own themselves
+                fo = u if (k == _ALLY_CONSUMER_K and u in _foundry_set) else -1
+            elif kind[p]:                        # parent is a sink boundary
+                pressure[u] = flow[u]
+                k = kind[p]
+                # direct children of a foundry belong to it
+                fo = p if (kind[p] == _ALLY_CONSUMER_K and p in _foundry_set) else -1
+            else:
+                pressure[u] = pressure[p]
+                k = nk[p]
+                fo = foundry_owner[p]            # inherit from parent
+            nk[u] = k
+            foundry_owner[u] = fo
+            if (k == {{ Kind.ALLY_CORE }}
+                    and pressure[u] <= THR
+                    and not ax_tagged[u]
+                    and sight_flowing[u]):      # ← new: must have empirical flow
+                cs_add(u)
+
+        # cores themselves are always valid sinks regardless of the above
+        core_sink_set |= core_pos_set
+
+        # ── per-foundry titanium / axionite sink sets ──
+        foundry_ti_sink_sets: dict[int, set[int]] = {f: set() for f in _foundry_set}
+        foundry_ax_sink_sets: dict[int, set[int]] = {f: set() for f in _foundry_set}
+    
+
+        for u in active:
+            fo = foundry_owner[u]
+            if fo == -1:
+                continue
+            if ax_tagged[u]:
+                foundry_ax_sink_sets[fo].add(u)
+            else:
+                foundry_ti_sink_sets[fo].add(u)
+
+        cls.flow          = flow
+        cls.pressure      = pressure
+        cls.node_kind     = nk
+        cls.ax_tagged     = ax_tagged
+        cls.core_sink_set = core_sink_set
+        cls.sink_set      = core_sink_set   # backward-compat alias
+        cls.foundry_owner        = foundry_owner        # per-node encoded foundry pos, -1 if none
+        cls.foundry_ti_sink_sets = foundry_ti_sink_sets # {foundry_idx -> set of ti-feeding nodes}
+        cls.foundry_ax_sink_sets = foundry_ax_sink_sets # {foundry_idx -> set of ax-feeding nodes}
+        cls.foundry_ti_flow = ti_flow   # total titanium flow at each node
+        cls.foundry_ax_flow = ax_flow   # total axionite flow at each node
+
+        _ral: set[int] = set()
+        _ALLY_CORE_K = {{ Kind.ALLY_CORE }}
+        _ral_off = ({{ -1 }}, {{ 1 }}, {{ -PH }}, {{ PH }})
+        for _f in cls.foundry_positions:
+            for _d in _ral_off:
+                _adj = _f + _d
+                if ns[_adj] is not None and nk[_adj] == _ALLY_CORE_K:
+                    _curr = _adj
+                    _visited: set[int] = set()
+                    while True:
+                        if _curr in _visited:
+                            break
+                        _visited.add(_curr)
+                        _ral.add(_curr)
+                        _pn = ns[_curr]
+                        if _pn is None or _pn.up is None:
+                            break
+                        _curr = _pn.up
+        cls.refined_ax_line = _ral
+
+        BRIDGE = EntityType.BRIDGE
+        tile_info_idx = Map.tile_info_idx
+
+        # ── titanium leaf set ──
+        _ti_leaves: set[int] = set()
+        for u in _initial_leaves:
+            if (nk[u] == {{ Kind.ALLY_CORE }}
+                    and u not in core_pos_set
+                    and not ax_tagged[u]
+                    and u not in _ral
+                    and tile_info_idx[u].entity_type != BRIDGE
+                    and flow[u] > 0
+                    ):
+                _ti_leaves.add(u)
+        cls.leaf_set = _ti_leaves
+
+        {# /* Debug.debug_set(cls.leaf_set, Color.BLUE) */ #}
+
+        {# /* if Globals.round & 1: */ #}
+            {# /* cls.debug_refined_ax_line() */ #}
+        {# /* else: */ #}
+            {# /* cls.debug_foundry_positions() */ #}
+
+        {# /* Debug.log('exited fcompute') */ #}
+# ===---
+
+

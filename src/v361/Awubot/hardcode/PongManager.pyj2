@@ -1,0 +1,248 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+{% import 'debug/debug.j2' as D %}
+{% import 'debug/profiler.j2' as P %}
+{% from 'map/kind.j2' import Kind %}
+{% from 'bbot/mode.j2' import Mode %}
+
+
+class PongManager:
+    {% from 'hardcode/config.j2' import HARDCODE_ENABLED %}
+    {% if HARDCODE_ENABLED %}
+    {% import 'hardcode/data.j2' as data %}
+
+
+    @classmethod
+    def init(cls):
+        ct = Globals.ct 
+
+        cls.PAUSE_ROUND = 30
+        cls.PAUSE_DURATION = 10
+
+        cls.chunk_idx = 0
+        cls.data = {}
+
+        if ct.get_team() == Team.A:
+            spawn_id_map = {{ data.spawn_id_mapA }}
+        else:
+            spawn_id_map = {{ data.spawn_id_mapB }}
+
+
+        if Globals.my_type == EntityType.BUILDER_BOT:
+            effective_round = Globals.round
+            if Globals.round >= cls.PAUSE_ROUND + cls.PAUSE_DURATION:
+                effective_round = Globals.round - cls.PAUSE_DURATION
+
+            cls.my_id = spawn_id_map[effective_round - 1]
+
+        if Globals.my_type == EntityType.CORE:
+            cls.my_id = None
+
+
+    @classmethod
+    def load_next_chunk(cls):
+        {% for team in ('A', 'B') %}
+        {% for i in range(data.chunks) %}
+        if cls.chunk_idx == {{ i }}:
+            cls.data |= {{ data.dataA[i] }} if Globals.my_team == Team.A else {{ data.dataB[i] }}
+        {% endfor %}
+        {% endfor %}
+        cls.chunk_idx += 1
+
+
+    @classmethod
+    def run(cls):
+        cls.load_next_chunk()
+
+        ct = Globals.ct
+
+        my_id = cls.my_id
+        
+        if Globals.round > 9999:  # update to latest `test` version
+            ACTIVE_ID = None
+            if ct.get_team() == Team.A:
+                ACTIVE_ID = 3
+                STAND_POS = Position(5, 7)
+                HARVESTER_POS = Position(4, 7)
+                FOUNDRY_POS = Position(4, 8)
+                SECOND_HARVESTER_POS = Position(4, 6)
+                FIRST_BRIDGE_POS = Position(5, 6)
+                THIRD_HARVESTER_POS = Position(6, 5)
+                CONVEYOR_POS = Position(5, 5)
+            else:
+                ACTIVE_ID = 4
+                STAND_POS = Position(44, 7)
+                HARVESTER_POS = Position(45, 7)
+                FOUNDRY_POS = Position(45, 8)
+                SECOND_HARVESTER_POS = Position(45, 6)
+                FIRST_BRIDGE_POS = Position(44, 6)
+                THIRD_HARVESTER_POS = Position(43, 5)
+                CONVEYOR_POS = Position(44, 5)
+                
+            if ct.get_id() == ACTIVE_ID:
+                if ct.get_position() not in (STAND_POS, FIRST_BRIDGE_POS):
+                    dir_to_stand = ct.get_position().direction_to(STAND_POS)
+                    if ct.get_tile_building_id(ct.get_position().add(dir_to_stand)) is None:
+                        ct.build_road(ct.get_position().add(dir_to_stand))
+                    elif ct.get_tile_building_id(ct.get_position().add(dir_to_stand.rotate_left())) is None:
+                        ct.build_road(ct.get_position().add(dir_to_stand.rotate_left()))
+                    elif ct.get_tile_building_id(ct.get_position().add(dir_to_stand.rotate_right())) is None:
+                        ct.build_road(ct.get_position().add(dir_to_stand.rotate_right()))
+                    if ct.can_move(dir_to_stand):
+                        ct.move(dir_to_stand)
+                    elif ct.can_move(dir_to_stand.rotate_left()):
+                        ct.move(dir_to_stand.rotate_left())
+                    elif ct.can_move(dir_to_stand.rotate_right()):
+                        ct.move(dir_to_stand.rotate_right())
+                    Debug.tee(f'moving to stand {STAND_POS} from {ct.get_position()}')
+                elif ct.get_action_cooldown() == 0:
+                    harvester_current = ct.get_tile_building_id(HARVESTER_POS)
+                    if harvester_current is None:
+                        ct.build_harvester(HARVESTER_POS)
+                        return
+                    
+                    foundry_current = ct.get_tile_building_id(FOUNDRY_POS)
+                    if ct.get_entity_type(foundry_current) != EntityType.FOUNDRY:
+                        if ct.can_destroy(FOUNDRY_POS):
+                            ct.destroy(FOUNDRY_POS)
+                        if ct.can_build_foundry(FOUNDRY_POS):
+                            ct.build_foundry(FOUNDRY_POS)
+                            return
+                        
+                    second_harvester_current = ct.get_tile_building_id(SECOND_HARVESTER_POS)
+                    if second_harvester_current is None:
+                        if ct.can_destroy(SECOND_HARVESTER_POS):
+                            ct.destroy(SECOND_HARVESTER_POS)
+                        if ct.can_build_harvester(SECOND_HARVESTER_POS):
+                            ct.build_harvester(SECOND_HARVESTER_POS)
+                            return
+                        
+                    first_bridge_current = ct.get_tile_building_id(FIRST_BRIDGE_POS)
+                    if first_bridge_current is None:
+                        if ct.can_destroy(FIRST_BRIDGE_POS):
+                            ct.destroy(FIRST_BRIDGE_POS)
+                        if ct.can_build_bridge(FIRST_BRIDGE_POS, FOUNDRY_POS):
+                            ct.build_bridge(FIRST_BRIDGE_POS, FOUNDRY_POS)
+                            return
+                        
+                    if ct.get_position() != FIRST_BRIDGE_POS:
+                        ct.move(ct.get_position().direction_to(FIRST_BRIDGE_POS))
+                        Debug.tee(f'moving to bridge {FIRST_BRIDGE_POS} from {ct.get_position()}')
+                        
+                    third_harvester_current = ct.get_tile_building_id(THIRD_HARVESTER_POS)
+                    if third_harvester_current is None:
+                        if ct.can_destroy(THIRD_HARVESTER_POS):
+                            ct.destroy(THIRD_HARVESTER_POS)
+                        if ct.can_build_harvester(THIRD_HARVESTER_POS):
+                            ct.build_harvester(THIRD_HARVESTER_POS)
+                            return
+                        
+                    conveyor_current = ct.get_tile_building_id(CONVEYOR_POS)
+                    if conveyor_current is None:
+                        if ct.can_build_conveyor(CONVEYOR_POS, CONVEYOR_POS.direction_to(FIRST_BRIDGE_POS)):
+                            ct.build_conveyor(CONVEYOR_POS, CONVEYOR_POS.direction_to(FIRST_BRIDGE_POS))
+                            return
+
+                        
+            return
+        
+        if Globals.my_type == EntityType.CORE:
+            my_id = None
+            ti, ax = ct.get_global_resources()
+            req = int(ct.get_scale_percent())
+            need = req - ti 
+            if need > 0:
+                ct.convert(min(need // 4, ax))
+
+        # pause
+        if cls.PAUSE_ROUND <= Globals.round < cls.PAUSE_ROUND + cls.PAUSE_DURATION:
+            return
+
+        effective_round = Globals.round
+        if Globals.round >= cls.PAUSE_ROUND + cls.PAUSE_DURATION:
+            effective_round = Globals.round - cls.PAUSE_DURATION
+
+        key = (effective_round, my_id)
+        if key not in cls.data:
+            return
+
+        round_actions = cls.data[key]
+
+        for action in round_actions:
+            cls.dispatch(action)
+
+    @classmethod
+    def dispatch(cls, action):
+        if action[0] == 'move':
+            return cls.handle_move(action[1:])
+        else:
+            assert action[0] == 'build'
+            return cls.handle_build(action[1:])
+
+    @classmethod
+    def handle_move(cls, lst):
+        ct = Globals.ct
+        tuplepos = lst[0]
+        pos = Position(*tuplepos)
+
+        dir = ct.get_position().direction_to(pos)
+        if ct.can_move(dir):
+            ct.move(dir)
+            return True
+        else:
+            {# /* Debug.tee(f'failed moving to {pos}') */ #}
+            return False
+
+    @classmethod
+    def handle_build(cls, lst):
+        ct = Globals.ct
+        etype, tuplepos, *xargs = lst
+        pos = Position(*tuplepos)
+
+        if etype == EntityType.BUILDER_BOT:
+            if ct.can_spawn(pos):
+                ct.spawn_builder(pos)
+            else:
+                Debug.tee(f'couldnt spawn {pos}')
+            return
+
+        # if ct.can_destroy(pos):
+        #     ct.destroy(pos)
+
+        {% for t in EntityType %}
+        if etype == {{ t }}:
+            if ct.can_build_{{ t.value }}(pos, *xargs):
+                ct.build_{{ t.value }}(pos, *xargs)
+                return True
+            else:
+                {% if t == EntityType.ARMOURED_CONVEYOR %}
+                Debug.tee(f'skipping armoured - might build normal instead {Globals.round}')
+                if ct.can_build_conveyor(pos, *xargs):
+                    ct.build_conveyor(pos, *xargs)
+                {# /* {% elif t not in no_core_passable_set %} */ #}
+                {% else %}
+                if ct.can_destroy(pos):
+                    ct.destroy(pos)
+                if ct.can_build_{{ t.value }}(pos, *xargs):
+                    ct.build_{{ t.value }}(pos, *xargs)
+                else:
+                    Debug.tee(f'try destroy, still didnt work {Globals.round} with {{ t }} @ {pos}')
+                {% endif %}
+                return
+        {% endfor %}
+
+    {% else %}
+    pass
+    {% endif %}

@@ -1,0 +1,70 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+
+class BurnManager:
+
+    @classmethod
+    def burn_for_builder(cls):
+        if not BuildManager.can_afford_builder_bot():
+            ct = Globals.ct
+            ti, ax = ct.get_global_resources()
+            
+            builderCost = Globals.ct.get_builder_bot_cost()[0]
+            
+            tiNeeded = builderCost - ti
+            axNeeded = max(0, (tiNeeded + 3) // 4)  # replaced with int ceil
+            
+            if axNeeded > 0 and ax > 2:
+                ct.convert(min(axNeeded, ax - 2))
+            
+    
+    @classmethod
+    def should_burn_emergency(cls):
+        lost_short = CoreHistory.hp_delta(1) < 0 
+        lost_long = CoreHistory.hp_delta(10) < 0 
+        low_hp = Globals.ct.get_hp() < 250
+
+        if (lost_short or lost_long) and low_hp:
+            return True
+
+        return False
+
+    
+    @classmethod
+    def maybe_burn_for_ti(cls):
+
+        ct = Globals.ct
+        ti, ax = ct.get_global_resources()
+
+        # cnf1 = int(ti * MarketMaker.scale_ratio) < 50 or MarketMaker.est_income <= 10
+        cnf1 = True
+        cnf2 = (MarketMaker.est_income - 10) <= MarketMaker.est_income_ax
+        cnf3 = Globals.round < 1000
+        cond = cnf1 and cnf2 and cnf3
+
+        if not cond:
+            return
+
+        amt = min(ax - 2, 30)
+        if amt > 0:
+            ct.convert(amt)
+
+        
+
+
+        
+
+
+
