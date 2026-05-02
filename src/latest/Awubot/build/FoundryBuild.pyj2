@@ -71,7 +71,9 @@ class FoundryBuild:
 
     @classmethod
     def _pick_target(cls):
+        print(RouteToFoundry._foundry_target)
         if RouteToFoundry._foundry_target is None:
+            print("No foundry to build ):")
             return None
         t = {{ decode_pos('RouteToFoundry._foundry_target') | join(', ') }}
         return Position(t[0], t[1])

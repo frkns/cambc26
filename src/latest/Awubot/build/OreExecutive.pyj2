@@ -260,8 +260,14 @@ class OreExecutive:
                 ti = Map.tile_info[newPos.x][newPos.y]
                 if ti is None:
                     continue
+                encoded = {{ encode_pos('newPos.x','newPos.y') }}
                 if ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET and not ti.is_shield:
-                    break  # already connected, skip
+                    if DarkForest.ax_tagged[encoded]:
+                        break  # already connected, skip
+                    elif encoded not in DarkForest.refined_ax_line:
+                        RouteToFoundry.give_up(True)
+                        RouteToFoundry._foundry_target = encoded # to trigger foundry build
+                        return
             else:
                 RouteToFoundry.set_pos(cand.position)
                 return

@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-02 16:52:45 (local)
+# latest,  @ 2026-05-02 16:51:18 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -27596,7 +27596,9 @@ class FoundryBuild:
 
     @classmethod
     def _pick_target(cls):
+        print(RouteToFoundry._foundry_target)
         if RouteToFoundry._foundry_target is None:
+            print("No foundry to build ):")
             return None
         t = ((RouteToFoundry._foundry_target) // 56 - 3), ((RouteToFoundry._foundry_target) % 56 - 3)
         return Position(t[0], t[1])
@@ -33144,8 +33146,14 @@ class OreExecutive:
                 ti = Map.tile_info[newPos.x][newPos.y]
                 if ti is None:
                     continue
+                encoded = (((newPos.x) + 3) * 56 + ((newPos.y) + 3))
                 if ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET and not ti.is_shield:
-                    break  # already connected, skip
+                    if DarkForest.ax_tagged[encoded]:
+                        break  # already connected, skip
+                    elif encoded not in DarkForest.refined_ax_line:
+                        RouteToFoundry.give_up(True)
+                        RouteToFoundry._foundry_target = encoded # to trigger foundry build
+                        return
             else:
                 RouteToFoundry.set_pos(cand.position)
                 return
@@ -34250,7 +34258,8 @@ class RouteToCore:
                 if ti.entity_type in Constants.TRANSPORTERS_SET:
                     if ti.target is not None:
                         tx, ty = ti.target.x, ti.target.y
-                        if Map.tile_info[tx][ty].entity_type == EntityType.HARVESTER:
+                        ti2 = Map.tile_info[tx][ty]
+                        if ti2 is not None and ti2.entity_type == EntityType.HARVESTER:
                             return False  # it is a shield
                     cls.is_active = False
                     cls.prevRoute.clear()
