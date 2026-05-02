@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-02 10:54:25 (local)
+# latest,  @ 2026-05-02 13:24:36 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -30803,6 +30803,8 @@ class HealTargeter:
                 else:
                     info.has_enemy_bot = True
 
+            if info.building_heal == info.bot_heal == 0:
+                continue  # prune
 
             targets.append(info)
 
