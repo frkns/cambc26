@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-02 16:41:24 (local)
+# latest,  @ 2026-05-02 16:52:45 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -347,21 +347,17 @@ class Attacker:
         max_hp = Constants.MAX_HP_MAP[etype]
 
         if 2 * hp <= max_hp:
-            print(pos, 'ShouldFire since low hp')
             return True
 
         if cls.allies_ready > 2 * cls.enemies_ready:
-            print(pos, 'ShouldFire since readiness is high')
             return True
 
         ebot_dist_adj = BfsBureau.enemy_bot_dist_adj[idx]
 
         if ebot_dist_adj >= 2:
-            print(pos, 'ShouldFire since enemies far away')
             return True
 
         if etype == EntityType.ROAD and ebot_dist_adj >= 1:
-            print(pos, 'ShouldFire since road + no adjacent enemy')
             return True
 
         return False
@@ -548,7 +544,6 @@ class BfsBureau:
         cls._add_penalty(idx + -56, 1000000)
         cls._add_penalty(idx + -57, 1000000)
 
-        Debug.dot(Position(x, y), Color.YELLOW)
 
     @classmethod
     def remove_enemy_launcher(cls, idx):
@@ -565,21 +560,18 @@ class BfsBureau:
         cls._remove_penalty(idx + -56, 1000000)
         cls._remove_penalty(idx + -57, 1000000)
 
-        Debug.dot(Position(x, y), Color.GREEN)
 
     @classmethod
     def add_ally_launcher(cls, idx: int):
         x = idx // 56 - 3
         y = idx %  56 - 3
         cls.ally_launcher |= 1 << (x * cls.STRIDE + y)
-        Debug.dot(Position(x, y), Color.CYAN)
 
     @classmethod
     def remove_ally_launcher(cls, idx: int):
         x = idx // 56 - 3
         y = idx %  56 - 3
         cls.ally_launcher &= ~(1 << (x * cls.STRIDE + y))
-        Debug.dot(Position(x, y), Color.LIME)
 
     # generate 4 different find_bridge_route variants
 
@@ -4660,7 +4652,6 @@ class BfsBureau:
         _D = (Direction.NORTH, Direction.NORTHEAST, Direction.EAST, Direction.SOUTHEAST, Direction.SOUTH, Direction.SOUTHWEST, Direction.WEST, Direction.NORTHWEST)
 
         if si == ti:
-            print(f'[on top of find_route target with {ban_target=}]')
 
             if ban_target:
                 _best_c = 1000000
@@ -4773,7 +4764,7 @@ class BfsBureau:
         pre_weight = weight[ti]
         weight[ti] = 1
 
-        Profiler.start(f"""BfsBureau.find_route{{ variant_suffix }}""")
+        
 
         dist = [1000000] * 3136
         fhd  = [0]       * 3136
@@ -4792,7 +4783,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 0
             if ni == ti:
-                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                weight[ti] = pre_weight; 
                 return w, Direction.NORTH
             _hp(heap, (w, ni))
         ni = si + 55
@@ -4801,7 +4792,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 1
             if ni == ti:
-                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                weight[ti] = pre_weight; 
                 return w, Direction.NORTHEAST
             _hp(heap, (w, ni))
         ni = si + 56
@@ -4810,7 +4801,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 2
             if ni == ti:
-                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                weight[ti] = pre_weight; 
                 return w, Direction.EAST
             _hp(heap, (w, ni))
         ni = si + 57
@@ -4819,7 +4810,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 3
             if ni == ti:
-                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                weight[ti] = pre_weight; 
                 return w, Direction.SOUTHEAST
             _hp(heap, (w, ni))
         ni = si + 1
@@ -4828,7 +4819,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 4
             if ni == ti:
-                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                weight[ti] = pre_weight; 
                 return w, Direction.SOUTH
             _hp(heap, (w, ni))
         ni = si + -55
@@ -4837,7 +4828,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 5
             if ni == ti:
-                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                weight[ti] = pre_weight; 
                 return w, Direction.SOUTHWEST
             _hp(heap, (w, ni))
         ni = si + -56
@@ -4846,7 +4837,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 6
             if ni == ti:
-                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                weight[ti] = pre_weight; 
                 return w, Direction.WEST
             _hp(heap, (w, ni))
         ni = si + -57
@@ -4855,7 +4846,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 7
             if ni == ti:
-                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                weight[ti] = pre_weight; 
                 return w, Direction.NORTHWEST
             _hp(heap, (w, ni))
 
@@ -4882,7 +4873,6 @@ class BfsBureau:
             ni = idx + -1
             w  = weight[ni]
 
-            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4890,13 +4880,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 55
             w  = weight[ni]
 
-            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4904,13 +4893,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 56
             w  = weight[ni]
 
-            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4918,13 +4906,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 57
             w  = weight[ni]
 
-            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4932,13 +4919,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 1
             w  = weight[ni]
 
-            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4946,13 +4932,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -55
             w  = weight[ni]
 
-            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4960,13 +4945,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -56
             w  = weight[ni]
 
-            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4974,13 +4958,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -57
             w  = weight[ni]
 
-            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 nd = d + w
@@ -4988,12 +4971,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
 
         if not phase2_seeds:
-            weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+            weight[ti] = pre_weight; 
             return 1000000, None
 
 
@@ -5078,7 +5061,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return _md0 + _bfs_d + 1, _D[0]
                 else:
                     _fh0 = 0
@@ -5092,7 +5075,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return _md1 + _bfs_d + 1, _D[1]
                 else:
                     _fh1 = 0
@@ -5106,7 +5089,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return _md2 + _bfs_d + 1, _D[2]
                 else:
                     _fh2 = 0
@@ -5120,7 +5103,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return _md3 + _bfs_d + 1, _D[3]
                 else:
                     _fh3 = 0
@@ -5134,7 +5117,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return _md4 + _bfs_d + 1, _D[4]
                 else:
                     _fh4 = 0
@@ -5148,7 +5131,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return _md5 + _bfs_d + 1, _D[5]
                 else:
                     _fh5 = 0
@@ -5162,7 +5145,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return _md6 + _bfs_d + 1, _D[6]
                 else:
                     _fh6 = 0
@@ -5176,7 +5159,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return _md7 + _bfs_d + 1, _D[7]
                 else:
                     _fh7 = 0
@@ -5185,7 +5168,7 @@ class BfsBureau:
                 break
             _bfs_d += 1
 
-        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+        weight[ti] = pre_weight; 
         return 1000000, None
 
 
@@ -5207,7 +5190,6 @@ class BfsBureau:
         _D = (Direction.NORTH, Direction.NORTHEAST, Direction.EAST, Direction.SOUTHEAST, Direction.SOUTH, Direction.SOUTHWEST, Direction.WEST, Direction.NORTHWEST)
 
         if si == ti:
-            print(f'[on top of find_route_inv target with {ban_target=}]')
 
             if ban_target:
                 _best_c = 1000000
@@ -5336,7 +5318,7 @@ class BfsBureau:
         pre_weight = weight[ti]
         weight[ti] = 1
 
-        Profiler.start(f"""BfsBureau.find_route{{ variant_suffix }}""")
+        
 
         dist = [1000000] * 3136
         fhd  = [0]       * 3136
@@ -5356,7 +5338,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 0
             if ni == ti:
-                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                weight[ti] = pre_weight; 
                 return w, Direction.NORTH
             _hp(heap, (w, ni))
         ni = si + 56
@@ -5366,7 +5348,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 2
             if ni == ti:
-                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                weight[ti] = pre_weight; 
                 return w, Direction.EAST
             _hp(heap, (w, ni))
         ni = si + 1
@@ -5376,7 +5358,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 4
             if ni == ti:
-                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                weight[ti] = pre_weight; 
                 return w, Direction.SOUTH
             _hp(heap, (w, ni))
         ni = si + -56
@@ -5386,7 +5368,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 6
             if ni == ti:
-                weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                weight[ti] = pre_weight; 
                 return w, Direction.WEST
             _hp(heap, (w, ni))
         ni = si + 55
@@ -5397,7 +5379,7 @@ class BfsBureau:
                 dist[ni] = w
                 fhd[ni]  = 1
                 if ni == ti:
-                    weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                    weight[ti] = pre_weight; 
                     return w, Direction.NORTHEAST
                 _hp(heap, (w, ni))
             elif w == dist[ni]:
@@ -5410,7 +5392,7 @@ class BfsBureau:
                 dist[ni] = w
                 fhd[ni]  = 3
                 if ni == ti:
-                    weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                    weight[ti] = pre_weight; 
                     return w, Direction.SOUTHEAST
                 _hp(heap, (w, ni))
             elif w == dist[ni]:
@@ -5423,7 +5405,7 @@ class BfsBureau:
                 dist[ni] = w
                 fhd[ni]  = 5
                 if ni == ti:
-                    weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                    weight[ti] = pre_weight; 
                     return w, Direction.SOUTHWEST
                 _hp(heap, (w, ni))
             elif w == dist[ni]:
@@ -5436,7 +5418,7 @@ class BfsBureau:
                 dist[ni] = w
                 fhd[ni]  = 7
                 if ni == ti:
-                    weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                    weight[ti] = pre_weight; 
                     return w, Direction.NORTHWEST
                 _hp(heap, (w, ni))
             elif w == dist[ni]:
@@ -5465,7 +5447,6 @@ class BfsBureau:
             ni = idx + -1
             w  = weight[ni]
 
-            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5474,13 +5455,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 55
             w  = weight[ni]
 
-            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5489,13 +5469,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 56
             w  = weight[ni]
 
-            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5504,13 +5483,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 57
             w  = weight[ni]
 
-            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5519,13 +5497,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 1
             w  = weight[ni]
 
-            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5534,13 +5511,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -55
             w  = weight[ni]
 
-            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5549,13 +5525,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -56
             w  = weight[ni]
 
-            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5564,13 +5539,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -57
             w  = weight[ni]
 
-            assert w >= 0, 'negative edge weight in dijkstra'
 
             if w < 1000000:
                 if w <= 2: w = 3 - w
@@ -5579,12 +5553,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
 
         if not phase2_seeds:
-            weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+            weight[ti] = pre_weight; 
             return 1000000, None
 
 
@@ -5669,7 +5643,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return _md0 + _bfs_d + 1, _D[0]
                 else:
                     _fh0 = 0
@@ -5683,7 +5657,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return _md1 + _bfs_d + 1, _D[1]
                 else:
                     _fh1 = 0
@@ -5697,7 +5671,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return _md2 + _bfs_d + 1, _D[2]
                 else:
                     _fh2 = 0
@@ -5711,7 +5685,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return _md3 + _bfs_d + 1, _D[3]
                 else:
                     _fh3 = 0
@@ -5725,7 +5699,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return _md4 + _bfs_d + 1, _D[4]
                 else:
                     _fh4 = 0
@@ -5739,7 +5713,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return _md5 + _bfs_d + 1, _D[5]
                 else:
                     _fh5 = 0
@@ -5753,7 +5727,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return _md6 + _bfs_d + 1, _D[6]
                 else:
                     _fh6 = 0
@@ -5767,7 +5741,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+                        weight[ti] = pre_weight; 
                         return _md7 + _bfs_d + 1, _D[7]
                 else:
                     _fh7 = 0
@@ -5776,7 +5750,7 @@ class BfsBureau:
                 break
             _bfs_d += 1
 
-        weight[ti] = pre_weight; Profiler.end(f"""BfsBureau.find_route{{ variant_suffix }}""")
+        weight[ti] = pre_weight; 
         return 1000000, None
 
 
@@ -7884,7 +7858,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_builder_bot() -> bool:
-        # assert EntityType.BUILDER_BOT in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -7918,10 +7891,7 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        success = Pathfinder.move_off()
-        if not success:
-            Debug.tee('failed move off')
-            Debug.diamond(Color.YELLOW)
+        Pathfinder.move_off()
 
         if BuildManager.can_build_builder_bot(pos, *a):
             Globals.ct.build_builder_bot(pos, *a)
@@ -7975,7 +7945,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_gunner() -> bool:
-        # assert EntityType.GUNNER in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8009,10 +7978,7 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        success = Pathfinder.move_off()
-        if not success:
-            Debug.tee('failed move off')
-            Debug.diamond(Color.YELLOW)
+        Pathfinder.move_off()
 
         if BuildManager.can_build_gunner(pos, *a):
             Globals.ct.build_gunner(pos, *a)
@@ -8066,7 +8032,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_sentinel() -> bool:
-        # assert EntityType.SENTINEL in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8100,10 +8065,7 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        success = Pathfinder.move_off()
-        if not success:
-            Debug.tee('failed move off')
-            Debug.diamond(Color.YELLOW)
+        Pathfinder.move_off()
 
         if BuildManager.can_build_sentinel(pos, *a):
             Globals.ct.build_sentinel(pos, *a)
@@ -8157,7 +8119,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_breach() -> bool:
-        # assert EntityType.BREACH in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8191,10 +8152,7 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        success = Pathfinder.move_off()
-        if not success:
-            Debug.tee('failed move off')
-            Debug.diamond(Color.YELLOW)
+        Pathfinder.move_off()
 
         if BuildManager.can_build_breach(pos, *a):
             Globals.ct.build_breach(pos, *a)
@@ -8248,7 +8206,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_launcher() -> bool:
-        # assert EntityType.LAUNCHER in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8282,10 +8239,7 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        success = Pathfinder.move_off()
-        if not success:
-            Debug.tee('failed move off')
-            Debug.diamond(Color.YELLOW)
+        Pathfinder.move_off()
 
         if BuildManager.can_build_launcher(pos, *a):
             Globals.ct.build_launcher(pos, *a)
@@ -8339,7 +8293,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_conveyor() -> bool:
-        # assert EntityType.CONVEYOR in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8433,7 +8386,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_splitter() -> bool:
-        # assert EntityType.SPLITTER in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8527,7 +8479,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_armoured_conveyor() -> bool:
-        # assert EntityType.ARMOURED_CONVEYOR in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8621,7 +8572,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_bridge() -> bool:
-        # assert EntityType.BRIDGE in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8715,7 +8665,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_harvester() -> bool:
-        # assert EntityType.HARVESTER in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8748,10 +8697,7 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        success = Pathfinder.move_off()
-        if not success:
-            Debug.tee('failed move off')
-            Debug.diamond(Color.YELLOW)
+        Pathfinder.move_off()
 
         if BuildManager.can_build_harvester(pos, *a):
             Globals.ct.build_harvester(pos, *a)
@@ -8811,7 +8757,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_foundry() -> bool:
-        # assert EntityType.FOUNDRY in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8844,10 +8789,7 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        success = Pathfinder.move_off()
-        if not success:
-            Debug.tee('failed move off')
-            Debug.diamond(Color.YELLOW)
+        Pathfinder.move_off()
 
         if BuildManager.can_build_foundry(pos, *a):
             Globals.ct.build_foundry(pos, *a)
@@ -8900,7 +8842,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_road() -> bool:
-        # assert EntityType.ROAD in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -8992,7 +8933,6 @@ class BuildManager:
 
     @staticmethod
     def can_mbuild_barrier() -> bool:
-        # assert EntityType.BARRIER in Constants.PASSABLE_SET  remove because changed
         pos = Globals.my_pos
 
         ct = Globals.ct
@@ -9025,10 +8965,7 @@ class BuildManager:
         if Globals.ct.can_destroy(pos):
             BuildManager.destroy(pos)
 
-        success = Pathfinder.move_off()
-        if not success:
-            Debug.tee('failed move off')
-            Debug.diamond(Color.YELLOW)
+        Pathfinder.move_off()
 
         if BuildManager.can_build_barrier(pos, *a):
             Globals.ct.build_barrier(pos, *a)
@@ -27705,12 +27642,15 @@ class Globals:
 # ============================================================
 
 class GunnerDirectionInfo:
-    __slots__ = ('direction', 'banned', 'enemy_building_hp', 'enemy_bot_hp', 'has_enemy_turret')
+    __slots__ = ('direction', 'banned', 'enemy_building_hp', 'enemy_bot_hp', 'has_enemy_turret', 'has_core')
 
     @staticmethod
     def is_better_than(a: GunnerDirectionInfo, b: GunnerDirectionInfo) -> bool:
         if a.banned: return False
         if b.banned: return True
+
+        if a.has_core != b.has_core:
+            return a.has_core > b.has_core
 
         if a.has_enemy_turret != b.has_enemy_turret:
             return a.has_enemy_turret > b.has_enemy_turret
@@ -27938,9 +27878,11 @@ class GunnerDirectionPicker:
 
         WALL = Environment.WALL
         ROAD = EntityType.ROAD
+        CORE = EntityType.CORE
 
 
         info0.has_enemy_turret = False
+        info0.has_core = False
 
         x, y = spos.x, spos.y
 
@@ -27958,11 +27900,14 @@ class GunnerDirectionPicker:
                     if ti.entity_type != ROAD:
                         break
                 else:
-                    e_building_hp = ti.building_hp
-                    info0.enemy_building_hp += e_building_hp
+                    if ti.entity_type == CORE:
+                        info0.has_core = True
+                    else:
+                        e_building_hp = ti.building_hp
+                        info0.enemy_building_hp += e_building_hp
 
-                    if ti.has_turret:
-                        info0.has_enemy_turret = True
+                        if ti.has_turret:
+                            info0.has_enemy_turret = True
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
@@ -27975,6 +27920,7 @@ class GunnerDirectionPicker:
 
 
         info1.has_enemy_turret = False
+        info1.has_core = False
 
         x, y = spos.x, spos.y
 
@@ -27992,11 +27938,14 @@ class GunnerDirectionPicker:
                     if ti.entity_type != ROAD:
                         break
                 else:
-                    e_building_hp = ti.building_hp
-                    info1.enemy_building_hp += e_building_hp
+                    if ti.entity_type == CORE:
+                        info1.has_core = True
+                    else:
+                        e_building_hp = ti.building_hp
+                        info1.enemy_building_hp += e_building_hp
 
-                    if ti.has_turret:
-                        info1.has_enemy_turret = True
+                        if ti.has_turret:
+                            info1.has_enemy_turret = True
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
@@ -28009,6 +27958,7 @@ class GunnerDirectionPicker:
 
 
         info2.has_enemy_turret = False
+        info2.has_core = False
 
         x, y = spos.x, spos.y
 
@@ -28026,11 +27976,14 @@ class GunnerDirectionPicker:
                     if ti.entity_type != ROAD:
                         break
                 else:
-                    e_building_hp = ti.building_hp
-                    info2.enemy_building_hp += e_building_hp
+                    if ti.entity_type == CORE:
+                        info2.has_core = True
+                    else:
+                        e_building_hp = ti.building_hp
+                        info2.enemy_building_hp += e_building_hp
 
-                    if ti.has_turret:
-                        info2.has_enemy_turret = True
+                        if ti.has_turret:
+                            info2.has_enemy_turret = True
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
@@ -28043,6 +27996,7 @@ class GunnerDirectionPicker:
 
 
         info3.has_enemy_turret = False
+        info3.has_core = False
 
         x, y = spos.x, spos.y
 
@@ -28060,11 +28014,14 @@ class GunnerDirectionPicker:
                     if ti.entity_type != ROAD:
                         break
                 else:
-                    e_building_hp = ti.building_hp
-                    info3.enemy_building_hp += e_building_hp
+                    if ti.entity_type == CORE:
+                        info3.has_core = True
+                    else:
+                        e_building_hp = ti.building_hp
+                        info3.enemy_building_hp += e_building_hp
 
-                    if ti.has_turret:
-                        info3.has_enemy_turret = True
+                        if ti.has_turret:
+                            info3.has_enemy_turret = True
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
@@ -28077,6 +28034,7 @@ class GunnerDirectionPicker:
 
 
         info4.has_enemy_turret = False
+        info4.has_core = False
 
         x, y = spos.x, spos.y
 
@@ -28094,11 +28052,14 @@ class GunnerDirectionPicker:
                     if ti.entity_type != ROAD:
                         break
                 else:
-                    e_building_hp = ti.building_hp
-                    info4.enemy_building_hp += e_building_hp
+                    if ti.entity_type == CORE:
+                        info4.has_core = True
+                    else:
+                        e_building_hp = ti.building_hp
+                        info4.enemy_building_hp += e_building_hp
 
-                    if ti.has_turret:
-                        info4.has_enemy_turret = True
+                        if ti.has_turret:
+                            info4.has_enemy_turret = True
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
@@ -28111,6 +28072,7 @@ class GunnerDirectionPicker:
 
 
         info5.has_enemy_turret = False
+        info5.has_core = False
 
         x, y = spos.x, spos.y
 
@@ -28128,11 +28090,14 @@ class GunnerDirectionPicker:
                     if ti.entity_type != ROAD:
                         break
                 else:
-                    e_building_hp = ti.building_hp
-                    info5.enemy_building_hp += e_building_hp
+                    if ti.entity_type == CORE:
+                        info5.has_core = True
+                    else:
+                        e_building_hp = ti.building_hp
+                        info5.enemy_building_hp += e_building_hp
 
-                    if ti.has_turret:
-                        info5.has_enemy_turret = True
+                        if ti.has_turret:
+                            info5.has_enemy_turret = True
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
@@ -28145,6 +28110,7 @@ class GunnerDirectionPicker:
 
 
         info6.has_enemy_turret = False
+        info6.has_core = False
 
         x, y = spos.x, spos.y
 
@@ -28162,11 +28128,14 @@ class GunnerDirectionPicker:
                     if ti.entity_type != ROAD:
                         break
                 else:
-                    e_building_hp = ti.building_hp
-                    info6.enemy_building_hp += e_building_hp
+                    if ti.entity_type == CORE:
+                        info6.has_core = True
+                    else:
+                        e_building_hp = ti.building_hp
+                        info6.enemy_building_hp += e_building_hp
 
-                    if ti.has_turret:
-                        info6.has_enemy_turret = True
+                        if ti.has_turret:
+                            info6.has_enemy_turret = True
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
@@ -28179,6 +28148,7 @@ class GunnerDirectionPicker:
 
 
         info7.has_enemy_turret = False
+        info7.has_core = False
 
         x, y = spos.x, spos.y
 
@@ -28196,11 +28166,14 @@ class GunnerDirectionPicker:
                     if ti.entity_type != ROAD:
                         break
                 else:
-                    e_building_hp = ti.building_hp
-                    info7.enemy_building_hp += e_building_hp
+                    if ti.entity_type == CORE:
+                        info7.has_core = True
+                    else:
+                        e_building_hp = ti.building_hp
+                        info7.enemy_building_hp += e_building_hp
 
-                    if ti.has_turret:
-                        info7.has_enemy_turret = True
+                        if ti.has_turret:
+                            info7.has_enemy_turret = True
 
             if ti.has_bot and not ti.is_bot_ally:
                 e_bot_hp = ti.bot_hp
@@ -29180,7 +29153,7 @@ class HarvesterAdjacent:
             return None, False
 
         sen_score = (si.enemy_building_hp + bool(si.enemy_turret_hp) * 100) if sen_ok else 0
-        gun_score = (gi.enemy_building_hp * 5 + gi.has_enemy_turret * 200) if gun_ok else 0
+        gun_score = (gi.enemy_building_hp * 5 + gi.has_enemy_turret * 200 + gi.has_core * 1_000_000) if gun_ok else 0
 
 
         return (bestgun, True) if gun_score > sen_score else (bestsen, False)
@@ -29385,8 +29358,6 @@ class HarvesterAdjacent:
                     #     Debug.diline(Position(0,0), pos, Color.BLUE)
 
 
-                    if info.h_has_fed_foundry:
-                        Debug.diamond(Color.BLUE, hpos)
 
                     info.has_ally_transporter = (
                         ti.has_building 
@@ -29541,8 +29512,6 @@ class HarvesterAdjacent:
                     #     Debug.diline(Position(0,0), pos, Color.BLUE)
 
 
-                    if info.h_has_fed_foundry:
-                        Debug.diamond(Color.BLUE, hpos)
 
                     info.has_ally_transporter = (
                         ti.has_building 
@@ -29697,8 +29666,6 @@ class HarvesterAdjacent:
                     #     Debug.diline(Position(0,0), pos, Color.BLUE)
 
 
-                    if info.h_has_fed_foundry:
-                        Debug.diamond(Color.BLUE, hpos)
 
                     info.has_ally_transporter = (
                         ti.has_building 
@@ -29853,8 +29820,6 @@ class HarvesterAdjacent:
                     #     Debug.diline(Position(0,0), pos, Color.BLUE)
 
 
-                    if info.h_has_fed_foundry:
-                        Debug.diamond(Color.BLUE, hpos)
 
                     info.has_ally_transporter = (
                         ti.has_building 
@@ -29961,12 +29926,11 @@ class HarvesterAdjacent:
                     infos.append(info)
 
         
-        Profiler.start(f"""(Gunner/Sentinel)DirectionPicker.get_best_info (x5)""")
+        
         sample = random.sample(infos, min(5, len(infos)))
         for info in sample:
             info.gunner_dir_info = GunnerDirectionPicker.get_best_info(info.position)
             info.sentinel_dir_info = SentinelDirectionPicker.get_best_info(info.position)
-        Profiler.end(f"""(Gunner/Sentinel)DirectionPicker.get_best_info (x5)""")
 
 
 # ============================================================
@@ -30546,11 +30510,9 @@ class HealTargeter:
         if best.is_launcher:
             return None
 
-        print(f'(possible) heal target {best.position=} {best.building_heal=} {best.building_hp=}')
 
         total_heal = best.building_heal + best.bot_heal
         if total_heal < 4:
-            print(f'{total_heal=}')
             # Still heal buildings next to harvesters for shielding
             if not best.harvester_adjacent or total_heal == 0:
                 return None
@@ -30942,9 +30904,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                Profiler.start(f"""Comms.handle_message""")
+                
                 Comms.handle_message(get_marker_value(building_id))
-                Profiler.end(f"""Comms.handle_message""")
+                
 
             ti.is_pointed_to = False
 
@@ -31373,9 +31335,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                Profiler.start(f"""Comms.handle_message""")
+                
                 Comms.handle_message(get_marker_value(building_id))
-                Profiler.end(f"""Comms.handle_message""")
+                
 
             ti.is_pointed_to = False
 
@@ -31804,9 +31766,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                Profiler.start(f"""Comms.handle_message""")
+                
                 Comms.handle_message(get_marker_value(building_id))
-                Profiler.end(f"""Comms.handle_message""")
+                
 
             ti.is_pointed_to = False
 
@@ -32232,9 +32194,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                Profiler.start(f"""Comms.handle_message""")
+                
                 Comms.handle_message(get_marker_value(building_id))
-                Profiler.end(f"""Comms.handle_message""")
+                
 
             ti.is_pointed_to = False
 
@@ -32805,9 +32767,9 @@ class MarketMaker:
             return cls.hres
 
         
-        Profiler.start(f"""BfsBureau.find_bridge_route""")
+        
         bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.core_sink_set)
-        Profiler.end(f"""BfsBureau.find_bridge_route""")
+        
 
         h_cost, _ = Globals.ct.get_harvester_cost()
         b_cost, _ = Globals.ct.get_bridge_cost()
@@ -33488,12 +33450,12 @@ class Pathfinder:
             cls.near_base = False
         # else: in dead-band [19..25], keep previous near_base value
 
-        Profiler.start(f"""BfsBureau.find_route""")
+        
         if cls.near_base:
             dist, dir = BfsBureau.find_route_inv(my_pos, target, ban_target_pos)  # prefer empties → lays roads
         else:
             dist, dir = BfsBureau.find_route(my_pos, target, ban_target_pos)      # prefer roads → uses existing roads
-        Profiler.end(f"""BfsBureau.find_route""")
+        
 
         if orbit and 0 < target.distance_squared(my_pos) <= 2:
             dir = my_pos.direction_to(target).rotate_left()
@@ -33598,8 +33560,6 @@ class Player:
             err = traceback.format_exc()
             Debug.tee(err)
             Debug.tee(f'(I am a {Globals.my_type})')
-
-            ct.resign()
 
 
 # ============================================================
@@ -33984,7 +33944,7 @@ class RouteToBreach:
             avoid_pos = RouteToCore.pathFindingKill
         )
 
-        print(f"""{bridge_dist=}""")
+        
 
         if first_target is None:
             Debug.tee("RouteToBreach: first_target is None, giving up")
@@ -34145,7 +34105,6 @@ class RouteToCore:
 
     @classmethod
     def try_build_route(cls):
-        assert cls.is_active
 
         bridge_dist = 0
         first_target = None
@@ -34196,7 +34155,7 @@ class RouteToCore:
                     avoid_pos=cls.pathFindingKill
                 )
 
-        print(f"""{bridge_dist=}""")
+        
 
         if first_target is None:
             if cls.give_up(True):
@@ -34216,7 +34175,7 @@ class RouteToCore:
         gun_ok = BuildManager.can_afford_gunner() \
             and not gi.banned \
             and (gi.has_enemy_turret or gi.enemy_building_hp > 10)
-        gun_score = (gi.enemy_building_hp * 5 + gi.has_enemy_turret * 200) if gun_ok else 0
+        gun_score = (gi.enemy_building_hp * 5 + gi.has_enemy_turret * 200 + gi.has_core * 1_000_000) if gun_ok else 0
 
         si = SentinelDirectionPicker.get_best_info(cls.from_pos)
         sen_ok = BuildManager.can_afford_sentinel() \
@@ -34282,7 +34241,6 @@ class RouteToCore:
             return True
         if len(cls.prevRoute) != 0:
             px, py = cls.prevRoute[-1]
-            print("flow at", px, py, "is", DarkForest.flow[(((px) + 3) * 56 + ((py) + 3))])
             if DarkForest.flow[(((px) + 3) * 56 + ((py) + 3))] == 0:
                 return True
         if ti.has_building:
@@ -34306,7 +34264,6 @@ class RouteToCore:
     def give_up(cls, hard = False):
         from_pos = cls.from_pos
         enc = (((from_pos.x) + 3) * 56 + ((from_pos.y) + 3))
-        print(cls.prevRoute)
         if len(cls.prevRoute) != 0:
             px, py = cls.prevRoute[-1]
             if DarkForest.flow[(((px) + 3) * 56 + ((py) + 3))] == 0:
@@ -34315,8 +34272,6 @@ class RouteToCore:
                 (3, 1):
             cls.is_active = False
             cls.killed.add(from_pos)
-            Debug.diamond(Color.PURPLE)
-            print("RouteToCore: giving up, no previous route to backtrack to or finished")
             if Pathfinder.given_up:
                 cls.pathFindingKill.add(enc)
             cls.backTracking = False
@@ -34326,14 +34281,12 @@ class RouteToCore:
             if Pathfinder.given_up:
                 cls.pathFindingKill.add(enc)
             cls.from_pos = cls.prevRoute.pop()
-            print("RouteToCore: backtracking to", cls.from_pos)
             cls.backTracking = True
             return False
 
 
     @classmethod
     def do_routing(cls):
-        print("RouteToCore: doing routing from", cls.from_pos, "(Attack Route!)", cls.isAttack)
 
         if cls.should_give_up():
             if cls.give_up():
@@ -34484,7 +34437,7 @@ class RouteToFoundry:
             avoid_pos = RouteToCore.pathFindingKill
         )
 
-        print(f"""{bridge_dist=}""")
+        
 
         if first_target is None:
             Debug.tee("RouteToFoundry: first_target is None, giving up")
@@ -38758,16 +38711,16 @@ class SpawnManager:
 class StalkTargeter:
     @classmethod
     def get_best_target(cls) -> Position | None:
-        Profiler.start(f"""StalkTargeter.get_best_target""")
+        
 
         my_pos = Globals.my_pos
 
         if my_pos.distance_squared(Unit.core_pos) > my_pos.distance_squared(Symmetry.enemy_core_pos):
-            Profiler.end(f"""pop""")
+            
             return None
 
         if MarketMaker.est_income < 3:
-            Profiler.end(f"""pop""")
+            
             return None
 
         bfs20_dist_adj = BfsBureau.bfs20_dist_adj
@@ -38808,7 +38761,7 @@ class StalkTargeter:
                     best_transporter_hp = transporter_hp
                     best_id = bot_id
 
-        Profiler.end(f"""StalkTargeter.get_best_target""")
+        
                 
         return best
 
@@ -38820,7 +38773,6 @@ class StalkTargeter:
 class StateAttack:
     @classmethod
     def run(cls, pos, tag='_'):
-        print(f'{tag=}')
         
         if Globals.my_pos != pos:
             Pathfinder.move_to(pos)
@@ -39005,7 +38957,6 @@ class StateBuildShield:
                     if ti.is_building_ally:
                         found_ally_harvester = True
         
-        print(f'{target_dir=}, {found_ally_harvester=}')
 
 
 
@@ -39056,8 +39007,6 @@ class StateBuildTurret:
 
         x, y = gunner_pos.x + dx, gunner_pos.y + dy      # start one step ahead
 
-        assert direction != Direction.CENTRE
-        assert Util.on_the_map(Position(x, y))
 
         while x >= 0 and y >= 0 and x < Map.W and y < Map.H:
             if (x - gunner_pos.x) ** 2 + (y - gunner_pos.y) ** 2 > 13:
@@ -39093,9 +39042,9 @@ class StateBuildTurret:
             if (gdir is not None) and BuildManager.can_smartbuild_gunner(pos):
                 BuildManager.smartbuild_gunner(pos, gdir)
             elif should_build_sentinel and BuildManager.can_smartbuild_sentinel(pos):
-                Profiler.start(f"""SentinelDirectionPicker.get_best_direction""")
+                
                 dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
-                Profiler.end(f"""SentinelDirectionPicker.get_best_direction""")
+                
                 BuildManager.smartbuild_sentinel(pos, dir)
             elif BuildManager.can_build_road(pos):
                 BuildManager.build_road(pos)
@@ -39108,9 +39057,9 @@ class StateBuildTurret:
             if (gdir is not None) and BuildManager.can_smartbuild_gunner(pos):
                 BuildManager.smartbuild_gunner(pos, gdir)
             elif should_build_sentinel and BuildManager.can_smartbuild_sentinel(pos):
-                Profiler.start(f"""SentinelDirectionPicker.get_best_direction""")
+                
                 dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
-                Profiler.end(f"""SentinelDirectionPicker.get_best_direction""")
+                
                 BuildManager.smartbuild_sentinel(pos, dir)
             elif BuildManager.can_build_road(pos):
                 BuildManager.build_road(pos)
@@ -39162,7 +39111,6 @@ class StateFoundryBuild:
 class StateMoveTo:
     @classmethod
     def run(cls, pos, tag='_'):
-        print(f'{tag=}')
         Pathfinder.move_to(pos)
 
 
@@ -39208,7 +39156,6 @@ class StateReroute:  # for misrouted ally transporters
 class StateRoute:
     @classmethod
     def run(cls):
-        assert RouteToCore.is_active
         RouteToCore.do_routing()
 
 
@@ -39253,7 +39200,6 @@ class StateRush:
             if Globals.my_pos.distance_squared(pos) <= 4: #sufficiently close
                 cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos)
                 if cand is not None and cand.ti.entity_type not in Constants.TRANSPORTERS_SET:
-                    Debug.log('RouteToBreach set @ StateRush')
                     RouteToBreach.set_pos(cand.position)
                 else:
                     RushTargeter.killed.add(pos)
@@ -40062,11 +40008,10 @@ class Unit:
             DarkForest.needs_update = False
 
         if Globals.my_type != EntityType.LAUNCHER:
-            Profiler.start(f"""Map.fill_tile_info""")
+            
             Map.fill_tile_info()
-            Profiler.end(f"""Map.fill_tile_info""")
+            
 
-        Profiler.start_turn_check()
 
     @classmethod
     def run_turn(cls):
@@ -40075,7 +40020,7 @@ class Unit:
     @classmethod
     def end_turn(cls):
 
-        if Globals.round == 667:
+        if Globals.round == 1999:
             Profiler.report()
 
 
@@ -40162,51 +40107,51 @@ class Builder(Unit):
         my_pos = Globals.my_pos
         cls.min_dist_to_a_core = min(my_pos.distance_squared(Unit.core_pos), my_pos.distance_squared(Symmetry.enemy_core_pos))
 
-        Profiler.start(f"""DarkForest.fcompute""")
+        
         DarkForest.fcompute()
-        Profiler.end(f"""DarkForest.fcompute""")
+        
 
-        Profiler.start(f"""BfsBureau.update""")
+        
         BfsBureau.update()
-        Profiler.end(f"""BfsBureau.update""")
+        
 
-        Profiler.start(f"""BfsBureau.bfs20""")
+        
         BfsBureau.bfs20()
-        Profiler.end(f"""BfsBureau.bfs20""")
+        
 
         if not TLEManager.daylight_savings_time:
-            Profiler.start(f"""Symmetry.run_sym_check""")
+            
             Symmetry.run_sym_check()
-            Profiler.end(f"""Symmetry.run_sym_check""")
+            
 
-            Profiler.start(f"""BfsBureau.update_enclosed_regions""")
+            
             BfsBureau.update_enclosed_regions()
-            Profiler.end(f"""BfsBureau.update_enclosed_regions""")
+            
 
-            Profiler.start(f"""OreExecutive.fill""")
+            
             OreExecutive.fill()
-            Profiler.end(f"""OreExecutive.fill""")
+            
 
-        Profiler.start(f"""VisionTracker.fill""")
+        
         VisionTracker.fill()
-        Profiler.end(f"""VisionTracker.fill""")
+        
 
         if not TLEManager.daylight_savings_time:
-            Profiler.start(f"""SitterTakedown.fill""")
+            
             SitterTakedown.fill()
-            Profiler.end(f"""SitterTakedown.fill""")
+            
 
-            Profiler.start(f"""HarvesterAdjacent.fill""")
+            
             HarvesterAdjacent.fill()
-            Profiler.end(f"""HarvesterAdjacent.fill""")
+            
 
-        Profiler.start(f"""Attacker.update""")
+        
         Attacker.update()
-        Profiler.end(f"""Attacker.update""")
+        
 
-        Profiler.start(f"""HealTargeter.fill""")
+        
         HealTargeter.fill()
-        Profiler.end(f"""HealTargeter.fill""")
+        
 
 
         if cls.mode == 0:
@@ -40233,7 +40178,6 @@ class Builder(Unit):
             cls.mode = 1
             Explore.target = Explore.new_target()
 
-        print("Mode:", cls.mode)
 
         cls.is_routing_active = False
 
@@ -40257,28 +40201,25 @@ class Builder(Unit):
         else:
             cls.state, *args = cls.determine_state()
 
-        print(f'running: {cls.state}  @', *args, sep=' ')
 
-        Profiler.start(f"""State{cls.state}""")
+        
         globals()[f'State{cls.state}'].run(*args)
-        Profiler.end(f"""State{cls.state}""")
+        
 
 
     @classmethod
     def end_turn(cls):
         Unit.end_turn()
 
-        Profiler.start(f"""HealExecutor.execute_heal_attempt""")
+        
         HealExecutor.execute_heal_attempt()
-        Profiler.end(f"""HealExecutor.execute_heal_attempt""")
+        
 
-        Profiler.start(f"""Marker.attempt_mark""")
+        
         Marker.attempt_mark()
-        Profiler.end(f"""Marker.attempt_mark""")
+        
 
 
-        if cls.mode == 2:
-            Debug.diamond(Color.PINK)
 
         if TLEManager.daylight_savings_time:
             Debug.diamond(Color.BLACK)
@@ -40369,12 +40310,10 @@ class Builder(Unit):
             if healpos is not None:
                 return 'MoveTo', healpos, '[lrh: move to heal]'
             elif (Globals.round - HealExecutor.last_healed_round) <= 3:
-                Debug.dot(Globals.my_pos, Color.GREEN)
 
                 return 'MoveTo', HealExecutor.last_healed.position, '[lrh: WAIT to heal]'
 
         if takedownpos is not None:
-            Debug.diamond(Color.PURPLE)
 
             return 'BuildGunner', takedownpos, None
 
@@ -40394,7 +40333,6 @@ class Builder(Unit):
 
         if not buildingFirstConveyor:
             if turretpos is not None:
-                Debug.dot(turretpos, Color.PURPLE)
                 if turretinfo.harvester_ally_turrets_adjacent >= 2 and \
                         turretinfo.harvester_enemy_turrets_adjacent == 0:
                     return 'BuildAdvancedShield', turretpos, turretinfo
@@ -40414,15 +40352,15 @@ class Builder(Unit):
             return 'Attack', secondaryattackpos, 'Preroute'
 
         if RouteToBreach.is_active:
-            print("""(RouteToBreach)""")
+            
             return ('RouteBreach',)
 
         if RouteToFoundry.is_active:
-            print("""(RouteToFoundry)""")
+            
             return ('RouteFoundry',)
 
         if RouteToCore.is_active:
-            print("""RouteToCore""")
+            
             return ('Route',)
 
 
@@ -40446,13 +40384,12 @@ class Builder(Unit):
                 pass
 
             elif route_pos not in RouteToCore.killed:
-                print("""[HarvesterAdjacent found route]""")
+                
                 RouteToCore.set_pos(route_pos)
                 return 'MoveTo', route_pos, 'InitRoute'
 
 
         if turretpos is not None:
-            Debug.dot(turretpos, Color.PURPLE)
             if turretinfo.harvester_ally_turrets_adjacent >= 2 and \
                     turretinfo.harvester_enemy_turrets_adjacent == 0:
                 return 'BuildAdvancedShield', turretpos, turretinfo
@@ -40559,10 +40496,6 @@ class Core(Unit):
     @classmethod
     def end_turn(cls):
         Unit.end_turn()
-
-        if Globals.round > 666:
-            Globals.ct.resign()
-            raise Exception
 
 
 # ============================================================
@@ -40855,7 +40788,6 @@ class Launcher(Unit):
 
             best_pos = max(scores, key=lambda x: x[0])[1] if scores else None
 
-            print("Plausible place to throw:", best_pos)
 
             if nearby_ally_bot is not None and best_pos is not None and ct.can_launch(nearby_ally_bot, best_pos):
                 # return  # -- disable supportive launchers for now --
@@ -40865,8 +40797,6 @@ class Launcher(Unit):
                 if ally_bot_building_id is not None:
                     ally_bot_building_team = ct.get_team(ally_bot_building_id)
 
-                    etype = ct.get_entity_type(ally_bot_building_id)
-                    print(f"etype: {etype}, Team: {ally_bot_building_team}")
 
                     if ally_bot_building_team != my_team \
                             and ct.get_hp(ally_bot_building_id) < ct.get_max_hp(ally_bot_building_id):
@@ -41127,16 +41057,16 @@ class VisionTracker:
 
     @classmethod
     def canonical_ally(cls, from_pos: Position) -> BotInfo:
-        Profiler.start(f"""canonical_ally""")
+        
         ret = min(cls.allies, key=
             lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )
-        Profiler.end(f"""canonical_ally""")
+        
         return ret
 
     @classmethod
     def canonical_ally_index(cls, from_pos: Position) -> int:
-        Profiler.start(f"""canonical_ally""")
+        
         allyIndex = list(map(lambda x: x.position, sorted(cls.allies, key=
             lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )))
@@ -41145,7 +41075,7 @@ class VisionTracker:
         else:
             Debug.warn("my_pos not found in canonical ally list!")
             i = 0
-        Profiler.end(f"""canonical_ally""")
+        
         return i
 
 

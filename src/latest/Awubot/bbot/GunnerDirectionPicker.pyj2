@@ -114,6 +114,7 @@ class GunnerDirectionPicker:
 
         WALL = Environment.WALL
         ROAD = EntityType.ROAD
+        CORE = EntityType.CORE
 
         {% for dir in directions[:8] %}
         {% set dx, dy = dir.delta() %}
