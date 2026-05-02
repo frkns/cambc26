@@ -21,10 +21,17 @@ from Generated import *
 {% macro super() %}Unit{% endmacro %}
 
 class Building:
-    __slots__ = ('team', 'entityType')
-    def __init__(self, ct: Controller, id: int):
+    __slots__ = ('team', 'entityType', 'target')
+    def __init__(self, ct: Controller, id: int, pos: Position):
         self.team = ct.get_team(id)
         self.entityType = ct.get_entity_type(id)
+        et = self.entityType
+        if et == EntityType.CONVEYOR or et == EntityType.ARMOURED_CONVEYOR:
+            self.target = pos.add(ct.get_direction(id))
+        elif et == EntityType.BRIDGE:
+            self.target = ct.get_bridge_target(id)
+        else:
+            self.target = None
 
 class Launcher({{ super() }}):
     @classmethod
@@ -45,6 +52,50 @@ class Launcher({{ super() }}):
     
     ROUTING_SET = Constants.TRANSPORTERS_SET
 
+
+    @classmethod
+    def _chain_hops_to_enemy_turret(cls, start_pos: Position, building_cache: dict, ct: Controller, get_bid, my_team, map_w: int, map_h: int) -> int:
+        """Walk the conveyor/bridge chain from start_pos. Returns the number
+        of hops (0..4) to the nearest enemy sentinel/gunner/breach reachable
+        within 5 hops, or -1 if no enemy turret is found. Excludes LAUNCHER —
+        feeding into an enemy launcher would just re-launch us.
+        """
+        SENTINEL = EntityType.SENTINEL
+        GUNNER = EntityType.GUNNER
+        BREACH = EntityType.BREACH
+        CONVEYOR = EntityType.CONVEYOR
+        ARMOURED = EntityType.ARMOURED_CONVEYOR
+        BRIDGE = EntityType.BRIDGE
+
+        pos = start_pos
+        visited = set()
+        for hops in range(5):
+            if not (0 <= pos.x < map_w and 0 <= pos.y < map_h):
+                return -1
+            if pos in visited:
+                return -1
+            visited.add(pos)
+
+            b = building_cache.get(pos)
+            if b is None:
+                if not ct.is_in_vision(pos):
+                    return -1
+                building_id = get_bid(pos)
+                if building_id is None:
+                    return -1
+                b = Building(ct, building_id, pos)
+                building_cache[pos] = b
+
+            et = b.entityType
+            if b.team != my_team and (et == SENTINEL or et == GUNNER or et == BREACH):
+                return hops
+            if et != CONVEYOR and et != ARMOURED and et != BRIDGE:
+                return -1
+            if b.target is None:
+                return -1
+            pos = b.target
+        return -1
+
     @classmethod
     def run_turn(cls):
         ct = Globals.ct
@@ -56,6 +107,7 @@ class Launcher({{ super() }}):
         nearby_enemy_bot = None
         nearby_ally_bot = None
         enemy_buildings = 0
+        enemy_launchers = 0
         close_enemy_bots = 0
         get_etype = ct.get_entity_type
         get_team = ct.get_team
@@ -64,11 +116,16 @@ class Launcher({{ super() }}):
                 if get_team(unit) != my_team:
                     nearby_enemy_bot = ct.get_position(unit)
                 else:
+                    building_id = ct.get_tile_building_id(ct.get_position(unit))
+                    if building_id is not None and get_team(building_id) != my_team and ct.get_hp(building_id) < ct.get_max_hp(building_id):
+                        continue # don't consider bots currently attacking enemy tiles
                     nearby_ally_bot = ct.get_position(unit)
         
         for building in ct.get_nearby_buildings(2):
             if get_team(building) != my_team:
                 enemy_buildings += 1
+                if get_etype(building) == EntityType.LAUNCHER:
+                    enemy_launchers += 1
                 
         if nearby_ally_bot is not None:
             print("Nearby Ally Bot:", nearby_ally_bot)
@@ -77,7 +134,8 @@ class Launcher({{ super() }}):
                     if get_team(unit) != my_team:
                         if ct.get_position(unit).distance_squared(nearby_ally_bot) <= 2:
                             close_enemy_bots += 1
-                
+            
+        # Throw enemy bot away
         if nearby_enemy_bot is not None:
             print("Oh no! Nearby Enemy Bot:", nearby_enemy_bot)
             print("Time Elapsed:", ct.get_cpu_time_elapsed())
@@ -97,7 +155,7 @@ class Launcher({{ super() }}):
             for tile in tiles:
                 building_id = get_bid(tile)
                 if building_id is not None:
-                    building_cache[tile] = Building(ct, building_id)
+                    building_cache[tile] = Building(ct, building_id, tile)
 
                 if not ct.is_tile_passable(tile):
                     continue
@@ -131,6 +189,7 @@ class Launcher({{ super() }}):
 
             if nearby_enemy_bot is not None and best_pos is not None and ct.can_launch(nearby_enemy_bot, best_pos):
                 ct.launch(nearby_enemy_bot, best_pos)
+        # Throw allied bot to attack
         elif nearby_ally_bot is not None and enemy_buildings > 1 and close_enemy_bots > 0:
             print("No nearby enemies, but nearby ally bot:", nearby_ally_bot)
 
@@ -173,7 +232,7 @@ class Launcher({{ super() }}):
             for tile in tiles:
                 building_id = get_bid(tile)
                 if building_id is not None:
-                    building_cache[tile] = Building(ct, building_id)
+                    building_cache[tile] = Building(ct, building_id, tile)
 
                 if not ct.is_tile_passable(tile):
                     continue
@@ -184,12 +243,19 @@ class Launcher({{ super() }}):
                 score = 0
 
                 building = _bc_get(tile)
+                
+                # Can't launch onto empty tiles
+                if building is None:
+                    return
                     
-                if building is not None:
-                    if building.team != my_team:
-                        score += 1
-                        if building.entityType in cls.ROUTING_SET:
-                            score += 5
+                if building.team != my_team:
+                    score += 1
+                    if building.entityType in cls.ROUTING_SET:
+                        score += 5
+                        if building.target is not None:
+                            hops = cls._chain_hops_to_enemy_turret(building.target, building_cache, ct, get_bid, my_team, map_w, map_h)
+                            if hops >= 0:
+                                score += 100 - hops * 20
 
 
                 {% for d in directions[:8] %}
@@ -219,6 +285,90 @@ class Launcher({{ super() }}):
 
             if nearby_ally_bot is not None and best_pos is not None and ct.can_launch(nearby_ally_bot, best_pos):
                 # return  # -- disable supportive launchers for now --
+                ct.launch(nearby_ally_bot, best_pos)
+        # Throw allied bot to defend against enemy launchers
+        elif nearby_ally_bot is not None and enemy_launchers > 0 and close_enemy_bots == 0:
+            print("No nearby enemies, but nearby ally bot (defense):", nearby_ally_bot)
+
+            ROUTING = cls.ROUTING_SET
+            LAUNCHER = EntityType.LAUNCHER
+            DIRECTIONS = Constants.DIRECTIONS
+            map_w = ct.get_map_width()
+            map_h = ct.get_map_height()
+
+            building_cache = {}
+            get_bid = ct.get_tile_building_id
+            _bc_get = building_cache.get
+            scores = []
+            _sa = scores.append
+            
+            enemy_builder_bots = set()
+            enemy_bots_2 = set()
+            enemy_bots_8 = set()
+            
+            for unit in ct.get_nearby_units():
+                if ct.get_entity_type(unit) == BUILDER_BOT and ct.get_team(unit) != my_team:
+                    upos = ct.get_position(unit)
+                    enemy_builder_bots.add(upos)
+                    ux, uy = upos.x, upos.y
+                    {% for dx in range(-1, 2) %}
+                    {% for dy in range(-1, 2) %}
+                    {% if not (dx == 0 and dy == 0) %}
+                    enemy_bots_2.add(Position(ux + {{ dx }}, uy + {{ dy }}))
+                    {% endif %}
+                    {% endfor %}
+                    {% endfor %}
+
+            for tile in tiles:
+                building_id = get_bid(tile)
+                if building_id is not None:
+                    building_cache[tile] = Building(ct, building_id, tile)
+
+                if not ct.is_tile_passable(tile):
+                    continue
+                    
+                if tile in enemy_builder_bots:
+                    continue
+                    
+                score = 0
+
+                building = _bc_get(tile)
+                
+                # Can't launch onto empty tiles
+                if building is None:
+                    return
+                    
+                if building.team == my_team:
+                    score += 1
+                    if building.entityType in cls.ROUTING_SET:
+                        score += 5
+                        if building.target is not None:
+                            hops = cls._chain_hops_to_enemy_turret(building.target, building_cache, ct, get_bid, my_team, map_w, map_h)
+                            if hops >= 0:
+                                score += 100 - hops * 20
+
+                {% for d in directions[:8] %}
+                    new_loc = tile.add({{ d }})
+                    nx, ny = new_loc.x, new_loc.y
+                    if (0 <= nx < map_w and 0 <= ny < map_h) and ct.is_in_vision(new_loc):
+                        adj_building = _bc_get(new_loc)
+                        if adj_building is not None:
+                            if adj_building.team != my_team and adj_building.entityType == LAUNCHER:
+                                score -= 1000
+                {% endfor %}
+
+                if tile in enemy_bots_2:
+                    score += 100
+
+                _sa((score, tile))
+                if ct.get_cpu_time_elapsed() > 1920:
+                    break
+
+            best_pos = max(scores, key=lambda x: x[0])[1] if scores else None
+
+            print("Plausible place to throw for defense:", best_pos)
+
+            if nearby_ally_bot is not None and best_pos is not None and ct.can_launch(nearby_ally_bot, best_pos):
                 ct.launch(nearby_ally_bot, best_pos)
 
     @classmethod

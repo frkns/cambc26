@@ -132,6 +132,14 @@ class Builder({{ super() }}):
 
             cls.mode = {{ Mode.EARLY_RUSH }}
             Explore.target = Explore.new_target()
+            
+        {{ P.start('EnemyLauncherTakedown.fill') }}
+        EnemyLauncherTakedown.fill()
+        {{ P.end('EnemyLauncherTakedown.fill') }}
+
+        {{ P.start('HarvesterAdjacent.fill') }}
+        HarvesterAdjacent.fill()
+        {{ P.end('HarvesterAdjacent.fill') }}
 
         if cls.mode == {{ Mode.HEALER }} and Globals.round >= Constants.HEAL_OVER:
             cls.mode = {{ Mode.ECON }}
@@ -254,6 +262,25 @@ class Builder({{ super() }}):
 
         misinfo: TransporterInfo = VisionTracker.get_best_misrouted_target()
 
+        # Gate for initiating an EnemyLauncherTakedown: only allowed when a
+        # heal candidate or misrouted transporter we'd otherwise pursue is
+        # currently unreachable. HealTargeter.get_best_target_info and
+        # VisionTracker.get_best_misrouted_target both return None when their
+        # best candidate is unreachable, so we inspect the unfiltered
+        # candidate lists directly. Once committed (pending_pos set), the
+        # build/stickiness continues regardless of this gate.
+        enemylauncher_allow_new = False
+        if EnemyLauncherTakedown.pending_pos is None:
+            for _t in HealTargeter.targets:
+                if _t.bfs_dist_adj >= 8 and not _t.is_launcher and (_t.building_heal + _t.bot_heal) > 0:
+                    enemylauncher_allow_new = True
+                    break
+            if not enemylauncher_allow_new:
+                for _t in VisionTracker.misrouted_transporters:
+                    if not _t.easily_reachable_adj:
+                        enemylauncher_allow_new = True
+                        break
+
         # now changed to sentinel/gunner pos near enemy?
         {# /* sentinelinfo: AdjacentInfo = HarvesterAdjacent.get_best_sentinel_info() */ #}
         {# /* sentinelpos = None if sentinelinfo is None else sentinelinfo.position */ #}
@@ -290,6 +317,12 @@ class Builder({{ super() }}):
 
             return 'BuildGunner', takedownpos, None
 
+
+        enemylauncherpos = EnemyLauncherTakedown.get_best_launcher_position(allow_new_target=enemylauncher_allow_new)
+        if enemylauncherpos is not None:
+            Debug.dot(enemylauncherpos, Color.RED)
+            EnemyLauncherTakedown.mark_dispatched(enemylauncherpos)
+            return 'BuildLauncher', enemylauncherpos
 
         if healpos is not None and misinfo is None:
             return 'MoveTo', healpos, 'Heal'

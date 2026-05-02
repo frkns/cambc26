@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-02 02:09:07 (local)
+# latest,  @ 2026-05-02 11:22:59 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -9022,10 +9022,17 @@ class BuildManager:
 # ============================================================
 
 class Building:
-    __slots__ = ('team', 'entityType')
-    def __init__(self, ct: Controller, id: int):
+    __slots__ = ('team', 'entityType', 'target')
+    def __init__(self, ct: Controller, id: int, pos: Position):
         self.team = ct.get_team(id)
         self.entityType = ct.get_entity_type(id)
+        et = self.entityType
+        if et == EntityType.CONVEYOR or et == EntityType.ARMOURED_CONVEYOR:
+            self.target = pos.add(ct.get_direction(id))
+        elif et == EntityType.BRIDGE:
+            self.target = ct.get_bridge_target(id)
+        else:
+            self.target = None
 
 
 # ============================================================
@@ -27490,6 +27497,137 @@ class Debug:
 
 
 # ============================================================
+# EnemyLauncherTakedown
+# ============================================================
+
+class EnemyLauncherTakedown:
+    best_position: Position | None = None
+    _best_bfs: int = 100
+
+    # Stickiness: once we've built the counter-launcher, stay adjacent so it
+    # can launch us over the enemy launcher. Persists for 10 rounds, or
+    # until we get launched (distance jumps), or the ally launcher is gone.
+    pending_pos: Position | None = None
+    pending_round: int = -100
+
+
+    @classmethod
+    def get_best_launcher_position(cls, allow_new_target: bool = True) -> Position | None:
+        # Stay near a just-built counter-launcher so it can grab us, OR keep
+        # trying to build at the existing target if we already committed.
+        pp = cls.pending_pos
+        if pp is not None:
+            rounds_elapsed = Globals.round - cls.pending_round
+            if rounds_elapsed > 10 or Globals.my_pos.distance_squared(pp) > 8:
+                cls.pending_pos = None
+            else:
+                ti = Map.tile_info[pp.x][pp.y]
+                if ti is not None and ti.has_building and ti.is_building_ally and ti.entity_type == EntityType.LAUNCHER:
+                    return pp
+                # Launcher not yet built but we've committed; keep going (skip
+                # the caller's gate — we're mid-build).
+                allow_new_target = True
+
+        if not allow_new_target:
+            return None
+
+        if not BuildManager.can_afford_launcher():
+            return None
+
+        bp = cls.best_position
+        if bp is None:
+            return None
+
+        if cls._best_bfs >= 100:
+            return None
+
+        if not VisionTracker.me_is_canonical_ally(bp) and bp.distance_squared(Globals.my_pos) > 2:
+            return None
+
+        return bp
+
+
+    @classmethod
+    def mark_dispatched(cls, pos: Position):
+        # Only set on initial dispatch — don't refresh pending_round on
+        # subsequent ticks, so the 10-round timeout actually fires if stuck.
+        if cls.pending_pos is None:
+            cls.pending_pos = pos
+            cls.pending_round = Globals.round
+
+
+    @classmethod
+    def fill(cls):
+        cls.best_position = None
+        cls._best_bfs = 100
+
+        el = BfsBureau.enemy_launcher
+        if not el:
+            return
+
+        stride = BfsBureau.STRIDE
+        board_mask = BfsBureau.board_mask
+        al = BfsBureau.ally_launcher
+
+        if al:
+            al_wide = (al | (al << 1) | (al >> 1)) & board_mask
+            al_3x3  = (al_wide | (al_wide << stride) | (al_wide >> stride)) & board_mask
+            targetable = el & ~al_3x3
+        else:
+            targetable = el
+
+        if not targetable:
+            return
+
+        t_wide = (targetable | (targetable << 1) | (targetable >> 1)) & board_mask
+        zone   = (t_wide | (t_wide << stride) | (t_wide >> stride)) & board_mask
+
+        bfs_dist_adj = BfsBureau.bfs20_dist_adj
+        ecx, ecy = Symmetry.enemy_core_pos.x, Symmetry.enemy_core_pos.y
+        is_routing = Builder.is_routing_active
+        route_from_pos = Builder.route_from_pos if is_routing else None
+
+        best_bfs = 100
+        best_dist_core = 0
+        best_pos = None
+
+        for pos, x, y, idx, ti in Map.inner_proc_nearby_tiles:
+            if not ((zone >> (x * stride + y)) & 1):
+                continue
+
+            if ti.env == Environment.WALL:
+                continue
+
+            if ti.has_bot:
+                continue
+
+            if ti.has_building:
+                if not ti.is_building_ally:
+                    continue
+                if ti.entity_type != EntityType.ROAD:
+                    continue
+
+            if is_routing and pos == route_from_pos:
+                continue
+
+            d = bfs_dist_adj[idx]
+            if d > best_bfs:
+                continue
+
+            dx = x - ecx
+            dy = y - ecy
+            dc = dx * dx + dy * dy
+
+            if d < best_bfs or dc < best_dist_core:
+                best_bfs = d
+                best_dist_core = dc
+                best_pos = pos
+
+        cls.best_position = best_pos
+        cls._best_bfs = best_bfs
+
+
+# ============================================================
 # Entrypoint
 # ============================================================
 
@@ -30707,6 +30845,8 @@ class HealTargeter:
                 else:
                     info.has_enemy_bot = True
 
+            if info.building_heal == info.bot_heal == 0:
+                continue  # prune
 
             targets.append(info)
 
@@ -30731,6 +30871,7 @@ class Map:
     proc_nearby_tiles: list[tuple[Position, int, int, int, TileInfo]]        # in rsq 20
     inner_proc_nearby_tiles: list[tuple[Position, int, int, int, TileInfo]]  # in rsq 10
     num_allies: int
+    num_enemy_units: int
     num_enemies: int
     num_enemies_8: int
     num_enemy_buildings: int
@@ -30739,6 +30880,8 @@ class Map:
     ti_ally_harvester_set: set[int] = set()
     ax_ally_harvester_set: set[int] = set()
     enemy_route_set: set[int] = set()
+    
+    rounds_since_enemy_unit: int = 1000000
 
     # cleared every turn
     new_syms: list[Position] = []
@@ -30820,6 +30963,7 @@ class Map:
 
         messages_read = 0
         num_allies = 0
+        num_enemy_units = 1000000
         num_enemies = 0
         num_enemies_8 = 0
         num_enemy_buildings = 0
@@ -30913,6 +31057,7 @@ class Map:
                     num_enemies += 1
                     if abs(x-my_x) < 2 and abs(y-my_y) < 2:
                         num_enemies_8 += 1
+                    num_enemy_units += 1
 
             ti.easily_passable = False
 
@@ -30962,6 +31107,7 @@ class Map:
                             DarkForest.register_sink(
                                 pos_idx,
                                 3)
+                    num_enemy_units += 1
                 else:
                     DarkForest.remove_node(pos_idx)
 
@@ -31035,9 +31181,15 @@ class Map:
 
 
         cls.num_allies = num_allies
+        cls.num_enemy_units = num_enemy_units
         cls.num_enemies = num_enemies
         cls.num_enemies_8 = num_enemies_8
         cls.num_enemy_buildings = num_enemy_buildings
+        
+        if num_enemy_units > 0:
+            cls.rounds_since_enemy_unit = 0
+        else:
+            cls.rounds_since_enemy_unit += 1
 
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
         # + is_pointed_to
@@ -31251,6 +31403,7 @@ class Map:
 
         messages_read = 0
         num_allies = 0
+        num_enemy_units = 1000000
         num_enemies = 0
         num_enemies_8 = 0
         num_enemy_buildings = 0
@@ -31344,6 +31497,7 @@ class Map:
                     num_enemies += 1
                     if abs(x-my_x) < 2 and abs(y-my_y) < 2:
                         num_enemies_8 += 1
+                    num_enemy_units += 1
 
             ti.easily_passable = False
 
@@ -31393,6 +31547,7 @@ class Map:
                             DarkForest.register_sink(
                                 pos_idx,
                                 3)
+                    num_enemy_units += 1
                 else:
                     DarkForest.remove_node(pos_idx)
 
@@ -31466,9 +31621,15 @@ class Map:
 
 
         cls.num_allies = num_allies
+        cls.num_enemy_units = num_enemy_units
         cls.num_enemies = num_enemies
         cls.num_enemies_8 = num_enemies_8
         cls.num_enemy_buildings = num_enemy_buildings
+        
+        if num_enemy_units > 0:
+            cls.rounds_since_enemy_unit = 0
+        else:
+            cls.rounds_since_enemy_unit += 1
 
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
         # + is_pointed_to
@@ -31682,6 +31843,7 @@ class Map:
 
         messages_read = 0
         num_allies = 0
+        num_enemy_units = 1000000
         num_enemies = 0
         num_enemies_8 = 0
         num_enemy_buildings = 0
@@ -31775,6 +31937,7 @@ class Map:
                     num_enemies += 1
                     if abs(x-my_x) < 2 and abs(y-my_y) < 2:
                         num_enemies_8 += 1
+                    num_enemy_units += 1
 
             ti.easily_passable = False
 
@@ -31824,6 +31987,7 @@ class Map:
                             DarkForest.register_sink(
                                 pos_idx,
                                 3)
+                    num_enemy_units += 1
                 else:
                     DarkForest.remove_node(pos_idx)
 
@@ -31897,9 +32061,15 @@ class Map:
 
 
         cls.num_allies = num_allies
+        cls.num_enemy_units = num_enemy_units
         cls.num_enemies = num_enemies
         cls.num_enemies_8 = num_enemies_8
         cls.num_enemy_buildings = num_enemy_buildings
+        
+        if num_enemy_units > 0:
+            cls.rounds_since_enemy_unit = 0
+        else:
+            cls.rounds_since_enemy_unit += 1
 
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
         # + is_pointed_to
@@ -32113,6 +32283,7 @@ class Map:
 
         messages_read = 0
         num_allies = 0
+        num_enemy_units = 1000000
         num_enemies = 0
         num_enemies_8 = 0
         num_enemy_buildings = 0
@@ -32203,6 +32374,7 @@ class Map:
                     num_enemies += 1
                     if abs(x-my_x) < 2 and abs(y-my_y) < 2:
                         num_enemies_8 += 1
+                    num_enemy_units += 1
 
             ti.easily_passable = False
 
@@ -32252,6 +32424,7 @@ class Map:
                             DarkForest.register_sink(
                                 pos_idx,
                                 3)
+                    num_enemy_units += 1
                 else:
                     DarkForest.remove_node(pos_idx)
 
@@ -32325,9 +32498,15 @@ class Map:
 
 
         cls.num_allies = num_allies
+        cls.num_enemy_units = num_enemy_units
         cls.num_enemies = num_enemies
         cls.num_enemies_8 = num_enemies_8
         cls.num_enemy_buildings = num_enemy_buildings
+        
+        if num_enemy_units > 0:
+            cls.rounds_since_enemy_unit = 0
+        else:
+            cls.rounds_since_enemy_unit += 1
 
         # --- second pass: harvester_adjacent + allied_bots_adjacent ---
         # + is_pointed_to
@@ -33603,7 +33782,7 @@ class Pathfinder:
         # else: in dead-band [19..25], keep previous near_base value
 
         
-        if cls.near_base:
+        if cls.near_base or 0 < Map.rounds_since_enemy_unit <= 10: # roadspam near base or if enemies just went away (to prepare for the next wave)
             dist, dir = BfsBureau.find_route_inv(my_pos, target, ban_target_pos)  # prefer empties → lays roads
         else:
             dist, dir = BfsBureau.find_route(my_pos, target, ban_target_pos)      # prefer roads → uses existing roads
@@ -39112,21 +39291,29 @@ class StateBuildAdvancedShield:
 
         ally_gunners_adjacent = 0
 
-        if tile_info[x ][y -1].entity_type == GUNNER:
+        ti = tile_info[x ][y -1]
+        if ti is not None and ti.entity_type == GUNNER:
             ally_gunners_adjacent += 1
-        if tile_info[x +1][y -1].entity_type == GUNNER:
+        ti = tile_info[x +1][y -1]
+        if ti is not None and ti.entity_type == GUNNER:
             ally_gunners_adjacent += 1
-        if tile_info[x +1][y ].entity_type == GUNNER:
+        ti = tile_info[x +1][y ]
+        if ti is not None and ti.entity_type == GUNNER:
             ally_gunners_adjacent += 1
-        if tile_info[x +1][y +1].entity_type == GUNNER:
+        ti = tile_info[x +1][y +1]
+        if ti is not None and ti.entity_type == GUNNER:
             ally_gunners_adjacent += 1
-        if tile_info[x ][y +1].entity_type == GUNNER:
+        ti = tile_info[x ][y +1]
+        if ti is not None and ti.entity_type == GUNNER:
             ally_gunners_adjacent += 1
-        if tile_info[x -1][y +1].entity_type == GUNNER:
+        ti = tile_info[x -1][y +1]
+        if ti is not None and ti.entity_type == GUNNER:
             ally_gunners_adjacent += 1
-        if tile_info[x -1][y ].entity_type == GUNNER:
+        ti = tile_info[x -1][y ]
+        if ti is not None and ti.entity_type == GUNNER:
             ally_gunners_adjacent += 1
-        if tile_info[x -1][y -1].entity_type == GUNNER:
+        ti = tile_info[x -1][y -1]
+        if ti is not None and ti.entity_type == GUNNER:
             ally_gunners_adjacent += 1
 
         can_barrier = ally_gunners_adjacent == 0
@@ -40121,14 +40308,14 @@ class TransporterInfo:
         if a.ti.has_bot and (not b.ti.has_bot): return False
         if (not a.ti.has_bot) and b.ti.has_bot: return True
 
+        if abs(a.bfs_dist - b.bfs_dist) > 2:
+            return a.bfs_dist < b.bfs_dist
+
+        if a.ti.building_hp != b.ti.building_hp:
+            return a.ti.building_hp < b.ti.building_hp
+
         if a.enemy_bot1 != b.enemy_bot1:
             return a.enemy_bot1 < b.enemy_bot1
-
-        if a.low_weight != b.low_weight:
-            return a.low_weight < b.low_weight
-
-        if abs(a.bfs_dist - b.bfs_dist) > 2:  # breaks strict weak ordering
-            return a.bfs_dist < b.bfs_dist
 
         if a.enemy_bot_dist_adj != b.enemy_bot_dist_adj:
             return a.enemy_bot_dist_adj > b.enemy_bot_dist_adj
@@ -40136,10 +40323,7 @@ class TransporterInfo:
         # factored in with bot_bfs_dist
         # if a.adjacent_launchers != b.adjacent_launchers:
         #     return a.adjacent_launchers > b.adjacent_launchers
-
-        if a.ti.building_hp != b.ti.building_hp:
-            return a.ti.building_hp < b.ti.building_hp
-
+        
         if a.harvester_adjacent and (not b.harvester_adjacent): return True
         if (not a.harvester_adjacent) and b.harvester_adjacent: return False
 
@@ -40478,6 +40662,14 @@ class Builder(Unit):
 
             cls.mode = 2
             Explore.target = Explore.new_target()
+            
+        
+        EnemyLauncherTakedown.fill()
+        
+
+        
+        HarvesterAdjacent.fill()
+        
 
         if cls.mode == 3 and Globals.round >= Constants.HEAL_OVER:
             cls.mode = 1
@@ -40594,6 +40786,25 @@ class Builder(Unit):
 
         misinfo: TransporterInfo = VisionTracker.get_best_misrouted_target()
 
+        # Gate for initiating an EnemyLauncherTakedown: only allowed when a
+        # heal candidate or misrouted transporter we'd otherwise pursue is
+        # currently unreachable. HealTargeter.get_best_target_info and
+        # VisionTracker.get_best_misrouted_target both return None when their
+        # best candidate is unreachable, so we inspect the unfiltered
+        # candidate lists directly. Once committed (pending_pos set), the
+        # build/stickiness continues regardless of this gate.
+        enemylauncher_allow_new = False
+        if EnemyLauncherTakedown.pending_pos is None:
+            for _t in HealTargeter.targets:
+                if _t.bfs_dist_adj >= 8 and not _t.is_launcher and (_t.building_heal + _t.bot_heal) > 0:
+                    enemylauncher_allow_new = True
+                    break
+            if not enemylauncher_allow_new:
+                for _t in VisionTracker.misrouted_transporters:
+                    if not _t.easily_reachable_adj:
+                        enemylauncher_allow_new = True
+                        break
+
         # now changed to sentinel/gunner pos near enemy?
 
         turretinfo: AdjacentInfo | None
@@ -40622,6 +40833,12 @@ class Builder(Unit):
 
             return 'BuildGunner', takedownpos, None
 
+
+        enemylauncherpos = EnemyLauncherTakedown.get_best_launcher_position(allow_new_target=enemylauncher_allow_new)
+        if enemylauncherpos is not None:
+            Debug.dot(enemylauncherpos, Color.RED)
+            EnemyLauncherTakedown.mark_dispatched(enemylauncherpos)
+            return 'BuildLauncher', enemylauncherpos
 
         if healpos is not None and misinfo is None:
             return 'MoveTo', healpos, 'Heal'
@@ -40856,6 +41073,50 @@ class Launcher(Unit):
     
     ROUTING_SET = Constants.TRANSPORTERS_SET
 
+
+    @classmethod
+    def _chain_hops_to_enemy_turret(cls, start_pos: Position, building_cache: dict, ct: Controller, get_bid, my_team, map_w: int, map_h: int) -> int:
+        """Walk the conveyor/bridge chain from start_pos. Returns the number
+        of hops (0..4) to the nearest enemy sentinel/gunner/breach reachable
+        within 5 hops, or -1 if no enemy turret is found. Excludes LAUNCHER —
+        feeding into an enemy launcher would just re-launch us.
+        """
+        SENTINEL = EntityType.SENTINEL
+        GUNNER = EntityType.GUNNER
+        BREACH = EntityType.BREACH
+        CONVEYOR = EntityType.CONVEYOR
+        ARMOURED = EntityType.ARMOURED_CONVEYOR
+        BRIDGE = EntityType.BRIDGE
+
+        pos = start_pos
+        visited = set()
+        for hops in range(5):
+            if not (0 <= pos.x < map_w and 0 <= pos.y < map_h):
+                return -1
+            if pos in visited:
+                return -1
+            visited.add(pos)
+
+            b = building_cache.get(pos)
+            if b is None:
+                if not ct.is_in_vision(pos):
+                    return -1
+                building_id = get_bid(pos)
+                if building_id is None:
+                    return -1
+                b = Building(ct, building_id, pos)
+                building_cache[pos] = b
+
+            et = b.entityType
+            if b.team != my_team and (et == SENTINEL or et == GUNNER or et == BREACH):
+                return hops
+            if et != CONVEYOR and et != ARMOURED and et != BRIDGE:
+                return -1
+            if b.target is None:
+                return -1
+            pos = b.target
+        return -1
+
     @classmethod
     def run_turn(cls):
         ct = Globals.ct
@@ -40867,6 +41128,7 @@ class Launcher(Unit):
         nearby_enemy_bot = None
         nearby_ally_bot = None
         enemy_buildings = 0
+        enemy_launchers = 0
         close_enemy_bots = 0
         get_etype = ct.get_entity_type
         get_team = ct.get_team
@@ -40875,11 +41137,16 @@ class Launcher(Unit):
                 if get_team(unit) != my_team:
                     nearby_enemy_bot = ct.get_position(unit)
                 else:
+                    building_id = ct.get_tile_building_id(ct.get_position(unit))
+                    if building_id is not None and get_team(building_id) != my_team and ct.get_hp(building_id) < ct.get_max_hp(building_id):
+                        continue # don't consider bots currently attacking enemy tiles
                     nearby_ally_bot = ct.get_position(unit)
         
         for building in ct.get_nearby_buildings(2):
             if get_team(building) != my_team:
                 enemy_buildings += 1
+                if get_etype(building) == EntityType.LAUNCHER:
+                    enemy_launchers += 1
                 
         if nearby_ally_bot is not None:
             print("Nearby Ally Bot:", nearby_ally_bot)
@@ -40888,7 +41155,8 @@ class Launcher(Unit):
                     if get_team(unit) != my_team:
                         if ct.get_position(unit).distance_squared(nearby_ally_bot) <= 2:
                             close_enemy_bots += 1
-                
+            
+        # Throw enemy bot away
         if nearby_enemy_bot is not None:
             print("Oh no! Nearby Enemy Bot:", nearby_enemy_bot)
             print("Time Elapsed:", ct.get_cpu_time_elapsed())
@@ -40908,7 +41176,7 @@ class Launcher(Unit):
             for tile in tiles:
                 building_id = get_bid(tile)
                 if building_id is not None:
-                    building_cache[tile] = Building(ct, building_id)
+                    building_cache[tile] = Building(ct, building_id, tile)
 
                 if not ct.is_tile_passable(tile):
                     continue
@@ -40942,6 +41210,7 @@ class Launcher(Unit):
 
             if nearby_enemy_bot is not None and best_pos is not None and ct.can_launch(nearby_enemy_bot, best_pos):
                 ct.launch(nearby_enemy_bot, best_pos)
+        # Throw allied bot to attack
         elif nearby_ally_bot is not None and enemy_buildings > 1 and close_enemy_bots > 0:
             print("No nearby enemies, but nearby ally bot:", nearby_ally_bot)
 
@@ -40994,7 +41263,7 @@ class Launcher(Unit):
             for tile in tiles:
                 building_id = get_bid(tile)
                 if building_id is not None:
-                    building_cache[tile] = Building(ct, building_id)
+                    building_cache[tile] = Building(ct, building_id, tile)
 
                 if not ct.is_tile_passable(tile):
                     continue
@@ -41005,12 +41274,19 @@ class Launcher(Unit):
                 score = 0
 
                 building = _bc_get(tile)
+                
+                # Can't launch onto empty tiles
+                if building is None:
+                    return
                     
-                if building is not None:
-                    if building.team != my_team:
-                        score += 1
-                        if building.entityType in cls.ROUTING_SET:
-                            score += 5
+                if building.team != my_team:
+                    score += 1
+                    if building.entityType in cls.ROUTING_SET:
+                        score += 5
+                        if building.target is not None:
+                            hops = cls._chain_hops_to_enemy_turret(building.target, building_cache, ct, get_bid, my_team, map_w, map_h)
+                            if hops >= 0:
+                                score += 100 - hops * 20
 
 
                     new_loc = tile.add(Direction.NORTH)
@@ -41101,6 +41377,138 @@ class Launcher(Unit):
 
             if nearby_ally_bot is not None and best_pos is not None and ct.can_launch(nearby_ally_bot, best_pos):
                 # return  # -- disable supportive launchers for now --
+                ct.launch(nearby_ally_bot, best_pos)
+        # Throw allied bot to defend against enemy launchers
+        elif nearby_ally_bot is not None and enemy_launchers > 0 and close_enemy_bots == 0:
+            print("No nearby enemies, but nearby ally bot (defense):", nearby_ally_bot)
+
+            ROUTING = cls.ROUTING_SET
+            LAUNCHER = EntityType.LAUNCHER
+            DIRECTIONS = Constants.DIRECTIONS
+            map_w = ct.get_map_width()
+            map_h = ct.get_map_height()
+
+            building_cache = {}
+            get_bid = ct.get_tile_building_id
+            _bc_get = building_cache.get
+            scores = []
+            _sa = scores.append
+            
+            enemy_builder_bots = set()
+            enemy_bots_2 = set()
+            enemy_bots_8 = set()
+            
+            for unit in ct.get_nearby_units():
+                if ct.get_entity_type(unit) == BUILDER_BOT and ct.get_team(unit) != my_team:
+                    upos = ct.get_position(unit)
+                    enemy_builder_bots.add(upos)
+                    ux, uy = upos.x, upos.y
+                    enemy_bots_2.add(Position(ux + -1, uy + -1))
+                    enemy_bots_2.add(Position(ux + -1, uy + 0))
+                    enemy_bots_2.add(Position(ux + -1, uy + 1))
+                    enemy_bots_2.add(Position(ux + 0, uy + -1))
+                    enemy_bots_2.add(Position(ux + 0, uy + 1))
+                    enemy_bots_2.add(Position(ux + 1, uy + -1))
+                    enemy_bots_2.add(Position(ux + 1, uy + 0))
+                    enemy_bots_2.add(Position(ux + 1, uy + 1))
+
+            for tile in tiles:
+                building_id = get_bid(tile)
+                if building_id is not None:
+                    building_cache[tile] = Building(ct, building_id, tile)
+
+                if not ct.is_tile_passable(tile):
+                    continue
+                    
+                if tile in enemy_builder_bots:
+                    continue
+                    
+                score = 0
+
+                building = _bc_get(tile)
+                
+                # Can't launch onto empty tiles
+                if building is None:
+                    return
+                    
+                if building.team == my_team:
+                    score += 1
+                    if building.entityType in cls.ROUTING_SET:
+                        score += 5
+                        if building.target is not None:
+                            hops = cls._chain_hops_to_enemy_turret(building.target, building_cache, ct, get_bid, my_team, map_w, map_h)
+                            if hops >= 0:
+                                score += 100 - hops * 20
+
+                    new_loc = tile.add(Direction.NORTH)
+                    nx, ny = new_loc.x, new_loc.y
+                    if (0 <= nx < map_w and 0 <= ny < map_h) and ct.is_in_vision(new_loc):
+                        adj_building = _bc_get(new_loc)
+                        if adj_building is not None:
+                            if adj_building.team != my_team and adj_building.entityType == LAUNCHER:
+                                score -= 1000
+                    new_loc = tile.add(Direction.NORTHEAST)
+                    nx, ny = new_loc.x, new_loc.y
+                    if (0 <= nx < map_w and 0 <= ny < map_h) and ct.is_in_vision(new_loc):
+                        adj_building = _bc_get(new_loc)
+                        if adj_building is not None:
+                            if adj_building.team != my_team and adj_building.entityType == LAUNCHER:
+                                score -= 1000
+                    new_loc = tile.add(Direction.EAST)
+                    nx, ny = new_loc.x, new_loc.y
+                    if (0 <= nx < map_w and 0 <= ny < map_h) and ct.is_in_vision(new_loc):
+                        adj_building = _bc_get(new_loc)
+                        if adj_building is not None:
+                            if adj_building.team != my_team and adj_building.entityType == LAUNCHER:
+                                score -= 1000
+                    new_loc = tile.add(Direction.SOUTHEAST)
+                    nx, ny = new_loc.x, new_loc.y
+                    if (0 <= nx < map_w and 0 <= ny < map_h) and ct.is_in_vision(new_loc):
+                        adj_building = _bc_get(new_loc)
+                        if adj_building is not None:
+                            if adj_building.team != my_team and adj_building.entityType == LAUNCHER:
+                                score -= 1000
+                    new_loc = tile.add(Direction.SOUTH)
+                    nx, ny = new_loc.x, new_loc.y
+                    if (0 <= nx < map_w and 0 <= ny < map_h) and ct.is_in_vision(new_loc):
+                        adj_building = _bc_get(new_loc)
+                        if adj_building is not None:
+                            if adj_building.team != my_team and adj_building.entityType == LAUNCHER:
+                                score -= 1000
+                    new_loc = tile.add(Direction.SOUTHWEST)
+                    nx, ny = new_loc.x, new_loc.y
+                    if (0 <= nx < map_w and 0 <= ny < map_h) and ct.is_in_vision(new_loc):
+                        adj_building = _bc_get(new_loc)
+                        if adj_building is not None:
+                            if adj_building.team != my_team and adj_building.entityType == LAUNCHER:
+                                score -= 1000
+                    new_loc = tile.add(Direction.WEST)
+                    nx, ny = new_loc.x, new_loc.y
+                    if (0 <= nx < map_w and 0 <= ny < map_h) and ct.is_in_vision(new_loc):
+                        adj_building = _bc_get(new_loc)
+                        if adj_building is not None:
+                            if adj_building.team != my_team and adj_building.entityType == LAUNCHER:
+                                score -= 1000
+                    new_loc = tile.add(Direction.NORTHWEST)
+                    nx, ny = new_loc.x, new_loc.y
+                    if (0 <= nx < map_w and 0 <= ny < map_h) and ct.is_in_vision(new_loc):
+                        adj_building = _bc_get(new_loc)
+                        if adj_building is not None:
+                            if adj_building.team != my_team and adj_building.entityType == LAUNCHER:
+                                score -= 1000
+
+                if tile in enemy_bots_2:
+                    score += 100
+
+                _sa((score, tile))
+                if ct.get_cpu_time_elapsed() > 1920:
+                    break
+
+            best_pos = max(scores, key=lambda x: x[0])[1] if scores else None
+
+            print("Plausible place to throw for defense:", best_pos)
+
+            if nearby_ally_bot is not None and best_pos is not None and ct.can_launch(nearby_ally_bot, best_pos):
                 ct.launch(nearby_ally_bot, best_pos)
 
     @classmethod

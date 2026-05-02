@@ -185,8 +185,8 @@ class HealTargeter:
                 else:
                     info.has_enemy_bot = True
 
-            {# /* if info.building_heal == info.bot_heal == 0: */ #}
-                {# /* continue  # prune */ #}
+            if info.building_heal == info.bot_heal == 0:
+                continue  # prune
 
             targets.append(info)
 
