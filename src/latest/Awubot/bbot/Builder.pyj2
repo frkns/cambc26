@@ -57,10 +57,6 @@ class Builder({{ super() }}):
         DarkForest.fcompute()
         {{ P.end('DarkForest.fcompute') }}
 
-        {{ P.start() }}
-        FoundryInputTracker.compute()
-        {{ P.end('FoundryInputTracker.compute') }}
-
         {{ P.start('BfsBureau.update') }}
         BfsBureau.update()
         {{ P.end('BfsBureau.update') }}
@@ -263,7 +259,7 @@ class Builder({{ super() }}):
                 return 'Reroute', misinfo.position  # same
 
 
-        buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0) or (RouteToFoundryInput.is_active and len(RouteToFoundryInput.prevRoute) == 0)
+        buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0)
 
         if not buildingFirstConveyor and sentinelpos is None:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
@@ -285,10 +281,6 @@ class Builder({{ super() }}):
         if RouteToFoundry.is_active:
             {{ D.print('(RouteToFoundry)') }}
             return ('RouteFoundry',)
-
-        if RouteToFoundryInput.is_active:
-            {{ D.print('RouteToFoundryInput') }}
-            return ('RouteFoundryInput',)
 
         if RouteToCore.is_active:
             {{ D.print('RouteToCore') }}

@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-01 16:03:04 (local)
+# latest,  @ 2026-05-01 17:12:26 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -9330,11 +9330,6 @@ class DarkForest:
     sight_flowing: list[bool]        # sight-based flow: True if fresh valid resource seen recently
     foundry_positions: set[int] = set()  # persistent: encoded positions of built foundries
     refined_ax_line: set[int] = set()    # recomputed each tick: ALLY_CORE nodes on refined-axionite output paths
-    foundry_owner:        list[int]           # per-node encoded foundry pos, -1 if none
-    foundry_ti_sink_sets: dict[int, set[int]] # foundry_idx -> titanium-side reachable nodes
-    foundry_ax_sink_sets: dict[int, set[int]] # foundry_idx -> axionite-side reachable nodes
-    foundry_ti_flow: list[int]   # titanium flow at each node
-    foundry_ax_flow: list[int]   # axionite flow at each node
     
     @classmethod
     def init(cls):
@@ -9565,9 +9560,6 @@ class DarkForest:
         _sh = (0, 12, 6,
                4, 3)
 
-        ti_flow = [0] * 3136
-        ax_flow = [0] * 3136
-
         for h in harvesters:
             _is_ax = h in ax_harvesters
             _n0 = h -1
@@ -9588,31 +9580,19 @@ class DarkForest:
                 if _e0:
                     flow[_n0] += s
                     if _is_ax:
-                        ax_flow[_n0] += s
                         ax_tagged[_n0] = True
-                    else:
-                        ti_flow[_n0] += s
                 if _e1:
                     flow[_n1] += s
                     if _is_ax:
-                        ax_flow[_n1] += s
                         ax_tagged[_n1] = True
-                    else:
-                        ti_flow[_n1] += s
                 if _e2:
                     flow[_n2] += s
                     if _is_ax:
-                        ax_flow[_n2] += s
                         ax_tagged[_n2] = True
-                    else:
-                        ti_flow[_n2] += s
                 if _e3:
                     flow[_n3] += s
                     if _is_ax:
-                        ax_flow[_n3] += s
                         ax_tagged[_n3] = True
-                    else:
-                        ti_flow[_n3] += s
 
         # TODO: Maybe weight higher
         # ── foundries as refined-axionite sources (act like titanium harvesters) ──
@@ -9625,7 +9605,6 @@ class DarkForest:
                 _s = _sh[_cnt]
                 for _fn in _fn_list:
                     flow[_fn] += _s
-                    ti_flow[_fn] += _s   # refined axionite acts as titanium downstream
 
         # ── fix dead parents, indegree, collect active ──
         active = []
@@ -27147,8 +27126,6 @@ class DarkForest:
             p = ns[u].up
             if p is not None and ns[p] is not None and p not in harvesters:
                 flow[p]    += flow[u]
-                ti_flow[p] += ti_flow[u]
-                ax_flow[p] += ax_flow[u]
                 # propagate ax taint upward
                 if ax_tagged[u]:
                     ax_tagged[p] = True
@@ -27205,7 +27182,6 @@ class DarkForest:
         # ── top-down pass: pressure, node_kind, core_sink_set, per-foundry sink sets ──
         pressure    = [0] * 3136
         nk          = [0] * 3136
-        foundry_owner = [-1] * 3136   # encoded pos of the foundry this node feeds, or -1
 
         _ALLY_CONSUMER_K = 3
         _foundry_set     = cls.foundry_positions
@@ -27236,9 +27212,7 @@ class DarkForest:
             else:
                 pressure[u] = pressure[p]
                 k = nk[p]
-                fo = foundry_owner[p]            # inherit from parent
             nk[u] = k
-            foundry_owner[u] = fo
             if (k == 1
                     and pressure[u] <= THR
                     and not ax_tagged[u]
@@ -27248,19 +27222,7 @@ class DarkForest:
         # cores themselves are always valid sinks regardless of the above
         core_sink_set |= core_pos_set
 
-        # ── per-foundry titanium / axionite sink sets ──
-        foundry_ti_sink_sets: dict[int, set[int]] = {f: set() for f in _foundry_set}
-        foundry_ax_sink_sets: dict[int, set[int]] = {f: set() for f in _foundry_set}
-    
 
-        for u in active:
-            fo = foundry_owner[u]
-            if fo == -1:
-                continue
-            if ax_tagged[u]:
-                foundry_ax_sink_sets[fo].add(u)
-            else:
-                foundry_ti_sink_sets[fo].add(u)
 
         cls.flow          = flow
         cls.pressure      = pressure
@@ -27268,11 +27230,6 @@ class DarkForest:
         cls.ax_tagged     = ax_tagged
         cls.core_sink_set = core_sink_set
         cls.sink_set      = core_sink_set   # backward-compat alias
-        cls.foundry_owner        = foundry_owner        # per-node encoded foundry pos, -1 if none
-        cls.foundry_ti_sink_sets = foundry_ti_sink_sets # {foundry_idx -> set of ti-feeding nodes}
-        cls.foundry_ax_sink_sets = foundry_ax_sink_sets # {foundry_idx -> set of ax-feeding nodes}
-        cls.foundry_ti_flow = ti_flow   # total titanium flow at each node
-        cls.foundry_ax_flow = ax_flow   # total axionite flow at each node
 
         _ral: set[int] = set()
         _ALLY_CORE_K = 1
@@ -27658,161 +27615,6 @@ class FoundryBuild:
             return None
         t = ((RouteToFoundry._foundry_target) // 56 - 3), ((RouteToFoundry._foundry_target) % 56 - 3)
         return Position(t[0], t[1])
-
-
-# ============================================================
-# FoundryInputTracker
-# ============================================================
-
-class FoundryInputTracker:
-    MAX_INPUTS    = 8
-    MAX_TI_INPUTS = 4 
-    MAX_AX_INPUTS = 4
-
-    # Built-connection counts (from DarkForest, reset each tick).
-    ti_count: dict[int, int] = {}
-    ax_count: dict[int, int, ] = {}
-
-    # Pending-route reservations (persist across ticks, cleared on
-    # give-up / success).  Keyed by foundry encoded position.
-    claimed_ti: dict[int, int] = defaultdict(int)
-    claimed_ax: dict[int, int] = defaultdict(int)
-
-    ti_sink_sets: dict[int, set[int]] = {}
-    ax_sink_sets: dict[int, set[int]] = {}
-
-    @classmethod
-    def compute(cls):
-        """Read per-foundry ti/ax flow directly from DarkForest and sync sink sets."""
-        ti_flow = DarkForest.foundry_ti_flow
-        ax_flow = DarkForest.foundry_ax_flow
-
-        ti_c: dict[int, int] = {}
-        ax_c: dict[int, int] = {}
-        for f in DarkForest.foundry_positions:
-            ti_c[f] = ti_flow[f]
-            ax_c[f] = ax_flow[f]
-
-        cls.ti_count = ti_c
-        cls.ax_count = ax_c
-
-        cls.ti_sink_sets = DarkForest.foundry_ti_sink_sets
-        cls.ax_sink_sets = DarkForest.foundry_ax_sink_sets
-    # ── capacity helpers (built + claimed) ──
-
-    @classmethod
-    def get_ti_sink_set(cls, f: int) -> set[int]:
-        """Titanium-side routing targets for foundry f (empty set if unknown)."""
-        return cls.ti_sink_sets.get(f, set())
-
-    @classmethod
-    def get_ax_sink_set(cls, f: int) -> set[int]:
-        """Axionite-side routing targets for foundry f (empty set if unknown)."""
-        return cls.ax_sink_sets.get(f, set())
-
-    @classmethod
-    def _ti_used(cls, f: int) -> int:
-        return cls.ti_count.get(f, 0) + cls.claimed_ti[f]
-
-    @classmethod
-    def _ax_used(cls, f: int) -> int:
-        return cls.ax_count.get(f, 0) + cls.claimed_ax[f]
-
-    @classmethod
-    def has_ti_capacity(cls, f: int) -> bool:
-        return (cls._ti_used(f) < cls.MAX_TI_INPUTS
-                and cls._ti_used(f) + cls._ax_used(f) < cls.MAX_INPUTS)
-
-    @classmethod
-    def has_ax_capacity(cls, f: int) -> bool:
-        return (cls._ax_used(f) < cls.MAX_AX_INPUTS
-                and cls._ti_used(f) + cls._ax_used(f) < cls.MAX_INPUTS)
-
-    # ── reservation management ──
-
-    @classmethod
-    def claim_ti(cls, f: int):
-        cls.claimed_ti[f] += 1
-
-    @classmethod
-    def release_ti(cls, f: int):
-        if cls.claimed_ti[f] > 0:
-            cls.claimed_ti[f] -= 1
-
-    @classmethod
-    def claim_ax(cls, f: int):
-        cls.claimed_ax[f] += 1
-
-    @classmethod
-    def release_ax(cls, f: int):
-        if cls.claimed_ax[f] > 0:
-            cls.claimed_ax[f] -= 1
-
-    # ── target selection ──
-
-    @classmethod
-    def get_best_ti_foundry(cls, from_pos: Position) -> int | None:
-        """
-        Nearest existing foundry (by Manhattan distance) that still has
-        a spare titanium input slot.  Returns encoded position or None.
-        """
-        sx, sy  = from_pos.x, from_pos.y
-        best    = None
-        best_d  = 1000000
-        for f in DarkForest.foundry_positions:
-            if not cls.has_ti_capacity(f):
-                continue
-            fx = f // 56 - 3
-            fy = f % 56  - 3
-            d  = abs(fx - sx) + abs(fy - sy)
-            if d < best_d:
-                best_d = d
-                best   = f
-        return best
-
-    @classmethod
-    def get_best_ax_foundry(cls, from_pos: Position) -> int | None:
-        """
-        Nearest existing foundry with a spare axionite input slot.
-        Prefers foundries that already have at least one ti input (so
-        the foundry can actually produce refined axionite).
-        """
-        sx, sy  = from_pos.x, from_pos.y
-        best    = None
-        best_d  = 1000000
-        for f in DarkForest.foundry_positions:
-            if not cls.has_ax_capacity(f):
-                continue
-            fx = f // 56 - 3
-            fy = f % 56  - 3
-            d  = abs(fx - sx) + abs(fy - sy)
-            # Prefer foundries that already have a titanium connection.
-            if cls._ti_used(f) > 0:
-                d = d // 2     # half-distance bias toward productive foundries
-            if d < best_d:
-                best_d = d
-                best   = f
-        return best
-
-
-# ══════════════════════════════════════════════════════════════════════
-# RouteToFoundryInput
-#
-# Routes a just-built harvester (titanium OR axionite) toward an
-# existing foundry that has spare input capacity.
-#
-# Titanium mode  (is_ax=False): uses find_bridge_route.
-# Axionite mode  (is_ax=True):  uses find_bridge_route_avoid_ti_adj
-#                                to keep axionite paths off titanium
-#                                territory.
-#
-# Completion: when from_pos is adjacent to the foundry and we build
-# a conveyor pointing toward it, set_pos(foundry_pos) triggers
-# deactivation (encoded == _target).
-#
-# Mirrors RouteToCore / RouteToFoundry structure so determine_state
-# can handle all three uniformly.
-# ══════════════════════════════════════════════════════════════════════
 
 
 # ============================================================
@@ -33205,24 +33007,11 @@ class OreExecutive:
                 if ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET and not ti.is_shield and encoded in DarkForest.core_sink_set:
                     break  # already connected, skip
             else:
-                # Prefer routing to an existing foundry with spare ti capacity
-                # over routing all the way back to core — it's cheaper and
-                # boosts an under-fed foundry's output.
-                fi_target = FoundryInputTracker.get_best_ti_foundry(pos)
-                if fi_target is not None and not RouteToFoundryInput.is_active:
-                    target_pos = Position(((fi_target) // 56 - 3), ((fi_target) % 56 - 3))
-                else:
-                    target_pos = Unit.core_pos
-
+                target_pos = Unit.core_pos
                 cand: OrePositionPicker.Candidate = OrePositionPicker.pick_best_candidate(pos, target_pos=target_pos)
                 if cand is not None:
-                    if fi_target is not None and not RouteToFoundryInput.is_active and RouteToFoundry.axionite_can_reach_foundry(cand.position, fi_target):
-                        FoundryInputTracker.claim_ti(fi_target)
-                        RouteToFoundryInput.set_pos(cand.position, fi_target, is_ax=False)
-                        print("go_build_harvester: routing ti to existing foundry", fi_target)
-                    else:
-                        RouteToCore.set_pos(cand.position)
-                        RouteToCore.isAttack = isAttack
+                    RouteToCore.set_pos(cand.position)
+                    RouteToCore.isAttack = isAttack
 
     @classmethod
     def go_build_ax_harvester(cls, pos):
@@ -33247,27 +33036,8 @@ class OreExecutive:
             Debug.diamond(Color.RED)
             return
 
-        # ── Strategy 1: route to an existing foundry with spare ax capacity ──
-        # This is preferred because it immediately boosts an already-built
-        # foundry's refined-axionite output without needing to build a new one.
-        fi_target = FoundryInputTracker.get_best_ax_foundry(pos)
-        if (fi_target is not None
-                and not RouteToFoundryInput.is_active
-                and RouteToFoundry.axionite_can_reach_foundry(cand.position, fi_target)):
-            if BuildManager.can_dbuild_harvester(pos):
-                Debug.line(pos, Color.YELLOW)
-                BuildManager.dbuild_harvester(pos)
-                FoundryInputTracker.claim_ax(fi_target)
-                RouteToFoundryInput.set_pos(cand.position, fi_target, is_ax=True)
-                print("go_build_ax_harvester: routing ax to existing foundry", fi_target)
-            else:
-                RouteToFoundry.give_up(True)
-            return
-
-        # ── Strategy 2: route to a new foundry leaf (existing behaviour) ──
-        # Prefer cluster-aware leaf selection when nearby ores form a cluster.
+        # route to a new foundry leaf
         RouteToFoundry.from_pos = pos
-
 
         RouteToFoundry.try_claim_target()
         foundry_enc = RouteToFoundry._foundry_target
@@ -35249,181 +35019,6 @@ class RouteToFoundry:
             cls.move_to_next()
             # if Globals.ct.can_build_road(cls.from_pos):
             #     Globals.ct.build_road(cls.from_pos)
-        else:
-            cls.move_to_next()
-
-
-# ============================================================
-# RouteToFoundryInput
-# ============================================================
-
-class RouteToFoundryInput:
-    is_active:    bool          = False
-    from_pos:     Position
-    _target:      int | None    = None   # encoded foundry position
-    _is_ax:       bool          = False  # True → axionite routing rules
-    prevRoute:    list          = []
-    backTracking: bool          = False
-    killed:       set[int]      = set()
-
-    @classmethod
-    def set_pos(cls, pos: Position, target: int, is_ax: bool,
-                full_reset: bool = True):
-        enc = (((pos.x) + 3) * 56 + ((pos.y) + 3))
-
-        # Arrived at the foundry — success.
-        if enc == target:
-            if is_ax:
-                FoundryInputTracker.release_ax(target)
-            else:
-                FoundryInputTracker.release_ti(target)
-            cls.is_active = False
-            cls.prevRoute.clear()
-            cls.backTracking = False
-            return
-
-        if full_reset:
-            cls.prevRoute.clear()
-            cls.backTracking = False
-        else:
-            cls.prevRoute.append(cls.from_pos)
-            cls.backTracking = False
-
-        cls.is_active    = True
-        cls.from_pos     = pos
-        cls._target      = target
-        cls._is_ax       = is_ax
-
-    @classmethod
-    def try_build_route(cls):
-        assert cls.is_active
-        if cls._target is None:
-            cls.give_up()
-            return
-
-        target_set = {}
-        if cls._is_ax:
-            target_set = FoundryInputTracker.get_ax_sink_set(cls._target) | {cls._target}
-        else:
-            target_set = FoundryInputTracker.get_ti_sink_set(cls._target) | {cls._target}
-
-        if cls._is_ax:
-            bridge_dist, first_target = BfsBureau.find_bridge_route_avoid_ti_adj(
-                cls.from_pos,
-                target_set,
-                avoid_pos=RouteToCore.pathFindingKill,
-            )
-        else:
-            bridge_dist, first_target = BfsBureau.find_bridge_route(
-                cls.from_pos,
-                target_set,
-                avoid_pos=RouteToCore.pathFindingKill.union(Unit.core_pos_set),
-            )
-
-        
-
-        if first_target is None:
-            Debug.tee("RouteToFoundryInput: no route to foundry, giving up")
-            if cls.give_up():
-                StateMoveTo.run(Explore.get_target())
-            return
-
-        target = Position(*first_target)
-        Debug.line(cls.from_pos, target, Color.CYAN)
-
-        dsq = cls.from_pos.distance_squared(target)
-        if dsq == 1:
-            ti = Map.tile_info[cls.from_pos.x][cls.from_pos.y]
-            if not ti.has_building or not ti.is_building_ally or target != ti.target:
-                if BuildManager.can_dbuild_conveyor(cls.from_pos):
-                    BuildManager.dbuild_conveyor(
-                        cls.from_pos,
-                        cls.from_pos.direction_to(target),
-                    )
-                    cls.set_pos(target, cls._target, cls._is_ax, full_reset=False)
-        elif BuildManager.can_dbuild_bridge(cls.from_pos):
-            BuildManager.dbuild_bridge(cls.from_pos, target)
-            cls.set_pos(target, cls._target, cls._is_ax, full_reset=False)
-
-    @classmethod
-    def move_to_next(cls):
-        Pathfinder.move_to(cls.from_pos, ban_target_pos=True)
-
-    @classmethod
-    def should_give_up(cls) -> bool:
-        if cls._target is None:
-            return True
-
-        # Re-check capacity each tick: if the foundry is now full (another
-        # bot beat us to it), abandon and let the builder find a new target.
-        if cls._is_ax:
-            if not FoundryInputTracker.has_ax_capacity(cls._target):
-                # keep claimed until give_up
-                Debug.tee("RouteToFoundryInput: target foundry ax-full, giving up")
-                return True
-        else:
-            if not FoundryInputTracker.has_ti_capacity(cls._target):
-                Debug.tee("RouteToFoundryInput: target foundry ti-full, giving up")
-                return True
-
-        x, y = cls.from_pos.x, cls.from_pos.y
-        ti   = Map.tile_info[x][y]
-        if ti is None:
-            return False
-        if not cls.backTracking and Pathfinder.given_up:
-            return True
-        if ti.has_building:
-            if not ti.is_building_ally:
-                return True
-            if not cls.backTracking:
-                if ti.entity_type in Constants.TRANSPORTERS_SET:
-                    return True
-                if ti.entity_type != EntityType.ROAD:
-                    return True
-        return False
-
-    @classmethod
-    def give_up(cls) -> bool:
-        enc = (((cls.from_pos.x) + 3) * 56 + ((cls.from_pos.y) + 3))
-        if not cls.prevRoute:
-            cls.is_active = False
-            if cls._target is not None:
-                if cls._is_ax:
-                    FoundryInputTracker.release_ax(cls._target)
-                else:
-                    FoundryInputTracker.release_ti(cls._target)
-            cls._target = None
-            cls.killed.add(enc)
-            if Pathfinder.given_up:
-                RouteToCore.pathFindingKill.add(enc)
-            cls.backTracking = False
-            Debug.diamond(Color.CYAN)
-          
-            print("RouteToFoundryInput: giving up from", cls.from_pos)
-            return True
-        else:
-            cls.killed.add(enc)
-            if Pathfinder.given_up:
-                RouteToCore.pathFindingKill.add(enc)
-            cls.from_pos = cls.prevRoute.pop()
-            cls.backTracking = True
-            print("RouteToFoundryInput: backtracking to", cls.from_pos)
-            return False
-
-    @classmethod
-    def do_routing(cls):
-        if cls.should_give_up():
-            if cls.give_up():
-                StateMoveTo.run(Explore.get_target())
-            return
-        print("RouteToFoundryInput: routing from", cls.from_pos,
-              "ax=" + str(cls._is_ax),
-              "target=", cls._target)
-
-        dsq = Globals.my_pos.distance_squared(cls.from_pos)
-        if Globals.ct.get_action_cooldown() == 0 and dsq <= 2:
-            cls.try_build_route()
-            cls.move_to_next()
         else:
             cls.move_to_next()
 
@@ -39950,16 +39545,6 @@ class StateRouteFoundry:
 
 
 # ============================================================
-# StateRouteFoundryInput
-# ============================================================
-
-class StateRouteFoundryInput:
-    @classmethod
-    def run(cls):
-        RouteToFoundryInput.do_routing()
-
-
-# ============================================================
 # StateRush
 # ============================================================
 
@@ -40843,10 +40428,6 @@ class Builder(Unit):
         
 
         
-        FoundryInputTracker.compute()
-        
-
-        
         BfsBureau.update()
         
 
@@ -41028,7 +40609,7 @@ class Builder(Unit):
                 return 'Reroute', misinfo.position  # same
 
 
-        buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0) or (RouteToFoundryInput.is_active and len(RouteToFoundryInput.prevRoute) == 0)
+        buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0)
 
         if not buildingFirstConveyor and sentinelpos is None:
             shieldpos = HarvesterAdjacent.get_best_shield_position()
@@ -41050,10 +40631,6 @@ class Builder(Unit):
         if RouteToFoundry.is_active:
             
             return ('RouteFoundry',)
-
-        if RouteToFoundryInput.is_active:
-            
-            return ('RouteFoundryInput',)
 
         if RouteToCore.is_active:
             
