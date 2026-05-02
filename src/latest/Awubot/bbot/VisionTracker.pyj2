@@ -24,7 +24,7 @@ class TransporterInfo:
         'bfs_dist', 'bfs_dist_adj', 'bfs_dist_target_adj', 'flow', 'entity_type',
         'harvester_adjacent', 'is_ally', 'node_kind', 'flowing_into_ally',
         'on_ally_side', 'easily_buildable', 'probably_flowing', 'adjacent_launchers',
-        'enemy_bot_dist_adj', 'enemy_bot1', 'rand_key', 'is_ax'
+        'enemy_bot_dist_adj', 'enemy_bot1', 'rand_key', 'is_ax', 'low_weight'
     )
 
     @staticmethod
@@ -47,7 +47,10 @@ class TransporterInfo:
         if a.enemy_bot1 != b.enemy_bot1:
             return a.enemy_bot1 < b.enemy_bot1
 
-        if abs(a.bfs_dist - b.bfs_dist) > 2:
+        if a.low_weight != b.low_weight:
+            return a.low_weight < b.low_weight
+
+        if abs(a.bfs_dist - b.bfs_dist) > 2:  # breaks strict weak ordering
             return a.bfs_dist < b.bfs_dist
 
         if a.enemy_bot_dist_adj != b.enemy_bot_dist_adj:
@@ -203,6 +206,7 @@ class VisionTracker:
                 trans.ti = ti
                 trans.position = pos
                 trans.target = ti.target
+                trans.low_weight = BfsBureau.now_weight[idx] < 3
                 trans.easily_reachable = BfsBureau.bfs20_dist[idx] < 20
                 trans.easily_reachable_adj = BfsBureau.bfs20_dist_adj[idx] < 20
                 trans.bfs_dist = BfsBureau.bfs20_dist[idx]

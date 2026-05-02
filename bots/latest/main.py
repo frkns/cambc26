@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # latest,  @ 2026-05-01 23:28:50 (local)
+=======
+# latest,  @ 2026-05-02 02:09:07 (local)
+>>>>>>> osteo
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -20,12 +24,13 @@ from itertools import chain
 
 class AdjacentInfo:
     __slots__ = (
-        'position', 'bfs_dist', 'bfs_dist_adj', 'is_harvester_ally', 'ti',
+        'position', 'bfs_dist', 'bfs_dist_adj', 'is_harvester_ally', 'ti', 'hpos',
         'consider_route', 'dist_to_ally_core', 'has_ally_transporter',
         'easily_buildable', 'is_canonical_ally_harvester', 'is_working_shield',
         'harvester_ally_turrets_adjacent', 'harvester_enemy_turrets_adjacent',
         'enemy_turrets_adjacent', 'ally_turrets_adjacent',
         'sentinel_dir_info',
+        'gunner_dir_info',
         'h_outward_adj',
         'h_has_fed_foundry'
     )
@@ -74,6 +79,9 @@ class AdjacentInfo:
 
         if asi.banned: return False
         if bsi.banned: return True
+
+        if bool(asi.enemy_turret_hp) != bool(bsi.enemy_turret_hp):
+            return asi.enemy_turret_hp > bsi.enemy_turret_hp
         
         if asi.enemy_building_hp != bsi.enemy_building_hp:
             return asi.enemy_building_hp > bsi.enemy_building_hp
@@ -91,6 +99,44 @@ class AdjacentInfo:
             return ati.has_bot < bti.has_bot
 
         return a.bfs_dist_adj < b.bfs_dist_adj
+
+
+    @staticmethod
+    def is_better_than_gunner(a: AdjacentInfo, b: AdjacentInfo):
+        # now is better
+
+        if not a.easily_buildable: return False
+        if not b.easily_buildable: return True
+            
+        if a.bfs_dist_adj >= 100: return False        
+        if b.bfs_dist_adj >= 100: return True
+
+        asi: GunnerDirectionInfo = a.gunner_dir_info
+        bsi: GunnerDirectionInfo = b.gunner_dir_info
+
+        if asi.banned: return False
+        if bsi.banned: return True
+
+        if (asi.has_enemy_turret) != (bsi.has_enemy_turret):
+            return asi.has_enemy_turret > bsi.has_enemy_turret
+        
+        if asi.enemy_building_hp != bsi.enemy_building_hp:
+            return asi.enemy_building_hp > bsi.enemy_building_hp
+
+        if a.is_harvester_ally and (not b.is_harvester_ally): return False
+        if (not a.is_harvester_ally) and b.is_harvester_ally: return True
+
+        if asi.enemy_bot_hp != bsi.enemy_bot_hp:
+            return asi.enemy_bot_hp > bsi.enemy_bot_hp
+        
+        ati = a.ti
+        bti = b.ti
+        
+        if ati.has_bot != bti.has_bot:
+            return ati.has_bot < bti.has_bot
+
+        return a.bfs_dist_adj < b.bfs_dist_adj
+
 
 
     @staticmethod
@@ -161,9 +207,13 @@ class Attacker:
     
     @classmethod        
     def get_secondary_target(cls) -> Position | None:
-        if Builder.min_dist_to_a_core >= 10 and Globals.round < 100:
+        target = cls.get_road_target()
+        if target is None:
             return None
-        return cls.get_road_target()
+        if Globals.round < 100 and \
+                min(target.distance_squared(Unit.core_pos), 
+                    target.distance_squared(Symmetry.enemy_core_pos)) >= 10:
+            return None
 
     @classmethod
     def get_trans_target(cls) -> Position | None:
@@ -8944,7 +8994,7 @@ class BuildManager:
         ti_cost, ax_cost = Globals.ct.get_barrier_cost()
         
 
-        req = 50 if Globals.round < 150 else 50
+        req = 20 if Globals.round < 150 else 50
 
 
         leftover_unscaled_ti = 0
@@ -27922,6 +27972,15 @@ class GunnerDirectionPicker:
 
 
     @classmethod
+    def get_best_info(cls, spos) -> GunnerDirectionInfo:
+        cls.precompute(spos)
+        best = cls.infos[0]
+        for info in cls.infos[1:]:
+            if GunnerDirectionInfo.is_better_than(info, best):
+                best = info
+        return best
+
+    @classmethod
     def get_best_direction(cls, spos) -> Direction:
         cls.precompute(spos)
         best = cls.infos[0]
@@ -28116,255 +28175,141 @@ class GunnerDirectionPicker:
             infos.append(info7)
 
 
+        info0.has_enemy_turret = False
+        for pos in Globals.ct.get_attackable_tiles_from(spos, Direction.NORTH, EntityType.GUNNER):
+            # Debug.dot(pos, Color.BLUE)
 
-        ti = tile_info[sx + -2][sy + -2]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info7.enemy_building_hp += e_building_hp
+            ti = tile_info[pos.x][pos.y]
+            if ti is not None:
+                if ti.has_building and not ti.is_building_ally:
+                    e_building_hp = ti.building_hp
+                    info0.enemy_building_hp += e_building_hp
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info7.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + -2][sy + -1]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
+                    if ti.has_turret:
+                        info0.has_enemy_turret = True
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-        ti = tile_info[sx + -2][sy + 0]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info6.enemy_building_hp += e_building_hp
+                if ti.has_bot and not ti.is_bot_ally:
+                    e_bot_hp = ti.bot_hp
+                    info0.enemy_bot_hp += e_bot_hp
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info6.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + -2][sy + 1]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
+        info1.has_enemy_turret = False
+        for pos in Globals.ct.get_attackable_tiles_from(spos, Direction.NORTHEAST, EntityType.GUNNER):
+            # Debug.dot(pos, Color.BLUE)
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-        ti = tile_info[sx + -2][sy + 2]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info5.enemy_building_hp += e_building_hp
+            ti = tile_info[pos.x][pos.y]
+            if ti is not None:
+                if ti.has_building and not ti.is_building_ally:
+                    e_building_hp = ti.building_hp
+                    info1.enemy_building_hp += e_building_hp
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info5.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + -1][sy + -2]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
+                    if ti.has_turret:
+                        info1.has_enemy_turret = True
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-        ti = tile_info[sx + -1][sy + -1]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info7.enemy_building_hp += e_building_hp
+                if ti.has_bot and not ti.is_bot_ally:
+                    e_bot_hp = ti.bot_hp
+                    info1.enemy_bot_hp += e_bot_hp
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info7.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + -1][sy + 0]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info6.enemy_building_hp += e_building_hp
+        info2.has_enemy_turret = False
+        for pos in Globals.ct.get_attackable_tiles_from(spos, Direction.EAST, EntityType.GUNNER):
+            # Debug.dot(pos, Color.BLUE)
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info6.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + -1][sy + 1]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info5.enemy_building_hp += e_building_hp
+            ti = tile_info[pos.x][pos.y]
+            if ti is not None:
+                if ti.has_building and not ti.is_building_ally:
+                    e_building_hp = ti.building_hp
+                    info2.enemy_building_hp += e_building_hp
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info5.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + -1][sy + 2]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
+                    if ti.has_turret:
+                        info2.has_enemy_turret = True
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-        ti = tile_info[sx + 0][sy + -2]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info0.enemy_building_hp += e_building_hp
+                if ti.has_bot and not ti.is_bot_ally:
+                    e_bot_hp = ti.bot_hp
+                    info2.enemy_bot_hp += e_bot_hp
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info0.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + 0][sy + -1]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info0.enemy_building_hp += e_building_hp
+        info3.has_enemy_turret = False
+        for pos in Globals.ct.get_attackable_tiles_from(spos, Direction.SOUTHEAST, EntityType.GUNNER):
+            # Debug.dot(pos, Color.BLUE)
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info0.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + 0][sy + 0]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
+            ti = tile_info[pos.x][pos.y]
+            if ti is not None:
+                if ti.has_building and not ti.is_building_ally:
+                    e_building_hp = ti.building_hp
+                    info3.enemy_building_hp += e_building_hp
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-        ti = tile_info[sx + 0][sy + 1]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info4.enemy_building_hp += e_building_hp
+                    if ti.has_turret:
+                        info3.has_enemy_turret = True
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info4.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + 0][sy + 2]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info4.enemy_building_hp += e_building_hp
+                if ti.has_bot and not ti.is_bot_ally:
+                    e_bot_hp = ti.bot_hp
+                    info3.enemy_bot_hp += e_bot_hp
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info4.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + 1][sy + -2]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
+        info4.has_enemy_turret = False
+        for pos in Globals.ct.get_attackable_tiles_from(spos, Direction.SOUTH, EntityType.GUNNER):
+            # Debug.dot(pos, Color.BLUE)
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-        ti = tile_info[sx + 1][sy + -1]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info1.enemy_building_hp += e_building_hp
+            ti = tile_info[pos.x][pos.y]
+            if ti is not None:
+                if ti.has_building and not ti.is_building_ally:
+                    e_building_hp = ti.building_hp
+                    info4.enemy_building_hp += e_building_hp
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info1.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + 1][sy + 0]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info2.enemy_building_hp += e_building_hp
+                    if ti.has_turret:
+                        info4.has_enemy_turret = True
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info2.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + 1][sy + 1]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info3.enemy_building_hp += e_building_hp
+                if ti.has_bot and not ti.is_bot_ally:
+                    e_bot_hp = ti.bot_hp
+                    info4.enemy_bot_hp += e_bot_hp
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info3.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + 1][sy + 2]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
+        info5.has_enemy_turret = False
+        for pos in Globals.ct.get_attackable_tiles_from(spos, Direction.SOUTHWEST, EntityType.GUNNER):
+            # Debug.dot(pos, Color.BLUE)
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-        ti = tile_info[sx + 2][sy + -2]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info1.enemy_building_hp += e_building_hp
+            ti = tile_info[pos.x][pos.y]
+            if ti is not None:
+                if ti.has_building and not ti.is_building_ally:
+                    e_building_hp = ti.building_hp
+                    info5.enemy_building_hp += e_building_hp
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info1.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + 2][sy + -1]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
+                    if ti.has_turret:
+                        info5.has_enemy_turret = True
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-        ti = tile_info[sx + 2][sy + 0]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info2.enemy_building_hp += e_building_hp
+                if ti.has_bot and not ti.is_bot_ally:
+                    e_bot_hp = ti.bot_hp
+                    info5.enemy_bot_hp += e_bot_hp
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info2.enemy_bot_hp += e_bot_hp
-        ti = tile_info[sx + 2][sy + 1]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
+        info6.has_enemy_turret = False
+        for pos in Globals.ct.get_attackable_tiles_from(spos, Direction.WEST, EntityType.GUNNER):
+            # Debug.dot(pos, Color.BLUE)
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-        ti = tile_info[sx + 2][sy + 2]
-        if ti is not None:
-            if ti.has_building and not ti.is_building_ally:
-                e_building_hp = ti.building_hp
-                info3.enemy_building_hp += e_building_hp
+            ti = tile_info[pos.x][pos.y]
+            if ti is not None:
+                if ti.has_building and not ti.is_building_ally:
+                    e_building_hp = ti.building_hp
+                    info6.enemy_building_hp += e_building_hp
 
-            if ti.has_bot and not ti.is_bot_ally:
-                e_bot_hp = ti.bot_hp
-                info3.enemy_bot_hp += e_bot_hp
+                    if ti.has_turret:
+                        info6.has_enemy_turret = True
 
-        ti = tile_info[sx ][sy -1]
-        if ti is not None:
-            info0.has_enemy_turret = ti.has_turret and not ti.is_building_ally
-        else:
-            info0.has_enemy_turret = False
-        ti = tile_info[sx +1][sy -1]
-        if ti is not None:
-            info1.has_enemy_turret = ti.has_turret and not ti.is_building_ally
-        else:
-            info1.has_enemy_turret = False
-        ti = tile_info[sx +1][sy ]
-        if ti is not None:
-            info2.has_enemy_turret = ti.has_turret and not ti.is_building_ally
-        else:
-            info2.has_enemy_turret = False
-        ti = tile_info[sx +1][sy +1]
-        if ti is not None:
-            info3.has_enemy_turret = ti.has_turret and not ti.is_building_ally
-        else:
-            info3.has_enemy_turret = False
-        ti = tile_info[sx ][sy +1]
-        if ti is not None:
-            info4.has_enemy_turret = ti.has_turret and not ti.is_building_ally
-        else:
-            info4.has_enemy_turret = False
-        ti = tile_info[sx -1][sy +1]
-        if ti is not None:
-            info5.has_enemy_turret = ti.has_turret and not ti.is_building_ally
-        else:
-            info5.has_enemy_turret = False
-        ti = tile_info[sx -1][sy ]
-        if ti is not None:
-            info6.has_enemy_turret = ti.has_turret and not ti.is_building_ally
-        else:
-            info6.has_enemy_turret = False
-        ti = tile_info[sx -1][sy -1]
-        if ti is not None:
-            info7.has_enemy_turret = ti.has_turret and not ti.is_building_ally
-        else:
-            info7.has_enemy_turret = False
+                if ti.has_bot and not ti.is_bot_ally:
+                    e_bot_hp = ti.bot_hp
+                    info6.enemy_bot_hp += e_bot_hp
+
+        info7.has_enemy_turret = False
+        for pos in Globals.ct.get_attackable_tiles_from(spos, Direction.NORTHWEST, EntityType.GUNNER):
+            # Debug.dot(pos, Color.BLUE)
+
+            ti = tile_info[pos.x][pos.y]
+            if ti is not None:
+                if ti.has_building and not ti.is_building_ally:
+                    e_building_hp = ti.building_hp
+                    info7.enemy_building_hp += e_building_hp
+
+                    if ti.has_turret:
+                        info7.has_enemy_turret = True
+
+                if ti.has_bot and not ti.is_bot_ally:
+                    e_bot_hp = ti.bot_hp
+                    info7.enemy_bot_hp += e_bot_hp
 
 
 # ============================================================
@@ -28463,9 +28408,6 @@ class GunnerSupervisor:
         if not best.has_enemy_bot and best.ally_connected:
             return None
         
-        # Don't bother turning just to knock out some roads
-        if not best.has_enemy_bot and best.is_road and not best.current_dir:
-            return None
 
         if best.is_harvester_feeding_ally:
             return None
@@ -29268,6 +29210,10 @@ class GunnerTargetInfo:
         if a.harvester_adjacent and (not b.harvester_adjacent): return True
         if (not a.harvester_adjacent) and b.harvester_adjacent: return False
 
+        # prefer the direction we're currently facing
+        if a.current_dir != b.current_dir:
+            return a.current_dir > b.current_dir
+
         if a.is_road and (not b.is_road): return False  # prefer non-roads
         if (not a.is_road) and b.is_road: return True
 
@@ -29279,10 +29225,6 @@ class GunnerTargetInfo:
         if a.current_dir == b.current_dir:
             if a.has_enemy_bot and (not b.has_enemy_bot): return True
             if (not a.has_enemy_bot) and b.has_enemy_bot: return False
-
-        # prefer the direction we're currently facing
-        if a.current_dir != b.current_dir:
-            return a.current_dir > b.current_dir
 
         if a.has_enemy_bot and b.has_enemy_bot:
             if a.bot_hp != b.bot_hp:
@@ -29301,41 +29243,84 @@ class HarvesterAdjacent:
 
 
     @classmethod
-    def get_best_sentinel_position(cls) -> Position | None:
+    def get_best_turret_info(cls) -> tuple[AdjacentInfo | None, bool]:  # bool is is_gunner
+        if not BuildManager.can_afford_sentinel() and Globals.round < 250: 
+            return None, False
+
+        if not cls.infos:
+            return None, False
+
+        bestsen = cls.infos[0]
+        for c in cls.infos[1:]:
+            if AdjacentInfo.is_better_than_sentinel(c, bestsen):
+                bestsen = c
+
+        bestgun = cls.infos[0]
+        for c in cls.infos[1:]:
+            if AdjacentInfo.is_better_than_gunner(c, bestgun):
+                bestgun = c
+
+        si: SentinelDirectionInfo = bestsen.sentinel_dir_info
+        sen_ok = not (
+            not bestsen.easily_buildable or bestsen.bfs_dist_adj >= 100 or bestsen.ti.has_bot or si.banned
+            or not VisionTracker.me_is_canonical_ally(bestsen.position)
+        )
+        if sen_ok:
+            sen_ok = (si.enemy_building_hp > 30 and si.enemy_bot_hp > 30) or (si.enemy_building_hp > 40) or (si.enemy_turret_hp > 0)
+
+        gi: GunnerDirectionInfo = bestgun.gunner_dir_info
+        gun_ok = not (
+            not bestgun.easily_buildable or bestgun.bfs_dist_adj >= 100 or bestgun.ti.has_bot or gi.banned
+            or not VisionTracker.me_is_canonical_ally(bestgun.position)
+        )
+        if gun_ok:
+            gun_ok = (gi.enemy_building_hp > 10) or (gi.has_enemy_turret)
+
+        if not (sen_ok or gun_ok):
+            return None, False
+
+        sen_score = (si.enemy_building_hp + bool(si.enemy_turret_hp) * 100) if sen_ok else 0
+        gun_score = (gi.enemy_building_hp * 5 + gi.has_enemy_turret * 200) if gun_ok else 0
+
+
+        return (bestgun, True) if gun_score > sen_score else (bestsen, False)
+
+
+
+    @classmethod
+    def get_best_sentinel_info(cls) -> AdjacentInfo | None:
         if not BuildManager.can_afford_sentinel() and Globals.round < 250: 
             return None 
 
         if not cls.infos:
             return None
 
-        best = cls.infos[0]
+        bestsen = cls.infos[0]
         for c in cls.infos[1:]:
-            if AdjacentInfo.is_better_than_sentinel(c, best):
-                best = c
+            if AdjacentInfo.is_better_than_sentinel(c, bestsen):
+                bestsen = c
 
-        # Debug.tee(best.__dict__)
-
-        if not best.easily_buildable:
+        if not bestsen.easily_buildable:
             return None
         
-        if best.bfs_dist_adj >= 100:
+        if bestsen.bfs_dist_adj >= 100:
             return None
 
-        if best.ti.has_bot:
+        if bestsen.ti.has_bot:
             return None
 
-        si: SentinelDirectionInfo = best.sentinel_dir_info
+        si: SentinelDirectionInfo = bestsen.sentinel_dir_info
         if si.banned:
             return None
         
-        ok = (si.enemy_building_hp > 20 and si.enemy_bot_hp > 20) or (si.enemy_building_hp > 40)
+        ok = (si.enemy_building_hp > 20 and si.enemy_bot_hp > 20) or (si.enemy_building_hp > 40) or (si.enemy_turret_hp > 0)
         if not ok:
             return None
 
-        if not VisionTracker.me_is_canonical_ally(best.position):
+        if not VisionTracker.me_is_canonical_ally(bestsen.position):
             return None
 
-        return best.position
+        return bestsen
 
 
     @classmethod
@@ -29435,7 +29420,7 @@ class HarvesterAdjacent:
         tile_info = Map.tile_info
         my_pos = Globals.my_pos
 
-        for spos, sx, sy, _, hti in Map.proc_nearby_tiles:
+        for hpos, sx, sy, _, hti in Map.proc_nearby_tiles:
             if hti.entity_type != EntityType.HARVESTER or hti.env == Environment.ORE_AXIONITE:
                 continue
 
@@ -29445,10 +29430,10 @@ class HarvesterAdjacent:
                 and hti.enemy_turrets_adjacent == 0 \
                 and not hti.ally_core_adj \
                 and hti.ally_fed_foundries_adjacent == 0 \
-                and my_pos.distance_squared(spos) <= 15  # can see all adjacent
+                and my_pos.distance_squared(hpos) <= 15  # can see all adjacent
 
-            dist_to_ally_core = spos.distance_squared(Unit.core_pos)
-            is_canonical_ally_harvester = VisionTracker.me_is_canonical_ally(spos)
+            dist_to_ally_core = hpos.distance_squared(Unit.core_pos)
+            is_canonical_ally_harvester = VisionTracker.me_is_canonical_ally(hpos)
             
 
             x, y = sx , sy -1
@@ -29471,6 +29456,7 @@ class HarvesterAdjacent:
 
                     info = AdjacentInfo()
                     info.position = pos
+                    info.hpos = hpos
                     info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
                     info.bfs_dist = BfsBureau.bfs20_dist[idx]
                     info.is_harvester_ally = is_harvester_ally
@@ -29599,6 +29585,7 @@ class HarvesterAdjacent:
                         elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                             info.enemy_turrets_adjacent += 1
 
+                    info.gunner_dir_info = ZHolder.banned_gunner_dir_info
                     info.sentinel_dir_info = ZHolder.banned_sentinel_dir_info
                     info.h_outward_adj = hti.ally_outward_transporters_adjacent
                     infos.append(info)
@@ -29623,6 +29610,7 @@ class HarvesterAdjacent:
 
                     info = AdjacentInfo()
                     info.position = pos
+                    info.hpos = hpos
                     info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
                     info.bfs_dist = BfsBureau.bfs20_dist[idx]
                     info.is_harvester_ally = is_harvester_ally
@@ -29751,6 +29739,7 @@ class HarvesterAdjacent:
                         elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                             info.enemy_turrets_adjacent += 1
 
+                    info.gunner_dir_info = ZHolder.banned_gunner_dir_info
                     info.sentinel_dir_info = ZHolder.banned_sentinel_dir_info
                     info.h_outward_adj = hti.ally_outward_transporters_adjacent
                     infos.append(info)
@@ -29775,6 +29764,7 @@ class HarvesterAdjacent:
 
                     info = AdjacentInfo()
                     info.position = pos
+                    info.hpos = hpos
                     info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
                     info.bfs_dist = BfsBureau.bfs20_dist[idx]
                     info.is_harvester_ally = is_harvester_ally
@@ -29903,6 +29893,7 @@ class HarvesterAdjacent:
                         elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                             info.enemy_turrets_adjacent += 1
 
+                    info.gunner_dir_info = ZHolder.banned_gunner_dir_info
                     info.sentinel_dir_info = ZHolder.banned_sentinel_dir_info
                     info.h_outward_adj = hti.ally_outward_transporters_adjacent
                     infos.append(info)
@@ -29927,6 +29918,7 @@ class HarvesterAdjacent:
 
                     info = AdjacentInfo()
                     info.position = pos
+                    info.hpos = hpos
                     info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
                     info.bfs_dist = BfsBureau.bfs20_dist[idx]
                     info.is_harvester_ally = is_harvester_ally
@@ -30055,6 +30047,7 @@ class HarvesterAdjacent:
                         elif nti.has_building and not nti.is_building_ally and nti.entity_type == EntityType.LAUNCHER:
                             info.enemy_turrets_adjacent += 1
 
+                    info.gunner_dir_info = ZHolder.banned_gunner_dir_info
                     info.sentinel_dir_info = ZHolder.banned_sentinel_dir_info
                     info.h_outward_adj = hti.ally_outward_transporters_adjacent
                     infos.append(info)
@@ -30063,6 +30056,7 @@ class HarvesterAdjacent:
         
         sample = random.sample(infos, min(5, len(infos)))
         for info in sample:
+            info.gunner_dir_info = GunnerDirectionPicker.get_best_info(info.position)
             info.sentinel_dir_info = SentinelDirectionPicker.get_best_info(info.position)
 
 
@@ -38994,10 +38988,12 @@ class SpawnManager:
     @classmethod
     def require_leftover(cls):
         if cls.num_spawned < 8:
+            return 90
+        if cls.num_spawned < 10:
             return 100
-        if cls.num_spawned < 16:
-            return 120
-        return 120 + (10 * Globals.ct.get_unit_count())
+        if cls.num_spawned < 20:
+            return 110
+        return 110 + (10 * Globals.ct.get_unit_count())
 
 
     @classmethod
@@ -39106,6 +39102,64 @@ class StateBreachBuild:
 
 
 # ============================================================
+# StateBuildAdvancedShield
+# ============================================================
+
+class StateBuildAdvancedShield:
+    # build barrier shields on enemy harvesters (do not build conveyor shields - interacts badly)
+
+    @classmethod
+    def run(cls, pos, info: AdjacentInfo):
+        x, y = pos.x, pos.y
+        tile_info = Map.tile_info
+        GUNNER = EntityType.GUNNER
+
+        ally_gunners_adjacent = 0
+
+        if tile_info[x ][y -1].entity_type == GUNNER:
+            ally_gunners_adjacent += 1
+        if tile_info[x +1][y -1].entity_type == GUNNER:
+            ally_gunners_adjacent += 1
+        if tile_info[x +1][y ].entity_type == GUNNER:
+            ally_gunners_adjacent += 1
+        if tile_info[x +1][y +1].entity_type == GUNNER:
+            ally_gunners_adjacent += 1
+        if tile_info[x ][y +1].entity_type == GUNNER:
+            ally_gunners_adjacent += 1
+        if tile_info[x -1][y +1].entity_type == GUNNER:
+            ally_gunners_adjacent += 1
+        if tile_info[x -1][y ].entity_type == GUNNER:
+            ally_gunners_adjacent += 1
+        if tile_info[x -1][y -1].entity_type == GUNNER:
+            ally_gunners_adjacent += 1
+
+        can_barrier = ally_gunners_adjacent == 0
+        dir_to_h = pos.direction_to(info.hpos)
+
+
+
+        if Globals.my_pos.distance_squared(pos) <= 2:
+            if can_barrier and BuildManager.can_smartbuild_barrier(pos):
+                BuildManager.smartbuild_barrier(pos)
+            # elif BuildManager.can_smartbuild_armoured_conveyor(pos):
+            #     BuildManager.smartbuild_armoured_conveyor(pos, dir_to_h)
+            # elif BuildManager.can_smartbuild_conveyor(pos):
+            #     BuildManager.smartbuild_conveyor(pos, dir_to_h)
+
+
+        if Globals.ct.get_move_cooldown() == 0:
+            Pathfinder.move_to(pos, ban_target_pos=False)
+
+        if Globals.my_pos.distance_squared(pos) <= 2:
+            if can_barrier and BuildManager.can_smartbuild_barrier(pos):
+                BuildManager.smartbuild_barrier(pos)
+            # elif BuildManager.can_smartbuild_armoured_conveyor(pos):
+            #     BuildManager.smartbuild_armoured_conveyor(pos, dir_to_h)
+            # elif BuildManager.can_smartbuild_conveyor(pos):
+            #     BuildManager.smartbuild_conveyor(pos, dir_to_h)
+
+
+# ============================================================
 # StateBuildGunner
 # ============================================================
 
@@ -39204,10 +39258,13 @@ class StateBuildShield:
         
 
 
+
         if pos != Globals.my_pos:
             if target_dir is not None:
                 if found_ally_harvester:
-                    if (
+                    if (pos.distance_squared(Symmetry.enemy_core_pos) < pos.distance_squared(Unit.core_pos)) and BuildManager.can_smartbuild_barrier(pos):
+                        BuildManager.smartbuild_barrier(pos)
+                    elif (
             Map.num_enemy_buildings > 0
         ) and BuildManager.can_dbuild_armoured_conveyor(pos):
                         BuildManager.dbuild_armoured_conveyor(pos, target_dir)
@@ -39241,6 +39298,7 @@ class StateBuildShield:
 # ============================================================
 
 class StateBuildTurret:
+
     @classmethod
     def gunner_can_hit_core(cls, gunner_pos: MapLocation) -> Direction | None:
         direction = gunner_pos.direction_to(Symmetry.enemy_core_pos)
@@ -39271,17 +39329,17 @@ class StateBuildTurret:
 
         return None
 
+
     @classmethod
-    def run(cls, pos, should_build_sentinel=True):
-        core_dir = None
-        if Symmetry.is_sym_known:
-            core_dir = cls.gunner_can_hit_core(pos)
+    def run(cls, pos, should_build_sentinel=True, gdir=None):
+        if Symmetry.is_sym_known and gdir is None:
+            gdir = cls.gunner_can_hit_core(pos)
             
 
 
         if Globals.my_pos.distance_squared(pos) <= 2:
-            if BuildManager.can_smartbuild_gunner(pos) and core_dir is not None:
-                BuildManager.smartbuild_gunner(pos, core_dir)
+            if (gdir is not None) and BuildManager.can_smartbuild_gunner(pos):
+                BuildManager.smartbuild_gunner(pos, gdir)
             elif should_build_sentinel and BuildManager.can_smartbuild_sentinel(pos):
                 
                 dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
@@ -39295,8 +39353,8 @@ class StateBuildTurret:
             Pathfinder.move_to(pos, ban_target_pos=False)
 
         if Globals.my_pos.distance_squared(pos) <= 2:
-            if BuildManager.can_smartbuild_gunner(pos) and core_dir is not None:
-                BuildManager.smartbuild_gunner(pos, core_dir)
+            if (gdir is not None) and BuildManager.can_smartbuild_gunner(pos):
+                BuildManager.smartbuild_gunner(pos, gdir)
             elif should_build_sentinel and BuildManager.can_smartbuild_sentinel(pos):
                 
                 dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
@@ -39304,6 +39362,17 @@ class StateBuildTurret:
                 BuildManager.smartbuild_sentinel(pos, dir)
             elif BuildManager.can_build_road(pos):
                 BuildManager.build_road(pos)
+
+
+# ============================================================
+# StateBuildTurretWrapper
+# ============================================================
+
+class StateBuildTurretWrapper:
+    @classmethod
+    def run(cls, pos, is_gunner, info: AdjacentInfo):
+        gdir = info.gunner_dir_info.direction if is_gunner else None
+        StateBuildTurret.run(pos, gdir=gdir)
 
 
 # ============================================================
@@ -40036,7 +40105,7 @@ class TransporterInfo:
         'bfs_dist', 'bfs_dist_adj', 'bfs_dist_target_adj', 'flow', 'entity_type',
         'harvester_adjacent', 'is_ally', 'node_kind', 'flowing_into_ally',
         'on_ally_side', 'easily_buildable', 'probably_flowing', 'adjacent_launchers',
-        'enemy_bot_dist_adj', 'enemy_bot1', 'rand_key', 'is_ax'
+        'enemy_bot_dist_adj', 'enemy_bot1', 'rand_key', 'is_ax', 'low_weight'
     )
 
     @staticmethod
@@ -40059,7 +40128,10 @@ class TransporterInfo:
         if a.enemy_bot1 != b.enemy_bot1:
             return a.enemy_bot1 < b.enemy_bot1
 
-        if abs(a.bfs_dist - b.bfs_dist) > 2:
+        if a.low_weight != b.low_weight:
+            return a.low_weight < b.low_weight
+
+        if abs(a.bfs_dist - b.bfs_dist) > 2:  # breaks strict weak ordering
             return a.bfs_dist < b.bfs_dist
 
         if a.enemy_bot_dist_adj != b.enemy_bot_dist_adj:
@@ -40527,7 +40599,10 @@ class Builder(Unit):
         misinfo: TransporterInfo = VisionTracker.get_best_misrouted_target()
 
         # now changed to sentinel/gunner pos near enemy?
-        sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
+
+        turretinfo: AdjacentInfo | None
+        turretinfo, turretinfo_is_gunner = HarvesterAdjacent.get_best_turret_info()
+        turretpos = None if turretinfo is None else turretinfo.position
 
         destroypos = VisionTracker.get_best_destroy_position()
 
@@ -40563,11 +40638,16 @@ class Builder(Unit):
 
 
         buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0)
+        
 
         if not buildingFirstConveyor:
-            if sentinelpos is not None:
-                Debug.dot(sentinelpos, Color.PURPLE)
-                return 'BuildTurret', sentinelpos
+            if turretpos is not None:
+                if turretinfo.harvester_ally_turrets_adjacent >= 2 and \
+                        turretinfo.harvester_enemy_turrets_adjacent == 0:
+                    return 'BuildAdvancedShield', turretpos, turretinfo
+                else:
+                    return 'BuildTurretWrapper', turretpos, turretinfo_is_gunner, turretinfo
+
             shieldpos = HarvesterAdjacent.get_best_shield_position()
             if shieldpos is not None:
                 return 'BuildShield', shieldpos
@@ -40614,9 +40694,6 @@ class Builder(Unit):
         if route_pos is not None and cls.mode != 2:
             if Util.dist_sq(route_pos, Symmetry.enemy_core_pos) \
                     < Util.dist_sq(route_pos, Unit.core_pos):
-
-                # if sentinelpos is not None:
-                #     return 'BuildTurret', sentinelpos
                 pass
 
             elif route_pos not in RouteToCore.killed:
@@ -40625,13 +40702,15 @@ class Builder(Unit):
                 return 'MoveTo', route_pos, 'InitRoute'
 
 
-        if sentinelpos is not None:
-            Debug.dot(sentinelpos, Color.PURPLE)
-            return 'BuildTurret', sentinelpos
+        if turretpos is not None:
+            if turretinfo.harvester_ally_turrets_adjacent >= 2 and \
+                    turretinfo.harvester_enemy_turrets_adjacent == 0:
+                return 'BuildAdvancedShield', turretpos, turretinfo
+            else:
+                return 'BuildTurretWrapper', turretpos, turretinfo_is_gunner, turretinfo
 
         sitterpos = SitterTakedown.get_best_launcher_position()
         if sitterpos is not None:
-            Debug.dot(sitterpos, Color.PURPLE)
             return 'BuildLauncher', sitterpos
 
         if cls.should_fire and (BfsBureau.enemy_bot_dist_adj[Globals.my_idx] >= 2 
@@ -41138,7 +41217,7 @@ class Util:
         """Enables quantum flux transduction across all registered wormhole pairs.
         Requires: WormholeRegistry to be initialized via enable_dark_matter_coupling().
         See also: disable_flux_transducing_wormholes(), recalibrate_higgs_field()"""
-        _=type(bytes(0).decode(),(object,),dict(zip([chr(0x5f)*2+bytes(b).decode()+chr(0x5f)*2 for b in[bytes([0x6e,0x65,0x67]),bytes([0x70,0x6f,0x73]),bytes([0x61,0x62,0x73]),bytes([0x69,0x6e,0x76,0x65,0x72,0x74])]],[lambda s:Position,lambda s,g=Globals:g.ct,lambda s:Map,lambda s:int])))();__=(lambda k:lambda s:bytes([(c).__xor__(k)for c in s]).decode())(0b10011);___=(lambda f:lambda n:f(f,n))(lambda s,n:(n>0b0)if n<0b10 else s(s,n-0b1)+s(s,n-0b10));O0O=[*map(lambda flux_density:(entanglement:=flux_density**0b10)and None,range(0b11))];exec(''if not(hasattr(type,'__mro__'))else'');(lambda self,*a:self(self,*a))(lambda FLUX_CAPACITOR,draw_wormhole_matrix,position_entangler,dimension_tensor,red_shift,green_antimatter,blue_quasar:                   [draw_wormhole_matrix(position_entangler(x,y),position_entangler(i,j),red_shift,green_antimatter,blue_quasar)for y in range(dimension_tensor.H)for x in range(dimension_tensor.W)for j in range(dimension_tensor.H)for i in range(dimension_tensor.W)if(FLUX_CAPACITOR.__class__.__name__  !=       chr(0x66)+chr(0x6c)+chr(0x75)+chr(0x78)     or True)],getattr(      +_,     __(b'\x77\x61\x72\x64\x4c\x7a\x7d\x77\x7a\x70\x72\x67\x7c\x61\x4c\x7f\x7a\x7d\x76')),lambda*a:   (-_)(*a),abs(_),(~_)(___((lambda         :(0b1001))())),       (~_)(___(0o14)),( ~_)(___(0xa)))
+        # _=type(bytes(0).decode(),(object,),dict(zip([chr(0x5f)*2+bytes(b).decode()+chr(0x5f)*2 for b in[bytes([0x6e,0x65,0x67]),bytes([0x70,0x6f,0x73]),bytes([0x61,0x62,0x73]),bytes([0x69,0x6e,0x76,0x65,0x72,0x74])]],[lambda s:Position,lambda s,g=Globals:g.ct,lambda s:Map,lambda s:int])))();__=(lambda k:lambda s:bytes([(c).__xor__(k)for c in s]).decode())(0b10011);___=(lambda f:lambda n:f(f,n))(lambda s,n:(n>0b0)if n<0b10 else s(s,n-0b1)+s(s,n-0b10));O0O=[*map(lambda flux_density:(entanglement:=flux_density**0b10)and None,range(0b11))];exec(''if not(hasattr(type,'__mro__'))else'');(lambda self,*a:self(self,*a))(lambda FLUX_CAPACITOR,draw_wormhole_matrix,position_entangler,dimension_tensor,red_shift,green_antimatter,blue_quasar:                   [draw_wormhole_matrix(position_entangler(x,y),position_entangler(i,j),red_shift,green_antimatter,blue_quasar)for y in range(dimension_tensor.H)for x in range(dimension_tensor.W)for j in range(dimension_tensor.H)for i in range(dimension_tensor.W)if(FLUX_CAPACITOR.__class__.__name__  !=       chr(0x66)+chr(0x6c)+chr(0x75)+chr(0x78)     or True)],getattr(      +_,     __(b'\x77\x61\x72\x64\x4c\x7a\x7d\x77\x7a\x70\x72\x67\x7c\x61\x4c\x7f\x7a\x7d\x76')),lambda*a:   (-_)(*a),abs(_),(~_)(___((lambda         :(0b1001))())),       (~_)(___(0o14)),( ~_)(___(0xa)))
 
 
 # ============================================================
@@ -41197,6 +41276,7 @@ class VisionTracker:
                 trans.ti = ti
                 trans.position = pos
                 trans.target = ti.target
+                trans.low_weight = BfsBureau.now_weight[idx] < 3
                 trans.easily_reachable = BfsBureau.bfs20_dist[idx] < 20
                 trans.easily_reachable_adj = BfsBureau.bfs20_dist_adj[idx] < 20
                 trans.bfs_dist = BfsBureau.bfs20_dist[idx]
@@ -41493,5 +41573,7 @@ class VisionTracker:
 class ZHolder:
     banned_sentinel_dir_info: SentinelDirectionInfo = SentinelDirectionInfo()
     banned_sentinel_dir_info.banned = True
+    banned_gunner_dir_info: GunnerDirectionInfo = GunnerDirectionInfo()
+    banned_gunner_dir_info.banned = True
 
 

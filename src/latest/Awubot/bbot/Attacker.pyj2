@@ -43,9 +43,13 @@ class Attacker:
     
     @classmethod        
     def get_secondary_target(cls) -> Position | None:
-        if Builder.min_dist_to_a_core >= 10 and Globals.round < 100:
+        target = cls.get_road_target()
+        if target is None:
             return None
-        return cls.get_road_target()
+        if Globals.round < 100 and \
+                min(target.distance_squared(Unit.core_pos), 
+                    target.distance_squared(Symmetry.enemy_core_pos)) >= 10:
+            return None
 
     @classmethod
     def get_trans_target(cls) -> Position | None:

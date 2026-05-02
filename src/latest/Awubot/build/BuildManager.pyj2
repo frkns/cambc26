@@ -30,7 +30,7 @@ class BuildManager:
         EntityType.BRIDGE: 20,
         EntityType.CONVEYOR: 20,
         EntityType.ARMOURED_CONVEYOR: 20,
-        EntityType.BARRIER: 50,
+        EntityType.BARRIER: 20,
         None: 50,
     } %}
 

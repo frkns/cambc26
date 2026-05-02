@@ -1,0 +1,50 @@
+from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
+import random
+import heapq
+import array
+import time
+import math
+import sys
+from collections import deque, defaultdict
+from typing import NamedTuple
+from enum import Enum
+import traceback
+from itertools import chain
+from Awubot import *
+from Generated import *
+
+class TLEManager:
+    daylight_savings_time: bool = False
+    tle_last_turn: bool = False
+    tle_consec: int = 0
+    no_tle_consec: int = 0
+    end_round: int | None = None
+    tle_once: bool = False
+
+    @classmethod
+    def start_turn(cls):
+        if cls.end_round is not None and (Globals.round - cls.end_round) > 1:
+            cls.tle_last_turn = True
+            cls.tle_once = True
+        else:
+            cls.tle_last_turn = False  # also need this
+
+        if cls.tle_last_turn:
+            cls.tle_consec += 1
+            cls.no_tle_consec = 0
+        else:
+            cls.tle_consec = 0
+            cls.no_tle_consec += 1
+
+        if cls.tle_consec > 2:
+            cls.daylight_savings_time = True
+
+        # recover after N consecutive clean turns
+        if cls.daylight_savings_time and cls.no_tle_consec > 5:
+            cls.daylight_savings_time = False
+
+        cls.start_round = Globals.round
+
+    @classmethod
+    def end_turn(cls):
+        cls.end_round = Globals.round

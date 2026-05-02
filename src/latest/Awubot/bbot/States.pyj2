@@ -139,6 +139,7 @@ class StateRush:
                     RushTargeter.killed.add(pos)
 
 class StateBuildTurret:
+# ---===
     @classmethod
     def gunner_can_hit_core(cls, gunner_pos: MapLocation) -> Direction | None:
         direction = gunner_pos.direction_to(Symmetry.enemy_core_pos)
@@ -172,17 +173,17 @@ class StateBuildTurret:
             y += dy
 
         return None
+# ===---
 
     @classmethod
-    def run(cls, pos, should_build_sentinel=True):
-        core_dir = None
-        if Symmetry.is_sym_known:
-            core_dir = cls.gunner_can_hit_core(pos)
+    def run(cls, pos, should_build_sentinel=True, gdir=None):
+        if Symmetry.is_sym_known and gdir is None:
+            gdir = cls.gunner_can_hit_core(pos)
             
         {% set try_build -%}
         if Globals.my_pos.distance_squared(pos) <= 2:
-            if BuildManager.can_smartbuild_gunner(pos) and core_dir is not None:
-                BuildManager.smartbuild_gunner(pos, core_dir)
+            if (gdir is not None) and BuildManager.can_smartbuild_gunner(pos):
+                BuildManager.smartbuild_gunner(pos, gdir)
             elif should_build_sentinel and BuildManager.can_smartbuild_sentinel(pos):
                 {{ P.start('SentinelDirectionPicker.get_best_direction') }}
                 dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
@@ -199,6 +200,55 @@ class StateBuildTurret:
             Pathfinder.move_to(pos, ban_target_pos=False)
 
         {{ try_build }}
+
+
+class StateBuildTurretWrapper:
+    @classmethod
+    def run(cls, pos, is_gunner, info: AdjacentInfo):
+        gdir = info.gunner_dir_info.direction if is_gunner else None
+        StateBuildTurret.run(pos, gdir=gdir)
+
+
+class StateBuildAdvancedShield:
+    # build barrier shields on enemy harvesters (do not build conveyor shields - interacts badly)
+
+    @classmethod
+    def run(cls, pos, info: AdjacentInfo):
+        x, y = pos.x, pos.y
+        tile_info = Map.tile_info
+        GUNNER = EntityType.GUNNER
+
+        ally_gunners_adjacent = 0
+
+        {% for dir in directions[:8] %}
+        {% set dx, dy = dir.delta() %}
+        {% set nx %}x {{ sign0(dx) }}{% endset %}
+        {% set ny %}y {{ sign0(dy) }}{% endset %}
+        if tile_info[{{ nx }}][{{ ny }}].entity_type == GUNNER:
+            ally_gunners_adjacent += 1
+        {% endfor %}
+
+        can_barrier = ally_gunners_adjacent == 0
+        dir_to_h = pos.direction_to(info.hpos)
+
+        {% set try_build -%}
+        if Globals.my_pos.distance_squared(pos) <= 2:
+            if can_barrier and BuildManager.can_smartbuild_barrier(pos):
+                BuildManager.smartbuild_barrier(pos)
+            # elif BuildManager.can_smartbuild_armoured_conveyor(pos):
+            #     BuildManager.smartbuild_armoured_conveyor(pos, dir_to_h)
+            # elif BuildManager.can_smartbuild_conveyor(pos):
+            #     BuildManager.smartbuild_conveyor(pos, dir_to_h)
+        {% endset %}
+
+
+        {{ try_build }}
+
+        if Globals.ct.get_move_cooldown() == 0:
+            Pathfinder.move_to(pos, ban_target_pos=False)
+
+        {{ try_build }}
+
 
 
 class StateBuildGunner:
@@ -259,10 +309,16 @@ class StateBuildShield:
         )
         {%- endset %}
 
+        {% set should_barrier -%}
+        (pos.distance_squared(Symmetry.enemy_core_pos) < pos.distance_squared(Unit.core_pos))
+        {%- endset %}
+
         if pos != Globals.my_pos:
             if target_dir is not None:
                 if found_ally_harvester:
-                    if {{ should_try_armour }} and BuildManager.can_dbuild_armoured_conveyor(pos):
+                    if {{ should_barrier }} and BuildManager.can_smartbuild_barrier(pos):
+                        BuildManager.smartbuild_barrier(pos)
+                    elif {{ should_try_armour }} and BuildManager.can_dbuild_armoured_conveyor(pos):
                         BuildManager.dbuild_armoured_conveyor(pos, target_dir)
                     elif BuildManager.can_dbuild_conveyor(pos):
                         BuildManager.dbuild_conveyor(pos, target_dir)

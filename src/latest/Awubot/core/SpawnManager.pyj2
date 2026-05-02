@@ -108,10 +108,12 @@ class SpawnManager:
     @classmethod
     def require_leftover(cls):
         if cls.num_spawned < 8:
+            return 90
+        if cls.num_spawned < 10:
             return 100
-        if cls.num_spawned < 16:
-            return 120
-        return 120 + (10 * Globals.ct.get_unit_count())
+        if cls.num_spawned < 20:
+            return 110
+        return 110 + (10 * Globals.ct.get_unit_count())
 
 
     @classmethod

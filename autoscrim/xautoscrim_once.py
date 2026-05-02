@@ -157,5 +157,5 @@ for rank, team, tid in zip(ranks, teams, team_ids):
         if 'ratelimitexceeded' in output.lower().replace(' ', ''):
             print('so we exceeded rate limit...')
             print(output.lower().replace(' ', ''))
-            break
+            exit()
 
