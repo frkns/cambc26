@@ -22,12 +22,13 @@ from Generated import *
 
 class AdjacentInfo:
     __slots__ = (
-        'position', 'bfs_dist', 'bfs_dist_adj', 'is_harvester_ally', 'ti',
+        'position', 'bfs_dist', 'bfs_dist_adj', 'is_harvester_ally', 'ti', 'hpos',
         'consider_route', 'dist_to_ally_core', 'has_ally_transporter',
         'easily_buildable', 'is_canonical_ally_harvester', 'is_working_shield',
         'harvester_ally_turrets_adjacent', 'harvester_enemy_turrets_adjacent',
         'enemy_turrets_adjacent', 'ally_turrets_adjacent',
         'sentinel_dir_info',
+        'gunner_dir_info',
         'h_outward_adj',
         'h_has_fed_foundry'
     )
@@ -76,6 +77,9 @@ class AdjacentInfo:
 
         if asi.banned: return False
         if bsi.banned: return True
+
+        if bool(asi.enemy_turret_hp) != bool(bsi.enemy_turret_hp):
+            return asi.enemy_turret_hp > bsi.enemy_turret_hp
         
         if asi.enemy_building_hp != bsi.enemy_building_hp:
             return asi.enemy_building_hp > bsi.enemy_building_hp
@@ -93,6 +97,44 @@ class AdjacentInfo:
             return ati.has_bot < bti.has_bot
 
         return a.bfs_dist_adj < b.bfs_dist_adj
+
+
+    @staticmethod
+    def is_better_than_gunner(a: AdjacentInfo, b: AdjacentInfo):
+        # now is better
+
+        if not a.easily_buildable: return False
+        if not b.easily_buildable: return True
+            
+        if a.bfs_dist_adj >= 100: return False        
+        if b.bfs_dist_adj >= 100: return True
+
+        asi: GunnerDirectionInfo = a.gunner_dir_info
+        bsi: GunnerDirectionInfo = b.gunner_dir_info
+
+        if asi.banned: return False
+        if bsi.banned: return True
+
+        if (asi.has_enemy_turret) != (bsi.has_enemy_turret):
+            return asi.has_enemy_turret > bsi.has_enemy_turret
+        
+        if asi.enemy_building_hp != bsi.enemy_building_hp:
+            return asi.enemy_building_hp > bsi.enemy_building_hp
+
+        if a.is_harvester_ally and (not b.is_harvester_ally): return False
+        if (not a.is_harvester_ally) and b.is_harvester_ally: return True
+
+        if asi.enemy_bot_hp != bsi.enemy_bot_hp:
+            return asi.enemy_bot_hp > bsi.enemy_bot_hp
+        
+        ati = a.ti
+        bti = b.ti
+        
+        if ati.has_bot != bti.has_bot:
+            return ati.has_bot < bti.has_bot
+
+        return a.bfs_dist_adj < b.bfs_dist_adj
+
 
 
     @staticmethod
@@ -142,41 +184,85 @@ class HarvesterAdjacent:
 
 
     @classmethod
-    def get_best_sentinel_position(cls) -> Position | None:
+    def get_best_turret_info(cls) -> tuple[AdjacentInfo | None, bool]:  # bool is is_gunner
+        if not BuildManager.can_afford_sentinel() and Globals.round < 250: 
+            return None, False
+
+        if not cls.infos:
+            return None, False
+
+        bestsen = cls.infos[0]
+        for c in cls.infos[1:]:
+            if AdjacentInfo.is_better_than_sentinel(c, bestsen):
+                bestsen = c
+
+        bestgun = cls.infos[0]
+        for c in cls.infos[1:]:
+            if AdjacentInfo.is_better_than_gunner(c, bestgun):
+                bestgun = c
+
+        si: SentinelDirectionInfo = bestsen.sentinel_dir_info
+        sen_ok = not (
+            not bestsen.easily_buildable or bestsen.bfs_dist_adj >= 100 or bestsen.ti.has_bot or si.banned
+            or not VisionTracker.me_is_canonical_ally(bestsen.position)
+        )
+        if sen_ok:
+            sen_ok = (si.enemy_building_hp > 30 and si.enemy_bot_hp > 30) or (si.enemy_building_hp > 40) or (si.enemy_turret_hp > 0)
+
+        gi: GunnerDirectionInfo = bestgun.gunner_dir_info
+        gun_ok = not (
+            not bestgun.easily_buildable or bestgun.bfs_dist_adj >= 100 or bestgun.ti.has_bot or gi.banned
+            or not VisionTracker.me_is_canonical_ally(bestgun.position)
+        )
+        if gun_ok:
+            gun_ok = (gi.enemy_building_hp > 10) or (gi.has_enemy_turret)
+
+        if not (sen_ok or gun_ok):
+            return None, False
+
+        sen_score = (si.enemy_building_hp + bool(si.enemy_turret_hp) * 100) if sen_ok else 0
+        gun_score = (gi.enemy_building_hp * 5 + gi.has_enemy_turret * 200) if gun_ok else 0
+
+        {# /* Debug.log(f'{sen_score=} {gun_score=}') */ #}
+
+        return (bestgun, True) if gun_score > sen_score else (bestsen, False)
+
+
+
+    @classmethod
+    def get_best_sentinel_info(cls) -> AdjacentInfo | None:
         if not BuildManager.can_afford_sentinel() and Globals.round < 250: 
             return None 
 
         if not cls.infos:
             return None
 
-        best = cls.infos[0]
+        bestsen = cls.infos[0]
         for c in cls.infos[1:]:
-            if AdjacentInfo.is_better_than_sentinel(c, best):
-                best = c
+            if AdjacentInfo.is_better_than_sentinel(c, bestsen):
+                bestsen = c
 
-        # Debug.tee(best.__dict__)
-
-        if not best.easily_buildable:
+        if not bestsen.easily_buildable:
             return None
         
-        if best.bfs_dist_adj >= 100:
+        if bestsen.bfs_dist_adj >= 100:
             return None
 
-        if best.ti.has_bot:
+        if bestsen.ti.has_bot:
             return None
 
-        si: SentinelDirectionInfo = best.sentinel_dir_info
+        si: SentinelDirectionInfo = bestsen.sentinel_dir_info
         if si.banned:
             return None
         
-        ok = (si.enemy_building_hp > 20 and si.enemy_bot_hp > 20) or (si.enemy_building_hp > 40)
+        ok = (si.enemy_building_hp > 20 and si.enemy_bot_hp > 20) or (si.enemy_building_hp > 40) or (si.enemy_turret_hp > 0)
         if not ok:
             return None
 
-        if not VisionTracker.me_is_canonical_ally(best.position):
+        if not VisionTracker.me_is_canonical_ally(bestsen.position):
             return None
 
-        return best.position
+        return bestsen
 
 
     @classmethod
@@ -276,7 +362,7 @@ class HarvesterAdjacent:
         tile_info = Map.tile_info
         my_pos = Globals.my_pos
 
-        for spos, sx, sy, _, hti in Map.proc_nearby_tiles:
+        for hpos, sx, sy, _, hti in Map.proc_nearby_tiles:
             if hti.entity_type != EntityType.HARVESTER or hti.env == Environment.ORE_AXIONITE:
                 continue
 
@@ -286,10 +372,10 @@ class HarvesterAdjacent:
                 and hti.enemy_turrets_adjacent == 0 \
                 and not hti.ally_core_adj \
                 and hti.ally_fed_foundries_adjacent == 0 \
-                and my_pos.distance_squared(spos) <= 15  # can see all adjacent
+                and my_pos.distance_squared(hpos) <= 15  # can see all adjacent
 
-            dist_to_ally_core = spos.distance_squared(Unit.core_pos)
-            is_canonical_ally_harvester = VisionTracker.me_is_canonical_ally(spos)
+            dist_to_ally_core = hpos.distance_squared(Unit.core_pos)
+            is_canonical_ally_harvester = VisionTracker.me_is_canonical_ally(hpos)
             
             {% for dir in cardinal_directions %}
             {% set dx, dy = dir.delta() %}
@@ -314,6 +400,7 @@ class HarvesterAdjacent:
 
                     info = AdjacentInfo()
                     info.position = pos
+                    info.hpos = hpos
                     info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
                     info.bfs_dist = BfsBureau.bfs20_dist[idx]
                     info.is_harvester_ally = is_harvester_ally
@@ -344,7 +431,7 @@ class HarvesterAdjacent:
 
                     {% if LOCAL %}
                     if info.h_has_fed_foundry:
-                        Debug.diamond(Color.BLUE, spos)
+                        Debug.diamond(Color.BLUE, hpos)
                     {% endif %}
 
                     info.has_ally_transporter = (
@@ -384,8 +471,7 @@ class HarvesterAdjacent:
                             info.enemy_turrets_adjacent += 1
                     {% endfor %}
 
-                    {# /* info.sentinel_dir_info = SentinelDirectionPicker.compute_info(pos, pos.direction_to(Symmetry.enemy_core_pos)) */ #}
-                    {# /* info.sentinel_dir_info = SentinelDirectionPicker.get_best_info(pos) */ #}
+                    info.gunner_dir_info = ZHolder.banned_gunner_dir_info
                     info.sentinel_dir_info = ZHolder.banned_sentinel_dir_info
                     info.h_outward_adj = hti.ally_outward_transporters_adjacent
                     infos.append(info)
@@ -393,8 +479,9 @@ class HarvesterAdjacent:
 
         
         {% set SAMPLES = 5 %}
-        {{ P.start('SentinelDirectionPicker.get_best_info (x' ~ SAMPLES ~ ')') }}
+        {{ P.start('(Gunner/Sentinel)DirectionPicker.get_best_info (x' ~ SAMPLES ~ ')') }}
         sample = random.sample(infos, min({{ SAMPLES }}, len(infos)))
         for info in sample:
+            info.gunner_dir_info = GunnerDirectionPicker.get_best_info(info.position)
             info.sentinel_dir_info = SentinelDirectionPicker.get_best_info(info.position)
-        {{ P.end('SentinelDirectionPicker.get_best_info (x' ~ SAMPLES ~ ')') }}
+        {{ P.end('(Gunner/Sentinel)DirectionPicker.get_best_info (x' ~ SAMPLES ~ ')') }}

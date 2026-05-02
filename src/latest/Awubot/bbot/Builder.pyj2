@@ -255,7 +255,12 @@ class Builder({{ super() }}):
         misinfo: TransporterInfo = VisionTracker.get_best_misrouted_target()
 
         # now changed to sentinel/gunner pos near enemy?
-        sentinelpos = HarvesterAdjacent.get_best_sentinel_position()
+        {# /* sentinelinfo: AdjacentInfo = HarvesterAdjacent.get_best_sentinel_info() */ #}
+        {# /* sentinelpos = None if sentinelinfo is None else sentinelinfo.position */ #}
+
+        turretinfo: AdjacentInfo | None
+        turretinfo, turretinfo_is_gunner = HarvesterAdjacent.get_best_turret_info()
+        turretpos = None if turretinfo is None else turretinfo.position
 
         destroypos = VisionTracker.get_best_destroy_position()
 
@@ -297,11 +302,19 @@ class Builder({{ super() }}):
 
 
         buildingFirstConveyor = (RouteToCore.is_active and len(RouteToCore.prevRoute) == 0)
+        
 
         if not buildingFirstConveyor:
-            if sentinelpos is not None:
-                Debug.dot(sentinelpos, Color.PURPLE)
-                return 'BuildTurret', sentinelpos
+            if turretpos is not None:
+                {% if LOCAL %}
+                Debug.dot(turretpos, Color.PURPLE)
+                {% endif %}
+                if turretinfo.harvester_ally_turrets_adjacent >= 2 and \
+                        turretinfo.harvester_enemy_turrets_adjacent == 0:
+                    return 'BuildAdvancedShield', turretpos, turretinfo
+                else:
+                    return 'BuildTurretWrapper', turretpos, turretinfo_is_gunner, turretinfo
+
             shieldpos = HarvesterAdjacent.get_best_shield_position()
             if shieldpos is not None:
                 return 'BuildShield', shieldpos
@@ -348,9 +361,6 @@ class Builder({{ super() }}):
         if route_pos is not None and cls.mode != {{ Mode.EARLY_RUSH }}:
             if Util.dist_sq(route_pos, Symmetry.enemy_core_pos) \
                     < Util.dist_sq(route_pos, Unit.core_pos):
-
-                # if sentinelpos is not None:
-                #     return 'BuildTurret', sentinelpos
                 pass
 
             elif route_pos not in RouteToCore.killed:
@@ -359,13 +369,18 @@ class Builder({{ super() }}):
                 return 'MoveTo', route_pos, 'InitRoute'
 
 
-        if sentinelpos is not None:
-            Debug.dot(sentinelpos, Color.PURPLE)
-            return 'BuildTurret', sentinelpos
+        if turretpos is not None:
+            {% if LOCAL %}
+            Debug.dot(turretpos, Color.PURPLE)
+            {% endif %}
+            if turretinfo.harvester_ally_turrets_adjacent >= 2 and \
+                    turretinfo.harvester_enemy_turrets_adjacent == 0:
+                return 'BuildAdvancedShield', turretpos, turretinfo
+            else:
+                return 'BuildTurretWrapper', turretpos, turretinfo_is_gunner, turretinfo
 
         sitterpos = SitterTakedown.get_best_launcher_position()
         if sitterpos is not None:
-            Debug.dot(sitterpos, Color.PURPLE)
             return 'BuildLauncher', sitterpos
 
         if cls.should_fire and (BfsBureau.enemy_bot_dist_adj[Globals.my_idx] >= 2 

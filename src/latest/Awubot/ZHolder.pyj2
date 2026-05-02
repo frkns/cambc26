@@ -24,3 +24,5 @@ from Generated import *
 class ZHolder:
     banned_sentinel_dir_info: SentinelDirectionInfo = SentinelDirectionInfo()
     banned_sentinel_dir_info.banned = True
+    banned_gunner_dir_info: GunnerDirectionInfo = GunnerDirectionInfo()
+    banned_gunner_dir_info.banned = True

@@ -66,6 +66,10 @@ class GunnerTargetInfo:
         if a.harvester_adjacent and (not b.harvester_adjacent): return True
         if (not a.harvester_adjacent) and b.harvester_adjacent: return False
 
+        # prefer the direction we're currently facing
+        if a.current_dir != b.current_dir:
+            return a.current_dir > b.current_dir
+
         if a.is_road and (not b.is_road): return False  # prefer non-roads
         if (not a.is_road) and b.is_road: return True
 
@@ -77,10 +81,6 @@ class GunnerTargetInfo:
         if a.current_dir == b.current_dir:
             if a.has_enemy_bot and (not b.has_enemy_bot): return True
             if (not a.has_enemy_bot) and b.has_enemy_bot: return False
-
-        # prefer the direction we're currently facing
-        if a.current_dir != b.current_dir:
-            return a.current_dir > b.current_dir
 
         if a.has_enemy_bot and b.has_enemy_bot:
             if a.bot_hp != b.bot_hp:
@@ -169,9 +169,9 @@ class GunnerSupervisor:
         if not best.has_enemy_bot and best.ally_connected:
             return None
         
-        # Don't bother turning just to knock out some roads
-        if not best.has_enemy_bot and best.is_road and not best.current_dir:
-            return None
+        {# /* # Don't bother turning just to knock out some roads */ #}
+        {# /* if not best.has_enemy_bot and best.is_road and not best.current_dir: */ #}
+            {# /* return None */ #}
 
         if best.is_harvester_feeding_ally:
             return None
