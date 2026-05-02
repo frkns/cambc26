@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-02 16:51:18 (local)
+# latest,  @ 2026-05-02 16:53:57 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -9046,8 +9046,8 @@ class BurnManager:
             tiNeeded = builderCost - ti
             axNeeded = max(0, (tiNeeded + 3) // 4)  # replaced with int ceil
             
-            if axNeeded > 0 and ax > 2:
-                ct.convert(min(axNeeded, ax - 2))
+            if axNeeded > 0 and ax > 17:
+                ct.convert(min(axNeeded, ax - 17))
             
     
     @classmethod
@@ -9070,14 +9070,15 @@ class BurnManager:
 
         # cnf1 = int(ti * MarketMaker.scale_ratio) < 50 or MarketMaker.est_income <= 10
         cnf1 = True
-        cnf2 = (MarketMaker.est_income - 10) <= MarketMaker.est_income_ax
+        # cnf2 = (MarketMaker.est_income - 10) <= MarketMaker.est_income_ax
+        cnf2 = True
         cnf3 = Globals.round < 1000
         cond = cnf1 and cnf2 and cnf3
 
         if not cond:
             return
 
-        amt = min(ax - 2, 30)
+        amt = min(ax - 17, 100)
         if amt > 0:
             ct.convert(amt)
 
@@ -34090,7 +34091,7 @@ class RouteToCore:
     backTracking = False
     pathFindingKill: set[int] = set()
     isAttack = False
-    gunnerBeenHereTick = 0
+    turretBeenHereTick = 0
 
     @classmethod
     def set_pos(cls, pos: Position, fullReset = True):
@@ -34108,7 +34109,7 @@ class RouteToCore:
             cls.backTracking = False
         cls.is_active = True
         cls.from_pos = pos
-        cls.gunnerBeenHereTick = 0
+        cls.turretBeenHereTick = 0
 
 
     @classmethod
@@ -34182,7 +34183,7 @@ class RouteToCore:
         gi = GunnerDirectionPicker.get_best_info(cls.from_pos)
         gun_ok = BuildManager.can_afford_gunner() \
             and not gi.banned \
-            and (gi.has_enemy_turret or gi.enemy_building_hp > 10)
+            and (gi.has_core or gi.has_enemy_turret or gi.enemy_building_hp > 10)
         gun_score = (gi.enemy_building_hp * 5 + gi.has_enemy_turret * 200 + gi.has_core * 1_000_000) if gun_ok else 0
 
         si = SentinelDirectionPicker.get_best_info(cls.from_pos)
@@ -34203,8 +34204,10 @@ class RouteToCore:
                 turretIsGunner = False
 
         if turretPossible:
-            cls.gunnerBeenHereTick += 1
-        if cls.gunnerBeenHereTick > 20:
+            cls.turretBeenHereTick += 1
+        else:
+            cls.turretBeenHereTick = 0
+        if cls.turretBeenHereTick > 20:
             turretPossible = False
 
         if turretPossible and (
