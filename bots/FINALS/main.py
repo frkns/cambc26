@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-02 20:44:36 (local)
+# FINALS,  @ 2026-05-02 20:46:01 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller

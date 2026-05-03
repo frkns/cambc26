@@ -1,4 +1,4 @@
-# latest,  @ 2026-05-02 20:44:36 (local)
+# latest,  @ 2026-05-02 16:53:57 (local)
 
 from __future__ import annotations
 from cambc import Team, EntityType, Direction, Position, ResourceType, Environment, GameConstants, GameError, Controller
@@ -44,9 +44,9 @@ class AdjacentInfo:
             if a.is_harvester_ally and b.is_harvester_ally:
                 return a.h_outward_adj > b.h_outward_adj
 
-        if a.bfs_dist_adj >= 100: return False        
+        if a.bfs_dist_adj >= 100: return False
         if b.bfs_dist_adj >= 100: return True
-        
+
         if a.is_canonical_ally_harvester != b.is_canonical_ally_harvester:
             return a.is_canonical_ally_harvester > b.is_canonical_ally_harvester
 
@@ -66,8 +66,8 @@ class AdjacentInfo:
 
         if not a.easily_buildable: return False
         if not b.easily_buildable: return True
-            
-        if a.bfs_dist_adj >= 100: return False        
+
+        if a.bfs_dist_adj >= 100: return False
         if b.bfs_dist_adj >= 100: return True
 
         asi: SentinelDirectionInfo = a.sentinel_dir_info
@@ -78,7 +78,7 @@ class AdjacentInfo:
 
         if bool(asi.enemy_turret_hp) != bool(bsi.enemy_turret_hp):
             return asi.enemy_turret_hp > bsi.enemy_turret_hp
-        
+
         if asi.enemy_building_hp != bsi.enemy_building_hp:
             return asi.enemy_building_hp > bsi.enemy_building_hp
 
@@ -87,10 +87,10 @@ class AdjacentInfo:
 
         if asi.enemy_bot_hp != bsi.enemy_bot_hp:
             return asi.enemy_bot_hp > bsi.enemy_bot_hp
-        
+
         ati = a.ti
         bti = b.ti
-        
+
         if ati.has_bot != bti.has_bot:
             return ati.has_bot < bti.has_bot
 
@@ -103,8 +103,8 @@ class AdjacentInfo:
 
         if not a.easily_buildable: return False
         if not b.easily_buildable: return True
-            
-        if a.bfs_dist_adj >= 100: return False        
+
+        if a.bfs_dist_adj >= 100: return False
         if b.bfs_dist_adj >= 100: return True
 
         asi: GunnerDirectionInfo = a.gunner_dir_info
@@ -115,7 +115,7 @@ class AdjacentInfo:
 
         if (asi.has_enemy_turret) != (bsi.has_enemy_turret):
             return asi.has_enemy_turret > bsi.has_enemy_turret
-        
+
         if asi.enemy_building_hp != bsi.enemy_building_hp:
             return asi.enemy_building_hp > bsi.enemy_building_hp
 
@@ -124,10 +124,10 @@ class AdjacentInfo:
 
         if asi.enemy_bot_hp != bsi.enemy_bot_hp:
             return asi.enemy_bot_hp > bsi.enemy_bot_hp
-        
+
         ati = a.ti
         bti = b.ti
-        
+
         if ati.has_bot != bti.has_bot:
             return ati.has_bot < bti.has_bot
 
@@ -142,7 +142,7 @@ class AdjacentInfo:
 
         if not a.consider_route: return False
         if not b.consider_route: return True
-        
+
         if a.harvester_ally_turrets_adjacent != b.harvester_ally_turrets_adjacent:
             return a.harvester_ally_turrets_adjacent > b.harvester_ally_turrets_adjacent
 
@@ -159,10 +159,10 @@ class AdjacentInfo:
 
         if a.enemy_turrets_adjacent == 0: return False
         if b.enemy_turrets_adjacent == 0: return True
-        
+
         ati = a.ti
         bti = b.ti
-        
+
         if ati.has_bot != bti.has_bot:
             return ati.has_bot < bti.has_bot
 
@@ -195,19 +195,19 @@ class Attacker:
     def get_target(cls) -> Position | None:
         if Builder.mode == 2 and not cls.seen_enemy_core:
             return None
-        
+
         t = cls.get_road_shield_target()
-        if t is not None: 
+        if t is not None:
             return t
         return cls.get_trans_target()
-    
-    @classmethod        
+
+    @classmethod
     def get_secondary_target(cls) -> Position | None:
         target = cls.get_road_target()
         if target is None:
             return None
         if Globals.round < 100 and \
-                min(target.distance_squared(Unit.core_pos), 
+                min(target.distance_squared(Unit.core_pos),
                     target.distance_squared(Symmetry.enemy_core_pos)) >= 10:
             return None
 
@@ -216,7 +216,7 @@ class Attacker:
         trans: TransporterInfo = VisionTracker.get_best_trans_atk_target()
         if trans is None:
             return None
-        if not trans.bfs_dist < 10: 
+        if not trans.bfs_dist < 10:
             return None
         if trans.flowing_into_ally:
             return None
@@ -238,7 +238,7 @@ class Attacker:
         road: RoadInfo = VisionTracker.get_best_shield_atk_target()
         if road is None:
             return None
-        if not road.bfs_dist < 10: 
+        if not road.bfs_dist < 10:
             return None
         if not VisionTracker.me_is_canonical_ally(road.position):
             return None
@@ -252,7 +252,7 @@ class Attacker:
         road: RoadInfo = VisionTracker.get_best_road_atk_target()
         if road is None:
             return None
-        if not road.bfs_dist < 10: 
+        if not road.bfs_dist < 10:
             return None
         if not VisionTracker.me_is_canonical_ally(road.position):
             return None
@@ -329,9 +329,9 @@ class Attacker:
         etype = ti.entity_type
 
         # assume caller passes in position with enemy building
-        if not ti.has_building or ti.is_building_ally or etype not in Constants.PASSABLE_ATTACKABLE_SET:        
+        if not ti.has_building or ti.is_building_ally or etype not in Constants.PASSABLE_ATTACKABLE_SET:
             return False
-            
+
         if etype in Constants.ATTACKABLE_TRANSPORTERS_SET:
             if DarkForest.node_kind[idx] in \
                     (1, 3):
@@ -577,7 +577,7 @@ class BfsBureau:
 
     @classmethod
     def find_bridge_route(
-        cls, start: Position, sink_set: set[int], max_iter: int = 500, 
+        cls, start: Position, sink_set: set[int], max_iter: int = 500,
         avoid_pos: set[int] = set(),
     ):
 
@@ -615,10 +615,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -633,10 +633,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -651,10 +651,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -669,10 +669,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -692,10 +692,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -710,10 +710,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -728,10 +728,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -746,10 +746,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -769,10 +769,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -787,10 +787,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -805,10 +805,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -823,10 +823,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -846,10 +846,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -864,10 +864,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -882,10 +882,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -900,10 +900,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -923,10 +923,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -941,10 +941,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -959,10 +959,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -977,10 +977,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1000,10 +1000,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1018,10 +1018,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1036,10 +1036,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1054,10 +1054,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1080,10 +1080,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1100,10 +1100,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1120,10 +1120,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1140,10 +1140,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1160,10 +1160,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1180,10 +1180,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1200,10 +1200,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1220,10 +1220,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1240,10 +1240,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1260,10 +1260,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1280,10 +1280,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1300,10 +1300,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1320,10 +1320,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1340,10 +1340,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1360,10 +1360,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1380,10 +1380,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1407,10 +1407,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1427,10 +1427,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1447,10 +1447,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1467,10 +1467,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1487,10 +1487,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1507,10 +1507,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1527,10 +1527,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1547,10 +1547,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1567,7 +1567,7 @@ class BfsBureau:
 
     @classmethod
     def find_bridge_route_check_sinks(
-        cls, start: Position, sink_set: set[int], max_iter: int = 500, 
+        cls, start: Position, sink_set: set[int], max_iter: int = 500,
         avoid_pos: set[int] = set(),
     ):
 
@@ -1607,7 +1607,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1624,7 +1624,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1641,7 +1641,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1658,7 +1658,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1680,7 +1680,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1697,7 +1697,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1714,7 +1714,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1731,7 +1731,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1753,7 +1753,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1770,7 +1770,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1787,7 +1787,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1804,7 +1804,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1826,7 +1826,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1843,7 +1843,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1860,7 +1860,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1877,7 +1877,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1899,7 +1899,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1916,7 +1916,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1933,7 +1933,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1950,7 +1950,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1972,7 +1972,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -1989,7 +1989,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2006,7 +2006,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2023,7 +2023,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2048,7 +2048,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2067,7 +2067,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2086,7 +2086,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2105,7 +2105,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2124,7 +2124,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2143,7 +2143,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2162,7 +2162,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2181,7 +2181,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2200,7 +2200,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2219,7 +2219,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2238,7 +2238,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2257,7 +2257,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2276,7 +2276,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2295,7 +2295,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2314,7 +2314,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2333,7 +2333,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2359,7 +2359,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2378,7 +2378,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2397,7 +2397,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2416,7 +2416,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2435,7 +2435,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2454,7 +2454,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2473,7 +2473,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2492,7 +2492,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                 )
             )
@@ -2509,7 +2509,7 @@ class BfsBureau:
 
     @classmethod
     def find_bridge_route_avoid_ti_adj(
-        cls, start: Position, sink_set: set[int], max_iter: int = 500, 
+        cls, start: Position, sink_set: set[int], max_iter: int = 500,
         avoid_pos: set[int] = set(),
     ):
 
@@ -2548,10 +2548,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -2568,10 +2568,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -2588,10 +2588,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -2608,10 +2608,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -2633,10 +2633,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -2653,10 +2653,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -2673,10 +2673,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -2693,10 +2693,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -2718,10 +2718,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -2738,10 +2738,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -2758,10 +2758,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -2778,10 +2778,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -2803,10 +2803,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -2823,10 +2823,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -2843,10 +2843,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -2863,10 +2863,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -2888,10 +2888,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -2908,10 +2908,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -2928,10 +2928,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -2948,10 +2948,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -2973,10 +2973,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -2993,10 +2993,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3013,10 +3013,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3033,10 +3033,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3061,10 +3061,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3083,10 +3083,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3105,10 +3105,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3127,10 +3127,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3149,10 +3149,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3171,10 +3171,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3193,10 +3193,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3215,10 +3215,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3237,10 +3237,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3259,10 +3259,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3281,10 +3281,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3303,10 +3303,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3325,10 +3325,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3347,10 +3347,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3369,10 +3369,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3391,10 +3391,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3420,10 +3420,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3442,10 +3442,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3464,10 +3464,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3486,10 +3486,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3508,10 +3508,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3530,10 +3530,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3552,10 +3552,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3574,10 +3574,10 @@ class BfsBureau:
             ni not in avoid_pos and
             not enclosed_region[ni] and
             (
-                    ni in sink_set or 
+                    ni in sink_set or
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3596,7 +3596,7 @@ class BfsBureau:
 
     @classmethod
     def find_bridge_route_avoid_ti_adj_check_sinks(
-        cls, start: Position, sink_set: set[int], max_iter: int = 500, 
+        cls, start: Position, sink_set: set[int], max_iter: int = 500,
         avoid_pos: set[int] = set(),
     ):
 
@@ -3637,7 +3637,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3656,7 +3656,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3675,7 +3675,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3694,7 +3694,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3718,7 +3718,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3737,7 +3737,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3756,7 +3756,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3775,7 +3775,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3799,7 +3799,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3818,7 +3818,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3837,7 +3837,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3856,7 +3856,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3880,7 +3880,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3899,7 +3899,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3918,7 +3918,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3937,7 +3937,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3961,7 +3961,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3980,7 +3980,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -3999,7 +3999,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4018,7 +4018,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4042,7 +4042,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4061,7 +4061,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4080,7 +4080,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4099,7 +4099,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4126,7 +4126,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4147,7 +4147,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4168,7 +4168,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4189,7 +4189,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4210,7 +4210,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4231,7 +4231,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4252,7 +4252,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4273,7 +4273,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4294,7 +4294,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4315,7 +4315,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4336,7 +4336,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4357,7 +4357,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4378,7 +4378,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4399,7 +4399,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4420,7 +4420,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4441,7 +4441,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4469,7 +4469,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4490,7 +4490,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4511,7 +4511,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4532,7 +4532,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4553,7 +4553,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4574,7 +4574,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4595,7 +4595,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4616,7 +4616,7 @@ class BfsBureau:
             (
                 (
                     (
-                        passable[ni] 
+                        passable[ni]
                     )
                     and not ti_ore_adj[ni]
                     and ni not in Unit.core_pos_set
@@ -4764,7 +4764,7 @@ class BfsBureau:
         pre_weight = weight[ti]
         weight[ti] = 1
 
-        
+
 
         dist = [1000000] * 3136
         fhd  = [0]       * 3136
@@ -4783,7 +4783,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 0
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight;
                 return w, Direction.NORTH
             _hp(heap, (w, ni))
         ni = si + 55
@@ -4792,7 +4792,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 1
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight;
                 return w, Direction.NORTHEAST
             _hp(heap, (w, ni))
         ni = si + 56
@@ -4801,7 +4801,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 2
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight;
                 return w, Direction.EAST
             _hp(heap, (w, ni))
         ni = si + 57
@@ -4810,7 +4810,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 3
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight;
                 return w, Direction.SOUTHEAST
             _hp(heap, (w, ni))
         ni = si + 1
@@ -4819,7 +4819,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 4
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight;
                 return w, Direction.SOUTH
             _hp(heap, (w, ni))
         ni = si + -55
@@ -4828,7 +4828,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 5
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight;
                 return w, Direction.SOUTHWEST
             _hp(heap, (w, ni))
         ni = si + -56
@@ -4837,7 +4837,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 6
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight;
                 return w, Direction.WEST
             _hp(heap, (w, ni))
         ni = si + -57
@@ -4846,7 +4846,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 7
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight;
                 return w, Direction.NORTHWEST
             _hp(heap, (w, ni))
 
@@ -4880,7 +4880,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 55
@@ -4893,7 +4893,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 56
@@ -4906,7 +4906,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 57
@@ -4919,7 +4919,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 1
@@ -4932,7 +4932,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -55
@@ -4945,7 +4945,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -56
@@ -4958,7 +4958,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -57
@@ -4971,12 +4971,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
 
         if not phase2_seeds:
-            weight[ti] = pre_weight; 
+            weight[ti] = pre_weight;
             return 1000000, None
 
 
@@ -5061,7 +5061,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return _md0 + _bfs_d + 1, _D[0]
                 else:
                     _fh0 = 0
@@ -5075,7 +5075,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return _md1 + _bfs_d + 1, _D[1]
                 else:
                     _fh1 = 0
@@ -5089,7 +5089,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return _md2 + _bfs_d + 1, _D[2]
                 else:
                     _fh2 = 0
@@ -5103,7 +5103,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return _md3 + _bfs_d + 1, _D[3]
                 else:
                     _fh3 = 0
@@ -5117,7 +5117,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return _md4 + _bfs_d + 1, _D[4]
                 else:
                     _fh4 = 0
@@ -5131,7 +5131,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return _md5 + _bfs_d + 1, _D[5]
                 else:
                     _fh5 = 0
@@ -5145,7 +5145,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return _md6 + _bfs_d + 1, _D[6]
                 else:
                     _fh6 = 0
@@ -5159,7 +5159,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return _md7 + _bfs_d + 1, _D[7]
                 else:
                     _fh7 = 0
@@ -5168,7 +5168,7 @@ class BfsBureau:
                 break
             _bfs_d += 1
 
-        weight[ti] = pre_weight; 
+        weight[ti] = pre_weight;
         return 1000000, None
 
 
@@ -5318,7 +5318,7 @@ class BfsBureau:
         pre_weight = weight[ti]
         weight[ti] = 1
 
-        
+
 
         dist = [1000000] * 3136
         fhd  = [0]       * 3136
@@ -5338,7 +5338,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 0
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight;
                 return w, Direction.NORTH
             _hp(heap, (w, ni))
         ni = si + 56
@@ -5348,7 +5348,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 2
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight;
                 return w, Direction.EAST
             _hp(heap, (w, ni))
         ni = si + 1
@@ -5358,7 +5358,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 4
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight;
                 return w, Direction.SOUTH
             _hp(heap, (w, ni))
         ni = si + -56
@@ -5368,7 +5368,7 @@ class BfsBureau:
             dist[ni] = w
             fhd[ni]  = 6
             if ni == ti:
-                weight[ti] = pre_weight; 
+                weight[ti] = pre_weight;
                 return w, Direction.WEST
             _hp(heap, (w, ni))
         ni = si + 55
@@ -5379,7 +5379,7 @@ class BfsBureau:
                 dist[ni] = w
                 fhd[ni]  = 1
                 if ni == ti:
-                    weight[ti] = pre_weight; 
+                    weight[ti] = pre_weight;
                     return w, Direction.NORTHEAST
                 _hp(heap, (w, ni))
             elif w == dist[ni]:
@@ -5392,7 +5392,7 @@ class BfsBureau:
                 dist[ni] = w
                 fhd[ni]  = 3
                 if ni == ti:
-                    weight[ti] = pre_weight; 
+                    weight[ti] = pre_weight;
                     return w, Direction.SOUTHEAST
                 _hp(heap, (w, ni))
             elif w == dist[ni]:
@@ -5405,7 +5405,7 @@ class BfsBureau:
                 dist[ni] = w
                 fhd[ni]  = 5
                 if ni == ti:
-                    weight[ti] = pre_weight; 
+                    weight[ti] = pre_weight;
                     return w, Direction.SOUTHWEST
                 _hp(heap, (w, ni))
             elif w == dist[ni]:
@@ -5418,7 +5418,7 @@ class BfsBureau:
                 dist[ni] = w
                 fhd[ni]  = 7
                 if ni == ti:
-                    weight[ti] = pre_weight; 
+                    weight[ti] = pre_weight;
                     return w, Direction.NORTHWEST
                 _hp(heap, (w, ni))
             elif w == dist[ni]:
@@ -5455,7 +5455,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 55
@@ -5469,7 +5469,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 56
@@ -5483,7 +5483,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 57
@@ -5497,7 +5497,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + 1
@@ -5511,7 +5511,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -55
@@ -5525,7 +5525,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -56
@@ -5539,7 +5539,7 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
             ni = idx + -57
@@ -5553,12 +5553,12 @@ class BfsBureau:
                     dist[ni] = nd
                     fhd[ni]  = _fh
                     if ni == ti:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return nd, _D[_fh]
                     _hp(heap, (nd, ni))
 
         if not phase2_seeds:
-            weight[ti] = pre_weight; 
+            weight[ti] = pre_weight;
             return 1000000, None
 
 
@@ -5643,7 +5643,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return _md0 + _bfs_d + 1, _D[0]
                 else:
                     _fh0 = 0
@@ -5657,7 +5657,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return _md1 + _bfs_d + 1, _D[1]
                 else:
                     _fh1 = 0
@@ -5671,7 +5671,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return _md2 + _bfs_d + 1, _D[2]
                 else:
                     _fh2 = 0
@@ -5685,7 +5685,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return _md3 + _bfs_d + 1, _D[3]
                 else:
                     _fh3 = 0
@@ -5699,7 +5699,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return _md4 + _bfs_d + 1, _D[4]
                 else:
                     _fh4 = 0
@@ -5713,7 +5713,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return _md5 + _bfs_d + 1, _D[5]
                 else:
                     _fh5 = 0
@@ -5727,7 +5727,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return _md6 + _bfs_d + 1, _D[6]
                 else:
                     _fh6 = 0
@@ -5741,7 +5741,7 @@ class BfsBureau:
                     _uc &= ~_e
                     _any = True
                     if _e & _tm:
-                        weight[ti] = pre_weight; 
+                        weight[ti] = pre_weight;
                         return _md7 + _bfs_d + 1, _D[7]
                 else:
                     _fh7 = 0
@@ -5750,7 +5750,7 @@ class BfsBureau:
                 break
             _bfs_d += 1
 
-        weight[ti] = pre_weight; 
+        weight[ti] = pre_weight;
         return 1000000, None
 
 
@@ -7763,9 +7763,9 @@ class BreachBuild:
                 and Globals.ct.can_destroy(pos) \
                 and Globals.ct.get_action_cooldown() == 0:
                 BuildManager.destroy(pos)
-        
+
         dirToBuild = pos.direction_to(Symmetry.enemy_core_pos)
-        
+
         # Calculate distance to the closest tile of the 3x3 enemy core
         core_dx = max(0, abs(pos.x - Symmetry.enemy_core_pos.x) - 1)
         core_dy = max(0, abs(pos.y - Symmetry.enemy_core_pos.y) - 1)
@@ -7822,7 +7822,7 @@ class BuildManager:
 
         ti = Map.tile_info[pos.x][pos.y]
         return (
-            ti.env != Environment.WALL 
+            ti.env != Environment.WALL
             and not ti.has_building
             and not ti.has_bot
         )
@@ -7881,7 +7881,7 @@ class BuildManager:
     def smartbuild_builder_bot(pos, *a):
         if pos == Globals.my_pos:
             BuildManager.mbuild_builder_bot(*a)
-            return 
+            return
         BuildManager.dbuild_builder_bot(pos, *a)
 
 
@@ -7899,11 +7899,11 @@ class BuildManager:
 
     @staticmethod
     def can_dbuild_builder_bot(pos) -> bool:
-            
+
         return (
             Globals.ct.get_unit_count() < 50 and
             Globals.ct.get_action_cooldown() == 0 and
-            BuildManager.is_dbuildable(pos) and 
+            BuildManager.is_dbuildable(pos) and
             not Map.tile_info[pos.x][pos.y].has_bot and
             BuildManager.can_afford_builder_bot(pos)
         )
@@ -7916,7 +7916,7 @@ class BuildManager:
     def can_afford_builder_bot(pos=None) -> bool:
 
         ti_cost, ax_cost = Globals.ct.get_builder_bot_cost()
-        
+
 
         req = 50 if Globals.round < 150 else 50
 
@@ -7925,7 +7925,7 @@ class BuildManager:
 
         leftover_unscaled_ti += req
 
-        
+
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
@@ -7968,7 +7968,7 @@ class BuildManager:
     def smartbuild_gunner(pos, *a):
         if pos == Globals.my_pos:
             BuildManager.mbuild_gunner(*a)
-            return 
+            return
         BuildManager.dbuild_gunner(pos, *a)
 
 
@@ -7986,11 +7986,11 @@ class BuildManager:
 
     @staticmethod
     def can_dbuild_gunner(pos) -> bool:
-            
+
         return (
             Globals.ct.get_unit_count() < 50 and
             Globals.ct.get_action_cooldown() == 0 and
-            BuildManager.is_dbuildable(pos) and 
+            BuildManager.is_dbuildable(pos) and
             not Map.tile_info[pos.x][pos.y].has_bot and
             BuildManager.can_afford_gunner(pos)
         )
@@ -8003,7 +8003,7 @@ class BuildManager:
     def can_afford_gunner(pos=None) -> bool:
 
         ti_cost, ax_cost = Globals.ct.get_gunner_cost()
-        
+
 
         req = 0 if Globals.round < 150 else 0
 
@@ -8012,7 +8012,7 @@ class BuildManager:
 
         leftover_unscaled_ti += req
 
-        
+
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
@@ -8055,7 +8055,7 @@ class BuildManager:
     def smartbuild_sentinel(pos, *a):
         if pos == Globals.my_pos:
             BuildManager.mbuild_sentinel(*a)
-            return 
+            return
         BuildManager.dbuild_sentinel(pos, *a)
 
 
@@ -8073,11 +8073,11 @@ class BuildManager:
 
     @staticmethod
     def can_dbuild_sentinel(pos) -> bool:
-            
+
         return (
             Globals.ct.get_unit_count() < 50 and
             Globals.ct.get_action_cooldown() == 0 and
-            BuildManager.is_dbuildable(pos) and 
+            BuildManager.is_dbuildable(pos) and
             not Map.tile_info[pos.x][pos.y].has_bot and
             BuildManager.can_afford_sentinel(pos)
         )
@@ -8090,7 +8090,7 @@ class BuildManager:
     def can_afford_sentinel(pos=None) -> bool:
 
         ti_cost, ax_cost = Globals.ct.get_sentinel_cost()
-        
+
 
         req = 0 if Globals.round < 150 else 50
 
@@ -8099,7 +8099,7 @@ class BuildManager:
 
         leftover_unscaled_ti += req
 
-        
+
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
@@ -8142,7 +8142,7 @@ class BuildManager:
     def smartbuild_breach(pos, *a):
         if pos == Globals.my_pos:
             BuildManager.mbuild_breach(*a)
-            return 
+            return
         BuildManager.dbuild_breach(pos, *a)
 
 
@@ -8160,11 +8160,11 @@ class BuildManager:
 
     @staticmethod
     def can_dbuild_breach(pos) -> bool:
-            
+
         return (
             Globals.ct.get_unit_count() < 50 and
             Globals.ct.get_action_cooldown() == 0 and
-            BuildManager.is_dbuildable(pos) and 
+            BuildManager.is_dbuildable(pos) and
             not Map.tile_info[pos.x][pos.y].has_bot and
             BuildManager.can_afford_breach(pos)
         )
@@ -8177,7 +8177,7 @@ class BuildManager:
     def can_afford_breach(pos=None) -> bool:
 
         ti_cost, ax_cost = Globals.ct.get_breach_cost()
-        
+
 
         req = 50 if Globals.round < 150 else 50
 
@@ -8186,7 +8186,7 @@ class BuildManager:
 
         leftover_unscaled_ti += req
 
-        
+
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
@@ -8229,7 +8229,7 @@ class BuildManager:
     def smartbuild_launcher(pos, *a):
         if pos == Globals.my_pos:
             BuildManager.mbuild_launcher(*a)
-            return 
+            return
         BuildManager.dbuild_launcher(pos, *a)
 
 
@@ -8247,11 +8247,11 @@ class BuildManager:
 
     @staticmethod
     def can_dbuild_launcher(pos) -> bool:
-            
+
         return (
             Globals.ct.get_unit_count() < 50 and
             Globals.ct.get_action_cooldown() == 0 and
-            BuildManager.is_dbuildable(pos) and 
+            BuildManager.is_dbuildable(pos) and
             not Map.tile_info[pos.x][pos.y].has_bot and
             BuildManager.can_afford_launcher(pos)
         )
@@ -8264,7 +8264,7 @@ class BuildManager:
     def can_afford_launcher(pos=None) -> bool:
 
         ti_cost, ax_cost = Globals.ct.get_launcher_cost()
-        
+
 
         req = 0 if Globals.round < 150 else 50
 
@@ -8273,7 +8273,7 @@ class BuildManager:
 
         leftover_unscaled_ti += req
 
-        
+
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
@@ -8315,7 +8315,7 @@ class BuildManager:
     def smartbuild_conveyor(pos, *a):
         if pos == Globals.my_pos:
             BuildManager.mbuild_conveyor(*a)
-            return 
+            return
         BuildManager.dbuild_conveyor(pos, *a)
 
 
@@ -8334,10 +8334,10 @@ class BuildManager:
     def can_dbuild_conveyor(pos) -> bool:
         if pos == Globals.my_pos:
             return BuildManager.can_mbuild_conveyor()
-            
+
         return (
             Globals.ct.get_action_cooldown() == 0 and
-            BuildManager.is_dbuildable(pos) and 
+            BuildManager.is_dbuildable(pos) and
             BuildManager.can_afford_conveyor(pos)
         )
 
@@ -8349,7 +8349,7 @@ class BuildManager:
     def can_afford_conveyor(pos=None) -> bool:
 
         ti_cost, ax_cost = Globals.ct.get_conveyor_cost()
-        
+
 
         req = 20 if Globals.round < 150 else 50
 
@@ -8366,7 +8366,7 @@ class BuildManager:
                 Util.linf(pos, Unit.core_pos) * 2,
                 Util.linf(pos, Symmetry.enemy_core_pos) * 2 if Symmetry.is_sym_known else 1000000
             )
-        
+
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
@@ -8408,7 +8408,7 @@ class BuildManager:
     def smartbuild_splitter(pos, *a):
         if pos == Globals.my_pos:
             BuildManager.mbuild_splitter(*a)
-            return 
+            return
         BuildManager.dbuild_splitter(pos, *a)
 
 
@@ -8427,10 +8427,10 @@ class BuildManager:
     def can_dbuild_splitter(pos) -> bool:
         if pos == Globals.my_pos:
             return BuildManager.can_mbuild_splitter()
-            
+
         return (
             Globals.ct.get_action_cooldown() == 0 and
-            BuildManager.is_dbuildable(pos) and 
+            BuildManager.is_dbuildable(pos) and
             BuildManager.can_afford_splitter(pos)
         )
 
@@ -8442,7 +8442,7 @@ class BuildManager:
     def can_afford_splitter(pos=None) -> bool:
 
         ti_cost, ax_cost = Globals.ct.get_splitter_cost()
-        
+
 
         req = 20 if Globals.round < 150 else 50
 
@@ -8459,7 +8459,7 @@ class BuildManager:
                 Util.linf(pos, Unit.core_pos) * 2,
                 Util.linf(pos, Symmetry.enemy_core_pos) * 2 if Symmetry.is_sym_known else 1000000
             )
-        
+
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
@@ -8501,7 +8501,7 @@ class BuildManager:
     def smartbuild_armoured_conveyor(pos, *a):
         if pos == Globals.my_pos:
             BuildManager.mbuild_armoured_conveyor(*a)
-            return 
+            return
         BuildManager.dbuild_armoured_conveyor(pos, *a)
 
 
@@ -8520,10 +8520,10 @@ class BuildManager:
     def can_dbuild_armoured_conveyor(pos) -> bool:
         if pos == Globals.my_pos:
             return BuildManager.can_mbuild_armoured_conveyor()
-            
+
         return (
             Globals.ct.get_action_cooldown() == 0 and
-            BuildManager.is_dbuildable(pos) and 
+            BuildManager.is_dbuildable(pos) and
             BuildManager.can_afford_armoured_conveyor(pos)
         )
 
@@ -8535,7 +8535,7 @@ class BuildManager:
     def can_afford_armoured_conveyor(pos=None) -> bool:
 
         ti_cost, ax_cost = Globals.ct.get_armoured_conveyor_cost()
-        
+
 
         req = 20 if Globals.round < 150 else 50
 
@@ -8552,7 +8552,7 @@ class BuildManager:
                 Util.linf(pos, Unit.core_pos) * 2,
                 Util.linf(pos, Symmetry.enemy_core_pos) * 2 if Symmetry.is_sym_known else 1000000
             )
-        
+
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
@@ -8594,7 +8594,7 @@ class BuildManager:
     def smartbuild_bridge(pos, *a):
         if pos == Globals.my_pos:
             BuildManager.mbuild_bridge(*a)
-            return 
+            return
         BuildManager.dbuild_bridge(pos, *a)
 
 
@@ -8613,10 +8613,10 @@ class BuildManager:
     def can_dbuild_bridge(pos) -> bool:
         if pos == Globals.my_pos:
             return BuildManager.can_mbuild_bridge()
-            
+
         return (
             Globals.ct.get_action_cooldown() == 0 and
-            BuildManager.is_dbuildable(pos) and 
+            BuildManager.is_dbuildable(pos) and
             BuildManager.can_afford_bridge(pos)
         )
 
@@ -8628,7 +8628,7 @@ class BuildManager:
     def can_afford_bridge(pos=None) -> bool:
 
         ti_cost, ax_cost = Globals.ct.get_bridge_cost()
-        
+
 
         req = 20 if Globals.round < 150 else 50
 
@@ -8645,7 +8645,7 @@ class BuildManager:
                 Util.linf(pos, Unit.core_pos) * 2,
                 Util.linf(pos, Symmetry.enemy_core_pos) * 2 if Symmetry.is_sym_known else 1000000
             )
-        
+
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
@@ -8687,7 +8687,7 @@ class BuildManager:
     def smartbuild_harvester(pos, *a):
         if pos == Globals.my_pos:
             BuildManager.mbuild_harvester(*a)
-            return 
+            return
         BuildManager.dbuild_harvester(pos, *a)
 
 
@@ -8705,10 +8705,10 @@ class BuildManager:
 
     @staticmethod
     def can_dbuild_harvester(pos) -> bool:
-            
+
         return (
             Globals.ct.get_action_cooldown() == 0 and
-            BuildManager.is_dbuildable(pos) and 
+            BuildManager.is_dbuildable(pos) and
             not Map.tile_info[pos.x][pos.y].has_bot and
             BuildManager.can_afford_harvester(pos)
         )
@@ -8721,7 +8721,7 @@ class BuildManager:
     def can_afford_harvester(pos=None) -> bool:
 
         ti_cost, ax_cost = Globals.ct.get_harvester_cost()
-        
+
 
         req = 20 if Globals.round < 150 else 50
 
@@ -8737,7 +8737,7 @@ class BuildManager:
                 Util.linf(pos, Unit.core_pos) * 2,
                 Util.linf(pos, Symmetry.enemy_core_pos) * 2 if Symmetry.is_sym_known else 1000000
             )
-        
+
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
@@ -8779,7 +8779,7 @@ class BuildManager:
     def smartbuild_foundry(pos, *a):
         if pos == Globals.my_pos:
             BuildManager.mbuild_foundry(*a)
-            return 
+            return
         BuildManager.dbuild_foundry(pos, *a)
 
 
@@ -8797,10 +8797,10 @@ class BuildManager:
 
     @staticmethod
     def can_dbuild_foundry(pos) -> bool:
-            
+
         return (
             Globals.ct.get_action_cooldown() == 0 and
-            BuildManager.is_dbuildable(pos) and 
+            BuildManager.is_dbuildable(pos) and
             not Map.tile_info[pos.x][pos.y].has_bot and
             BuildManager.can_afford_foundry(pos)
         )
@@ -8813,7 +8813,7 @@ class BuildManager:
     def can_afford_foundry(pos=None) -> bool:
 
         ti_cost, ax_cost = Globals.ct.get_foundry_cost()
-        
+
 
         req = 0 if Globals.round < 150 else 0
 
@@ -8822,7 +8822,7 @@ class BuildManager:
 
         leftover_unscaled_ti += req
 
-        
+
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
@@ -8864,7 +8864,7 @@ class BuildManager:
     def smartbuild_road(pos, *a):
         if pos == Globals.my_pos:
             BuildManager.mbuild_road(*a)
-            return 
+            return
         BuildManager.dbuild_road(pos, *a)
 
 
@@ -8883,10 +8883,10 @@ class BuildManager:
     def can_dbuild_road(pos) -> bool:
         if pos == Globals.my_pos:
             return BuildManager.can_mbuild_road()
-            
+
         return (
             Globals.ct.get_action_cooldown() == 0 and
-            BuildManager.is_dbuildable(pos) and 
+            BuildManager.is_dbuildable(pos) and
             BuildManager.can_afford_road(pos)
         )
 
@@ -8898,7 +8898,7 @@ class BuildManager:
     def can_afford_road(pos=None) -> bool:
 
         ti_cost, ax_cost = Globals.ct.get_road_cost()
-        
+
 
         req = 20 if Globals.round < 150 else 50
 
@@ -8913,7 +8913,7 @@ class BuildManager:
                 Util.linf(pos, Unit.core_pos) * 2,
                 Util.linf(pos, Symmetry.enemy_core_pos) * 2 if Symmetry.is_sym_known else 1000000
             )
-        
+
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
@@ -8955,7 +8955,7 @@ class BuildManager:
     def smartbuild_barrier(pos, *a):
         if pos == Globals.my_pos:
             BuildManager.mbuild_barrier(*a)
-            return 
+            return
         BuildManager.dbuild_barrier(pos, *a)
 
 
@@ -8973,10 +8973,10 @@ class BuildManager:
 
     @staticmethod
     def can_dbuild_barrier(pos) -> bool:
-            
+
         return (
             Globals.ct.get_action_cooldown() == 0 and
-            BuildManager.is_dbuildable(pos) and 
+            BuildManager.is_dbuildable(pos) and
             not Map.tile_info[pos.x][pos.y].has_bot and
             BuildManager.can_afford_barrier(pos)
         )
@@ -8989,7 +8989,7 @@ class BuildManager:
     def can_afford_barrier(pos=None) -> bool:
 
         ti_cost, ax_cost = Globals.ct.get_barrier_cost()
-        
+
 
         req = 20 if Globals.round < 150 else 50
 
@@ -8998,7 +8998,7 @@ class BuildManager:
 
         leftover_unscaled_ti += req
 
-        
+
         return (MarketMaker.ti - ti_cost) >= int(leftover_unscaled_ti * MarketMaker.scale_ratio) \
             and MarketMaker.ax >= ax_cost
 
@@ -9040,20 +9040,20 @@ class BurnManager:
         if not BuildManager.can_afford_builder_bot():
             ct = Globals.ct
             ti, ax = ct.get_global_resources()
-            
+
             builderCost = Globals.ct.get_builder_bot_cost()[0]
-            
+
             tiNeeded = builderCost - ti
             axNeeded = max(0, (tiNeeded + 3) // 4)  # replaced with int ceil
-            
+
             if axNeeded > 0 and ax > 17:
                 ct.convert(min(axNeeded, ax - 17))
-            
-    
+
+
     @classmethod
     def should_burn_emergency(cls):
-        lost_short = CoreHistory.hp_delta(1) < 0 
-        lost_long = CoreHistory.hp_delta(10) < 0 
+        lost_short = CoreHistory.hp_delta(1) < 0
+        lost_long = CoreHistory.hp_delta(10) < 0
         low_hp = Globals.ct.get_hp() < 250
 
         if (lost_short or lost_long) and low_hp:
@@ -9061,7 +9061,7 @@ class BurnManager:
 
         return False
 
-    
+
     @classmethod
     def maybe_burn_for_ti(cls):
 
@@ -9378,7 +9378,7 @@ class CoreHistory:
         cls.hp_hist[cls.wround] = Globals.ct.get_hp()
 
     @classmethod
-    def hp_delta(cls, rounds: int):  
+    def hp_delta(cls, rounds: int):
         # negative when HP lost
         assert rounds < 100
         return cls.hp_hist[cls.wround] - cls.hp_hist[(cls.wround - rounds) % 100]
@@ -27406,23 +27406,23 @@ class Debug:
     @staticmethod
     def debug_dist(dist: list[list[int]]):
         my_pos = Globals.my_pos
-        print("N:", 
+        print("N:",
               dist[my_pos.x +0][my_pos.y -1], end=', ')
-        print("NE:", 
+        print("NE:",
               dist[my_pos.x +1][my_pos.y -1], end=', ')
-        print("E:", 
+        print("E:",
               dist[my_pos.x +1][my_pos.y +0], end=', ')
-        print("SE:", 
+        print("SE:",
               dist[my_pos.x +1][my_pos.y +1], end=', ')
-        print("S:", 
+        print("S:",
               dist[my_pos.x +0][my_pos.y +1], end=', ')
-        print("SW:", 
+        print("SW:",
               dist[my_pos.x -1][my_pos.y +1], end=', ')
-        print("W:", 
+        print("W:",
               dist[my_pos.x -1][my_pos.y +0], end=', ')
-        print("NW:", 
+        print("NW:",
               dist[my_pos.x -1][my_pos.y -1], end=', ')
-        print("C:", 
+        print("C:",
               dist[my_pos.x +0][my_pos.y +0], end=', ')
         print()
 
@@ -28199,35 +28199,35 @@ class GunnerSupervisor:
 
     importance_score: dict[EntityType, int] = {
         None: 0,
-        EntityType.BUILDER_BOT: 
+        EntityType.BUILDER_BOT:
             0,
-        EntityType.CORE: 
+        EntityType.CORE:
             96,
-        EntityType.GUNNER: 
+        EntityType.GUNNER:
             0,
-        EntityType.SENTINEL: 
+        EntityType.SENTINEL:
             0,
-        EntityType.BREACH: 
+        EntityType.BREACH:
             0,
-        EntityType.LAUNCHER: 
+        EntityType.LAUNCHER:
             0,
-        EntityType.CONVEYOR: 
+        EntityType.CONVEYOR:
             97,
-        EntityType.SPLITTER: 
+        EntityType.SPLITTER:
             100,
-        EntityType.ARMOURED_CONVEYOR: 
+        EntityType.ARMOURED_CONVEYOR:
             95,
-        EntityType.BRIDGE: 
+        EntityType.BRIDGE:
             98,
-        EntityType.HARVESTER: 
+        EntityType.HARVESTER:
             0,
-        EntityType.FOUNDRY: 
+        EntityType.FOUNDRY:
             99,
-        EntityType.ROAD: 
+        EntityType.ROAD:
             0,
-        EntityType.BARRIER: 
+        EntityType.BARRIER:
             0,
-        EntityType.MARKER: 
+        EntityType.MARKER:
             0,
     }
 
@@ -28242,7 +28242,7 @@ class GunnerSupervisor:
 
         print(f'[try_fire] OK get_best_target is {pos}')
         Debug.line(pos, Color.TEAL)
-        
+
         ct = Globals.ct
         dirToPos = Globals.my_pos.direction_to(pos)
 
@@ -28283,7 +28283,7 @@ class GunnerSupervisor:
 
         if not best.has_enemy_bot and best.ally_connected:
             return None
-        
+
 
         if best.is_harvester_feeding_ally:
             return None
@@ -28340,7 +28340,7 @@ class GunnerSupervisor:
         cls.targets = []
         tile_info = Map.tile_info
         my_pos = Globals.my_pos
-        
+
         current_dir = ct.get_direction()
 
         has_feeder = [False] * 8
@@ -28392,7 +28392,7 @@ class GunnerSupervisor:
 
 
                 idx = (((x) + 3) * 56 + ((y) + 3))
-                
+
                 info = GunnerTargetInfo()
                 info.directly_reachable = ct.can_fire_from(my_pos, Direction.NORTH, EntityType.GUNNER, pos)
                 info.position = pos if info.directly_reachable else cls.first_road(Direction.NORTH, pos)
@@ -28442,8 +28442,8 @@ class GunnerSupervisor:
                     if ti.has_turret:
                         info.has_turret = True
                         info.can_shoot_me = ct.can_fire_from(
-                            pos, 
-                            ti.turret_direction, 
+                            pos,
+                            ti.turret_direction,
                             ti.entity_type,
                             Globals.my_pos
                         )
@@ -28452,7 +28452,7 @@ class GunnerSupervisor:
                         info.has_launcher = True
 
                 cls.targets.append(info)
-            
+
 
         skip = nadj_feeders == 1 and has_feeder[1] and current_dir == Direction.NORTHEAST
 
@@ -28475,7 +28475,7 @@ class GunnerSupervisor:
 
 
                 idx = (((x) + 3) * 56 + ((y) + 3))
-                
+
                 info = GunnerTargetInfo()
                 info.directly_reachable = ct.can_fire_from(my_pos, Direction.NORTHEAST, EntityType.GUNNER, pos)
                 info.position = pos if info.directly_reachable else cls.first_road(Direction.NORTHEAST, pos)
@@ -28525,8 +28525,8 @@ class GunnerSupervisor:
                     if ti.has_turret:
                         info.has_turret = True
                         info.can_shoot_me = ct.can_fire_from(
-                            pos, 
-                            ti.turret_direction, 
+                            pos,
+                            ti.turret_direction,
                             ti.entity_type,
                             Globals.my_pos
                         )
@@ -28535,7 +28535,7 @@ class GunnerSupervisor:
                         info.has_launcher = True
 
                 cls.targets.append(info)
-            
+
 
         skip = nadj_feeders == 1 and has_feeder[2] and current_dir == Direction.EAST
 
@@ -28558,7 +28558,7 @@ class GunnerSupervisor:
 
 
                 idx = (((x) + 3) * 56 + ((y) + 3))
-                
+
                 info = GunnerTargetInfo()
                 info.directly_reachable = ct.can_fire_from(my_pos, Direction.EAST, EntityType.GUNNER, pos)
                 info.position = pos if info.directly_reachable else cls.first_road(Direction.EAST, pos)
@@ -28608,8 +28608,8 @@ class GunnerSupervisor:
                     if ti.has_turret:
                         info.has_turret = True
                         info.can_shoot_me = ct.can_fire_from(
-                            pos, 
-                            ti.turret_direction, 
+                            pos,
+                            ti.turret_direction,
                             ti.entity_type,
                             Globals.my_pos
                         )
@@ -28618,7 +28618,7 @@ class GunnerSupervisor:
                         info.has_launcher = True
 
                 cls.targets.append(info)
-            
+
 
         skip = nadj_feeders == 1 and has_feeder[3] and current_dir == Direction.SOUTHEAST
 
@@ -28641,7 +28641,7 @@ class GunnerSupervisor:
 
 
                 idx = (((x) + 3) * 56 + ((y) + 3))
-                
+
                 info = GunnerTargetInfo()
                 info.directly_reachable = ct.can_fire_from(my_pos, Direction.SOUTHEAST, EntityType.GUNNER, pos)
                 info.position = pos if info.directly_reachable else cls.first_road(Direction.SOUTHEAST, pos)
@@ -28691,8 +28691,8 @@ class GunnerSupervisor:
                     if ti.has_turret:
                         info.has_turret = True
                         info.can_shoot_me = ct.can_fire_from(
-                            pos, 
-                            ti.turret_direction, 
+                            pos,
+                            ti.turret_direction,
                             ti.entity_type,
                             Globals.my_pos
                         )
@@ -28701,7 +28701,7 @@ class GunnerSupervisor:
                         info.has_launcher = True
 
                 cls.targets.append(info)
-            
+
 
         skip = nadj_feeders == 1 and has_feeder[4] and current_dir == Direction.SOUTH
 
@@ -28724,7 +28724,7 @@ class GunnerSupervisor:
 
 
                 idx = (((x) + 3) * 56 + ((y) + 3))
-                
+
                 info = GunnerTargetInfo()
                 info.directly_reachable = ct.can_fire_from(my_pos, Direction.SOUTH, EntityType.GUNNER, pos)
                 info.position = pos if info.directly_reachable else cls.first_road(Direction.SOUTH, pos)
@@ -28774,8 +28774,8 @@ class GunnerSupervisor:
                     if ti.has_turret:
                         info.has_turret = True
                         info.can_shoot_me = ct.can_fire_from(
-                            pos, 
-                            ti.turret_direction, 
+                            pos,
+                            ti.turret_direction,
                             ti.entity_type,
                             Globals.my_pos
                         )
@@ -28784,7 +28784,7 @@ class GunnerSupervisor:
                         info.has_launcher = True
 
                 cls.targets.append(info)
-            
+
 
         skip = nadj_feeders == 1 and has_feeder[5] and current_dir == Direction.SOUTHWEST
 
@@ -28807,7 +28807,7 @@ class GunnerSupervisor:
 
 
                 idx = (((x) + 3) * 56 + ((y) + 3))
-                
+
                 info = GunnerTargetInfo()
                 info.directly_reachable = ct.can_fire_from(my_pos, Direction.SOUTHWEST, EntityType.GUNNER, pos)
                 info.position = pos if info.directly_reachable else cls.first_road(Direction.SOUTHWEST, pos)
@@ -28857,8 +28857,8 @@ class GunnerSupervisor:
                     if ti.has_turret:
                         info.has_turret = True
                         info.can_shoot_me = ct.can_fire_from(
-                            pos, 
-                            ti.turret_direction, 
+                            pos,
+                            ti.turret_direction,
                             ti.entity_type,
                             Globals.my_pos
                         )
@@ -28867,7 +28867,7 @@ class GunnerSupervisor:
                         info.has_launcher = True
 
                 cls.targets.append(info)
-            
+
 
         skip = nadj_feeders == 1 and has_feeder[6] and current_dir == Direction.WEST
 
@@ -28890,7 +28890,7 @@ class GunnerSupervisor:
 
 
                 idx = (((x) + 3) * 56 + ((y) + 3))
-                
+
                 info = GunnerTargetInfo()
                 info.directly_reachable = ct.can_fire_from(my_pos, Direction.WEST, EntityType.GUNNER, pos)
                 info.position = pos if info.directly_reachable else cls.first_road(Direction.WEST, pos)
@@ -28940,8 +28940,8 @@ class GunnerSupervisor:
                     if ti.has_turret:
                         info.has_turret = True
                         info.can_shoot_me = ct.can_fire_from(
-                            pos, 
-                            ti.turret_direction, 
+                            pos,
+                            ti.turret_direction,
                             ti.entity_type,
                             Globals.my_pos
                         )
@@ -28950,7 +28950,7 @@ class GunnerSupervisor:
                         info.has_launcher = True
 
                 cls.targets.append(info)
-            
+
 
         skip = nadj_feeders == 1 and has_feeder[7] and current_dir == Direction.NORTHWEST
 
@@ -28973,7 +28973,7 @@ class GunnerSupervisor:
 
 
                 idx = (((x) + 3) * 56 + ((y) + 3))
-                
+
                 info = GunnerTargetInfo()
                 info.directly_reachable = ct.can_fire_from(my_pos, Direction.NORTHWEST, EntityType.GUNNER, pos)
                 info.position = pos if info.directly_reachable else cls.first_road(Direction.NORTHWEST, pos)
@@ -29023,8 +29023,8 @@ class GunnerSupervisor:
                     if ti.has_turret:
                         info.has_turret = True
                         info.can_shoot_me = ct.can_fire_from(
-                            pos, 
-                            ti.turret_direction, 
+                            pos,
+                            ti.turret_direction,
                             ti.entity_type,
                             Globals.my_pos
                         )
@@ -29042,7 +29042,7 @@ class GunnerSupervisor:
 class GunnerTargetInfo:
     __slots__ = (
         'position',         # may be first road
-        'target_position', 
+        'target_position',
         'directly_reachable',
         'has_ally_bot', 'has_enemy_bot', 'has_building',
         'has_turret', 'has_launcher', 'can_shoot_me', 'is_road', 'is_core',
@@ -29105,7 +29105,7 @@ class GunnerTargetInfo:
         if a.has_enemy_bot and b.has_enemy_bot:
             if a.bot_hp != b.bot_hp:
                 return a.bot_hp < b.bot_hp
-            
+
 
         return a.rand_key < b.rand_key
 
@@ -29120,7 +29120,7 @@ class HarvesterAdjacent:
 
     @classmethod
     def get_best_turret_info(cls) -> tuple[AdjacentInfo | None, bool]:  # bool is is_gunner
-        if not BuildManager.can_afford_sentinel() and Globals.round < 250: 
+        if not BuildManager.can_afford_sentinel() and Globals.round < 250:
             return None, False
 
         if not cls.infos:
@@ -29165,8 +29165,8 @@ class HarvesterAdjacent:
 
     @classmethod
     def get_best_sentinel_info(cls) -> AdjacentInfo | None:
-        if not BuildManager.can_afford_sentinel() and Globals.round < 250: 
-            return None 
+        if not BuildManager.can_afford_sentinel() and Globals.round < 250:
+            return None
 
         if not cls.infos:
             return None
@@ -29178,7 +29178,7 @@ class HarvesterAdjacent:
 
         if not bestsen.easily_buildable:
             return None
-        
+
         if bestsen.bfs_dist_adj >= 100:
             return None
 
@@ -29188,7 +29188,7 @@ class HarvesterAdjacent:
         si: SentinelDirectionInfo = bestsen.sentinel_dir_info
         if si.banned:
             return None
-        
+
         ok = (si.enemy_building_hp > 20 and si.enemy_bot_hp > 20) or (si.enemy_building_hp > 40) or (si.enemy_turret_hp > 0)
         if not ok:
             return None
@@ -29220,10 +29220,10 @@ class HarvesterAdjacent:
 
         if best.enemy_turrets_adjacent == 0:
             return None
-        
+
         if best.ti.has_bot:
             return None
-        
+
         # If we already have turrets, don't break transporters
         if best.ally_turrets_adjacent > 0 and best.has_ally_transporter:
             return None
@@ -29275,10 +29275,10 @@ class HarvesterAdjacent:
 
         if best.bfs_dist_adj >= 100:
             return None
-        
+
         if best.enemy_turrets_adjacent > 0:
             return None
-        
+
         if not best.is_canonical_ally_harvester:
             return None
 
@@ -29310,13 +29310,13 @@ class HarvesterAdjacent:
 
             dist_to_ally_core = hpos.distance_squared(Unit.core_pos)
             is_canonical_ally_harvester = VisionTracker.me_is_canonical_ally(hpos)
-            
+
 
             x, y = sx , sy -1
             ti = tile_info[x][y]
             if ti is not None:
                 valid = True
-                
+
                 if ti.env == Environment.WALL:
                     valid = False
                 elif ti.has_building:
@@ -29340,9 +29340,9 @@ class HarvesterAdjacent:
                     info.easily_buildable = (
                         not ti.has_building or
                         (
-                            ti.is_building_ally and 
+                            ti.is_building_ally and
                             (
-                                ti.entity_type == EntityType.ROAD 
+                                ti.entity_type == EntityType.ROAD
                                 or ti.entity_type == EntityType.BARRIER
                                 or ti.entity_type == EntityType.LAUNCHER
                                 or ti.is_shield
@@ -29363,8 +29363,8 @@ class HarvesterAdjacent:
 
 
                     info.has_ally_transporter = (
-                        ti.has_building 
-                        and ti.is_building_ally 
+                        ti.has_building
+                        and ti.is_building_ally
                         and ti.entity_type in Constants.TRANSPORTERS_SET
                         and not ti.is_shield
                     )
@@ -29373,7 +29373,7 @@ class HarvesterAdjacent:
                         if idx not in DarkForest.refined_ax_line:
                             info.is_working_shield = False
 
-                    
+
                     # if info.has_ally_transporter:
                     #     Debug.dot(pos, Color.LIME)
 
@@ -29466,11 +29466,11 @@ class HarvesterAdjacent:
                     info.h_outward_adj = hti.ally_outward_transporters_adjacent
                     infos.append(info)
 
-            x, y = sx +1, sy 
+            x, y = sx +1, sy
             ti = tile_info[x][y]
             if ti is not None:
                 valid = True
-                
+
                 if ti.env == Environment.WALL:
                     valid = False
                 elif ti.has_building:
@@ -29494,9 +29494,9 @@ class HarvesterAdjacent:
                     info.easily_buildable = (
                         not ti.has_building or
                         (
-                            ti.is_building_ally and 
+                            ti.is_building_ally and
                             (
-                                ti.entity_type == EntityType.ROAD 
+                                ti.entity_type == EntityType.ROAD
                                 or ti.entity_type == EntityType.BARRIER
                                 or ti.entity_type == EntityType.LAUNCHER
                                 or ti.is_shield
@@ -29517,8 +29517,8 @@ class HarvesterAdjacent:
 
 
                     info.has_ally_transporter = (
-                        ti.has_building 
-                        and ti.is_building_ally 
+                        ti.has_building
+                        and ti.is_building_ally
                         and ti.entity_type in Constants.TRANSPORTERS_SET
                         and not ti.is_shield
                     )
@@ -29527,7 +29527,7 @@ class HarvesterAdjacent:
                         if idx not in DarkForest.refined_ax_line:
                             info.is_working_shield = False
 
-                    
+
                     # if info.has_ally_transporter:
                     #     Debug.dot(pos, Color.LIME)
 
@@ -29624,7 +29624,7 @@ class HarvesterAdjacent:
             ti = tile_info[x][y]
             if ti is not None:
                 valid = True
-                
+
                 if ti.env == Environment.WALL:
                     valid = False
                 elif ti.has_building:
@@ -29648,9 +29648,9 @@ class HarvesterAdjacent:
                     info.easily_buildable = (
                         not ti.has_building or
                         (
-                            ti.is_building_ally and 
+                            ti.is_building_ally and
                             (
-                                ti.entity_type == EntityType.ROAD 
+                                ti.entity_type == EntityType.ROAD
                                 or ti.entity_type == EntityType.BARRIER
                                 or ti.entity_type == EntityType.LAUNCHER
                                 or ti.is_shield
@@ -29671,8 +29671,8 @@ class HarvesterAdjacent:
 
 
                     info.has_ally_transporter = (
-                        ti.has_building 
-                        and ti.is_building_ally 
+                        ti.has_building
+                        and ti.is_building_ally
                         and ti.entity_type in Constants.TRANSPORTERS_SET
                         and not ti.is_shield
                     )
@@ -29681,7 +29681,7 @@ class HarvesterAdjacent:
                         if idx not in DarkForest.refined_ax_line:
                             info.is_working_shield = False
 
-                    
+
                     # if info.has_ally_transporter:
                     #     Debug.dot(pos, Color.LIME)
 
@@ -29774,11 +29774,11 @@ class HarvesterAdjacent:
                     info.h_outward_adj = hti.ally_outward_transporters_adjacent
                     infos.append(info)
 
-            x, y = sx -1, sy 
+            x, y = sx -1, sy
             ti = tile_info[x][y]
             if ti is not None:
                 valid = True
-                
+
                 if ti.env == Environment.WALL:
                     valid = False
                 elif ti.has_building:
@@ -29802,9 +29802,9 @@ class HarvesterAdjacent:
                     info.easily_buildable = (
                         not ti.has_building or
                         (
-                            ti.is_building_ally and 
+                            ti.is_building_ally and
                             (
-                                ti.entity_type == EntityType.ROAD 
+                                ti.entity_type == EntityType.ROAD
                                 or ti.entity_type == EntityType.BARRIER
                                 or ti.entity_type == EntityType.LAUNCHER
                                 or ti.is_shield
@@ -29825,8 +29825,8 @@ class HarvesterAdjacent:
 
 
                     info.has_ally_transporter = (
-                        ti.has_building 
-                        and ti.is_building_ally 
+                        ti.has_building
+                        and ti.is_building_ally
                         and ti.entity_type in Constants.TRANSPORTERS_SET
                         and not ti.is_shield
                     )
@@ -29835,7 +29835,7 @@ class HarvesterAdjacent:
                         if idx not in DarkForest.refined_ax_line:
                             info.is_working_shield = False
 
-                    
+
                     # if info.has_ally_transporter:
                     #     Debug.dot(pos, Color.LIME)
 
@@ -29928,8 +29928,8 @@ class HarvesterAdjacent:
                     info.h_outward_adj = hti.ally_outward_transporters_adjacent
                     infos.append(info)
 
-        
-        
+
+
         sample = random.sample(infos, min(5, len(infos)))
         for info in sample:
             info.gunner_dir_info = GunnerDirectionPicker.get_best_info(info.position)
@@ -29958,7 +29958,7 @@ class HarvesterInfo:
 class HealExecutor:
     last_healed: Candidate | None = None
     last_healed_round: int = -1
-        
+
     class Candidate:
         __slots__ = (
             'position', 'is_accessible', 'building_heal', 'building_hp',
@@ -30053,7 +30053,7 @@ class HealExecutor:
         else:
             cand.is_accessible = False
 
-        nx, ny = my_pos.x +1, my_pos.y 
+        nx, ny = my_pos.x +1, my_pos.y
         npos = Position(nx, ny)
 
         cand = cls.Candidate()
@@ -30205,7 +30205,7 @@ class HealExecutor:
         else:
             cand.is_accessible = False
 
-        nx, ny = my_pos.x -1, my_pos.y 
+        nx, ny = my_pos.x -1, my_pos.y
         npos = Position(nx, ny)
 
         cand = cls.Candidate()
@@ -30281,7 +30281,7 @@ class HealExecutor:
         else:
             cand.is_accessible = False
 
-        nx, ny = my_pos.x , my_pos.y 
+        nx, ny = my_pos.x , my_pos.y
         npos = Position(nx, ny)
 
         cand = cls.Candidate()
@@ -30314,7 +30314,7 @@ class HealExecutor:
                 4,
                 40 - Globals.ct.get_hp()
             )
-            cand.bot_hp = Globals.ct.get_hp() 
+            cand.bot_hp = Globals.ct.get_hp()
         else:
             cand.is_accessible = False
 
@@ -30379,7 +30379,7 @@ class HealExecutor:
         if not best.is_accessible:
             return
 
-        
+
         if best.building_heal + best.bot_heal < (1 if best.entity_type == EntityType.ROAD or best.harvester_adjacent else 4):
             return
 
@@ -30387,11 +30387,11 @@ class HealExecutor:
             return
 
         Debug.line(best.position, Color.LIME)
-        
+
 
         cls.last_healed_round = Globals.round
         cls.last_healed = best
-        
+
         # Replace the conveyor if it's at low health
         if best.entity_type == EntityType.CONVEYOR:
             if best.building_hp < 10:
@@ -30414,7 +30414,7 @@ class HealExecutor:
                     ti = Map.tile_info[best.position.x][best.position.y]
                     BuildManager.dbuild_bridge(best.position, ti.target)
                     return
-        
+
         Globals.ct.heal(best.position)
 
 
@@ -30442,17 +30442,17 @@ class HealTargetInfo:
 
         if bool(a.building_heal) != bool(b.building_heal): # Don't compare micro values of healing because of 4 HP roads
             return a.building_heal > b.building_heal
-        
+
         if a.is_turret != b.is_turret:
             return a.is_turret > b.is_turret
-            
+
         if a.is_transporter != b.is_transporter:
             return a.is_transporter > b.is_transporter
-        
+
         if not a.is_transporter:
             if a.harvester_adjacent != b.harvester_adjacent:
                 return a.harvester_adjacent > b.harvester_adjacent
-        
+
         ahp = a.building_hp
         bhp = b.building_hp
 
@@ -30463,7 +30463,7 @@ class HealTargetInfo:
 
         if ahp != bhp:
             return ahp < bhp
-    
+
         if a.has_enemy_bot != b.has_enemy_bot:
             return a.has_enemy_bot > b.has_enemy_bot
 
@@ -30529,10 +30529,10 @@ class HealTargeter:
             cond = best.building_hp < 500 - best.bfs_dist_adj * (core_ti.allied_bots_adjacent) * 4
             if not cond:
                 return None
-            
+
         # count canonical allies between us and the target
         ally_index = VisionTracker.canonical_ally_index(best.position)
-        
+
 
         # if there are already enough canonical healers, ignore the target
         if ally_index * GameConstants.HEAL_AMOUNT > max(best.building_heal, best.bot_heal):
@@ -30633,7 +30633,7 @@ class Map:
         Map.tile_info = [[None] * (Map.H + 5) for _ in range(Map.W + 5)]
 
 
-    @classmethod 
+    @classmethod
     def fill_tile_info(cls):
         sym = Symmetry.map_sym
 
@@ -30743,7 +30743,7 @@ class Map:
 
         # track harvester tiles for second pass adjacency
         harvester_proc = []
-        
+
         my_x, my_y = Globals.my_pos
 
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
@@ -30907,9 +30907,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+
                 Comms.handle_message(get_marker_value(building_id))
-                
+
 
             ti.is_pointed_to = False
 
@@ -31174,7 +31174,7 @@ class Map:
 
         # track harvester tiles for second pass adjacency
         harvester_proc = []
-        
+
         my_x, my_y = Globals.my_pos
 
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
@@ -31338,9 +31338,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+
                 Comms.handle_message(get_marker_value(building_id))
-                
+
 
             ti.is_pointed_to = False
 
@@ -31605,7 +31605,7 @@ class Map:
 
         # track harvester tiles for second pass adjacency
         harvester_proc = []
-        
+
         my_x, my_y = Globals.my_pos
 
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
@@ -31769,9 +31769,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+
                 Comms.handle_message(get_marker_value(building_id))
-                
+
 
             ti.is_pointed_to = False
 
@@ -32033,7 +32033,7 @@ class Map:
 
         # track harvester tiles for second pass adjacency
         harvester_proc = []
-        
+
         my_x, my_y = Globals.my_pos
 
         for pos, x, y, pos_idx, ti in proc_nearby_tiles:
@@ -32197,9 +32197,9 @@ class Map:
 
             if etype == MARKER and is_building_ally and messages_read < 3:
                 messages_read += 1
-                
+
                 Comms.handle_message(get_marker_value(building_id))
-                
+
 
             ti.is_pointed_to = False
 
@@ -32377,12 +32377,12 @@ class Map:
     def debug_tile_info(cls):
         """Debug all tile infos: wall=GREEN, titan ore=BLUE, axium ore=ORANGE, unseen=BLACK"""
         tile_info = cls.tile_info
-        
+
         for x in range(cls.W):
             for y in range(cls.H):
                 pos = Position(x, y)
                 ti = tile_info[x][y]
-                
+
                 if ti is None:
                     Debug.dot(pos, Color.BLACK)
                 else:
@@ -32425,7 +32425,7 @@ class Map:
             else:
                 ox = maxX - x
             orow = tile_info[ox]
-            
+
             for y in range(cls.H):
                 ti = row[y]
                 if ti is None:
@@ -32542,7 +32542,7 @@ class MarkerPositionPicker:
             cand.is_accessible = False
 
 
-        nx, ny = my_pos.x +1, my_pos.y 
+        nx, ny = my_pos.x +1, my_pos.y
         npos = Position(nx, ny)
 
         cand = cls.Candidate()
@@ -32634,7 +32634,7 @@ class MarkerPositionPicker:
             cand.is_accessible = False
 
 
-        nx, ny = my_pos.x -1, my_pos.y 
+        nx, ny = my_pos.x -1, my_pos.y
         npos = Position(nx, ny)
 
         cand = cls.Candidate()
@@ -32691,7 +32691,7 @@ class MarkerPositionPicker:
         if (not a.has_ally_marker) and b.has_ally_marker: return True
 
         return a.rand_key < b.rand_key
-    
+
 
     @classmethod
     def get_marker_pos(cls) -> Position | None:
@@ -32763,16 +32763,16 @@ class MarketMaker:
     def harvester_cost(cls, apos: Position) -> int:
 
         if (
-            cls.hpos is not None 
+            cls.hpos is not None
             and Globals.round - cls.hround < 5
             and apos.distance_squared(cls.hpos) < 50
         ):
             return cls.hres
 
-        
-        
+
+
         bridges, _ = BfsBureau.find_bridge_route(apos, DarkForest.core_sink_set)
-        
+
 
         h_cost, _ = Globals.ct.get_harvester_cost()
         b_cost, _ = Globals.ct.get_bridge_cost()
@@ -32912,7 +32912,7 @@ class OreExecutive:
     def fill(cls):
         for pos, x, y, idx, ti in Map.proc_nearby_tiles:
             # not using Map.harvester_set..?
-            
+
             if ti.entity_type == EntityType.FOUNDRY:
                 if idx not in RouteToFoundry.planned_foundry_positions:
                     FoundryBuild.register_foundry(pos)
@@ -32978,7 +32978,7 @@ class OreExecutive:
                 heapq.heappop(cls.ti_queue)
                 cls.state[pos] = 3
                 continue
-            
+
             if not VisionTracker.me_is_canonical_ally(pos):
                 heapq.heappop(cls.ti_queue)
                 cls.state[pos] = 5
@@ -33059,7 +33059,7 @@ class OreExecutive:
 
             if ti.is_pointed_to:
                 cls.state[pos] = 3  # for ax bug
-            
+
             if not VisionTracker.me_is_canonical_ally(pos):
                 heapq.heappop(cls.ax_queue)
                 cls.state[pos] = 5
@@ -33196,7 +33196,7 @@ class OrePositionPicker:
             dist_to_target = (nx - tx) * (nx - tx) + (ny - ty) * (ny - ty)
         else:
             dist_to_target = 0
-            
+
         ti = Map.tile_info[nx][ny]
 
         cand = cls.Candidate()
@@ -33204,14 +33204,14 @@ class OrePositionPicker:
         cand.position = Position(nx, ny)
         cand.build_metric = abs(Unit.core_pos.x - nx) + abs(Unit.core_pos.y - ny)
         cand.dist_to_target = dist_to_target
-        cand.is_accessible = ti is not None and ti.env != Environment.WALL 
+        cand.is_accessible = ti is not None and ti.env != Environment.WALL
         cand.empty = ti is not None and ti.env == Environment.EMPTY
         cand.ti_ore_adj = BfsBureau.ti_ore_adj[(((nx) + 3) * 56 + ((ny) + 3))]
         cand.has_enemy_bot = ti is not None and ti.has_bot and not ti.is_bot_ally
         cls.cand[0] = cand
-        
 
-        nx, ny = x +1, y 
+
+        nx, ny = x +1, y
 
         # build_metric = max(abs(nx - me_x), abs(ny - me_y))
         # if build_metric == 0:
@@ -33221,7 +33221,7 @@ class OrePositionPicker:
             dist_to_target = (nx - tx) * (nx - tx) + (ny - ty) * (ny - ty)
         else:
             dist_to_target = 0
-            
+
         ti = Map.tile_info[nx][ny]
 
         cand = cls.Candidate()
@@ -33229,12 +33229,12 @@ class OrePositionPicker:
         cand.position = Position(nx, ny)
         cand.build_metric = abs(Unit.core_pos.x - nx) + abs(Unit.core_pos.y - ny)
         cand.dist_to_target = dist_to_target
-        cand.is_accessible = ti is not None and ti.env != Environment.WALL 
+        cand.is_accessible = ti is not None and ti.env != Environment.WALL
         cand.empty = ti is not None and ti.env == Environment.EMPTY
         cand.ti_ore_adj = BfsBureau.ti_ore_adj[(((nx) + 3) * 56 + ((ny) + 3))]
         cand.has_enemy_bot = ti is not None and ti.has_bot and not ti.is_bot_ally
         cls.cand[1] = cand
-        
+
 
         nx, ny = x , y +1
 
@@ -33246,7 +33246,7 @@ class OrePositionPicker:
             dist_to_target = (nx - tx) * (nx - tx) + (ny - ty) * (ny - ty)
         else:
             dist_to_target = 0
-            
+
         ti = Map.tile_info[nx][ny]
 
         cand = cls.Candidate()
@@ -33254,14 +33254,14 @@ class OrePositionPicker:
         cand.position = Position(nx, ny)
         cand.build_metric = abs(Unit.core_pos.x - nx) + abs(Unit.core_pos.y - ny)
         cand.dist_to_target = dist_to_target
-        cand.is_accessible = ti is not None and ti.env != Environment.WALL 
+        cand.is_accessible = ti is not None and ti.env != Environment.WALL
         cand.empty = ti is not None and ti.env == Environment.EMPTY
         cand.ti_ore_adj = BfsBureau.ti_ore_adj[(((nx) + 3) * 56 + ((ny) + 3))]
         cand.has_enemy_bot = ti is not None and ti.has_bot and not ti.is_bot_ally
         cls.cand[2] = cand
-        
 
-        nx, ny = x -1, y 
+
+        nx, ny = x -1, y
 
         # build_metric = max(abs(nx - me_x), abs(ny - me_y))
         # if build_metric == 0:
@@ -33271,7 +33271,7 @@ class OrePositionPicker:
             dist_to_target = (nx - tx) * (nx - tx) + (ny - ty) * (ny - ty)
         else:
             dist_to_target = 0
-            
+
         ti = Map.tile_info[nx][ny]
 
         cand = cls.Candidate()
@@ -33279,12 +33279,12 @@ class OrePositionPicker:
         cand.position = Position(nx, ny)
         cand.build_metric = abs(Unit.core_pos.x - nx) + abs(Unit.core_pos.y - ny)
         cand.dist_to_target = dist_to_target
-        cand.is_accessible = ti is not None and ti.env != Environment.WALL 
+        cand.is_accessible = ti is not None and ti.env != Environment.WALL
         cand.empty = ti is not None and ti.env == Environment.EMPTY
         cand.ti_ore_adj = BfsBureau.ti_ore_adj[(((nx) + 3) * 56 + ((ny) + 3))]
         cand.has_enemy_bot = ti is not None and ti.has_bot and not ti.is_bot_ally
         cls.cand[3] = cand
-        
+
 
     @classmethod
     def is_better_than(cls, a: Candidate, b: Candidate, forAx = False) -> bool:
@@ -33459,12 +33459,12 @@ class Pathfinder:
             cls.near_base = False
         # else: in dead-band [19..25], keep previous near_base value
 
-        
+
         if cls.near_base:
             dist, dir = BfsBureau.find_route_inv(my_pos, target, ban_target_pos)  # prefer empties → lays roads
         else:
             dist, dir = BfsBureau.find_route(my_pos, target, ban_target_pos)      # prefer roads → uses existing roads
-        
+
 
         if orbit and 0 < target.distance_squared(my_pos) <= 2:
             dir = my_pos.direction_to(target).rotate_left()
@@ -33473,15 +33473,15 @@ class Pathfinder:
         if dir is not None:
             dsq = my_pos.distance_squared(target)
             ndsq = my_pos.add(dir).distance_squared(target)
-            if (dsq == 1 or dsq == 2) and dsq < ndsq: 
+            if (dsq == 1 or dsq == 2) and dsq < ndsq:
                 if BfsBureau.now_weight[midx] <= 3 and Globals.ct.get_hp() == 40:
                     if not MoveManager.can_fill_move(my_pos.direction_to(target)):
-                        
+
                         return
 
         if dir is None:
             cls.given_up = True
-            
+
             return
 
         if MoveManager.can_move(dir):
@@ -33504,7 +33504,7 @@ class PatrolTargeter:
     @classmethod
     def init(cls) -> None:
         cls.target = cls.new_target()
-        
+
     @classmethod
     def new_target(cls) -> Position:
         if Globals.my_pos.distance_squared(Unit.core_pos) > 50:
@@ -33513,14 +33513,14 @@ class PatrolTargeter:
         if Map.harvester_set:
             # Check which targets we haven't visited recently
             active_targets = Map.harvester_set.difference(cls.recentHits)
-            
+
             # If there are no active targets, we'll either wait, or if it's been a while since our last hit, reset
             if not active_targets:
                 # If it's been a while since we hit the last target, reset our visited set and consider all targets again
                 if Globals.round - cls.lastHitRound > 10:
                     cls.recentHits.clear()
                     active_targets = Map.harvester_set
-                
+
                 return None
             else:
                 # Choose a random one of the targets we haven't visited recently
@@ -33536,10 +33536,10 @@ class PatrolTargeter:
     def get_best_target(cls) -> Position | None:
         if not Map.harvester_set:
             return None
-        
+
         if BuildManager.can_afford_harvester():
             return None
-        
+
         if cls.target is None:
             cls.target = cls.new_target()
         else:
@@ -33547,9 +33547,9 @@ class PatrolTargeter:
                 # Add the position to our set of recently visited targets
                 cls.recentHits.add((((cls.target.x) + 3) * 56 + ((cls.target.y) + 3)))
                 cls.lastHitRound = Globals.round
-                
+
                 cls.target = cls.new_target()
-                
+
         return cls.target
 
 
@@ -33588,7 +33588,7 @@ class Profiler:
     _stats: dict = {}  # desc -> [count, mean, M2, max]
 
 
-     
+
 
     @classmethod
     def start(cls, desc: str = ""):
@@ -33602,7 +33602,7 @@ class Profiler:
         if not cls._stack:
             return
         start_time, start_round, start_desc = cls._stack.pop()
-        
+
         # Check for round overflow
         if start_round != end_round:
             team = Globals.my_team.__str__()[-1]
@@ -33611,7 +33611,7 @@ class Profiler:
             print(warning)
             Debug.log(warning)
             return  # Don't record stats for overflowed measurements
-        
+
         elapsed = (end_time - start_time) / 1_000_000
         if desc in cls._stats:
             entry = cls._stats[desc]
@@ -33634,7 +33634,7 @@ class Profiler:
         if not cls._stack:
             return
         start_time, start_round, start_desc = cls._stack.pop()
-        
+
         # Check for round overflow
         if start_round != end_round:
             team = Globals.my_team.__str__()[-1]
@@ -33643,7 +33643,7 @@ class Profiler:
             print(warning)
             Debug.log(warning)
             return
-        
+
         elapsed = (end_time - start_time) / 1_000_000
 
         team = Globals.my_team.__str__()[-1]
@@ -33743,11 +33743,11 @@ class RoadspamExecutor:
             return
         if not cls.should_roadspam():
             return
-            
+
         mx, my = Globals.my_pos.x, Globals.my_pos.y
-        
+
         tile_info = Map.tile_info
-        
+
 
         pos = Position((mx ), (my -1))
         nti = tile_info[(mx )][(my -1)]
@@ -33758,7 +33758,7 @@ class RoadspamExecutor:
                     if BuildManager.can_dbuild_barrier(pos):
                         BuildManager.dbuild_barrier(pos)
                         return
-            
+
         if BuildManager.can_build_road(pos) and nti.ally_non_road_buildings_adjacent > 0:
             BuildManager.build_road(pos)
             return
@@ -33772,7 +33772,7 @@ class RoadspamExecutor:
                     if BuildManager.can_dbuild_barrier(pos):
                         BuildManager.dbuild_barrier(pos)
                         return
-            
+
         if BuildManager.can_build_road(pos) and nti.ally_non_road_buildings_adjacent > 0:
             BuildManager.build_road(pos)
             return
@@ -33786,7 +33786,7 @@ class RoadspamExecutor:
                     if BuildManager.can_dbuild_barrier(pos):
                         BuildManager.dbuild_barrier(pos)
                         return
-            
+
         if BuildManager.can_build_road(pos) and nti.ally_non_road_buildings_adjacent > 0:
             BuildManager.build_road(pos)
             return
@@ -33800,7 +33800,7 @@ class RoadspamExecutor:
                     if BuildManager.can_dbuild_barrier(pos):
                         BuildManager.dbuild_barrier(pos)
                         return
-            
+
         if BuildManager.can_build_road(pos) and nti.ally_non_road_buildings_adjacent > 0:
             BuildManager.build_road(pos)
             return
@@ -33814,7 +33814,7 @@ class RoadspamExecutor:
                     if BuildManager.can_dbuild_barrier(pos):
                         BuildManager.dbuild_barrier(pos)
                         return
-            
+
         if BuildManager.can_build_road(pos) and nti.ally_non_road_buildings_adjacent > 0:
             BuildManager.build_road(pos)
             return
@@ -33828,7 +33828,7 @@ class RoadspamExecutor:
                     if BuildManager.can_dbuild_barrier(pos):
                         BuildManager.dbuild_barrier(pos)
                         return
-            
+
         if BuildManager.can_build_road(pos) and nti.ally_non_road_buildings_adjacent > 0:
             BuildManager.build_road(pos)
             return
@@ -33842,7 +33842,7 @@ class RoadspamExecutor:
                     if BuildManager.can_dbuild_barrier(pos):
                         BuildManager.dbuild_barrier(pos)
                         return
-            
+
         if BuildManager.can_build_road(pos) and nti.ally_non_road_buildings_adjacent > 0:
             BuildManager.build_road(pos)
             return
@@ -33856,7 +33856,7 @@ class RoadspamExecutor:
                     if BuildManager.can_dbuild_barrier(pos):
                         BuildManager.dbuild_barrier(pos)
                         return
-            
+
         if BuildManager.can_build_road(pos) and nti.ally_non_road_buildings_adjacent > 0:
             BuildManager.build_road(pos)
             return
@@ -33921,7 +33921,7 @@ class RouteToBreach:
             return None
         print("CLEARLY the best attack position is", attack_pos)
         return (((attack_pos.x) + 3) * 56 + ((attack_pos.y) + 3))
-        
+
 
     @classmethod
     def set_pos(cls, pos: Position, fullReset = True):
@@ -33953,7 +33953,7 @@ class RouteToBreach:
             avoid_pos = RouteToCore.pathFindingKill
         )
 
-        
+
 
         if first_target is None:
             Debug.tee("RouteToBreach: first_target is None, giving up")
@@ -33998,7 +33998,7 @@ class RouteToBreach:
         if ti.has_building:
             if not ti.is_building_ally:
                 return True
-                     
+
             if ti.entity_type in Constants.TURRET_SET:
                 return True
             """
@@ -34058,7 +34058,7 @@ class RouteToBreach:
     @classmethod
     def do_routing(cls):
         cls.try_claim_target()
-        
+
         if cls._breach_target is None:
             RouteToBreach.is_active = False
             return
@@ -34164,7 +34164,7 @@ class RouteToCore:
                     avoid_pos=cls.pathFindingKill
                 )
 
-        
+
 
         if first_target is None:
             if cls.give_up(True):
@@ -34449,7 +34449,7 @@ class RouteToFoundry:
             avoid_pos = RouteToCore.pathFindingKill
         )
 
-        
+
 
         if first_target is None:
             Debug.tee("RouteToFoundry: first_target is None, giving up")
@@ -34768,7 +34768,7 @@ class SentinelDirectionInfo:
 
         if a.enemy_turret_hp != b.enemy_turret_hp:
             return a.enemy_turret_hp > b.enemy_turret_hp
-        
+
         if a.enemy_building_hp != b.enemy_building_hp:
             return a.enemy_building_hp > b.enemy_building_hp
 
@@ -36571,7 +36571,7 @@ class SentinelDirectionPicker:
 
         if dir == Direction.NORTH:
 
-            Debug.dot(Position(sx + -1, sy + -5), 
+            Debug.dot(Position(sx + -1, sy + -5),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + -5]
@@ -36581,7 +36581,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -1, sy + -4), 
+            Debug.dot(Position(sx + -1, sy + -4),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + -4]
@@ -36591,7 +36591,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -1, sy + -3), 
+            Debug.dot(Position(sx + -1, sy + -3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + -3]
@@ -36601,7 +36601,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -1, sy + -2), 
+            Debug.dot(Position(sx + -1, sy + -2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + -2]
@@ -36611,7 +36611,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -1, sy + -1), 
+            Debug.dot(Position(sx + -1, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + -1]
@@ -36621,7 +36621,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -1, sy + 0), 
+            Debug.dot(Position(sx + -1, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + 0]
@@ -36631,7 +36631,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 0, sy + -5), 
+            Debug.dot(Position(sx + 0, sy + -5),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + -5]
@@ -36641,7 +36641,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 0, sy + -4), 
+            Debug.dot(Position(sx + 0, sy + -4),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + -4]
@@ -36651,7 +36651,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 0, sy + -3), 
+            Debug.dot(Position(sx + 0, sy + -3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + -3]
@@ -36661,7 +36661,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 0, sy + -2), 
+            Debug.dot(Position(sx + 0, sy + -2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + -2]
@@ -36671,7 +36671,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 0, sy + -1), 
+            Debug.dot(Position(sx + 0, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + -1]
@@ -36681,7 +36681,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + -5), 
+            Debug.dot(Position(sx + 1, sy + -5),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + -5]
@@ -36691,7 +36691,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + -4), 
+            Debug.dot(Position(sx + 1, sy + -4),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + -4]
@@ -36701,7 +36701,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + -3), 
+            Debug.dot(Position(sx + 1, sy + -3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + -3]
@@ -36711,7 +36711,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + -2), 
+            Debug.dot(Position(sx + 1, sy + -2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + -2]
@@ -36721,7 +36721,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + -1), 
+            Debug.dot(Position(sx + 1, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + -1]
@@ -36731,7 +36731,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + 0), 
+            Debug.dot(Position(sx + 1, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + 0]
@@ -36742,7 +36742,7 @@ class SentinelDirectionPicker:
                     enemy_bot_hp += _ti.bot_hp
         elif dir == Direction.NORTHEAST:
 
-            Debug.dot(Position(sx + 0, sy + -2), 
+            Debug.dot(Position(sx + 0, sy + -2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + -2]
@@ -36752,7 +36752,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 0, sy + -1), 
+            Debug.dot(Position(sx + 0, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + -1]
@@ -36762,7 +36762,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + -3), 
+            Debug.dot(Position(sx + 1, sy + -3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + -3]
@@ -36772,7 +36772,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + -2), 
+            Debug.dot(Position(sx + 1, sy + -2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + -2]
@@ -36782,7 +36782,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + -1), 
+            Debug.dot(Position(sx + 1, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + -1]
@@ -36792,7 +36792,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + 0), 
+            Debug.dot(Position(sx + 1, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + 0]
@@ -36802,7 +36802,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 2, sy + -4), 
+            Debug.dot(Position(sx + 2, sy + -4),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 2][sy + -4]
@@ -36812,7 +36812,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 2, sy + -3), 
+            Debug.dot(Position(sx + 2, sy + -3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 2][sy + -3]
@@ -36822,7 +36822,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 2, sy + -2), 
+            Debug.dot(Position(sx + 2, sy + -2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 2][sy + -2]
@@ -36832,7 +36832,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 2, sy + -1), 
+            Debug.dot(Position(sx + 2, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 2][sy + -1]
@@ -36842,7 +36842,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 2, sy + 0), 
+            Debug.dot(Position(sx + 2, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 2][sy + 0]
@@ -36852,7 +36852,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 3, sy + -4), 
+            Debug.dot(Position(sx + 3, sy + -4),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 3][sy + -4]
@@ -36862,7 +36862,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 3, sy + -3), 
+            Debug.dot(Position(sx + 3, sy + -3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 3][sy + -3]
@@ -36872,7 +36872,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 3, sy + -2), 
+            Debug.dot(Position(sx + 3, sy + -2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 3][sy + -2]
@@ -36882,7 +36882,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 3, sy + -1), 
+            Debug.dot(Position(sx + 3, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 3][sy + -1]
@@ -36892,7 +36892,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 4, sy + -4), 
+            Debug.dot(Position(sx + 4, sy + -4),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 4][sy + -4]
@@ -36902,7 +36902,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 4, sy + -3), 
+            Debug.dot(Position(sx + 4, sy + -3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 4][sy + -3]
@@ -36912,7 +36912,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 4, sy + -2), 
+            Debug.dot(Position(sx + 4, sy + -2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 4][sy + -2]
@@ -36923,7 +36923,7 @@ class SentinelDirectionPicker:
                     enemy_bot_hp += _ti.bot_hp
         elif dir == Direction.EAST:
 
-            Debug.dot(Position(sx + 0, sy + -1), 
+            Debug.dot(Position(sx + 0, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + -1]
@@ -36933,7 +36933,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 0, sy + 1), 
+            Debug.dot(Position(sx + 0, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + 1]
@@ -36943,7 +36943,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + -1), 
+            Debug.dot(Position(sx + 1, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + -1]
@@ -36953,7 +36953,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + 0), 
+            Debug.dot(Position(sx + 1, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + 0]
@@ -36963,7 +36963,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + 1), 
+            Debug.dot(Position(sx + 1, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + 1]
@@ -36973,7 +36973,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 2, sy + -1), 
+            Debug.dot(Position(sx + 2, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 2][sy + -1]
@@ -36983,7 +36983,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 2, sy + 0), 
+            Debug.dot(Position(sx + 2, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 2][sy + 0]
@@ -36993,7 +36993,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 2, sy + 1), 
+            Debug.dot(Position(sx + 2, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 2][sy + 1]
@@ -37003,7 +37003,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 3, sy + -1), 
+            Debug.dot(Position(sx + 3, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 3][sy + -1]
@@ -37013,7 +37013,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 3, sy + 0), 
+            Debug.dot(Position(sx + 3, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 3][sy + 0]
@@ -37023,7 +37023,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 3, sy + 1), 
+            Debug.dot(Position(sx + 3, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 3][sy + 1]
@@ -37033,7 +37033,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 4, sy + -1), 
+            Debug.dot(Position(sx + 4, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 4][sy + -1]
@@ -37043,7 +37043,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 4, sy + 0), 
+            Debug.dot(Position(sx + 4, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 4][sy + 0]
@@ -37053,7 +37053,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 4, sy + 1), 
+            Debug.dot(Position(sx + 4, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 4][sy + 1]
@@ -37063,7 +37063,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 5, sy + -1), 
+            Debug.dot(Position(sx + 5, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 5][sy + -1]
@@ -37073,7 +37073,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 5, sy + 0), 
+            Debug.dot(Position(sx + 5, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 5][sy + 0]
@@ -37083,7 +37083,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 5, sy + 1), 
+            Debug.dot(Position(sx + 5, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 5][sy + 1]
@@ -37094,7 +37094,7 @@ class SentinelDirectionPicker:
                     enemy_bot_hp += _ti.bot_hp
         elif dir == Direction.SOUTHEAST:
 
-            Debug.dot(Position(sx + 0, sy + 1), 
+            Debug.dot(Position(sx + 0, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + 1]
@@ -37104,7 +37104,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 0, sy + 2), 
+            Debug.dot(Position(sx + 0, sy + 2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + 2]
@@ -37114,7 +37114,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + 0), 
+            Debug.dot(Position(sx + 1, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + 0]
@@ -37124,7 +37124,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + 1), 
+            Debug.dot(Position(sx + 1, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + 1]
@@ -37134,7 +37134,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + 2), 
+            Debug.dot(Position(sx + 1, sy + 2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + 2]
@@ -37144,7 +37144,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + 3), 
+            Debug.dot(Position(sx + 1, sy + 3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + 3]
@@ -37154,7 +37154,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 2, sy + 0), 
+            Debug.dot(Position(sx + 2, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 2][sy + 0]
@@ -37164,7 +37164,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 2, sy + 1), 
+            Debug.dot(Position(sx + 2, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 2][sy + 1]
@@ -37174,7 +37174,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 2, sy + 2), 
+            Debug.dot(Position(sx + 2, sy + 2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 2][sy + 2]
@@ -37184,7 +37184,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 2, sy + 3), 
+            Debug.dot(Position(sx + 2, sy + 3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 2][sy + 3]
@@ -37194,7 +37194,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 2, sy + 4), 
+            Debug.dot(Position(sx + 2, sy + 4),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 2][sy + 4]
@@ -37204,7 +37204,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 3, sy + 1), 
+            Debug.dot(Position(sx + 3, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 3][sy + 1]
@@ -37214,7 +37214,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 3, sy + 2), 
+            Debug.dot(Position(sx + 3, sy + 2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 3][sy + 2]
@@ -37224,7 +37224,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 3, sy + 3), 
+            Debug.dot(Position(sx + 3, sy + 3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 3][sy + 3]
@@ -37234,7 +37234,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 3, sy + 4), 
+            Debug.dot(Position(sx + 3, sy + 4),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 3][sy + 4]
@@ -37244,7 +37244,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 4, sy + 2), 
+            Debug.dot(Position(sx + 4, sy + 2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 4][sy + 2]
@@ -37254,7 +37254,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 4, sy + 3), 
+            Debug.dot(Position(sx + 4, sy + 3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 4][sy + 3]
@@ -37264,7 +37264,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 4, sy + 4), 
+            Debug.dot(Position(sx + 4, sy + 4),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 4][sy + 4]
@@ -37275,7 +37275,7 @@ class SentinelDirectionPicker:
                     enemy_bot_hp += _ti.bot_hp
         elif dir == Direction.SOUTH:
 
-            Debug.dot(Position(sx + -1, sy + 0), 
+            Debug.dot(Position(sx + -1, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + 0]
@@ -37285,7 +37285,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -1, sy + 1), 
+            Debug.dot(Position(sx + -1, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + 1]
@@ -37295,7 +37295,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -1, sy + 2), 
+            Debug.dot(Position(sx + -1, sy + 2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + 2]
@@ -37305,7 +37305,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -1, sy + 3), 
+            Debug.dot(Position(sx + -1, sy + 3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + 3]
@@ -37315,7 +37315,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -1, sy + 4), 
+            Debug.dot(Position(sx + -1, sy + 4),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + 4]
@@ -37325,7 +37325,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -1, sy + 5), 
+            Debug.dot(Position(sx + -1, sy + 5),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + 5]
@@ -37335,7 +37335,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 0, sy + 1), 
+            Debug.dot(Position(sx + 0, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + 1]
@@ -37345,7 +37345,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 0, sy + 2), 
+            Debug.dot(Position(sx + 0, sy + 2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + 2]
@@ -37355,7 +37355,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 0, sy + 3), 
+            Debug.dot(Position(sx + 0, sy + 3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + 3]
@@ -37365,7 +37365,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 0, sy + 4), 
+            Debug.dot(Position(sx + 0, sy + 4),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + 4]
@@ -37375,7 +37375,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 0, sy + 5), 
+            Debug.dot(Position(sx + 0, sy + 5),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + 5]
@@ -37385,7 +37385,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + 0), 
+            Debug.dot(Position(sx + 1, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + 0]
@@ -37395,7 +37395,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + 1), 
+            Debug.dot(Position(sx + 1, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + 1]
@@ -37405,7 +37405,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + 2), 
+            Debug.dot(Position(sx + 1, sy + 2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + 2]
@@ -37415,7 +37415,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + 3), 
+            Debug.dot(Position(sx + 1, sy + 3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + 3]
@@ -37425,7 +37425,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + 4), 
+            Debug.dot(Position(sx + 1, sy + 4),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + 4]
@@ -37435,7 +37435,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 1, sy + 5), 
+            Debug.dot(Position(sx + 1, sy + 5),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 1][sy + 5]
@@ -37446,7 +37446,7 @@ class SentinelDirectionPicker:
                     enemy_bot_hp += _ti.bot_hp
         elif dir == Direction.SOUTHWEST:
 
-            Debug.dot(Position(sx + -4, sy + 2), 
+            Debug.dot(Position(sx + -4, sy + 2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -4][sy + 2]
@@ -37456,7 +37456,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -4, sy + 3), 
+            Debug.dot(Position(sx + -4, sy + 3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -4][sy + 3]
@@ -37466,7 +37466,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -4, sy + 4), 
+            Debug.dot(Position(sx + -4, sy + 4),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -4][sy + 4]
@@ -37476,7 +37476,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -3, sy + 1), 
+            Debug.dot(Position(sx + -3, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -3][sy + 1]
@@ -37486,7 +37486,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -3, sy + 2), 
+            Debug.dot(Position(sx + -3, sy + 2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -3][sy + 2]
@@ -37496,7 +37496,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -3, sy + 3), 
+            Debug.dot(Position(sx + -3, sy + 3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -3][sy + 3]
@@ -37506,7 +37506,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -3, sy + 4), 
+            Debug.dot(Position(sx + -3, sy + 4),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -3][sy + 4]
@@ -37516,7 +37516,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -2, sy + 0), 
+            Debug.dot(Position(sx + -2, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -2][sy + 0]
@@ -37526,7 +37526,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -2, sy + 1), 
+            Debug.dot(Position(sx + -2, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -2][sy + 1]
@@ -37536,7 +37536,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -2, sy + 2), 
+            Debug.dot(Position(sx + -2, sy + 2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -2][sy + 2]
@@ -37546,7 +37546,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -2, sy + 3), 
+            Debug.dot(Position(sx + -2, sy + 3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -2][sy + 3]
@@ -37556,7 +37556,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -2, sy + 4), 
+            Debug.dot(Position(sx + -2, sy + 4),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -2][sy + 4]
@@ -37566,7 +37566,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -1, sy + 0), 
+            Debug.dot(Position(sx + -1, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + 0]
@@ -37576,7 +37576,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -1, sy + 1), 
+            Debug.dot(Position(sx + -1, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + 1]
@@ -37586,7 +37586,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -1, sy + 2), 
+            Debug.dot(Position(sx + -1, sy + 2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + 2]
@@ -37596,7 +37596,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -1, sy + 3), 
+            Debug.dot(Position(sx + -1, sy + 3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + 3]
@@ -37606,7 +37606,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 0, sy + 1), 
+            Debug.dot(Position(sx + 0, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + 1]
@@ -37616,7 +37616,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 0, sy + 2), 
+            Debug.dot(Position(sx + 0, sy + 2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + 2]
@@ -37627,7 +37627,7 @@ class SentinelDirectionPicker:
                     enemy_bot_hp += _ti.bot_hp
         elif dir == Direction.WEST:
 
-            Debug.dot(Position(sx + -5, sy + -1), 
+            Debug.dot(Position(sx + -5, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -5][sy + -1]
@@ -37637,7 +37637,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -5, sy + 0), 
+            Debug.dot(Position(sx + -5, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -5][sy + 0]
@@ -37647,7 +37647,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -5, sy + 1), 
+            Debug.dot(Position(sx + -5, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -5][sy + 1]
@@ -37657,7 +37657,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -4, sy + -1), 
+            Debug.dot(Position(sx + -4, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -4][sy + -1]
@@ -37667,7 +37667,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -4, sy + 0), 
+            Debug.dot(Position(sx + -4, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -4][sy + 0]
@@ -37677,7 +37677,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -4, sy + 1), 
+            Debug.dot(Position(sx + -4, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -4][sy + 1]
@@ -37687,7 +37687,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -3, sy + -1), 
+            Debug.dot(Position(sx + -3, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -3][sy + -1]
@@ -37697,7 +37697,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -3, sy + 0), 
+            Debug.dot(Position(sx + -3, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -3][sy + 0]
@@ -37707,7 +37707,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -3, sy + 1), 
+            Debug.dot(Position(sx + -3, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -3][sy + 1]
@@ -37717,7 +37717,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -2, sy + -1), 
+            Debug.dot(Position(sx + -2, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -2][sy + -1]
@@ -37727,7 +37727,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -2, sy + 0), 
+            Debug.dot(Position(sx + -2, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -2][sy + 0]
@@ -37737,7 +37737,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -2, sy + 1), 
+            Debug.dot(Position(sx + -2, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -2][sy + 1]
@@ -37747,7 +37747,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -1, sy + -1), 
+            Debug.dot(Position(sx + -1, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + -1]
@@ -37757,7 +37757,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -1, sy + 0), 
+            Debug.dot(Position(sx + -1, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + 0]
@@ -37767,7 +37767,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -1, sy + 1), 
+            Debug.dot(Position(sx + -1, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + 1]
@@ -37777,7 +37777,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 0, sy + -1), 
+            Debug.dot(Position(sx + 0, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + -1]
@@ -37787,7 +37787,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 0, sy + 1), 
+            Debug.dot(Position(sx + 0, sy + 1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + 1]
@@ -37798,7 +37798,7 @@ class SentinelDirectionPicker:
                     enemy_bot_hp += _ti.bot_hp
         else:  # dir == Direction.NORTHWEST
 
-            Debug.dot(Position(sx + -4, sy + -4), 
+            Debug.dot(Position(sx + -4, sy + -4),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -4][sy + -4]
@@ -37808,7 +37808,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -4, sy + -3), 
+            Debug.dot(Position(sx + -4, sy + -3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -4][sy + -3]
@@ -37818,7 +37818,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -4, sy + -2), 
+            Debug.dot(Position(sx + -4, sy + -2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -4][sy + -2]
@@ -37828,7 +37828,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -3, sy + -4), 
+            Debug.dot(Position(sx + -3, sy + -4),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -3][sy + -4]
@@ -37838,7 +37838,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -3, sy + -3), 
+            Debug.dot(Position(sx + -3, sy + -3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -3][sy + -3]
@@ -37848,7 +37848,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -3, sy + -2), 
+            Debug.dot(Position(sx + -3, sy + -2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -3][sy + -2]
@@ -37858,7 +37858,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -3, sy + -1), 
+            Debug.dot(Position(sx + -3, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -3][sy + -1]
@@ -37868,7 +37868,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -2, sy + -4), 
+            Debug.dot(Position(sx + -2, sy + -4),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -2][sy + -4]
@@ -37878,7 +37878,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -2, sy + -3), 
+            Debug.dot(Position(sx + -2, sy + -3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -2][sy + -3]
@@ -37888,7 +37888,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -2, sy + -2), 
+            Debug.dot(Position(sx + -2, sy + -2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -2][sy + -2]
@@ -37898,7 +37898,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -2, sy + -1), 
+            Debug.dot(Position(sx + -2, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -2][sy + -1]
@@ -37908,7 +37908,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -2, sy + 0), 
+            Debug.dot(Position(sx + -2, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -2][sy + 0]
@@ -37918,7 +37918,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -1, sy + -3), 
+            Debug.dot(Position(sx + -1, sy + -3),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + -3]
@@ -37928,7 +37928,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -1, sy + -2), 
+            Debug.dot(Position(sx + -1, sy + -2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + -2]
@@ -37938,7 +37938,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -1, sy + -1), 
+            Debug.dot(Position(sx + -1, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + -1]
@@ -37948,7 +37948,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + -1, sy + 0), 
+            Debug.dot(Position(sx + -1, sy + 0),
                       Color.YELLOW)
 
             _ti = tile_info[sx + -1][sy + 0]
@@ -37958,7 +37958,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 0, sy + -2), 
+            Debug.dot(Position(sx + 0, sy + -2),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + -2]
@@ -37968,7 +37968,7 @@ class SentinelDirectionPicker:
                 if _ti.has_bot and not _ti.is_bot_ally:
                     enemy_bot_hp += _ti.bot_hp
 
-            Debug.dot(Position(sx + 0, sy + -1), 
+            Debug.dot(Position(sx + 0, sy + -1),
                       Color.YELLOW)
 
             _ti = tile_info[sx + 0][sy + -1]
@@ -37997,35 +37997,35 @@ class SentinelSupervisor:
 
     importance_score: dict[EntityType, int] = {
         None: 0,
-        EntityType.BUILDER_BOT: 
+        EntityType.BUILDER_BOT:
             0,
-        EntityType.CORE: 
+        EntityType.CORE:
             96,
-        EntityType.GUNNER: 
+        EntityType.GUNNER:
             0,
-        EntityType.SENTINEL: 
+        EntityType.SENTINEL:
             0,
-        EntityType.BREACH: 
+        EntityType.BREACH:
             0,
-        EntityType.LAUNCHER: 
+        EntityType.LAUNCHER:
             0,
-        EntityType.CONVEYOR: 
+        EntityType.CONVEYOR:
             97,
-        EntityType.SPLITTER: 
+        EntityType.SPLITTER:
             100,
-        EntityType.ARMOURED_CONVEYOR: 
+        EntityType.ARMOURED_CONVEYOR:
             95,
-        EntityType.BRIDGE: 
+        EntityType.BRIDGE:
             98,
-        EntityType.HARVESTER: 
+        EntityType.HARVESTER:
             0,
-        EntityType.FOUNDRY: 
+        EntityType.FOUNDRY:
             99,
-        EntityType.ROAD: 
+        EntityType.ROAD:
             0,
-        EntityType.BARRIER: 
+        EntityType.BARRIER:
             0,
-        EntityType.MARKER: 
+        EntityType.MARKER:
             0,
     }
 
@@ -38078,7 +38078,7 @@ class SentinelSupervisor:
             ti = tile_info[x][y]
             if not (ti.has_building and not ti.is_building_ally) and not (ti.has_bot and not ti.is_bot_ally):
                 continue
-            
+
             info = SentinelTargetInfo()
             info.position = pos
             info.has_bot = False
@@ -38121,8 +38121,8 @@ class SentinelSupervisor:
                 if ti.has_turret:
                     info.has_turret = True
                     info.can_shoot_me = ct.can_fire_from(
-                        pos, 
-                        ti.turret_direction, 
+                        pos,
+                        ti.turret_direction,
                         ti.entity_type,
                         Globals.my_pos
                     )
@@ -38243,7 +38243,7 @@ class SitterTakedown:
     def get_best_launcher_position(cls) -> Position | None:
         if not BuildManager.can_afford_launcher():
             return None
-        
+
         if not cls.cand:
             return None
 
@@ -38258,16 +38258,16 @@ class SitterTakedown:
         if not best.flowing_enemy_transporters_adjacent:
             if best.enemy_bots_nearby < 2:
                 return None
-            
+
             if not best.harvester_nearby:
                 return None
-            
+
             if best.enemy_buildings_adjacent == 0:
                 return None
         else:
             if best.enemy_bots_nearby == 0:
                 return None
-        
+
         if best.launchers_adjacent > 0:
             return None
 
@@ -38288,10 +38288,10 @@ class SitterTakedown:
         for pos, x, y, idx, ti in Map.inner_proc_nearby_tiles:
             if ti.env == Environment.WALL:
                 continue
-            
+
             if ti.has_bot:
                 continue
-            
+
             if ti.has_building:
                 if not ti.is_building_ally:
                     continue
@@ -38312,13 +38312,13 @@ class SitterTakedown:
             info.bfs_dist_adj = BfsBureau.bfs20_dist_adj[idx]
             info.flowing_enemy_transporters_adjacent = 0
             info.weight = BfsBureau.now_weight[idx]
-            
+
             info.has_ally_transporter = (
-                ti.has_building 
-                and ti.is_building_ally 
+                ti.has_building
+                and ti.is_building_ally
                 and ti.entity_type in Constants.TRANSPORTERS_SET
             )
-            
+
             # If the transporter is going into a harvester (probably a shield), it doesn't count as a transporter
             if info.has_ally_transporter:
                 target_ti = tile_info[ti.target.x][ti.target.y]
@@ -38334,14 +38334,14 @@ class SitterTakedown:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                    
-                if nti.has_building:             
+
+                if nti.has_building:
                     if not nti.is_building_ally:
                         if nti.entity_type in Constants.TRANSPORTERS_SET:
                             flow = DarkForest.sight_flowing[(((x ) + 3) * 56 + ((y -1) + 3))]
                             if flow > 0:
-                                info.flowing_enemy_transporters_adjacent += 1     
-                        info.enemy_buildings_adjacent += 1                 
+                                info.flowing_enemy_transporters_adjacent += 1
+                        info.enemy_buildings_adjacent += 1
                     else:
                         if nti.entity_type == EntityType.LAUNCHER:
                             info.launchers_adjacent += 1
@@ -38354,14 +38354,14 @@ class SitterTakedown:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                    
-                if nti.has_building:             
+
+                if nti.has_building:
                     if not nti.is_building_ally:
                         if nti.entity_type in Constants.TRANSPORTERS_SET:
                             flow = DarkForest.sight_flowing[(((x +1) + 3) * 56 + ((y -1) + 3))]
                             if flow > 0:
-                                info.flowing_enemy_transporters_adjacent += 1     
-                        info.enemy_buildings_adjacent += 1                 
+                                info.flowing_enemy_transporters_adjacent += 1
+                        info.enemy_buildings_adjacent += 1
                     else:
                         if nti.entity_type == EntityType.LAUNCHER:
                             info.launchers_adjacent += 1
@@ -38374,14 +38374,14 @@ class SitterTakedown:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                    
-                if nti.has_building:             
+
+                if nti.has_building:
                     if not nti.is_building_ally:
                         if nti.entity_type in Constants.TRANSPORTERS_SET:
                             flow = DarkForest.sight_flowing[(((x +1) + 3) * 56 + ((y ) + 3))]
                             if flow > 0:
-                                info.flowing_enemy_transporters_adjacent += 1     
-                        info.enemy_buildings_adjacent += 1                 
+                                info.flowing_enemy_transporters_adjacent += 1
+                        info.enemy_buildings_adjacent += 1
                     else:
                         if nti.entity_type == EntityType.LAUNCHER:
                             info.launchers_adjacent += 1
@@ -38394,14 +38394,14 @@ class SitterTakedown:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                    
-                if nti.has_building:             
+
+                if nti.has_building:
                     if not nti.is_building_ally:
                         if nti.entity_type in Constants.TRANSPORTERS_SET:
                             flow = DarkForest.sight_flowing[(((x +1) + 3) * 56 + ((y +1) + 3))]
                             if flow > 0:
-                                info.flowing_enemy_transporters_adjacent += 1     
-                        info.enemy_buildings_adjacent += 1                 
+                                info.flowing_enemy_transporters_adjacent += 1
+                        info.enemy_buildings_adjacent += 1
                     else:
                         if nti.entity_type == EntityType.LAUNCHER:
                             info.launchers_adjacent += 1
@@ -38414,14 +38414,14 @@ class SitterTakedown:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                    
-                if nti.has_building:             
+
+                if nti.has_building:
                     if not nti.is_building_ally:
                         if nti.entity_type in Constants.TRANSPORTERS_SET:
                             flow = DarkForest.sight_flowing[(((x ) + 3) * 56 + ((y +1) + 3))]
                             if flow > 0:
-                                info.flowing_enemy_transporters_adjacent += 1     
-                        info.enemy_buildings_adjacent += 1                 
+                                info.flowing_enemy_transporters_adjacent += 1
+                        info.enemy_buildings_adjacent += 1
                     else:
                         if nti.entity_type == EntityType.LAUNCHER:
                             info.launchers_adjacent += 1
@@ -38434,14 +38434,14 @@ class SitterTakedown:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                    
-                if nti.has_building:             
+
+                if nti.has_building:
                     if not nti.is_building_ally:
                         if nti.entity_type in Constants.TRANSPORTERS_SET:
                             flow = DarkForest.sight_flowing[(((x -1) + 3) * 56 + ((y +1) + 3))]
                             if flow > 0:
-                                info.flowing_enemy_transporters_adjacent += 1     
-                        info.enemy_buildings_adjacent += 1                 
+                                info.flowing_enemy_transporters_adjacent += 1
+                        info.enemy_buildings_adjacent += 1
                     else:
                         if nti.entity_type == EntityType.LAUNCHER:
                             info.launchers_adjacent += 1
@@ -38454,14 +38454,14 @@ class SitterTakedown:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                    
-                if nti.has_building:             
+
+                if nti.has_building:
                     if not nti.is_building_ally:
                         if nti.entity_type in Constants.TRANSPORTERS_SET:
                             flow = DarkForest.sight_flowing[(((x -1) + 3) * 56 + ((y ) + 3))]
                             if flow > 0:
-                                info.flowing_enemy_transporters_adjacent += 1     
-                        info.enemy_buildings_adjacent += 1                 
+                                info.flowing_enemy_transporters_adjacent += 1
+                        info.enemy_buildings_adjacent += 1
                     else:
                         if nti.entity_type == EntityType.LAUNCHER:
                             info.launchers_adjacent += 1
@@ -38474,14 +38474,14 @@ class SitterTakedown:
                     info.harvester_nearby = True
                 elif nti.harvester_adjacent:
                     info.harvester_nearby = True
-                    
-                if nti.has_building:             
+
+                if nti.has_building:
                     if not nti.is_building_ally:
                         if nti.entity_type in Constants.TRANSPORTERS_SET:
                             flow = DarkForest.sight_flowing[(((x -1) + 3) * 56 + ((y -1) + 3))]
                             if flow > 0:
-                                info.flowing_enemy_transporters_adjacent += 1     
-                        info.enemy_buildings_adjacent += 1                 
+                                info.flowing_enemy_transporters_adjacent += 1
+                        info.enemy_buildings_adjacent += 1
                     else:
                         if nti.entity_type == EntityType.LAUNCHER:
                             info.launchers_adjacent += 1
@@ -38508,34 +38508,34 @@ class SitterTargetInfo:
 
         if a.launchers_adjacent != b.launchers_adjacent:
             return a.launchers_adjacent < b.launchers_adjacent
-        
+
         if bool(a.flowing_enemy_transporters_adjacent) != bool(b.flowing_enemy_transporters_adjacent):
             return bool(a.flowing_enemy_transporters_adjacent)
-        
+
         # if bool(a.enemy_bots_nearby) != bool(b.enemy_bots_nearby):
         #     return bool(a.enemy_bots_nearby)
-        
+
         if a.enemy_bots_nearby != b.enemy_bots_nearby:
             return a.enemy_bots_nearby > b.enemy_bots_nearby
-        
+
         if a.harvester_nearby != b.harvester_nearby:
             if a.enemy_bots_nearby < 2:
                 return a.harvester_nearby < b.harvester_nearby
             else:
                 return a.harvester_nearby > b.harvester_nearby
-        
+
         if a.has_ally_transporter != b.has_ally_transporter:
             return a.has_ally_transporter < b.has_ally_transporter
-        
+
         if a.flowing_enemy_transporters_adjacent != b.flowing_enemy_transporters_adjacent:
             return a.flowing_enemy_transporters_adjacent > b.flowing_enemy_transporters_adjacent
-        
+
         if a.enemy_buildings_adjacent != b.enemy_buildings_adjacent:
             return a.enemy_buildings_adjacent < b.enemy_buildings_adjacent
 
         if a.bfs_dist_adj != b.bfs_dist_adj:
             return a.bfs_dist_adj < b.bfs_dist_adj
-        
+
         return a.dist_enemy_core < b.dist_enemy_core
 
 
@@ -38576,7 +38576,7 @@ class SpawnManager:
                 enemy = pos
 
         cls.nearest_dangerous_enemy = enemy
-        
+
         if cls.nearest_dangerous_enemy != None:
             cls.dangerous_enemy_counter += 1
         else:
@@ -38588,8 +38588,8 @@ class SpawnManager:
     @classmethod
     def try_spawn(cls):
         # rework this
-        my_pos = Globals.my_pos        
-        
+        my_pos = Globals.my_pos
+
         if cls.nearest_dangerous_enemy != None:
             enemy_dir = my_pos.direction_to(cls.nearest_dangerous_enemy)
             pos = my_pos.add(enemy_dir)
@@ -38705,9 +38705,9 @@ class SpawnManager:
     def should_spawn_emergency(cls):
         if cls.dangerous_enemy_counter >= 6 or (cls.dangerous_enemy_counter >= 2 and cls.last_spawned - Globals.round >= 10):
             return True
-        
-        lost_short = CoreHistory.hp_delta(1) < 0 
-        lost_long = CoreHistory.hp_delta(10) < 0 
+
+        lost_short = CoreHistory.hp_delta(1) < 0
+        lost_long = CoreHistory.hp_delta(10) < 0
         low_hp = Globals.ct.get_hp() < 450
 
         if (lost_short or lost_long) and low_hp:
@@ -38723,20 +38723,20 @@ class SpawnManager:
 class StalkTargeter:
     @classmethod
     def get_best_target(cls) -> Position | None:
-        
+
 
         my_pos = Globals.my_pos
 
         if my_pos.distance_squared(Unit.core_pos) > my_pos.distance_squared(Symmetry.enemy_core_pos):
-            
+
             return None
 
         if MarketMaker.est_income < 3:
-            
+
             return None
 
         bfs20_dist_adj = BfsBureau.bfs20_dist_adj
-        
+
         best: Position = None
         best_is_on_ally_transporter: bool = False
         best_dist: int = 1000000
@@ -38753,7 +38753,7 @@ class StalkTargeter:
                 is_on_ally_transporter = ti.has_building and ti.is_building_ally and ti.entity_type in Constants.TRANSPORTERS_SET
                 transporter_hp = ti.building_hp if is_on_ally_transporter else 1000000
                 bot_id = ti.bot_id if ti.has_bot else 1000000
-                
+
                 better = False
                 if dist < 2 <= best_dist:
                     better = True
@@ -38765,7 +38765,7 @@ class StalkTargeter:
                     better = dist < best_dist
                 else:
                     better = bot_id < best_id
-                        
+
                 if better:
                     best = pos
                     best_is_on_ally_transporter = is_on_ally_transporter
@@ -38773,8 +38773,8 @@ class StalkTargeter:
                     best_transporter_hp = transporter_hp
                     best_id = bot_id
 
-        
-                
+
+
         return best
 
 
@@ -38785,7 +38785,7 @@ class StalkTargeter:
 class StateAttack:
     @classmethod
     def run(cls, pos, tag='_'):
-        
+
         if Globals.my_pos != pos:
             Pathfinder.move_to(pos)
 
@@ -38883,7 +38883,7 @@ class StateBuildGunner:
 
         if BuildManager.can_dbuild_gunner(pos):
             dir: Direction = GunnerDirectionPicker.get_best_direction(pos)
-            
+
             BuildManager.dbuild_gunner(pos, dir)
 
 
@@ -38915,8 +38915,8 @@ class StateBuildLauncher:
     @classmethod
     def run(cls, pos):
         Pathfinder.move_to(pos, ban_target_pos=True)
-        
-        if BuildManager.can_dbuild_launcher(pos):            
+
+        if BuildManager.can_dbuild_launcher(pos):
             BuildManager.dbuild_launcher(pos)
             return
 
@@ -38930,12 +38930,12 @@ class StateBuildShield:
     def run(cls, pos):
         if Globals.my_pos.distance_squared(pos) > 0:
             Pathfinder.move_to(pos, ban_target_pos=True)
-        
+
         target_dir = None
-        
+
         tile_info = Map.tile_info
         found_ally_harvester = False
-        
+
         ti = tile_info[pos.x + 0][pos.y + -1]
         if ti is not None:
             if ti.has_building and ti.entity_type == EntityType.HARVESTER:
@@ -38968,7 +38968,7 @@ class StateBuildShield:
                     Debug.line(pos, pos.add(Direction.WEST), Color.GREEN)
                     if ti.is_building_ally:
                         found_ally_harvester = True
-        
+
 
 
 
@@ -39047,16 +39047,16 @@ class StateBuildTurret:
     def run(cls, pos, should_build_sentinel=True, gdir=None):
         if Symmetry.is_sym_known and gdir is None:
             gdir = cls.gunner_can_hit_core(pos)
-            
+
 
 
         if Globals.my_pos.distance_squared(pos) <= 2:
             if (gdir is not None) and BuildManager.can_smartbuild_gunner(pos):
                 BuildManager.smartbuild_gunner(pos, gdir)
             elif should_build_sentinel and BuildManager.can_smartbuild_sentinel(pos):
-                
+
                 dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
-                
+
                 BuildManager.smartbuild_sentinel(pos, dir)
             elif BuildManager.can_build_road(pos):
                 BuildManager.build_road(pos)
@@ -39069,9 +39069,9 @@ class StateBuildTurret:
             if (gdir is not None) and BuildManager.can_smartbuild_gunner(pos):
                 BuildManager.smartbuild_gunner(pos, gdir)
             elif should_build_sentinel and BuildManager.can_smartbuild_sentinel(pos):
-                
+
                 dir: Direction = SentinelDirectionPicker.get_best_direction(pos)
-                
+
                 BuildManager.smartbuild_sentinel(pos, dir)
             elif BuildManager.can_build_road(pos):
                 BuildManager.build_road(pos)
@@ -39156,7 +39156,7 @@ class StateReroute:  # for misrouted ally transporters
             BuildManager.destroy(pos)
             if pos.distance_squared(Unit.core_pos) < pos.distance_squared(Symmetry.enemy_core_pos):
                 RouteToCore.set_pos(pos)
-                
+
             if BuildManager.can_build_road(pos):
                 BuildManager.build_road(pos)
 
@@ -39436,7 +39436,7 @@ class Symmetry:
         #             #     Debug.dot(Position(((i) // 56 - 3), ((i) % 56 - 3)))
 
 
-        
+
 
     @classmethod
     def and_sym(cls, V, H, R):
@@ -39446,7 +39446,7 @@ class Symmetry:
 
     @classmethod
     def run_sym_check(cls):
-        if cls.is_sym_known: 
+        if cls.is_sym_known:
             return
 
         pre = cls.V + cls.H + cls.R  # new
@@ -39455,7 +39455,7 @@ class Symmetry:
 
         post = cls.V + cls.H + cls.R  # new
 
-        if post == 1: 
+        if post == 1:
             cls.do_sym_found_stuff()
         elif post < pre and cls.R == 0:  # new
             cls.predict_enemy_core()
@@ -39906,7 +39906,7 @@ class TurretSuicide:
     enemy_core_visible: bool
     post_init_completed: bool
     has_feeder: bool
-    
+
 
     @classmethod
     def init(cls):
@@ -40020,9 +40020,9 @@ class Unit:
             DarkForest.needs_update = False
 
         if Globals.my_type != EntityType.LAUNCHER:
-            
+
             Map.fill_tile_info()
-            
+
 
 
     @classmethod
@@ -40119,51 +40119,51 @@ class Builder(Unit):
         my_pos = Globals.my_pos
         cls.min_dist_to_a_core = min(my_pos.distance_squared(Unit.core_pos), my_pos.distance_squared(Symmetry.enemy_core_pos))
 
-        
+
         DarkForest.fcompute()
-        
 
-        
+
+
         BfsBureau.update()
-        
 
-        
+
+
         BfsBureau.bfs20()
-        
+
 
         if not TLEManager.daylight_savings_time:
-            
+
             Symmetry.run_sym_check()
-            
 
-            
+
+
             BfsBureau.update_enclosed_regions()
-            
 
-            
+
+
             OreExecutive.fill()
-            
 
-        
+
+
         VisionTracker.fill()
-        
+
 
         if not TLEManager.daylight_savings_time:
-            
+
             SitterTakedown.fill()
-            
 
-            
+
+
             HarvesterAdjacent.fill()
-            
 
-        
+
+
         Attacker.update()
-        
 
-        
+
+
         HealTargeter.fill()
-        
+
 
 
         if cls.mode == 0:
@@ -40214,22 +40214,22 @@ class Builder(Unit):
             cls.state, *args = cls.determine_state()
 
 
-        
+
         globals()[f'State{cls.state}'].run(*args)
-        
+
 
 
     @classmethod
     def end_turn(cls):
         Unit.end_turn()
 
-        
-        HealExecutor.execute_heal_attempt()
-        
 
-        
+        HealExecutor.execute_heal_attempt()
+
+
+
         Marker.attempt_mark()
-        
+
 
 
 
@@ -40364,15 +40364,15 @@ class Builder(Unit):
             return 'Attack', secondaryattackpos, 'Preroute'
 
         if RouteToBreach.is_active:
-            
+
             return ('RouteBreach',)
 
         if RouteToFoundry.is_active:
-            
+
             return ('RouteFoundry',)
 
         if RouteToCore.is_active:
-            
+
             return ('Route',)
 
 
@@ -40396,7 +40396,7 @@ class Builder(Unit):
                 pass
 
             elif route_pos not in RouteToCore.killed:
-                
+
                 RouteToCore.set_pos(route_pos)
                 return 'MoveTo', route_pos, 'InitRoute'
 
@@ -40499,7 +40499,7 @@ class Core(Unit):
     def run_turn(cls):
         BurnManager.maybe_burn_for_ti()
 
-        if BurnManager.should_burn_emergency(): 
+        if BurnManager.should_burn_emergency():
             BurnManager.burn_for_builder()
 
         if SpawnManager.should_spawn() or SpawnManager.should_spawn_emergency():
@@ -40556,7 +40556,7 @@ class Launcher(Unit):
     def start_turn(cls):
         Unit.start_turn()
 
-    
+
     ROUTING_SET = Constants.TRANSPORTERS_SET
 
     @classmethod
@@ -40579,11 +40579,11 @@ class Launcher(Unit):
                     nearby_enemy_bot = ct.get_position(unit)
                 else:
                     nearby_ally_bot = ct.get_position(unit)
-        
+
         for building in ct.get_nearby_buildings(2):
             if get_team(building) != my_team:
                 enemy_buildings += 1
-                
+
         if nearby_ally_bot is not None:
             print("Nearby Ally Bot:", nearby_ally_bot)
             for unit in ct.get_nearby_units(8):
@@ -40591,7 +40591,7 @@ class Launcher(Unit):
                     if get_team(unit) != my_team:
                         if ct.get_position(unit).distance_squared(nearby_ally_bot) <= 2:
                             close_enemy_bots += 1
-                
+
         if nearby_enemy_bot is not None:
             print("Oh no! Nearby Enemy Bot:", nearby_enemy_bot)
             print("Time Elapsed:", ct.get_cpu_time_elapsed())
@@ -40659,11 +40659,11 @@ class Launcher(Unit):
             _bc_get = building_cache.get
             scores = []
             _sa = scores.append
-            
+
             enemy_builder_bots = set()
             enemy_bots_2 = set()
             enemy_bots_8 = set()
-            
+
             for unit in ct.get_nearby_units():
                 if ct.get_entity_type(unit) == BUILDER_BOT and ct.get_team(unit) != my_team:
                     upos = ct.get_position(unit)
@@ -40701,14 +40701,14 @@ class Launcher(Unit):
 
                 if not ct.is_tile_passable(tile):
                     continue
-                    
+
                 if tile in enemy_builder_bots:
                     continue
-                    
+
                 score = 0
 
                 building = _bc_get(tile)
-                    
+
                 if building is not None:
                     if building.team != my_team:
                         score += 1
@@ -40849,7 +40849,7 @@ class Sentinel(Unit):
     @classmethod
     def run_turn(cls):
         # shooting mod 3 doesn't work too well
-        # consider that harvester outputs every 4 rounds 
+        # consider that harvester outputs every 4 rounds
         # interval is further slowed by harvester splitting to accepting nodes
         # i think just try firing when we can
         SentinelSupervisor.try_fire()
@@ -41069,16 +41069,16 @@ class VisionTracker:
 
     @classmethod
     def canonical_ally(cls, from_pos: Position) -> BotInfo:
-        
+
         ret = min(cls.allies, key=
             lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )
-        
+
         return ret
 
     @classmethod
     def canonical_ally_index(cls, from_pos: Position) -> int:
-        
+
         allyIndex = list(map(lambda x: x.position, sorted(cls.allies, key=
             lambda x: (Util.l1(from_pos, x.position) << 16) + x.id
         )))
@@ -41087,7 +41087,7 @@ class VisionTracker:
         else:
             Debug.warn("my_pos not found in canonical ally list!")
             i = 0
-        
+
         return i
 
 
